@@ -657,6 +657,7 @@ internal sealed partial class CombatBeamSolver
                 CombatEndedTurn = annotations.CombatEndedTurn,
                 DeathTurn = annotations.DeathTurn,
                 OnlyDeathRoutesFound = onlyDeathRoutesFound,
+                IsMultiplayerSearch = policy.CurrentTurnOnly,
                 IsActEndingBoss = _isActEndingBoss,
                 BossHpRelief = _bossHpRelief,
                 Elapsed = stopwatch.Elapsed,
@@ -719,7 +720,10 @@ internal sealed partial class CombatBeamSolver
                 battleDamage.PotionsUsedSoFar + selected.Node.PotionCount,
                 battleDamage.HpLostSoFar + selected.Snapshot.CumulativePlayerHpLost,
                 annotations.CombatEndedTurn.HasValue,
-                onlyDeathRoutesFound,
+                onlyDeathRoutesFound
+                    && (!policy.CurrentTurnOnly || selected.Node.Snapshot.PlayerDead),
+                policy.CurrentTurnOnly,
+                selected.Node.Snapshot.PlayerDead,
                 selected.Snapshot.HasRisk,
                 turns);
         }

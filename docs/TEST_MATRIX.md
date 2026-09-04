@@ -26,6 +26,7 @@
 | `ISSUE-20260904-NIBBITS-WEAK-MULTIPLAYER-SCALING` | 已修复，待多人夹具 | 问题包首个 `SEARCH_FAILURE` 原因为多人缩放 mirror 残留单人拒绝；现按原版敌方格挡缩放语义计算，2P 当前回合路径不再因 `NotSupportedException` 中止。问题包无通用回放导入器，本轮未声称真实多人场景通过。 | 2026-09-04 |
 | `ISSUE-20260904-SLIMES-WEAK-MULTIPLAYER-TARGET` | 已修复，待多人夹具 | `LIFT` 的 `AnyAlly` 目标现在由分支玩家 roster 枚举并写入 `TargetCombatId`，不再以空目标进入格挡 mirror；同步覆盖 `AnyPlayer`。问题包无通用回放导入器，本轮未声称真实多人场景通过。 | 2026-09-04 |
 | `MULTIPLAYER-SEARCH-HORIZON-SETTINGS` | 待 headless 进程可用 | 设置默认 `4`、旧 JSON 缺失字段回退、1/12 边界、非法 0/13 拒绝、设置页重载，以及单人无限制/多人有限层策略映射由控制器生命周期断言覆盖。真实多人 4 回合搜索仍待建立多人夹具。 | 2026-09-04 |
+| `MULTIPLAYER-DEATH-OUTCOME-NOTICE` | 待 headless 进程可用 | 纯 UI 判定覆盖单人原行为、多人仅威胁投影死亡时隐藏、多人实际死亡时显示，以及非死亡路线隐藏；真实多人回合上限场景仍待建立夹具。 | 2026-09-04 |
 
 性能指标口径：`selected_*` 只描述最终选中的单个 solver；请求级 `total_expanded_nodes / total_transitions / total_choice_branches`、`total_solver_ms`、分配与 GC 累计对正常、失败和取消的每个 solver 工作区间精确记录一次，包括取消前已发生的部分工作。Smart 有限药水层之间由 coordinator 主动执行的内存整理也计入时间、分配与 GC，但不增加 solver 数；建立开局、层间比较等其他编排工作仍不在这些总值中。因此端到端耗时以请求/阶段外层墙钟为准，峰值内存以进程 `VmHWM` 为准。Smart 多层的取消时点可能令请求总工作量小幅波动，语义验收优先比较胜负、战损、回合和动作路线。峰值工作集是瞬时进程峰值，不能跨阶段相加；`16 GB` NoGC 是运行时请求预算，不等于实际占用或硬上限；NoGC 活跃时 `GC.GetTotalMemory(false)` 不是严格 live-set 测量。
 

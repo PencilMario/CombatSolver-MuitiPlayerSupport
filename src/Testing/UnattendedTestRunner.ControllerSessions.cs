@@ -56,6 +56,29 @@ internal sealed partial class UnattendedTestRunner
         AssertInvalidMultiplayerSearchTurnLimit(13);
     }
 
+    private static void VerifyMultiplayerDeathOutcomeNotice()
+    {
+        if (!SolverOverlaySnapshot.ShouldShowOnlyDeathRoutesForTesting(
+                isMultiplayerSearch: false,
+                onlyDeathRoutesFound: true,
+                playerDead: false)
+            || SolverOverlaySnapshot.ShouldShowOnlyDeathRoutesForTesting(
+                isMultiplayerSearch: true,
+                onlyDeathRoutesFound: true,
+                playerDead: false)
+            || !SolverOverlaySnapshot.ShouldShowOnlyDeathRoutesForTesting(
+                isMultiplayerSearch: true,
+                onlyDeathRoutesFound: true,
+                playerDead: true)
+            || SolverOverlaySnapshot.ShouldShowOnlyDeathRoutesForTesting(
+                isMultiplayerSearch: true,
+                onlyDeathRoutesFound: false,
+                playerDead: true))
+        {
+            throw new InvalidOperationException("多人死亡路线提示没有区分威胁投影与实际死亡。");
+        }
+    }
+
     private static void AssertInvalidMultiplayerSearchTurnLimit(int value)
     {
         try
@@ -77,6 +100,7 @@ internal sealed partial class UnattendedTestRunner
         CombatBeamSolver.VerifyCycleTranspositionLeasePolicyForTesting();
         CombatBeamSolver.VerifyPlayerTargetEnumerationForTesting();
         VerifyMultiplayerSearchTurnLimitSettings();
+        VerifyMultiplayerDeathOutcomeNotice();
         NGame host = NGame.Instance
             ?? throw new InvalidOperationException("控制器会话测试找不到 NGame。");
         if (SolverController.SolverDisabled)
@@ -199,6 +223,8 @@ internal sealed partial class UnattendedTestRunner
             ProjectedBattleHpLost: 9,
             CombatEnded: false,
             OnlyDeathRoutesFound: false,
+            IsMultiplayerSearch: false,
+            PlayerDead: false,
             HasRisk: false,
             Turns:
             [

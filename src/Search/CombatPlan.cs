@@ -1372,6 +1372,7 @@ internal sealed class SolverResult
     public required int? CombatEndedTurn { get; init; }
     public required int? DeathTurn { get; init; }
     public required bool OnlyDeathRoutesFound { get; init; }
+    public bool IsMultiplayerSearch { get; init; }
     public required bool IsActEndingBoss { get; init; }
     public required BossHpRelief BossHpRelief { get; init; }
     public required TimeSpan Elapsed { get; init; }

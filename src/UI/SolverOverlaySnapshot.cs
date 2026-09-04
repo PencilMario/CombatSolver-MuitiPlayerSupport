@@ -147,7 +147,10 @@ internal sealed record SolverOverlaySnapshot(
             preview.ProjectedBattleHpLost,
             preview.CombatEnded,
             hpOutcomeText,
-            preview.OnlyDeathRoutesFound,
+            ShouldShowOnlyDeathRoutes(
+                preview.IsMultiplayerSearch,
+                preview.OnlyDeathRoutesFound,
+                preview.PlayerDead),
             turns,
             DetailsText: string.Empty,
             HasRisk: preview.HasRisk,
@@ -224,6 +227,10 @@ internal sealed record SolverOverlaySnapshot(
         SolverOverlayTurnSnapshot[] turns = Enumerable.Range(0, searchedTurns)
             .Select(index => CaptureTurn(result, startTurnNumber + index))
             .ToArray();
+        bool showOnlyDeathRoutes = ShouldShowOnlyDeathRoutes(
+            result.IsMultiplayerSearch,
+            result.OnlyDeathRoutesFound,
+            result.Snapshot.PlayerDead);
         return new SolverOverlaySnapshot(
             startTurnNumber,
             statusText,
@@ -234,12 +241,24 @@ internal sealed record SolverOverlaySnapshot(
             result.ProjectedBattleHpLost,
             projectedBattleHpLossKnown,
             hpOutcomeText,
-            result.OnlyDeathRoutesFound,
+            showOnlyDeathRoutes,
             turns,
             BuildDetails(result, startTurnNumber, unmirrored, compensated, unexpectedReplan),
             hasRisk,
             BuildSearchLimitWarning(result.BoundaryReason));
     }
+
+    internal static bool ShouldShowOnlyDeathRoutesForTesting(
+        bool isMultiplayerSearch,
+        bool onlyDeathRoutesFound,
+        bool playerDead)
+        => ShouldShowOnlyDeathRoutes(isMultiplayerSearch, onlyDeathRoutesFound, playerDead);
+
+    private static bool ShouldShowOnlyDeathRoutes(
+        bool isMultiplayerSearch,
+        bool onlyDeathRoutesFound,
+        bool playerDead)
+        => onlyDeathRoutesFound && (!isMultiplayerSearch || playerDead);
 
     private static SolverOverlayTurnSnapshot CaptureTurn(SolverResult result, int turn)
     {
