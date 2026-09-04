@@ -469,6 +469,9 @@ internal static class SolverController
                 $"搜索并行度必须在 1..{SolverWeights.MaximumSearchMaxDegreeOfParallelism} 之间，" +
                 $"实际为 {maxDegreeOfParallelism}。");
         }
+        (bool currentTurnOnly, int maximumSearchedTurnLayers) = ResolveSearchHorizon(
+            IsMultiplayerSession,
+            settings.MultiplayerSearchTurnLimit);
         return new SearchPolicySnapshot(
             settings.ShortProfile,
             settings.DeepProfile,
@@ -486,7 +489,8 @@ internal static class SolverController
             settings.ActTransitionBossHpStrategy,
             settings.FinalBossHpStrategy,
             settings.AcceptableBattleHpLoss,
-            IsMultiplayerSession,
+            currentTurnOnly,
+            maximumSearchedTurnLayers,
             new SearchDiagnosticsSink(
                 message => Entry.Logger.Info(message),
                 message => Entry.Logger.Debug(message)),
@@ -495,6 +499,28 @@ internal static class SolverController
         {
             Interaction = interaction,
         };
+    }
+
+    internal static (bool CurrentTurnOnly, int MaximumSearchedTurnLayers)
+        ResolveSearchHorizonForTesting(bool isMultiplayer, int multiplayerSearchTurnLimit)
+        => ResolveSearchHorizon(isMultiplayer, multiplayerSearchTurnLimit);
+
+    private static (bool CurrentTurnOnly, int MaximumSearchedTurnLayers) ResolveSearchHorizon(
+        bool isMultiplayer,
+        int multiplayerSearchTurnLimit)
+    {
+        if (!isMultiplayer)
+            return (false, int.MaxValue);
+        if (multiplayerSearchTurnLimit < SolverSettings.MinimumMultiplayerSearchTurnLimit
+            || multiplayerSearchTurnLimit > SolverSettings.MaximumMultiplayerSearchTurnLimit)
+        {
+            throw new InvalidOperationException(
+                $"多人模式搜索回合数必须在 " +
+                $"{SolverSettings.MinimumMultiplayerSearchTurnLimit}.." +
+                $"{SolverSettings.MaximumMultiplayerSearchTurnLimit} 之间，" +
+                $"实际为 {multiplayerSearchTurnLimit}。");
+        }
+        return (true, multiplayerSearchTurnLimit);
     }
 
     public static void BeginCombat(ICombatState? state)

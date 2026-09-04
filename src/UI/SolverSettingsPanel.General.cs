@@ -14,6 +14,7 @@ internal sealed partial class SolverSettingsPanel
     private OptionButton _actTransitionBossHpStrategy = null!;
     private OptionButton _finalBossHpStrategy = null!;
     private LineEdit _acceptableBattleHpLoss = null!;
+    private LineEdit _multiplayerSearchTurnLimit = null!;
     private OptionButton _searchCompletionNotificationPolicy = null!;
     private OptionButton _overlayTheme = null!;
     private HSlider _overlayOpacity = null!;
@@ -38,6 +39,10 @@ internal sealed partial class SolverSettingsPanel
         => _acceptableBattleHpLoss.Text
            == SolverSettings.Current.AcceptableBattleHpLoss.ToString(CultureInfo.InvariantCulture);
 
+    internal bool MultiplayerSearchTurnLimitSettingsConfiguredForTesting
+        => _multiplayerSearchTurnLimit.Text
+           == SolverSettings.Current.MultiplayerSearchTurnLimit.ToString(CultureInfo.InvariantCulture);
+
     internal bool ExerciseAcceptableBattleHpLossSettingsForTesting()
     {
         SolverSettingsData original = SolverSettings.Current;
@@ -47,6 +52,23 @@ internal sealed partial class SolverSettingsPanel
                 original with { AcceptableBattleHpLoss = 17 }));
             Reload();
             return AcceptableBattleHpLossSettingsConfiguredForTesting;
+        }
+        finally
+        {
+            SolverSettings.ApplyForTesting(original);
+            Reload();
+        }
+    }
+
+    internal bool ExerciseMultiplayerSearchTurnLimitSettingsForTesting()
+    {
+        SolverSettingsData original = SolverSettings.Current;
+        try
+        {
+            SolverSettings.ApplyForTesting(SolverSettings.RoundTripForTesting(
+                original with { MultiplayerSearchTurnLimit = 12 }));
+            Reload();
+            return MultiplayerSearchTurnLimitSettingsConfiguredForTesting;
         }
         finally
         {
@@ -176,6 +198,12 @@ internal sealed partial class SolverSettingsPanel
             "可接受战损上限（HP）",
             _acceptableBattleHpLoss,
             "完整胜利路线的预计本局战损小于等于此值时停止继续搜索；默认 0，只在零战损路线出现后停止。死亡或未完成路线不会触发。重新计算后生效。");
+        _multiplayerSearchTurnLimit = CreateMultiplayerSearchTurnLimitInput();
+        AddBasicRow(
+            solverGrid,
+            "多人模式计算回合数",
+            _multiplayerSearchTurnLimit,
+            "仅检测到多人战斗时生效，默认 4。求解器只预测本地玩家的后续回合；队友假定空过且不影响随机数。重新计算后生效。");
         content.AddChild(solverGrid);
 
         content.AddChild(CreateSectionHeading("幕末 Boss"));
@@ -242,6 +270,37 @@ internal sealed partial class SolverSettingsPanel
         _stopOnCombatEnd.ButtonPressed = data.StopFullAutoOnCombatEnd;
         _stopOnDeathTurn.ButtonPressed = data.StopFullAutoOnDeathTurn;
         _stopOnWorseRecalculation.ButtonPressed = data.StopFullAutoOnWorseRecalculation;
+    }
+
+    private LineEdit CreateMultiplayerSearchTurnLimitInput()
+    {
+        LineEdit input = CreateInput("4");
+        _reloadInputs.Add(data => input.Text = data.MultiplayerSearchTurnLimit
+            .ToString(CultureInfo.InvariantCulture));
+        bool Commit()
+        {
+            string text = input.Text.Trim();
+            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
+                || value < SolverSettings.MinimumMultiplayerSearchTurnLimit
+                || value > SolverSettings.MaximumMultiplayerSearchTurnLimit)
+            {
+                ShowInvalid(
+                    input,
+                    $"请输入 {SolverSettings.MinimumMultiplayerSearchTurnLimit}–" +
+                    $"{SolverSettings.MaximumMultiplayerSearchTurnLimit} 的整数");
+                return false;
+            }
+            if (SolverSettings.Current.MultiplayerSearchTurnLimit == value)
+                return KeepUnchanged(input);
+            return SaveSetting(
+                input,
+                SolverSettings.Current with { MultiplayerSearchTurnLimit = value },
+                "已保存，下次多人模式搜索生效");
+        }
+        input.FocusExited += () => Commit();
+        input.TextSubmitted += _ => Commit();
+        _commitInputs.Add(Commit);
+        return input;
     }
 
     private OptionButton CreateSearchCompletionNotificationPolicyInput()

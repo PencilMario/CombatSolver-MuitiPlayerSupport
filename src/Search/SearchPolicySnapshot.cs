@@ -18,6 +18,7 @@ internal sealed record SearchPolicySnapshot(
     BossHpStrategy FinalBossHpStrategy,
     int AcceptableBattleHpLoss,
     bool CurrentTurnOnly,
+    int MaximumSearchedTurnLayers,
     SearchDiagnosticsSink Diagnostics,
     SearchFramePressureSignal FramePressureSignal,
     SearchMemoryPressureSignal MemoryPressureSignal)

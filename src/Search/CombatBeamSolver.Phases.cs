@@ -420,7 +420,8 @@ internal sealed partial class CombatBeamSolver
             SearchBoundaryReason boundary = finalSnapshot.BoundaryReason;
             if (resultScope != SolverResultScope.RouteAdoption)
             {
-                if (boundary == SearchBoundaryReason.None && policy.CurrentTurnOnly && searchedTurnLayers >= 1)
+                if (boundary == SearchBoundaryReason.None
+                    && candidateSearchedTurnLayers >= policy.MaximumSearchedTurnLayers)
                     boundary = SearchBoundaryReason.TurnLimit;
                 else if (boundary == SearchBoundaryReason.None && candidateTimeBudgetReached)
                     boundary = SearchBoundaryReason.TimeLimit;
@@ -915,13 +916,14 @@ internal sealed partial class CombatBeamSolver
         // Retain the largest observed parent for the whole search so a new depth cannot
         // immediately rematerialize a wide wave that exceeds the No-GC allocation budget.
         long parentAllocatedHighWater = 64L * 1024 * 1024;
-        int reservedTurnLayers = _profile.Phase == SolverSearchPhase.Deep
-            && root.EncounterRoomType == RoomType.Boss
+        int reservedTurnLayers = policy.CurrentTurnOnly
+            ? policy.MaximumSearchedTurnLayers
+            : _profile.Phase == SolverSearchPhase.Deep && root.EncounterRoomType == RoomType.Boss
                 ? SolverWeights.BossEnemyStrengthSuppressionHorizon
                 : SolverWeights.StandardEnemyStrengthSuppressionHorizon;
 
         while (frontier.Count > 0
-            && (!policy.CurrentTurnOnly || searchedTurnLayers < 1)
+            && searchedTurnLayers < policy.MaximumSearchedTurnLayers
             && (!policy.VerifyIncrementalSearch
                 || searchedTurnLayers < SolverWeights.IncrementalVerificationMaxTurns)
             && _run.Expanded < _profile.MaxExpandedNodes

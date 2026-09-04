@@ -11,10 +11,72 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private void VerifyMultiplayerSearchTurnLimitSettings()
+    {
+        SolverSettingsData defaults = new();
+        SolverSettingsData legacyDefaults = SolverSettings.DeserializeForTesting("{}");
+        if (defaults.MultiplayerSearchTurnLimit != 4
+            || legacyDefaults.MultiplayerSearchTurnLimit != 4)
+            throw new InvalidOperationException("多人模式搜索回合数默认值不是 4。");
+
+        SolverSettingsData persisted = SolverSettings.RoundTripForTesting(defaults with
+        {
+            MultiplayerSearchTurnLimit = 12,
+        });
+        SolverSettingsData original = SolverSettings.Current;
+        try
+        {
+            SolverSettings.ApplyForTesting(persisted);
+            if (persisted.MultiplayerSearchTurnLimit != 12
+                || SolverSettings.Capture().MultiplayerSearchTurnLimit != 12)
+            {
+                throw new InvalidOperationException("多人模式搜索回合数没有正确持久化或捕获。");
+            }
+        }
+        finally
+        {
+            SolverSettings.ApplyForTesting(original);
+        }
+
+        (bool singleCurrentTurnOnly, int singleTurnLimit) =
+            SolverController.ResolveSearchHorizonForTesting(
+                isMultiplayer: false,
+                multiplayerSearchTurnLimit: persisted.MultiplayerSearchTurnLimit);
+        (bool multiplayerCurrentTurnOnly, int multiplayerTurnLimit) =
+            SolverController.ResolveSearchHorizonForTesting(
+                isMultiplayer: true,
+                multiplayerSearchTurnLimit: persisted.MultiplayerSearchTurnLimit);
+        if (singleCurrentTurnOnly || singleTurnLimit != int.MaxValue
+            || !multiplayerCurrentTurnOnly || multiplayerTurnLimit != 12)
+        {
+            throw new InvalidOperationException("多人模式搜索范围没有保持单人/多人边界。");
+        }
+
+        AssertInvalidMultiplayerSearchTurnLimit(0);
+        AssertInvalidMultiplayerSearchTurnLimit(13);
+    }
+
+    private static void AssertInvalidMultiplayerSearchTurnLimit(int value)
+    {
+        try
+        {
+            SolverSettings.ApplyForTesting(new SolverSettingsData
+            {
+                MultiplayerSearchTurnLimit = value,
+            });
+        }
+        catch (InvalidDataException)
+        {
+            return;
+        }
+        throw new InvalidOperationException($"多人模式搜索回合数 {value} 没有被拒绝。");
+    }
+
     private async Task AssertControllerSessionLifecycleAsync(CombatState combat)
     {
         CombatBeamSolver.VerifyCycleTranspositionLeasePolicyForTesting();
         CombatBeamSolver.VerifyPlayerTargetEnumerationForTesting();
+        VerifyMultiplayerSearchTurnLimitSettings();
         NGame host = NGame.Instance
             ?? throw new InvalidOperationException("控制器会话测试找不到 NGame。");
         if (SolverController.SolverDisabled)
@@ -232,6 +294,11 @@ internal sealed partial class UnattendedTestRunner
             || !SolverOverlay.ExerciseAcceptableBattleHpLossSettingsForTesting())
         {
             throw new InvalidOperationException("可接受战损上限没有按持久化设置加载。");
+        }
+        if (!SolverOverlay.MultiplayerSearchTurnLimitSettingsConfiguredForTesting
+            || !SolverOverlay.ExerciseMultiplayerSearchTurnLimitSettingsForTesting())
+        {
+            throw new InvalidOperationException("多人模式搜索回合数没有按持久化设置加载。");
         }
         if (!SolverOverlay.ExerciseBossHpStrategyHintForTesting())
             throw new InvalidOperationException("幕末 Boss 血量策略提示没有按战斗类型独立显示和关闭。");

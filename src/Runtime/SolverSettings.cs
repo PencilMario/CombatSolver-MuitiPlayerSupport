@@ -76,6 +76,7 @@ internal sealed record SolverSettingsData
     public BossHpStrategy ActTransitionBossHpStrategy { get; init; } = BossHpStrategy.ProgressionFirst;
     public BossHpStrategy FinalBossHpStrategy { get; init; } = BossHpStrategy.ProgressionFirst;
     public int AcceptableBattleHpLoss { get; init; }
+    public int MultiplayerSearchTurnLimit { get; init; } = 4;
     public int PerformanceMigrationVersion { get; init; }
     public SolverPerformancePreset? PerformancePreset { get; init; } = SolverPerformancePreset.Medium;
     public int? SearchMaxDegreeOfParallelism { get; init; }
@@ -119,6 +120,7 @@ internal sealed record SolverSettingsSnapshot(
     BossHpStrategy ActTransitionBossHpStrategy,
     BossHpStrategy FinalBossHpStrategy,
     int AcceptableBattleHpLoss,
+    int MultiplayerSearchTurnLimit,
     int SearchMaxDegreeOfParallelism,
     SolverSearchProfile ShortProfile,
     SolverSearchProfile DeepProfile,
@@ -132,6 +134,8 @@ internal static class SolverSettings
     public const double DefaultNoGcRegionBudgetGigabytes = 16d;
     public const double MaximumNoGcRegionBudgetGigabytes = 256d;
     public const int MaximumAcceptableBattleHpLoss = 100_000;
+    public const int MinimumMultiplayerSearchTurnLimit = 1;
+    public const int MaximumMultiplayerSearchTurnLimit = 12;
     public const float MinimumOverlayWidth = 400f;
     public const float MinimumOverlayHeight = 300f;
     public const float MaximumOverlaySize = 100_000f;
@@ -238,6 +242,7 @@ internal static class SolverSettings
             $"act_transition_boss_hp_strategy={migrated.ActTransitionBossHpStrategy} " +
             $"final_boss_hp_strategy={migrated.FinalBossHpStrategy} " +
             $"acceptable_battle_hp_loss={migrated.AcceptableBattleHpLoss} " +
+            $"multiplayer_search_turn_limit={migrated.MultiplayerSearchTurnLimit} " +
             $"search_notifications_enabled={migrated.SearchCompletionNotificationsEnabled} " +
             $"search_notification_mode={migrated.SearchCompletionNotificationMode} " +
             $"potion_policy={migrated.PotionPolicy} " +
@@ -275,6 +280,7 @@ internal static class SolverSettings
             data.ActTransitionBossHpStrategy,
             data.FinalBossHpStrategy,
             data.AcceptableBattleHpLoss,
+            data.MultiplayerSearchTurnLimit,
             data.SearchMaxDegreeOfParallelism
                 ?? SolverWeights.DefaultSearchMaxDegreeOfParallelism,
             shortProfile,
@@ -532,6 +538,13 @@ internal static class SolverSettings
         {
             throw new InvalidDataException(
                 $"{nameof(data.AcceptableBattleHpLoss)} must be between 0 and {MaximumAcceptableBattleHpLoss}.");
+        }
+        if (data.MultiplayerSearchTurnLimit < MinimumMultiplayerSearchTurnLimit
+            || data.MultiplayerSearchTurnLimit > MaximumMultiplayerSearchTurnLimit)
+        {
+            throw new InvalidDataException(
+                $"{nameof(data.MultiplayerSearchTurnLimit)} must be between " +
+                $"{MinimumMultiplayerSearchTurnLimit} and {MaximumMultiplayerSearchTurnLimit}.");
         }
         HashSet<(int Slot, string PotionId)> potionDirectiveKeys = [];
         foreach (PersistedPotionDirective directive in data.PotionDirectives)
