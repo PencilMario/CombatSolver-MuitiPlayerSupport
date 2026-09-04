@@ -1,0 +1,10 @@
+version: "1"
+
+rules:
+  - base: main
+    upstream: Torch1230:main
+    mergeMethod: merge
+    mergeUnstable: false
+
+label: ":arrow_heading_down: pull"
+conflictLabel: "merge-conflict"
