@@ -15,6 +15,7 @@ internal sealed partial class SolverSettingsPanel
     private OptionButton _finalBossHpStrategy = null!;
     private LineEdit _acceptableBattleHpLoss = null!;
     private LineEdit _multiplayerSearchTurnLimit = null!;
+    private CheckButton _recalculateMultiplayerSearchOnStateChange = null!;
     private OptionButton _searchCompletionNotificationPolicy = null!;
     private OptionButton _overlayTheme = null!;
     private HSlider _overlayOpacity = null!;
@@ -43,6 +44,10 @@ internal sealed partial class SolverSettingsPanel
         => _multiplayerSearchTurnLimit.Text
            == SolverSettings.Current.MultiplayerSearchTurnLimit.ToString(CultureInfo.InvariantCulture);
 
+    internal bool MultiplayerSearchStateChangeRecalculationSettingsConfiguredForTesting
+        => _recalculateMultiplayerSearchOnStateChange.ButtonPressed
+           == SolverSettings.Current.RecalculateMultiplayerSearchOnStateChange;
+
     internal bool ExerciseAcceptableBattleHpLossSettingsForTesting()
     {
         SolverSettingsData original = SolverSettings.Current;
@@ -69,6 +74,23 @@ internal sealed partial class SolverSettingsPanel
                 original with { MultiplayerSearchTurnLimit = 12 }));
             Reload();
             return MultiplayerSearchTurnLimitSettingsConfiguredForTesting;
+        }
+        finally
+        {
+            SolverSettings.ApplyForTesting(original);
+            Reload();
+        }
+    }
+
+    internal bool ExerciseMultiplayerSearchStateChangeRecalculationSettingsForTesting()
+    {
+        SolverSettingsData original = SolverSettings.Current;
+        try
+        {
+            SolverSettings.ApplyForTesting(SolverSettings.RoundTripForTesting(
+                original with { RecalculateMultiplayerSearchOnStateChange = false }));
+            Reload();
+            return MultiplayerSearchStateChangeRecalculationSettingsConfiguredForTesting;
         }
         finally
         {
@@ -204,6 +226,13 @@ internal sealed partial class SolverSettingsPanel
             "多人模式计算回合数",
             _multiplayerSearchTurnLimit,
             "仅检测到多人战斗时生效，默认 4。求解器只预测本地玩家的后续回合；队友假定空过且不影响随机数。重新计算后生效。");
+        _recalculateMultiplayerSearchOnStateChange = CreateToggle();
+        _recalculateMultiplayerSearchOnStateChange.Toggled += OnRecalculateMultiplayerSearchOnStateChangeToggled;
+        AddBasicRow(
+            solverGrid,
+            "多人计算期间状态变化后重算",
+            _recalculateMultiplayerSearchOnStateChange,
+            "默认开启。关闭时，本次计算固定使用开始时的快照；只有计算结束后或被打断后再次计算，才会捕获新状态。下次多人模式搜索生效。");
         content.AddChild(solverGrid);
 
         content.AddChild(CreateSectionHeading("幕末 Boss"));
@@ -270,6 +299,7 @@ internal sealed partial class SolverSettingsPanel
         _stopOnCombatEnd.ButtonPressed = data.StopFullAutoOnCombatEnd;
         _stopOnDeathTurn.ButtonPressed = data.StopFullAutoOnDeathTurn;
         _stopOnWorseRecalculation.ButtonPressed = data.StopFullAutoOnWorseRecalculation;
+        _recalculateMultiplayerSearchOnStateChange.ButtonPressed = data.RecalculateMultiplayerSearchOnStateChange;
     }
 
     private LineEdit CreateMultiplayerSearchTurnLimitInput()
@@ -499,6 +529,17 @@ internal sealed partial class SolverSettingsPanel
             return;
         SolverController.SetStopFullAutoOnWorseRecalculation(enabled);
         SetStatus("已保存并立即生效", SolverUiTokens.Palette.Success);
+    }
+
+    private void OnRecalculateMultiplayerSearchOnStateChangeToggled(bool enabled)
+    {
+        if (_loading)
+            return;
+        SolverSettings.Update(SolverSettings.Current with
+        {
+            RecalculateMultiplayerSearchOnStateChange = enabled,
+        });
+        SetStatus("已保存，下次多人模式搜索生效", SolverUiTokens.Palette.Success);
     }
 
     private static SearchCompletionNotificationPolicy ResolveSearchCompletionNotificationPolicy(

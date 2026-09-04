@@ -178,6 +178,8 @@ internal static class SolverOverlay
         => _settingsPanel?.AcceptableBattleHpLossSettingsConfiguredForTesting == true;
     internal static bool MultiplayerSearchTurnLimitSettingsConfiguredForTesting
         => _settingsPanel?.MultiplayerSearchTurnLimitSettingsConfiguredForTesting == true;
+    internal static bool MultiplayerSearchStateChangeRecalculationSettingsConfiguredForTesting
+        => _settingsPanel?.MultiplayerSearchStateChangeRecalculationSettingsConfiguredForTesting == true;
     internal static bool ResizeUiConfiguredForTesting
         => _rightResizeHandle != null
             && _bottomResizeHandle != null
@@ -336,6 +338,8 @@ internal static class SolverOverlay
         => _settingsPanel?.ExerciseAcceptableBattleHpLossSettingsForTesting() == true;
     internal static bool ExerciseMultiplayerSearchTurnLimitSettingsForTesting()
         => _settingsPanel?.ExerciseMultiplayerSearchTurnLimitSettingsForTesting() == true;
+    internal static bool ExerciseMultiplayerSearchStateChangeRecalculationSettingsForTesting()
+        => _settingsPanel?.ExerciseMultiplayerSearchStateChangeRecalculationSettingsForTesting() == true;
 
     internal static async Task<bool> ExerciseOverlayResizePersistenceForTestingAsync()
     {

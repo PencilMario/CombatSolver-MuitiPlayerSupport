@@ -77,6 +77,7 @@ internal sealed record SolverSettingsData
     public BossHpStrategy FinalBossHpStrategy { get; init; } = BossHpStrategy.ProgressionFirst;
     public int AcceptableBattleHpLoss { get; init; }
     public int MultiplayerSearchTurnLimit { get; init; } = 4;
+    public bool RecalculateMultiplayerSearchOnStateChange { get; init; } = true;
     public int PerformanceMigrationVersion { get; init; }
     public SolverPerformancePreset? PerformancePreset { get; init; } = SolverPerformancePreset.Medium;
     public int? SearchMaxDegreeOfParallelism { get; init; }
@@ -121,6 +122,7 @@ internal sealed record SolverSettingsSnapshot(
     BossHpStrategy FinalBossHpStrategy,
     int AcceptableBattleHpLoss,
     int MultiplayerSearchTurnLimit,
+    bool RecalculateMultiplayerSearchOnStateChange,
     int SearchMaxDegreeOfParallelism,
     SolverSearchProfile ShortProfile,
     SolverSearchProfile DeepProfile,
@@ -243,6 +245,7 @@ internal static class SolverSettings
             $"final_boss_hp_strategy={migrated.FinalBossHpStrategy} " +
             $"acceptable_battle_hp_loss={migrated.AcceptableBattleHpLoss} " +
             $"multiplayer_search_turn_limit={migrated.MultiplayerSearchTurnLimit} " +
+            $"recalculate_multiplayer_search_on_state_change={migrated.RecalculateMultiplayerSearchOnStateChange} " +
             $"search_notifications_enabled={migrated.SearchCompletionNotificationsEnabled} " +
             $"search_notification_mode={migrated.SearchCompletionNotificationMode} " +
             $"potion_policy={migrated.PotionPolicy} " +
@@ -281,6 +284,7 @@ internal static class SolverSettings
             data.FinalBossHpStrategy,
             data.AcceptableBattleHpLoss,
             data.MultiplayerSearchTurnLimit,
+            data.RecalculateMultiplayerSearchOnStateChange,
             data.SearchMaxDegreeOfParallelism
                 ?? SolverWeights.DefaultSearchMaxDegreeOfParallelism,
             shortProfile,

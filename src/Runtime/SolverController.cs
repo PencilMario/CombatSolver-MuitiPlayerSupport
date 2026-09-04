@@ -112,7 +112,9 @@ internal static class SolverController
             if (state == null || !CombatManager.Instance.IsInProgress)
                 return false;
             return _combat.LatestResult != null
-                    && _combat.LatestStamp == LiveCombatStamp.Capture(state)
+                    && (_combat.LatestStamp == LiveCombatStamp.Capture(state)
+                        || (_combat.LatestResultAllowsStateChangeExecution
+                            && IsMultiplayerSession))
                 || PlayerTurnSetupCoordinator.CanTakeOverTurnSetup(state);
         }
     }
@@ -581,6 +583,7 @@ internal static class SolverController
         _combat.State = state;
         _combat.LatestResult = result;
         _combat.LatestStamp = stamp;
+        _combat.LatestResultAllowsStateChangeExecution = false;
         _combat.ContinuationSource = IsMultiplayerSession
             || result.ResultScope == SolverResultScope.CurrentTurnAdoption
             ? null
@@ -1046,11 +1049,14 @@ internal static class SolverController
 
             _combat.ContinuationSource = null;
             CancelSearch();
+            SolverSettingsSnapshot settings = SolverSettings.Capture();
             SolverSearchSession search = new(
                 ++_nextSearchGeneration,
                 state,
                 stamp,
-                deployWhenReady);
+                deployWhenReady,
+                IsMultiplayerSession,
+                settings.RecalculateMultiplayerSearchOnStateChange);
             _search = search;
             CancellationToken token = search.Cancellation.Token;
             int generation = search.Generation;
@@ -1061,7 +1067,6 @@ internal static class SolverController
             setupStage = "display_names";
             SolverDisplayNames displayNames = SolverDisplayNames.Capture(state);
             setupStage = "settings";
-            SolverSettingsSnapshot settings = SolverSettings.Capture();
             SolverTheftPolicy? theftPolicy = ResolveTheftPolicy(state);
             SearchPolicySnapshot searchPolicy = CaptureSearchPolicy(
                 settings,
@@ -2135,9 +2140,14 @@ internal static class SolverController
         CombatState searchedState = search.State;
         LiveCombatStamp searchedStamp = search.Stamp;
         CombatState? currentState = CombatManager.Instance.DebugOnlyGetState();
+        bool stateMatches = ReferenceEquals(currentState, searchedState)
+            && LiveCombatStamp.Capture(searchedState) == searchedStamp;
         if (!ReferenceEquals(currentState, searchedState)
             || !CanSolve(searchedState, out _)
-            || LiveCombatStamp.Capture(searchedState) != searchedStamp)
+            || ShouldDiscardSearchResultForStateChange(
+                search.IsMultiplayerSearch,
+                search.RecalculateOnStateChange,
+                stateMatches))
         {
             _combat.BugReportIssues.Record(
                 CombatBugReportIssueKind.SearchResultStale,
@@ -2192,6 +2202,8 @@ internal static class SolverController
 
         _combat.LatestResult = result;
         _combat.LatestStamp = searchedStamp;
+        _combat.LatestResultAllowsStateChangeExecution =
+            search.IsMultiplayerSearch && !search.RecalculateOnStateChange;
         _combat.ContinuationSource = IsMultiplayerSession || currentTurnAdopted ? null : result;
         if (UnattendedTestRunner.IsActive)
             LastCompletedResultForTesting = result;
@@ -2233,6 +2245,21 @@ internal static class SolverController
         else if (_combat.FullAutoEnabled)
             StartFullAutoDeployment(host, searchedState, result);
     }
+
+    internal static bool ShouldDiscardSearchResultForStateChangeForTesting(
+        bool isMultiplayer,
+        bool recalculateOnStateChange,
+        bool stateMatches)
+        => ShouldDiscardSearchResultForStateChange(
+            isMultiplayer,
+            recalculateOnStateChange,
+            stateMatches);
+
+    private static bool ShouldDiscardSearchResultForStateChange(
+        bool isMultiplayer,
+        bool recalculateOnStateChange,
+        bool stateMatches)
+        => !stateMatches && (!isMultiplayer || recalculateOnStateChange);
 
     private static void ApplyProjectionBaselines(SolverResult result)
     {

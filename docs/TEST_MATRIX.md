@@ -26,6 +26,7 @@
 | `ISSUE-20260904-NIBBITS-WEAK-MULTIPLAYER-SCALING` | 已修复，待多人夹具 | 问题包首个 `SEARCH_FAILURE` 原因为多人缩放 mirror 残留单人拒绝；现按原版敌方格挡缩放语义计算，2P 当前回合路径不再因 `NotSupportedException` 中止。问题包无通用回放导入器，本轮未声称真实多人场景通过。 | 2026-09-04 |
 | `ISSUE-20260904-SLIMES-WEAK-MULTIPLAYER-TARGET` | 已修复，待多人夹具 | `LIFT` 的 `AnyAlly` 目标现在由分支玩家 roster 枚举并写入 `TargetCombatId`，不再以空目标进入格挡 mirror；同步覆盖 `AnyPlayer`。问题包无通用回放导入器，本轮未声称真实多人场景通过。 | 2026-09-04 |
 | `MULTIPLAYER-SEARCH-HORIZON-SETTINGS` | 待 headless 进程可用 | 设置默认 `4`、旧 JSON 缺失字段回退、1/12 边界、非法 0/13 拒绝、设置页重载，以及单人无限制/多人有限层策略映射由控制器生命周期断言覆盖。真实多人 4 回合搜索仍待建立多人夹具。 | 2026-09-04 |
+| `MULTIPLAYER-SEARCH-SNAPSHOT-RECALCULATION-SETTINGS` | 待 headless 进程可用 | 新增多人计算期间状态变化后重算开关，默认开启、旧 JSON 缺失字段回退、关闭后设置往返/UI 重载，以及多人开/关与单人状态变化 stale 判定由控制器生命周期断言覆盖。真实联网多人计算期间遗物/队友攻击变化仍待建立夹具。 | 2026-09-04 |
 | `MULTIPLAYER-DEATH-OUTCOME-NOTICE` | 待 headless 进程可用 | 纯 UI 判定覆盖单人原行为、多人仅威胁投影死亡时隐藏、多人实际死亡时显示，以及非死亡路线隐藏；真实多人回合上限场景仍待建立夹具。 | 2026-09-04 |
 | `BUG-REPORT-ONLINE-UPLOAD-DISABLED` | 待 headless 进程可用 | 设置页在线上传按钮保持禁用并显示“在线上传已禁用”，本地“导出问题包”按钮仍可用；上传确认入口不会启动任务，反馈提示改为导出 ZIP。Release 构建已通过，尚未运行 headless UI 夹具。 | 2026-09-04 |
 

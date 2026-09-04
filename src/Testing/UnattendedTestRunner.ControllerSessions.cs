@@ -16,7 +16,9 @@ internal sealed partial class UnattendedTestRunner
         SolverSettingsData defaults = new();
         SolverSettingsData legacyDefaults = SolverSettings.DeserializeForTesting("{}");
         if (defaults.MultiplayerSearchTurnLimit != 4
-            || legacyDefaults.MultiplayerSearchTurnLimit != 4)
+            || legacyDefaults.MultiplayerSearchTurnLimit != 4
+            || !defaults.RecalculateMultiplayerSearchOnStateChange
+            || !legacyDefaults.RecalculateMultiplayerSearchOnStateChange)
             throw new InvalidOperationException("多人模式搜索回合数默认值不是 4。");
 
         SolverSettingsData persisted = SolverSettings.RoundTripForTesting(defaults with
@@ -31,6 +33,12 @@ internal sealed partial class UnattendedTestRunner
                 || SolverSettings.Capture().MultiplayerSearchTurnLimit != 12)
             {
                 throw new InvalidOperationException("多人模式搜索回合数没有正确持久化或捕获。");
+            }
+
+            if (!persisted.RecalculateMultiplayerSearchOnStateChange
+                || !SolverSettings.Capture().RecalculateMultiplayerSearchOnStateChange)
+            {
+                throw new InvalidOperationException("多人计算期间状态变化重算设置没有正确持久化或捕获。");
             }
         }
         finally
@@ -54,6 +62,44 @@ internal sealed partial class UnattendedTestRunner
 
         AssertInvalidMultiplayerSearchTurnLimit(0);
         AssertInvalidMultiplayerSearchTurnLimit(13);
+
+        SolverSettingsData originalRecalculationSettings = SolverSettings.Current;
+        try
+        {
+            SolverSettings.ApplyForTesting(originalRecalculationSettings with
+            {
+                RecalculateMultiplayerSearchOnStateChange = false,
+            });
+            SolverSettingsData roundTripped = SolverSettings.RoundTripForTesting(SolverSettings.Current);
+            if (roundTripped.RecalculateMultiplayerSearchOnStateChange
+                || SolverSettings.Capture().RecalculateMultiplayerSearchOnStateChange)
+            {
+                throw new InvalidOperationException("关闭多人计算期间状态变化重算设置后仍被当作开启。");
+            }
+            if (SolverController.ShouldDiscardSearchResultForStateChangeForTesting(
+                    isMultiplayer: true,
+                    recalculateOnStateChange: false,
+                    stateMatches: false)
+                || SolverController.ShouldDiscardSearchResultForStateChangeForTesting(
+                    isMultiplayer: true,
+                    recalculateOnStateChange: false,
+                    stateMatches: true)
+                || !SolverController.ShouldDiscardSearchResultForStateChangeForTesting(
+                    isMultiplayer: true,
+                    recalculateOnStateChange: true,
+                    stateMatches: false)
+                || !SolverController.ShouldDiscardSearchResultForStateChangeForTesting(
+                    isMultiplayer: false,
+                    recalculateOnStateChange: false,
+                    stateMatches: false))
+            {
+                throw new InvalidOperationException("多人搜索快照状态变化判定不符合设置语义。");
+            }
+        }
+        finally
+        {
+            SolverSettings.ApplyForTesting(originalRecalculationSettings);
+        }
     }
 
     private static void VerifyMultiplayerDeathOutcomeNotice()
@@ -327,6 +373,11 @@ internal sealed partial class UnattendedTestRunner
             || !SolverOverlay.ExerciseMultiplayerSearchTurnLimitSettingsForTesting())
         {
             throw new InvalidOperationException("多人模式搜索回合数没有按持久化设置加载。");
+        }
+        if (!SolverOverlay.MultiplayerSearchStateChangeRecalculationSettingsConfiguredForTesting
+            || !SolverOverlay.ExerciseMultiplayerSearchStateChangeRecalculationSettingsForTesting())
+        {
+            throw new InvalidOperationException("多人计算期间状态变化重算设置没有按持久化设置加载。");
         }
         if (!SolverOverlay.ExerciseBossHpStrategyHintForTesting())
             throw new InvalidOperationException("幕末 Boss 血量策略提示没有按战斗类型独立显示和关闭。");

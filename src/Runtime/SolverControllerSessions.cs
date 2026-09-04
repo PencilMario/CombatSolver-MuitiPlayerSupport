@@ -123,6 +123,7 @@ internal sealed class SolverCombatSession
     public CombatState? State { get; set; }
     public SolverResult? LatestResult { get; set; }
     public LiveCombatStamp? LatestStamp { get; set; }
+    public bool LatestResultAllowsStateChangeExecution { get; set; }
     public SolverResult? ContinuationSource { get; set; }
     public SearchInteractionState? StoppedSearch { get; set; }
     public bool FullAutoEnabled { get; set; }
@@ -151,7 +152,9 @@ internal sealed class SolverSearchSession(
     int generation,
     CombatState state,
     LiveCombatStamp stamp,
-    bool deployWhenReady)
+    bool deployWhenReady,
+    bool isMultiplayerSearch,
+    bool recalculateOnStateChange)
 {
     private static readonly double[] FrameBucketUpperBounds =
         [16.7d, 25d, 33d, 50d, 100d, double.MaxValue];
@@ -168,6 +171,8 @@ internal sealed class SolverSearchSession(
     public int ReferenceReleaseState;
     public int CancellationDisposeState;
     public bool DeployWhenReady { get; set; } = deployWhenReady;
+    public bool IsMultiplayerSearch { get; } = isMultiplayerSearch;
+    public bool RecalculateOnStateChange { get; } = recalculateOnStateChange;
     public int MaxDegreeOfParallelism { get; set; } = 1;
     public SearchMemoryPressureSignal? MemoryPressureSignal { get; set; }
     public SearchInteractionState Interaction { get; } = new();
