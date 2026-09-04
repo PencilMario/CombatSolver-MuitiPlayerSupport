@@ -428,6 +428,7 @@ internal sealed partial class SimulatedCombatState
 
     public IRunState RunState => _runState;
     internal int CurrentActIndex => _currentActIndex;
+    int ICombatPredictionRunSnapshot.CurrentActIndex => _currentActIndex;
     internal RoomType? CurrentRoomType => _currentRoomType;
     internal MapCoord? CurrentMapCoord => _currentMapCoord;
     public CardMultiplayerConstraint CardMultiplayerConstraint => _cardMultiplayerConstraint;

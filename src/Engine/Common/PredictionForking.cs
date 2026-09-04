@@ -20,6 +20,8 @@ internal interface ICombatPredictionRunSnapshot
 {
     MegaCrit.Sts2.Core.Entities.Cards.CardMultiplayerConstraint CardMultiplayerConstraint { get; }
 
+    int CurrentActIndex { get; }
+
     CombatSolver.Engine.InCombat.Simulation.CombatPredictionRngSet CreatePredictionRngSet();
 }
 
