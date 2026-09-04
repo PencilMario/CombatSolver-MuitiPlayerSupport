@@ -486,6 +486,7 @@ internal static class SolverController
             settings.ActTransitionBossHpStrategy,
             settings.FinalBossHpStrategy,
             settings.AcceptableBattleHpLoss,
+            IsMultiplayerSession,
             new SearchDiagnosticsSink(
                 message => Entry.Logger.Info(message),
                 message => Entry.Logger.Debug(message)),
@@ -539,7 +540,6 @@ internal static class SolverController
             || _solverDisabled
             || _combat.AutomaticSearchPaused
             || !CombatManager.Instance.IsInProgress
-            || state.Players.Count != 1
             || state.CurrentSide != CombatSide.Player
             || player?.PlayerCombatState?.Phase != PlayerTurnPhase.Play
             || result.TurnSetupPlayState is not { } expected
@@ -555,7 +555,8 @@ internal static class SolverController
         _combat.State = state;
         _combat.LatestResult = result;
         _combat.LatestStamp = stamp;
-        _combat.ContinuationSource = result.ResultScope == SolverResultScope.CurrentTurnAdoption
+        _combat.ContinuationSource = IsMultiplayerSession
+            || result.ResultScope == SolverResultScope.CurrentTurnAdoption
             ? null
             : result;
         _combat.SearchesStarted++;
@@ -2165,7 +2166,7 @@ internal static class SolverController
 
         _combat.LatestResult = result;
         _combat.LatestStamp = searchedStamp;
-        _combat.ContinuationSource = currentTurnAdopted ? null : result;
+        _combat.ContinuationSource = IsMultiplayerSession || currentTurnAdopted ? null : result;
         if (UnattendedTestRunner.IsActive)
             LastCompletedResultForTesting = result;
         BattleDamageTracker.RegisterPlan(searchedState, result);
@@ -3111,8 +3112,6 @@ internal static class SolverController
             rejection = "求解器已在设置中禁用。";
         else if (!CombatManager.Instance.IsInProgress)
             rejection = "当前没有进行中的战斗。";
-        else if (state.Players.Count != 1)
-            rejection = "第一版只支持单人战斗。";
         else if (state.CurrentSide != CombatSide.Player || player?.PlayerCombatState?.Phase != PlayerTurnPhase.Play)
             rejection = "当前不是玩家出牌阶段。";
         else if (CombatManager.Instance.PlayerActionsDisabled)

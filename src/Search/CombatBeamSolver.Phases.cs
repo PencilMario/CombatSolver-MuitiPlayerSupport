@@ -108,8 +108,8 @@ internal sealed partial class CombatBeamSolver
                 nameof(_minimumPotionUses),
                 "最少用药数必须非负且不能超过最多用药数。");
         }
-        if (root.PlayerCount != 1)
-            throw new NotSupportedException("第一版只支持单人战斗。");
+        if (root.PlayerCount < 1)
+            throw new NotSupportedException("战斗根没有可用玩家。");
         if (root.Enemies.Count > 64)
             throw new NotSupportedException("单场战斗超过 64 个敌人，无法编码路线存活位图。");
         PlayerTurnPhase requiredPhase = _includeTurnSetup
@@ -410,7 +410,9 @@ internal sealed partial class CombatBeamSolver
 
             SimulationSnapshot finalSnapshot = selectedCandidate.Snapshot;
             RouteAnnotations annotations = materializedAnnotations;
-            IReadOnlyList<CachedContinuation> continuations = BuildContinuations(best);
+            IReadOnlyList<CachedContinuation> continuations = policy.CurrentTurnOnly
+                ? []
+                : BuildContinuations(best);
             int searchedTurns = Math.Max(1, best.Actions
                 .Select(action => action.Turn)
                 .DefaultIfEmpty(_startTurnNumber)
@@ -418,7 +420,9 @@ internal sealed partial class CombatBeamSolver
             SearchBoundaryReason boundary = finalSnapshot.BoundaryReason;
             if (resultScope != SolverResultScope.RouteAdoption)
             {
-                if (boundary == SearchBoundaryReason.None && candidateTimeBudgetReached)
+                if (boundary == SearchBoundaryReason.None && policy.CurrentTurnOnly && searchedTurnLayers >= 1)
+                    boundary = SearchBoundaryReason.TurnLimit;
+                else if (boundary == SearchBoundaryReason.None && candidateTimeBudgetReached)
                     boundary = SearchBoundaryReason.TimeLimit;
                 else if (boundary == SearchBoundaryReason.None && _run.Expanded >= _profile.MaxExpandedNodes)
                     boundary = SearchBoundaryReason.NodeLimit;
@@ -917,6 +921,7 @@ internal sealed partial class CombatBeamSolver
                 : SolverWeights.StandardEnemyStrengthSuppressionHorizon;
 
         while (frontier.Count > 0
+            && (!policy.CurrentTurnOnly || searchedTurnLayers < 1)
             && (!policy.VerifyIncrementalSearch
                 || searchedTurnLayers < SolverWeights.IncrementalVerificationMaxTurns)
             && _run.Expanded < _profile.MaxExpandedNodes
