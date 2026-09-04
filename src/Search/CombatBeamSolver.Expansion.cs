@@ -3412,7 +3412,8 @@ internal sealed partial class CombatBeamSolver
         PredictedCard card,
         CombatPredictionSimulator simulator)
     {
-        if (simulator.GetTargetType(card) == TargetType.AnyEnemy)
+        TargetType targetType = simulator.GetTargetType(card);
+        if (targetType == TargetType.AnyEnemy)
         {
             IReadOnlyList<Creature> enemies = simulator.State.Enemies;
             for (int i = 0; i < enemies.Count; i++)
@@ -3424,7 +3425,67 @@ internal sealed partial class CombatBeamSolver
             yield break;
         }
 
+        // Multiplayer cards such as Lift target another player. A null target is not
+        // a valid fallback: GeneralBlockOnPlay requires the selected ally creature.
+        if (targetType is TargetType.AnyPlayer or TargetType.AnyAlly)
+        {
+            Creature self = card.Preview.Owner.Creature;
+            IReadOnlyList<Creature> players = simulator.State.PlayerCreatures;
+            foreach ((int index, Creature target) in EnumeratePlayerTargets(
+                         targetType,
+                         self,
+                         players,
+                         static (candidate, owner) => candidate == owner,
+                         static _ => true))
+            {
+                if (!simulator.State.GetCreature(target).IsAlive)
+                    continue;
+                yield return (index, target);
+            }
+            yield break;
+        }
+
         yield return (-1, null);
+    }
+
+    private static IEnumerable<(int Index, T Target)> EnumeratePlayerTargets<T>(
+        TargetType targetType,
+        T self,
+        IReadOnlyList<T> players,
+        Func<T, T, bool> isSelf,
+        Func<T, bool> isAlive)
+    {
+        for (int index = 0; index < players.Count; index++)
+        {
+            T target = players[index];
+            if (targetType == TargetType.AnyAlly && isSelf(target, self)
+                || !isAlive(target))
+            {
+                continue;
+            }
+            yield return (index, target);
+        }
+    }
+
+    internal static void VerifyPlayerTargetEnumerationForTesting()
+    {
+        (int Index, int Target)[] allies = [.. EnumeratePlayerTargets(
+            TargetType.AnyAlly,
+            1,
+            new[] { 1, 2, 3 },
+            static (candidate, self) => candidate == self,
+            static candidate => candidate != 3)];
+        if (allies.Length != 1 || allies[0] != (1, 2))
+            throw new InvalidOperationException("AnyAlly 目标枚举没有排除自己或死亡队友。");
+
+        (int Index, int Target)[] players = [.. EnumeratePlayerTargets(
+            TargetType.AnyPlayer,
+            1,
+            new[] { 1, 2, 3 },
+            static (candidate, self) => candidate == self,
+            static _ => true)];
+        if (players.Length != 3 || players[0] != (0, 1) || players[2] != (2, 3))
+            throw new InvalidOperationException("AnyPlayer 目标枚举没有保留所有存活玩家。");
     }
 
     private IEnumerable<(int Index, Creature? Target)> TargetsForPotion(

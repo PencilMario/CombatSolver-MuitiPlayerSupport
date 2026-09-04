@@ -155,6 +155,7 @@ internal static class GeneralCardMirrors
                 break;
 
             case TargetType.AnyAlly:
+            case TargetType.AnyPlayer:
                 blockAction(context.Target);
                 break;
 

@@ -15,6 +15,7 @@
 - 第七批修复洗牌 Hook 的待处理选牌边界：一个监听器挂起原生选择后暂停同一 Hook 的后续监听器，分支回放消费该选择后再继续遍历，避免 `STRATAGEM_POWER` 与后续选择同时写入单槽位而触发“已有待处理选牌”。
 - 第九批把原生选牌页面/确认按钮等待超时标记为原生页面漂移：关闭当前页面并重新捕获战斗状态；部署延迟和回合准备整体超时仍保持明确失败。
 - 多人当前回合搜索修复问题包 `CombatSolver-NIBBITS_WEAK-20260904-160815-093` 暴露的首张防御牌失败：`MultiplayerScalingModel` mirror 不再把 2P 直接判为不支持，而是按原版敌方格挡缩放规则计算（2P 为 ×2，3P+ 使用幕/首领倍率）。缩放所需人数、幕索引和遭遇均来自根/分支状态，不读取 live `RunState`；问题包没有通用回放导入器，真实多人夹具仍待补。
+- 多人问题包 `CombatSolver-SLIMES_WEAK-20260904-163738-332` 暴露 `LIFT` 在搜索候选中被生成为空目标，回放进入 `GeneralBlockOnPlay` 后因 `CardPlay has no target creature` 失败。`CombatBeamSolver` 现在为 `AnyAlly` 和 `AnyPlayer` 从分支玩家 roster 枚举存活目标，并保留目标 CombatId；格挡 mirror 同步接受 `AnyPlayer`；单人模式没有队友时不会伪造空目标。真实多人夹具仍待补。
 
 ## 0.28.3（已发布，2026-09-03）：战损停止与路线信息
 

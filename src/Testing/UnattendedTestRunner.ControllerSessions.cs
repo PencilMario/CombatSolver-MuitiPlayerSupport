@@ -14,6 +14,7 @@ internal sealed partial class UnattendedTestRunner
     private async Task AssertControllerSessionLifecycleAsync(CombatState combat)
     {
         CombatBeamSolver.VerifyCycleTranspositionLeasePolicyForTesting();
+        CombatBeamSolver.VerifyPlayerTargetEnumerationForTesting();
         NGame host = NGame.Instance
             ?? throw new InvalidOperationException("控制器会话测试找不到 NGame。");
         if (SolverController.SolverDisabled)
