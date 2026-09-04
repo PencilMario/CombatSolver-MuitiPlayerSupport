@@ -20,11 +20,11 @@ internal static class SolverUiTokens
     public static void ConfigureTheme(SolverOverlayTheme theme)
         => _activeTheme = theme;
 
-    public const string BugReportUploadInstruction = "请在设置中点击“上传问题包”提交日志。";
+    public const string BugReportUploadInstruction = "请在设置中点击“导出问题包”保存日志，再交给开发者。";
     public static string BugReportUploadInstructionRichText
         => $"[color={Palette.WarningHex}]{BugReportUploadInstruction}[/color]";
     public const string ParallelSearchFailureInstruction =
-        "请先在设置中点击“上传问题包”提交日志，再将“搜索并行度”改为“关闭（单线程）”后重试。";
+        "请先在设置中点击“导出问题包”保存日志，再将“搜索并行度”改为“关闭（单线程）”后重试。";
     public static string SearchFailureInstructionRichText(bool parallelSearchWasEnabled)
         => $"[color={Palette.WarningHex}]" +
            $"{(parallelSearchWasEnabled ? ParallelSearchFailureInstruction : BugReportUploadInstruction)}[/color]";

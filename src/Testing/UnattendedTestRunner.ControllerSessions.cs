@@ -304,6 +304,8 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidOperationException("求解器消息区域没有启用自动换行。");
         if (!SolverOverlay.UploadProgressConfiguredForTesting)
             throw new InvalidOperationException("在线问题包上传没有配置可视化进度条和单实例按钮初始状态。");
+        if (!SolverOverlay.OnlineBugReportUploadDisabledForTesting)
+            throw new InvalidOperationException("本分支没有禁用设置页在线上传问题包入口。");
         if (!SolverOverlay.SearchCompletionNotificationSettingsConfiguredForTesting)
             throw new InvalidOperationException("搜索结束通知三态选项没有按持久化设置加载。");
         if (!SolverOverlay.VisualSettingsConfiguredForTesting
@@ -516,7 +518,7 @@ internal sealed partial class UnattendedTestRunner
             SolverSettings.ApplyForTesting(originalNotificationSettings);
         }
         if (!SolverOverlay.ExerciseUploadCompletionTransitionForTesting())
-            throw new InvalidOperationException("上传任务结束前按钮状态提前切回空闲，可能重新打开确认弹窗。");
+            throw new InvalidOperationException("本分支禁用在线上传后，设置页仍允许启动上传任务。");
         if (!SolverOverlay.ExercisePerformancePresetPersistenceForTesting())
             throw new InvalidOperationException("0.24.3 性能迁移或预设/内存独立持久化失败。");
         if (SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(1) != 1
@@ -533,9 +535,9 @@ internal sealed partial class UnattendedTestRunner
         string serialFailure = SolverController.FormatSearchFailureForTesting(
             new InvalidOperationException("serial failure"),
             parallelSearchWasEnabled: false);
-        if (!parallelFailure.Contains("上传问题包", StringComparison.Ordinal)
+        if (!parallelFailure.Contains("导出问题包", StringComparison.Ordinal)
             || !parallelFailure.Contains("关闭（单线程）", StringComparison.Ordinal)
-            || !serialFailure.Contains("上传问题包", StringComparison.Ordinal)
+            || !serialFailure.Contains("导出问题包", StringComparison.Ordinal)
             || serialFailure.Contains("关闭（单线程）", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("搜索失败提示没有按本次请求的并行状态提供恢复建议。");
@@ -589,8 +591,6 @@ internal sealed partial class UnattendedTestRunner
         }
 
         AssertBugReportAutomaticClassification();
-        await AssertBugReportUploadBoundariesAsync();
-
         SolverController.RequestSearch(host, combat, SearchReason.Manual);
         if (!SolverController.IsSearching || SolverController.AutomaticSearchPaused)
             throw new InvalidOperationException("重新计算没有恢复当前及后续回合搜索。");

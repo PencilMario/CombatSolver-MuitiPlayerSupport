@@ -149,6 +149,8 @@ internal static class SolverOverlay
         => _summaryText is { FitContent: true, AutowrapMode: TextServer.AutowrapMode.WordSmart };
     internal static bool UploadProgressConfiguredForTesting
         => _settingsPanel?.UploadProgressConfiguredForTesting == true;
+    internal static bool OnlineBugReportUploadDisabledForTesting
+        => _settingsPanel?.OnlineBugReportUploadDisabledForTesting == true;
     internal static bool SearchCompletionNotificationSettingsConfiguredForTesting
         => _settingsPanel?.SearchCompletionNotificationSettingsConfiguredForTesting == true;
     internal static bool SettingsTabsConfiguredForTesting

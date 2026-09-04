@@ -5,6 +5,9 @@ namespace CombatSolver;
 
 internal sealed partial class SolverSettingsPanel
 {
+    // 本分支不提供在线反馈提交；保留上传器实现供其他分支和边界测试复用。
+    private static readonly bool OnlineBugReportUploadEnabled = false;
+
     private CheckButton _detailedDiagnosticLogs = null!;
     private Button _exportBugReport = null!;
     private Button _uploadBugReport = null!;
@@ -29,7 +32,14 @@ internal sealed partial class SolverSettingsPanel
            && FormatUploadProgressStatus(1024, 1024, 100).Contains(
                "等待服务器确认",
                StringComparison.Ordinal)
-           && _uploadBugReport.Text == "上传问题包";
+           && _uploadBugReport.Text == "在线上传已禁用";
+
+    internal bool OnlineBugReportUploadDisabledForTesting
+        => !OnlineBugReportUploadEnabled
+           && _uploadBugReport.Disabled
+           && !_uploadProgress.Visible
+           && _uploadBugReport.Text == "在线上传已禁用"
+           && !_exportBugReport.Disabled;
 
     public override void _Process(double delta)
     {
@@ -62,6 +72,8 @@ internal sealed partial class SolverSettingsPanel
 
     internal bool ExerciseUploadCompletionTransitionForTesting()
     {
+        if (!OnlineBugReportUploadEnabled)
+            return OnlineBugReportUploadDisabledForTesting;
         if (_uploadInProgress || _exportInProgress || HasOpenUploadDialog())
             return false;
 
@@ -127,7 +139,7 @@ internal sealed partial class SolverSettingsPanel
             feedbackGrid,
             "反馈联系QQ（选填）",
             CreateContactQqInput(),
-            "上传问题包时随附，方便开发者回访；只需填一次，上传弹窗会自动带上。");
+            "记录在问题包中，方便开发者回访；本分支在线上传已禁用，请使用“导出问题包”。");
         content.AddChild(feedbackGrid);
 
         HBoxContainer actions = new()
@@ -159,6 +171,7 @@ internal sealed partial class SolverSettingsPanel
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         content.AddChild(_uploadProgress);
+        RefreshBugReportControls();
         return CreatePageScroll(content);
     }
 
@@ -236,6 +249,12 @@ internal sealed partial class SolverSettingsPanel
 
     private void OnUploadBugReportPressed()
     {
+        if (!OnlineBugReportUploadEnabled)
+        {
+            SetStatus("本分支已禁用在线上传，请使用“导出问题包”。", SolverUiTokens.Palette.Warning);
+            RefreshBugReportControls();
+            return;
+        }
         if (_uploadInProgress)
         {
             _uploadCancelRequested = true;
@@ -259,6 +278,12 @@ internal sealed partial class SolverSettingsPanel
 
     private void OnUploadConfirmed(string description)
     {
+        if (!OnlineBugReportUploadEnabled)
+        {
+            SetStatus("本分支已禁用在线上传，请使用“导出问题包”。", SolverUiTokens.Palette.Warning);
+            RefreshBugReportControls();
+            return;
+        }
         if (_uploadInProgress || _exportInProgress)
             return;
         _uploadInProgress = true;
@@ -403,6 +428,13 @@ internal sealed partial class SolverSettingsPanel
     {
         bool dialogOpen = HasOpenUploadDialog();
         _exportBugReport.Disabled = _exportInProgress || _uploadInProgress || dialogOpen;
+        if (!OnlineBugReportUploadEnabled)
+        {
+            _uploadBugReport.Disabled = true;
+            _uploadBugReport.Text = "在线上传已禁用";
+            SolverUiTokens.ApplyButtonStyle(_uploadBugReport, SolverButtonStyle.Secondary);
+            return;
+        }
         if (_uploadInProgress)
         {
             _uploadBugReport.Disabled = _uploadCancelRequested;

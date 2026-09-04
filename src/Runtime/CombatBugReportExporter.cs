@@ -393,7 +393,7 @@ internal static class CombatBugReportExporter
             "replay-state 是可机器读取的完整中途战斗夹具，含有序牌堆、逐牌存档/动态状态、Power/遗物/怪物字段、行动历史、阵容和全部 RNG；native-state 是游戏原生 NetFullCombatState；run-state 是该检查点时刻的内存跑局存档。\n" +
             "forensics/*/pre-combat 保存战前内存跑局快照。截图、整批磁盘存档和更早战斗不会进入问题包。\n" +
             "session.json、检查点和 export-context.json 会标记 controlMode：solver_only 表示全程由求解器接管，manual_plus_solver 表示本场曾手操后再交给求解器；lastSolverDeployedTurn 记录最近一次完整自动执行的回合。\n" +
-            "设置页另有独立的“上传问题包”按钮。\n");
+            "本分支未启用在线上传，请将导出的 ZIP 交给开发者。\n");
         Entry.Logger.Info($"[CombatSolver/Test] BUG_REPORT_EXPORTED path={path}");
         return path;
     }
