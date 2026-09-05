@@ -261,6 +261,20 @@ internal interface ICombatPredictionChoiceSink
         MegaCrit.Sts2.Core.Entities.Players.Player player,
         MegaCrit.Sts2.Core.Entities.Cards.PileType sourcePile,
         int count);
+
+    /// <summary>
+    /// 在给定的候选里让玩家挑任意张丢进弃牌堆，可以一张都不挑。
+    /// </summary>
+    /// <remarks>
+    /// 预视这类效果只让玩家看牌堆顶的几张，所以候选由调用方给出，不能从整个牌堆推。
+    /// 一张都不挑永远合法，因此下界是 0，这条选择不会让路线变得不可执行。
+    /// </remarks>
+    bool ResolvePileDiscardChoice(
+        CombatSolver.Engine.InCombat.Simulation.CombatPredictionSimulator simulator,
+        string sourceId,
+        MegaCrit.Sts2.Core.Entities.Players.Player player,
+        MegaCrit.Sts2.Core.Entities.Cards.PileType sourcePile,
+        IReadOnlyList<CombatSolver.Engine.Common.PredictedCard> options);
 }
 
 internal interface ICombatPredictionPendingChoiceState

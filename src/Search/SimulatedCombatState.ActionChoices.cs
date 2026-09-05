@@ -84,6 +84,23 @@ internal sealed partial class SimulatedCombatState :
             sourcePile);
     }
 
+    bool ICombatPredictionChoiceSink.ResolvePileDiscardChoice(
+        CombatPredictionSimulator simulator,
+        string sourceId,
+        Player player,
+        PileType sourcePile,
+        IReadOnlyList<PredictedCard> options)
+    {
+        return TurnStartChoiceSupport.ResolvePileDiscard(
+            simulator,
+            this,
+            player,
+            _activeActionChoices,
+            sourceId,
+            sourcePile,
+            options);
+    }
+
     private bool ResolveActionCardChoice(
         CombatPredictionSimulator simulator,
         PredictedCard playedCard,
