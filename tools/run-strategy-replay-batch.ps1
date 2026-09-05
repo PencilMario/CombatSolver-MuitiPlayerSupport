@@ -24,6 +24,8 @@ param(
     [int]$SearchParallelism = 4,
     [ValidateSet("Disabled", "Smart", "RequireAtLeastOne")]
     [string]$PotionPolicy = "Smart",
+    [ValidateSet("Reported", "ProgressionFirst", "MinimizeHpLoss")]
+    [string]$BossHpStrategy = "Reported",
     [ValidateRange(10, 3600)]
     [int]$HighTimeoutSeconds = 120,
     [ValidateRange(10, 3600)]
@@ -134,12 +136,13 @@ function New-BatchResult {
         [string]$Preset,
         [Nullable[int]]$SolverLoss,
         [Nullable[double]]$ElapsedSeconds,
-        [string]$RunId
+        [string]$RunId,
+        [object]$Policy
     )
 
     $manualLoss = Get-NullableInt $Entry.manualLoss
     $relativeToManual = $null
-    if ($null -ne $manualLoss -and $null -ne $SolverLoss) {
+    if ($TurnNumber -eq 1 -and $null -ne $manualLoss -and $null -ne $SolverLoss) {
         $relativeToManual = $manualLoss - $SolverLoss
     }
 
@@ -156,6 +159,8 @@ function New-BatchResult {
         turnNumber = $TurnNumber
         comparisonScope = if ($null -ne $TurnNumber -and $TurnNumber -eq 1) { "full_combat" } elseif ($null -ne $TurnNumber) { "mid_combat" } else { $null }
         preset = $Preset
+        bossHpStrategy = $BossHpStrategy
+        policy = $Policy
         solverLoss = $SolverLoss
         relativeToManual = $relativeToManual
         meetsManual = if ($null -ne $relativeToManual) { $relativeToManual -ge 0 } else { $null }
@@ -175,6 +180,30 @@ function Save-BatchResult {
 function Find-ReplayCandidate {
     param([string]$ReportDirectory)
 
+    $settingsPath = Join-Path $ReportDirectory "combat-solver/settings.json"
+    if (-not (Test-Path -LiteralPath $settingsPath -PathType Leaf)) {
+        return [pscustomobject]@{ candidate = $null; reason = "missing_reported_settings" }
+    }
+    $settings = Get-Content -LiteralPath $settingsPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    if ($null -eq $settings.potionDirectives) {
+        return [pscustomobject]@{ candidate = $null; reason = "missing_reported_potion_directives" }
+    }
+    $actBossStrategy = $BossHpStrategy
+    $finalBossStrategy = $BossHpStrategy
+    if ($BossHpStrategy -eq "Reported") {
+        $actBossStrategy = [string]$settings.actTransitionBossHpStrategy
+        $finalBossStrategy = [string]$settings.finalBossHpStrategy
+        if ($actBossStrategy -notin @("ProgressionFirst", "MinimizeHpLoss") -or
+            $finalBossStrategy -notin @("ProgressionFirst", "MinimizeHpLoss")) {
+            return [pscustomobject]@{ candidate = $null; reason = "missing_or_invalid_reported_boss_policy" }
+        }
+    }
+    $policy = [pscustomobject][ordered]@{
+        potionPolicy = $PotionPolicy
+        potionDirectives = @($settings.potionDirectives)
+        actTransitionBossHpStrategy = $actBossStrategy
+        finalBossHpStrategy = $finalBossStrategy
+    }
     $forensicsRoot = Join-Path $ReportDirectory "combat-solver/forensics/current"
     $replayDirectory = Join-Path $forensicsRoot "replay-state"
     $runDirectory = Join-Path $forensicsRoot "run-state"
@@ -186,9 +215,13 @@ function Find-ReplayCandidate {
     }
 
     $reasons = [System.Collections.Generic.List[string]]::new()
-    $replayFiles = @(Get-ChildItem -LiteralPath $replayDirectory -File -Filter "*AutoTurnStart.json" | Sort-Object Name)
+    $replayFiles = @(Get-ChildItem -LiteralPath $replayDirectory -File -Filter "*.json" |
+        Where-Object {
+            $_.Name -like "*AutoTurnStart.json" -or
+            ($FullCombatOnly -and $_.Name -eq "000-combat_start.json")
+        } | Sort-Object Name)
     if ($replayFiles.Count -eq 0) {
-        return [pscustomobject]@{ candidate = $null; reason = "missing_auto_turn_start" }
+        return [pscustomobject]@{ candidate = $null; reason = "missing_combat_start_or_auto_turn_start" }
     }
 
     foreach ($replayFile in $replayFiles) {
@@ -243,6 +276,7 @@ function Find-ReplayCandidate {
                 runPath = $runPath
                 state = $state
                 turnNumber = $turnNumber
+                policy = $policy
             }
             reason = $null
         }
@@ -303,7 +337,10 @@ function Invoke-ReplayTest {
         InitialPlayerEnergy = [int]$player.energy
         InitialPlayerStars = [int]$player.stars
         PerformancePresetForTest = $Preset
-        PotionPolicyForTest = $PotionPolicy
+        PotionPolicyForTest = $Candidate.policy.potionPolicy
+        PotionDirectivesForTestJson = ConvertTo-Json -InputObject $Candidate.policy.potionDirectives -Depth 5 -Compress
+        ActTransitionBossHpStrategyForTest = $Candidate.policy.actTransitionBossHpStrategy
+        FinalBossHpStrategyForTest = $Candidate.policy.finalBossHpStrategy
         SearchMaxDegreeOfParallelismForTest = $SearchParallelism
         ExpectedInitialProjectedBattleHpLostAtMost = $expectedLoss
         ExpectedInitialOnlyDeathRoutesFound = 0
@@ -342,7 +379,8 @@ function Invoke-ReplayTest {
     }
     $elapsed = ((Get-Date) - $startedAt).TotalSeconds
 
-    $resultPath = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "CombatSolver/headless-runtime/Roaming/SlayTheSpire2/combat_solver_test_result.json"
+    $runtimePath = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "CombatSolver/headless-runtime"
+    $resultPath = Join-Path $runtimePath "Roaming/SlayTheSpire2/combat_solver_test_result.json"
     $testResult = $null
     if (Test-Path -LiteralPath $resultPath -PathType Leaf) {
         try {
@@ -367,11 +405,23 @@ function Invoke-ReplayTest {
         }
     }
 
-    $loss = Get-ProjectedLoss $testResult
+    $evidencePrefix = Join-Path $outputPath ([string]$testResult.runId)
+    Copy-Item -LiteralPath $resultPath -Destination "$evidencePrefix-result.json"
+    Copy-Item -LiteralPath (Join-Path $runtimePath "godot-headless.log") -Destination "$evidencePrefix-godot.log"
+    $metrics = $testResult.solverMetrics
+    $completeVictory = $null -ne $metrics -and
+        $null -ne $metrics.combatEndedTurn -and
+        $metrics.finalEnemyHp -eq 0 -and
+        $metrics.finalHp -gt 0 -and
+        -not $metrics.onlyDeathRoutes
+    $loss = if ($completeVictory) { Get-ProjectedLoss $testResult } else { $null }
     $errorText = [string]$testResult.error
     $timedOut = $errorText -match "超时|timeout|timed out" -or [string]$testResult.status -eq "TimedOut"
     $status = if ($timedOut) {
         "timeout"
+    }
+    elseif (-not $completeVictory -and ($null -ne $metrics -or [string]$testResult.status -eq "Passed")) {
+        "unconfirmed_victory"
     }
     elseif ($null -ne $loss -and $null -ne $manualLoss -and $loss -gt $manualLoss) {
         "quality_gap"
@@ -440,7 +490,7 @@ foreach ($entry in $entries) {
 
     $candidate = $preflight.candidate
     if ($PreflightOnly) {
-        Save-BatchResult (New-BatchResult -Entry $entry -Status "ready" -Reason $null -ReplayStatePath $candidate.replayPath -TurnNumber $candidate.turnNumber -Preset $null -SolverLoss $null -ElapsedSeconds $null -RunId $null)
+        Save-BatchResult (New-BatchResult -Entry $entry -Status "ready" -Reason $null -ReplayStatePath $candidate.replayPath -TurnNumber $candidate.turnNumber -Preset $null -SolverLoss $null -ElapsedSeconds $null -RunId $null -Policy $candidate.policy)
         Write-Host "  可回放：Turn $($candidate.turnNumber)"
         continue
     }
@@ -452,17 +502,17 @@ foreach ($entry in $entries) {
     $presetStatus = if ($HighOnly) { "high" } else { "very_high" }
     if ($replay.status -in @("passed", "observed")) {
         $finalStatus = "$($replay.status)_$presetStatus"
-        Save-BatchResult (New-BatchResult -Entry $entry -Status $finalStatus -Reason $replay.reason -ReplayStatePath $candidate.replayPath -TurnNumber $candidate.turnNumber -Preset $preset -SolverLoss $replay.loss -ElapsedSeconds $replay.elapsed -RunId $replay.runId)
+        Save-BatchResult (New-BatchResult -Entry $entry -Status $finalStatus -Reason $replay.reason -ReplayStatePath $candidate.replayPath -TurnNumber $candidate.turnNumber -Preset $preset -SolverLoss $replay.loss -ElapsedSeconds $replay.elapsed -RunId $replay.runId -Policy $candidate.policy)
         Write-Host "  完成：$preset 战损 $($replay.loss)" -ForegroundColor Green
         continue
     }
     if ($replay.status -eq "quality_gap") {
-        Save-BatchResult (New-BatchResult -Entry $entry -Status "quality_gap_$presetStatus" -Reason "$preset=$($replay.loss)" -ReplayStatePath $candidate.replayPath -TurnNumber $candidate.turnNumber -Preset $preset -SolverLoss $replay.loss -ElapsedSeconds $replay.elapsed -RunId $replay.runId)
+        Save-BatchResult (New-BatchResult -Entry $entry -Status "quality_gap_$presetStatus" -Reason "$preset=$($replay.loss)" -ReplayStatePath $candidate.replayPath -TurnNumber $candidate.turnNumber -Preset $preset -SolverLoss $replay.loss -ElapsedSeconds $replay.elapsed -RunId $replay.runId -Policy $candidate.policy)
         Write-Host "  $preset 策略缺口：战损 $($replay.loss)" -ForegroundColor Red
         continue
     }
 
-    Save-BatchResult (New-BatchResult -Entry $entry -Status $replay.status -Reason $replay.reason -ReplayStatePath $candidate.replayPath -TurnNumber $candidate.turnNumber -Preset $preset -SolverLoss $replay.loss -ElapsedSeconds $replay.elapsed -RunId $replay.runId)
+    Save-BatchResult (New-BatchResult -Entry $entry -Status $replay.status -Reason $replay.reason -ReplayStatePath $candidate.replayPath -TurnNumber $candidate.turnNumber -Preset $preset -SolverLoss $replay.loss -ElapsedSeconds $replay.elapsed -RunId $replay.runId -Policy $candidate.policy)
     Write-Host "  结束：$($replay.status)" -ForegroundColor Yellow
 }
 
