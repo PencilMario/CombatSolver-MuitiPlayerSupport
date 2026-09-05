@@ -187,6 +187,11 @@ internal static class TurnStartChoiceSupport
     /// 在原生页面上定位会错位。
     ///
     /// 下界是 0，所以这条选择永远有合法答案，不会把路线变成不可执行。
+    ///
+    /// <paramref name="maxBranches" /> 给 1 时只保留排序最高的那一条分支，也就是按固定策略作答，
+    /// 不在 beam 上展开。会反复触发的来源（例如每次洗牌都预视的遗物）应当这样用：这类选择本身
+    /// 收益有限，却会在每次洗牌处把搜索宽度乘一遍，在能循环整个牌库的牌组里会彻底压过出牌决策。
+    /// 它仍然走同一条通道，所以计划里照样记录，部署照样应答原生页面。
     /// </remarks>
     public static bool ResolvePileDiscard(
         CombatPredictionSimulator simulator,
@@ -196,6 +201,7 @@ internal static class TurnStartChoiceSupport
         string sourceId,
         PileType sourcePile,
         IReadOnlyList<PredictedCard> options,
+        int? maxBranches = null,
         string contextId = "")
     {
         if (options.Count == 0)
@@ -211,7 +217,9 @@ internal static class TurnStartChoiceSupport
             options.Count,
             options,
             sourceCards,
-            ReplacementValue: 0d);
+            ReplacementValue: 0d,
+            ContextId: contextId,
+            MaxBranches: maxBranches);
         TurnStartChoiceRequest request = new(
             sourceId,
             PlanChoiceEffect.Discard,

@@ -89,7 +89,8 @@ internal sealed partial class SimulatedCombatState :
         string sourceId,
         Player player,
         PileType sourcePile,
-        IReadOnlyList<PredictedCard> options)
+        IReadOnlyList<PredictedCard> options,
+        int? maxBranches)
     {
         return TurnStartChoiceSupport.ResolvePileDiscard(
             simulator,
@@ -98,7 +99,8 @@ internal sealed partial class SimulatedCombatState :
             _activeActionChoices,
             sourceId,
             sourcePile,
-            options);
+            options,
+            maxBranches);
     }
 
     private bool ResolveActionCardChoice(
