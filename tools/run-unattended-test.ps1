@@ -14,6 +14,7 @@ param(
     [ValidateSet("Preflight", "RestoreOnly", "ReplayRecorded", "SearchOnly", "DeploySolver")]
     [string]$ReplayMode = "RestoreOnly",
     [string]$ReplayPolicyOverridePath = "",
+    [string]$EvidenceDirectory = "",
     [switch]$PreserveNativeCombatStateForTest,
     [string]$ProgressSnapshotPath = "",
     [ValidateRange(0, 10)]
@@ -228,10 +229,12 @@ param(
     [int]$ClearPlayerBlockBeforeEndTurnForTest = 0,
     [int]$TimeoutSeconds = 120,
     [switch]$KeepGameOpen,
+    [switch]$StopOwnedProcess,
     [switch]$ExitOnComplete
 )
 
 $ErrorActionPreference = "Stop"
+if ($EvidenceDirectory) { $EvidenceDirectory = [IO.Path]::GetFullPath($EvidenceDirectory) }
 
 if (-not [string]::IsNullOrWhiteSpace($CheckpointArchivePath)) {
     $CheckpointArchivePath = (Resolve-Path -LiteralPath $CheckpointArchivePath).Path
@@ -666,6 +669,7 @@ $request = [ordered]@{
     runSnapshotPath = $resolvedRunSnapshotPath
     replayStatePath = $resolvedReplayStatePath
     checkpointArchivePath = if ($CheckpointArchivePath) { $CheckpointArchivePath } else { $null }
+    evidenceDirectory = if ($EvidenceDirectory) { $EvidenceDirectory } else { $null }
     checkpointSelector = $CheckpointSelector
     replayMode = $ReplayMode
     replayPolicyOverridePath = if ($ReplayPolicyOverridePath) { (Resolve-Path -LiteralPath $ReplayPolicyOverridePath).Path } else { $null }
@@ -1085,6 +1089,11 @@ Assert-LauncherNotCancelled
 
 # Publish only after marker ownership, process identity, mod fingerprint, and
 # interactive-process checks have all succeeded.
+if ($StopOwnedProcess.IsPresent) {
+    Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
+    $cleanupProcessOnExit = $false
+    exit 0
+}
 $requestTempPath = "$requestPath.$runId.tmp"
 if (Test-Path -LiteralPath $readyPath -PathType Leaf) {
     Remove-Item -LiteralPath $readyPath -Force
@@ -1110,6 +1119,8 @@ if (-not $reusedProcess) {
                 COMBATSOLVER_HEADLESS = "1"
             } `
             -WindowStyle Hidden `
+            -RedirectStandardOutput (Join-Path $headlessRoot 'native-stdout.log') `
+            -RedirectStandardError (Join-Path $headlessRoot 'native-stderr.log') `
             -PassThru
         # Start-Process returned this exact Process object, so the launcher owns
         # its handle even before StartTime is readable and marker identity exists.
@@ -1177,19 +1188,19 @@ if ($reusedProcess) {
     Write-Host "UNATTENDED_STARTED run_id=$runId pid=$($process.Id)"
 }
 
-$resultDeadline = $startedAt.AddSeconds($TimeoutSeconds + 45)
+$resultDeadline = $startedAt.AddSeconds($TimeoutSeconds)
 while ((Get-Date) -lt $resultDeadline) {
     Assert-LauncherNotCancelled
     if (Test-Path -LiteralPath $resultPath) {
         $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
         if ($result.runId -eq $runId) {
             $result | ConvertTo-Json -Depth 8
-            if ($result.status -ne "Passed") {
+            if ($result.status -ne "Passed" -and -not $result.processReusable) {
                 Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
                 $cleanupProcessOnExit = $false
                 exit 1
             }
-            $quiescenceDeadline = (Get-Date).AddSeconds(120)
+            $quiescenceDeadline = $resultDeadline
             if ($HoldAfterInitialSearch.IsPresent -and $result.status -eq "Passed") {
                 $ready = $null
                 while (-not $process.HasExited -and (Get-Date) -lt $quiescenceDeadline) {
@@ -1254,7 +1265,7 @@ while ((Get-Date) -lt $resultDeadline) {
                         Assert-LauncherNotCancelled
                         Write-Host "UNATTENDED_READY run_id=$runId pid=$($process.Id)"
                         $cleanupProcessOnExit = $false
-                        exit 0
+                        if ($result.status -eq "Passed") { exit 0 } else { exit 1 }
                     }
                 }
                 Start-Sleep -Milliseconds 100
@@ -1263,7 +1274,7 @@ while ((Get-Date) -lt $resultDeadline) {
             }
             Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
             $cleanupProcessOnExit = $false
-            throw "Test passed but did not become reusable before timeout. run_id=$runId"
+            throw [TimeoutException]::new("Test passed but did not become reusable before timeout. run_id=$runId")
         }
     }
     if ($process.HasExited) {
@@ -1286,7 +1297,7 @@ while ((Get-Date) -lt $resultDeadline) {
 
 Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
 $cleanupProcessOnExit = $false
-throw "Unattended test exceeded the launcher timeout; its game process was stopped. run_id=$runId"
+throw [TimeoutException]::new("Unattended test exceeded the launcher timeout; its game process was stopped. run_id=$runId")
 } catch {
     $launcherFailure = $_
     $launcherWasCancelled =
@@ -1294,6 +1305,14 @@ throw "Unattended test exceeded the launcher timeout; its game process was stopp
         [CombatSolverUnattendedLauncherCancellation]::IsCancellationRequested
 } finally {
     try {
+        if ($EvidenceDirectory) {
+            New-Item -ItemType Directory -Path $EvidenceDirectory -Force | Out-Null
+            [ordered]@{
+                runId = $runId
+                status = if ($launcherFailure.Exception -is [TimeoutException]) { 'timeout' } elseif ($launcherWasCancelled) { 'cancelled' } elseif ($launcherFailure) { 'launcher_failed' } else { 'result_received' }
+                reason = if ($launcherFailure) { $launcherFailure.Exception.Message } else { $null }
+            } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $EvidenceDirectory 'launcher-result.json') -Encoding utf8
+        }
         if ($cleanupProcessOnExit) {
             try {
                 Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc

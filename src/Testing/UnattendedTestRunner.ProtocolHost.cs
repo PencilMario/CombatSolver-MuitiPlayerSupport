@@ -147,7 +147,7 @@ internal sealed partial class UnattendedTestRunner
                         WriteReady(request.RunId, held: true);
                         return;
                     }
-                    if (completion != RunCompletion.Passed)
+                    if (completion is not (RunCompletion.Passed or RunCompletion.FailedReusable))
                         throw new InvalidOperationException($"未知的无人测试完成状态 {completion}。");
                     if (request.HoldAfterInitialSearch)
                     {

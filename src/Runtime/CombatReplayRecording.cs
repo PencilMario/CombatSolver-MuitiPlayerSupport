@@ -1,6 +1,10 @@
 using System.Text.Json;
+using System.Diagnostics;
+using CombatSolver.Replay;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Commands;
+using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Debug;
 using MegaCrit.Sts2.Core.Entities.Multiplayer;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -15,18 +19,21 @@ using STS2RitsuLib.Patching.Models;
 namespace CombatSolver;
 
 internal sealed record RecordedCombatEvent(long Sequence, string Origin, byte[] Payload, uint? DuringActionId,
-    string? Kind = null, string? Description = null);
+    string? Kind = null, string? Description = null, RecordedChoiceContext? ChoiceContext = null);
+internal sealed record RecordedCardIdentity(int Index, string ModelId, uint? NativeId, int Upgrade, string State);
+internal sealed record RecordedChoiceContext(string Surface, string Source, int Min, int Max, RecordedCardIdentity[] Options);
+internal sealed record RecordedModIdentity(string Name, string? Version, Guid ModuleId);
 internal sealed record RecordedCombatOrigin(
     byte[] RunSave, uint NextActionId, uint NextHookId, uint[] ChoiceIds,
     int[] RewardIds, string GameVersion, string GameCommit, uint ModelIdHash);
 internal sealed record RecordedCombatArchive(
-    RecordedCombatOrigin Origin, RecordedCombatEvent[] Events, string? IncompleteReason);
+    RecordedCombatOrigin Origin, EventLogSnapshot Events, string? IncompleteReason,
+    Dictionary<string, int> InputOrigins, double CaptureMilliseconds, double MaximumCaptureMilliseconds);
 
 // Records the native input protocol. Combat histories are reconstructed by executing
 // these inputs, not by interpreting reflection-based diagnostic field dumps.
 internal sealed class CombatReplayRecording : IDisposable
 {
-    private const long MaximumBufferedBytes = 8L * 1024 * 1024;
     private static CombatReplayRecording? _pending;
     internal static CombatReplayRecording? Pending => _pending;
     internal static Action<RecordedCombatEvent>? TestObserver { get; set; }
@@ -35,14 +42,18 @@ internal sealed class CombatReplayRecording : IDisposable
     internal static Action<SolverResult>? TestSearchResultObserver { get; set; }
     private ActionQueueSet? _actions;
     private PlayerChoiceSynchronizer? _choices;
-    private readonly List<RecordedCombatEvent> _events = [];
+    private readonly AppendOnlyEventLog<RecordedCombatEvent> _events = new(item => JsonSerializer.SerializeToUtf8Bytes(item));
+    private readonly Dictionary<string, int> _inputOrigins = new(StringComparer.Ordinal);
+    private readonly Dictionary<uint, RecordedChoiceContext> _choiceContexts = [];
     private readonly RecordedCombatOrigin _origin;
-    private long _bufferedBytes;
+    private long _eventCursor;
+    private long _captureTicks;
+    private long _maximumCaptureTicks;
     private string? _incompleteReason;
     private bool _disposed;
 
-    public long EventCursor => _events.Count;
-    public string? IncompleteReason => _incompleteReason;
+    public long EventCursor => _eventCursor;
+    public string? IncompleteReason => _incompleteReason ?? _events.Error;
 
     private CombatReplayRecording(SerializableRun run)
     {
@@ -56,7 +67,6 @@ internal sealed class CombatReplayRecording : IDisposable
             ReleaseInfoManager.Instance.ReleaseInfo?.Version ?? "UNRELEASED",
             ReleaseInfoManager.Instance.ReleaseInfo?.Commit ?? "UNKNOWN",
             ModelIdSerializationCache.Hash);
-        _bufferedBytes = _origin.RunSave.LongLength;
         _actions.ActionEnqueued += OnAction;
         _actions.ActionResumed += OnResume;
         _choices.PlayerChoiceReceived += OnChoice;
@@ -65,14 +75,48 @@ internal sealed class CombatReplayRecording : IDisposable
     internal static void Start(SerializableRun run)
     {
         _pending?.Dispose();
+        _pending?._events.Dispose();
         _pending = run.Players.Count == 1 ? new CombatReplayRecording(run) : null;
     }
+    internal static RecordedModIdentity[] CaptureModIdentity() => AppDomain.CurrentDomain.GetAssemblies()
+        .Where(assembly => !assembly.IsDynamic && assembly != typeof(CombatReplayRecording).Assembly
+            && (assembly.Location.Replace('\\', '/').Contains("/mods/", StringComparison.OrdinalIgnoreCase)
+                || assembly.Location.Replace('\\', '/').Contains("/workshop/content/", StringComparison.OrdinalIgnoreCase)))
+        .Select(assembly => new RecordedModIdentity(assembly.GetName().Name!, assembly.GetName().Version?.ToString(), assembly.ManifestModule.ModuleVersionId))
+        .OrderBy(assembly => assembly.Name, StringComparer.Ordinal).ToArray();
 
     public void MarkIncomplete(string reason) => _incompleteReason ??= reason;
 
+    internal static void ObserveChoiceCandidates(NativeChoiceSurfaceKind surface, Player player,
+        IReadOnlyList<CardModel> cards, int minimum, int maximum, string source)
+    {
+        CombatReplayRecording? recording = _pending;
+        if (recording == null || recording._disposed || recording.IncompleteReason != null
+            || !CombatManager.Instance.IsInProgress || CardSelectCmd.Selector != null)
+            return;
+        if (cards.Count > 256) { recording.MarkIncomplete("choice_candidates_limit"); return; }
+        if (recording._choiceContexts.Count >= 256) { recording.MarkIncomplete("pending_choice_context_limit"); return; }
+        uint choiceId = recording._choices!.ChoiceIds.Count == 0 ? 0 : recording._choices.ChoiceIds[0];
+        recording._choiceContexts[choiceId] = new RecordedChoiceContext(surface.ToString(), source, minimum, maximum,
+            cards.Select((card, index) => new RecordedCardIdentity(index, card.Id.ToString(),
+                NetCombatCardDb.Instance.TryGetCardId(card, out uint id) ? id : null,
+                card.CurrentUpgradeLevel, CardChoiceSupport.ChoiceCardKey(card))).ToArray());
+    }
+
     // Called on the main thread. Records and origin bytes are immutable after capture.
-    public RecordedCombatArchive Capture()
-        => new(_origin, _events.ToArray(), _incompleteReason);
+    public Task<RecordedCombatArchive> CaptureAsync()
+    {
+        Dictionary<string, int> origins = new(_inputOrigins, StringComparer.Ordinal);
+        string? incomplete = IncompleteReason;
+        double total = _captureTicks * 1000d / Stopwatch.Frequency;
+        double maximum = _maximumCaptureTicks * 1000d / Stopwatch.Frequency;
+        return Finish(_events.CaptureAsync());
+        async Task<RecordedCombatArchive> Finish(Task<EventLogSnapshot> pending)
+        {
+            EventLogSnapshot snapshot = await pending.ConfigureAwait(false);
+            return new RecordedCombatArchive(_origin, snapshot, incomplete ?? snapshot.Error, origins, total, maximum);
+        }
+    }
 
     private void OnAction(GameAction action)
     {
@@ -118,27 +162,29 @@ internal sealed class CombatReplayRecording : IDisposable
                 eventType = CombatReplayEventType.PlayerChoice, playerId = player.NetId,
                 choiceId = choiceId, playerChoiceResult = result,
             }, SolverController.IsDeploying || PlayerTurnSetupCoordinator.IsDrivingChoiceForRecording ? "solver" : "player",
-                $"Choice {choiceId}: {result.type}; indexes={string.Join(',', result.indexes ?? [])}");
+                $"Choice {choiceId}: {result.type}; indexes={string.Join(',', result.indexes ?? [])}",
+                _choiceContexts.Remove(choiceId, out RecordedChoiceContext? context) ? context : null);
     }
 
-    private void Record(CombatReplayEvent value, string origin, string? description)
+    private void Record(CombatReplayEvent value, string origin, string? description, RecordedChoiceContext? choiceContext = null)
     {
-        if (_incompleteReason != null)
+        long sequence = _eventCursor++;
+        if (IncompleteReason != null)
             return;
+        long started = Stopwatch.GetTimestamp();
         PacketWriter writer = new() { WarnOnGrow = false };
         value.Serialize(writer);
         writer.ZeroByteRemainder();
         byte[] payload = writer.Buffer.AsSpan(0, writer.BytePosition).ToArray();
-        if (_bufferedBytes + payload.LongLength > MaximumBufferedBytes)
-        {
-            MarkIncomplete("event_buffer_limit");
-            return;
-        }
-        RecordedCombatEvent captured = new(_events.Count, origin, payload,
-            RunManager.Instance.ActionExecutor.CurrentlyRunningAction?.Id, value.eventType.ToString(), description);
-        _events.Add(captured);
-        _bufferedBytes += payload.LongLength;
+        RecordedCombatEvent captured = new(sequence, origin, payload,
+            RunManager.Instance.ActionExecutor.CurrentlyRunningAction?.Id, value.eventType.ToString(), description, choiceContext);
+        _events.TryAppend(captured, checked(payload.Length + (description?.Length ?? 0) * 2
+            + (choiceContext?.Options.Sum(option => option.State.Length * 2 + 128) ?? 0)));
+        _inputOrigins[origin] = _inputOrigins.GetValueOrDefault(origin) + 1;
         TestObserver?.Invoke(captured);
+        long elapsed = Stopwatch.GetTimestamp() - started;
+        _captureTicks += elapsed;
+        _maximumCaptureTicks = Math.Max(_maximumCaptureTicks, elapsed);
     }
 
     public void Dispose()

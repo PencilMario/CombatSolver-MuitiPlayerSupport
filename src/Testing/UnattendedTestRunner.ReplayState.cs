@@ -557,7 +557,7 @@ internal sealed partial class UnattendedTestRunner
             && entry.CardPlay.Player == player
             && entry.CardPlay.Card.Type == CardType.Attack
             && entry.CardPlay.Resources.EnergyValue == 0);
-        if (actualStatusDraws > expectedStatusDraws
+        if (actualStatusDraws != expectedStatusDraws
             || actualZeroCostAttackStarts != expectedZeroCostAttackStarts)
         {
             throw new InvalidOperationException(
@@ -565,30 +565,6 @@ internal sealed partial class UnattendedTestRunner
                 $"零费攻击={actualZeroCostAttackStarts}/{expectedZeroCostAttackStarts}。");
         }
 
-        if (actualStatusDraws == expectedStatusDraws)
-            return;
-        PlayerCombatState playerState = player.PlayerCombatState
-            ?? throw new InvalidOperationException("replay-state 历史恢复时玩家没有战斗状态。");
-        CardModel statusCard = playerState.Hand.Cards
-            .Concat(playerState.DrawPile.Cards)
-            .Concat(playerState.DiscardPile.Cards)
-            .Concat(playerState.ExhaustPile.Cards)
-            .FirstOrDefault(card => card.Type == CardType.Status)
-            ?? combatState.CreateCard(
-                ModelDb.Card<MegaCrit.Sts2.Core.Models.Cards.Wound>(),
-                player);
-        for (int index = actualStatusDraws; index < expectedStatusDraws; index++)
-        {
-            CombatManager.Instance.History.Add(
-                combatState,
-                new CardDrawnEntry(
-                    statusCard,
-                    combatState.RoundNumber,
-                    combatState.CurrentSide,
-                    true,
-                    CombatManager.Instance.History,
-                    combatState.Players));
-        }
     }
 
     private static UnattendedCardInjection BuildReplayCardInjection(

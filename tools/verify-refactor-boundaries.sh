@@ -480,7 +480,7 @@ src/Testing/UnattendedTestRunner.ProtocolHost.cs	private void Activate(Unattende
 src/Testing/UnattendedTestRunner.ProtocolHost.cs	private void Reset()
 src/Testing/UnattendedTestRunner.Writer.cs	private sealed class Writer(
 src/Testing/UnattendedTestRunner.Writer.cs	public RuntimeMemorySnapshot Write(
-src/Testing/UnattendedTestRunner.Writer.cs	private static void WriteResult(UnattendedTestResult result)
+src/Testing/UnattendedTestRunner.Writer.cs	private static void WriteResult(UnattendedTestResult result, UnattendedTestRequest request)
 src/Testing/UnattendedTestRunner.ScenarioBuilder.cs	private sealed class ScenarioBuilder(
 src/Testing/UnattendedTestRunner.ScenarioBuilder.cs	public async Task<ScenarioContext> BuildAsync()
 src/Testing/UnattendedTestRunner.ScenarioBuilder.cs	public CombatState? CombatState { get; private set; }
@@ -496,7 +496,7 @@ EOF
 for retired_protocol_host_member in \
     'private static bool _requestLoopStarted' \
     'private static async Task RunRequestLoopAsync' \
-    'private static void WriteResult(UnattendedTestResult result)' \
+    'private static void WriteResult(UnattendedTestResult result, UnattendedTestRequest request)' \
     'private static RuntimeMemorySnapshot CaptureRuntimeMemory()'; do
     forbid_fixed "$unattended_entry_path" "$retired_protocol_host_member" 'protocol host member returned to runner entry:'
 done

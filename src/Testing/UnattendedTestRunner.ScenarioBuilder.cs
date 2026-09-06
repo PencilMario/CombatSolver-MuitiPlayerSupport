@@ -38,6 +38,7 @@ internal sealed partial class UnattendedTestRunner
         public async Task<ScenarioContext> BuildAsync()
         {
             runner.PrepareCheckpointRequest();
+            runner._executor.PrepareArchiveSettings();
             if (runner.HasNativeRecording)
             {
                 ScenarioContext native = await runner.BuildNativeRecordedScenarioAsync();
@@ -48,6 +49,7 @@ internal sealed partial class UnattendedTestRunner
             UnattendedTestRequest request = runner._request;
             runner.SetStage("game_startup");
             await runner._host.GameStartupComplete;
+            runner.ValidateCheckpointModsAfterStartup();
             runner.ApplyHeadlessFastModeOverride();
             runner.EnsureWithinDeadline();
             if (RunManager.Instance.IsInProgress)

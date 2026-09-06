@@ -10,6 +10,14 @@
 
 | 场景 | 当前结果 | 验证内容 | 日期 |
 | --- | --- | --- | --- |
+| `CHECKPOINT-BATCH-REUSE-0300` | 通过 | 正常/环境错误/正常三请求同 PID 22388，run 内耗时约17.1s/19.9ms/1.7s；后续 Resume 三项全部复用。证据 `.local/replay-validation/batch3/reuse-fixed/`。 | 2026-09-06 |
+| `CHECKPOINT-BATCH-DIFFERENCE-0300` | 通过 | 故意修改 ChooseCard 候选状态，在 eventCursor=1 返回 recorded_action_mismatch，difference.json 保存三事件窗口及候选；下包重启到另一 PID 并通过。证据 `.local/replay-validation/batch3/difference-results/`。 | 2026-09-06 |
+| `CHECKPOINT-LEGACY-PREFLIGHT-0300` | 通过（材料） | 200 ZIP 和2已解压旧包全部识别开战四材料；约5秒完成批量索引和汇总，没有逐包运行恢复。 | 2026-09-06 |
+| `NATIVE-SPOOL-NESTED-0300` | 通过（录制前缀） | 工具箱与低语耳环、同名生存者与杂技建局；导出5623740223b9434abfa60ef462099260，回放d3a52fce86f34cc29aeb22a45bb6c10d。顺序文件及选择候选对账通过，记录3个外部/Hook事件，其余自动出牌由原版重建。 | 2026-09-06 |
+| `NATIVE-OPENING-CHOICE-HANDOFF-0300` | 通过 | ed4e8d241b8c433e966f2e8a8e334a8a，开战原生状态一致后释放录制选择器，由求解器选择开局路线并完成 SearchOnly，固定1500ms短搜。此前等待用户启动造成的超时已修为测试器明确提交接管。 | 2026-09-06 |
+| `VISIBLE-LOGGING-ROUNDTRIP-0300` | 通过 | 可见Steam六回合导出bf92cb1c0c284f23ab9d1fc58d9c4b4d；同包22事件回放1a633135013a4aa4bc2bdead00d79e75，开战求解器部署3f43a41babd54993a7aaa680c38e4ac5，均实际6HP/0药，严格原生状态与续用状态一致，部署零计划外重算。 | 2026-09-06 |
+| `VISIBLE-LOGGING-COLLECTION-0300` | 已测量 | 最终事件累计0.8444ms/最大0.4235ms，峰值积压416B；14次检查点调用累计102.2237ms/最大26.7889ms，峰值积压2，保留6快照，ZIP326162B。未证明相较初次测量显著加速，不作“无卡顿”结论。 | 2026-09-06 |
+| `CHECKPOINT-NEGATIVE-CONTRACT-0300` | 通过 | 工具29项断言，覆盖材料缺失、重复、目录穿越、配对错用、诊断包/录制缺项、顺序文件前缀及容量、JSONL断尾恢复、技术失败优先、实际相对人工+3、混合/未完战/不同药水政策拒绝比较。冷启动10秒超时实测正确写timeout并清理进程。 | 2026-09-06 |
 | `NATIVE-REPLAY-COMBAT-0300` | 通过 | 原生四回合16事件重放，runId `55b8fd0e302f4151be6878c8c24273a5`，完整续用状态一致；进入/回放阶段约961ms。战后回血与清牌之前的相同结束边界对账。 | 2026-09-06 |
 | `NATIVE-REPLAY-SETUP-CHOICE-0300` | 通过 | 工具箱开局生成及选择3个原生事件，runId `f97cf39891864fabb517e95b3def281f`；选择器限定在录制回放作用域，跳过求解器的页面接管，不启动搜索。 | 2026-09-06 |
 | `NATIVE-REPLAY-MIXED-0300` | 通过 | 刀刃之舞生成牌及力量药水，runId `e866e6c7c24f4223a5c3b20e856c4740`，10事件，原生二进制及续用状态一致，实际0HP/1药，零重算。 | 2026-09-06 |
@@ -18,6 +26,8 @@
 | `ARCHIVE-CONTRACT-0300` | 通过 | `dotnet run --project tools/CheckpointTool/CheckpointTool.csproj -c Release -- self-test`，12 项检查覆盖同名文件分离、稳定默认入口、战后选择、旧包无索引、会话错配、重复及不安全路径。 | 2026-09-06 |
 | `ARCHIVE-V2-EXPORT-0300` / `ARCHIVE-V2-IMPORT-0300` | 通过（检查点） | 导出 runId `7ccbe05b91c441d3a7ff5ebea12ee660`；相同 ZIP 直接导入 runId `30f462a75df5456286fddae1144736aa`，`CheckpointContinuationMatched`，材料准备约29ms。没有运行搜索或整场部署。证据 `.local/replay-validation/batch1/`。 | 2026-09-06 |
 | `CHECKPOINT-INDEX-0300` | 通过 | 导出 runId `b309d78548cd46708a8dcf008af8bd40` 生成唯一 `combat-solver/checkpoint.json`；索引指向的 metadata、replay-state、native-state、run-state 均存在。再以同一 ZIP 直接导入，runId `15fa0e74fee74af787116be3c2bf2dae` 通过开战根状态断言。 | 2026-09-05 |
+
+> 上述日志批次未逐项实测全部怪物召唤/复活、能力内部引用和所有嵌套选择；缺乏完整记录的旧中途包可能返回具体恢复差异。Linux 脚本完成 Bash 语法及同源边界门禁，未在原生 Linux 游戏进程中运行。本轮不修改世界线策略清单，不以日志测试声明策略提升。
 
 ## 0.29.1（历史）：2026-09-04 19 点后问题包硬逻辑修复
 

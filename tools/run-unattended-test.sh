@@ -54,6 +54,7 @@ add_option checkpoint-archive-path "" string raw_string
 add_option checkpoint-selector "latest" string raw_string
 add_option replay-mode "RestoreOnly" string raw_string "Preflight|RestoreOnly|ReplayRecorded|SearchOnly|DeploySolver"
 add_option replay-policy-override-path "" string raw_string
+add_option evidence-directory "" string raw_string
 add_option preserve-native-combat-state-for-test 0 switch bool
 add_option progress-snapshot-path "" string none
 add_option ascension 0 int raw_int
@@ -229,6 +230,7 @@ add_option inject-player-hp-loss-amount 0 int raw_int
 add_option clear-player-block-before-end-turn-for-test 0 int positive_int
 add_option timeout-seconds 120 int raw_int
 add_option keep-game-open 0 switch none
+add_option stop-owned-process 0 switch none
 add_option exit-on-complete 0 switch bool
 
 print_help() {
@@ -381,6 +383,11 @@ if ((option_value[stop-after-expected-player-power] == 1)) && is_blank "${option
 fi
 ((option_value[timeout-seconds] > 0)) || die "--timeout-seconds must be a positive integer"
 
+for path_option in replay-policy-override-path evidence-directory; do
+    if [[ -n "${option_value[$path_option]}" ]]; then
+        option_value[$path_option]="$(realpath -m -- "${option_value[$path_option]}")"
+    fi
+done
 if [[ -n "${option_value[checkpoint-archive-path]}" ]]; then
     option_value[checkpoint-archive-path]="$(realpath -e -- "${option_value[checkpoint-archive-path]}")"
     if [[ "${option_value[replay-mode]}" == "Preflight" ]]; then
@@ -1048,6 +1055,12 @@ fi
 
 # Publish only after every process-safety check. An already-running protocol
 # host may consume the request as soon as the rename becomes visible.
+if ((option_value[stop-owned-process] == 1)); then
+    if [[ -n "$process_pid" ]]; then
+        stop_test_process_and_remove_dependency "$process_pid" "$process_identity_start_time"
+    fi
+    exit 0
+fi
 rm -f -- "$ready_path"
 request_temp="$(mktemp --tmpdir="$data_dir" ".combat_solver_test_request.$run_id.XXXXXX")"
 printf '%s\n' "$request" >"$request_temp"
@@ -1124,18 +1137,18 @@ else
     echo "UNATTENDED_STARTED run_id=$run_id pid=$process_pid"
 fi
 
-result_deadline=$((started_seconds + option_value[timeout-seconds] + 45))
+result_deadline=$((started_seconds + option_value[timeout-seconds]))
 while ((SECONDS < result_deadline)); do
     if [[ -f "$result_path" ]] && result="$(jq -c '.' "$result_path" 2>/dev/null)"; then
         result_run_id="$(jq -r '.runId // empty' <<<"$result")"
         if [[ "$result_run_id" == "$run_id" ]]; then
             jq '.' <<<"$result"
             result_status="$(jq -r '.status // empty' <<<"$result")"
-            if [[ "$result_status" != Passed ]]; then
+            if [[ "$result_status" != Passed ]] && [[ "$(jq -r '.processReusable // false' <<<"$result")" != true ]]; then
                 stop_test_process_and_remove_dependency "$process_pid" "$process_identity_start_time"
                 exit 1
             fi
-            ready_deadline=$((SECONDS + 120))
+            ready_deadline=$result_deadline
             if ((option_value[hold-after-initial-search] == 1)) && [[ "$result_status" == Passed ]]; then
                 held_ready=0
                 while ((SECONDS < ready_deadline)); do
@@ -1186,7 +1199,7 @@ while ((SECONDS < result_deadline)); do
                     echo "UNATTENDED_READY run_id=$run_id pid=$process_pid"
                     dependency_created_here=0
                     owned_cleanup_active=0
-                    exit 0
+                    [[ "$result_status" == Passed ]] && exit 0 || exit 1
                 fi
                 if ! process_matches_headless_identity "$process_pid" "$process_identity_start_time"; then
                     stop_test_process_and_remove_dependency "$process_pid" "$process_identity_start_time"
@@ -1213,4 +1226,9 @@ while ((SECONDS < result_deadline)); do
 done
 
 stop_test_process_and_remove_dependency "$process_pid" "$process_identity_start_time"
+if [[ -n "${option_value[evidence-directory]}" ]]; then
+    mkdir -p -- "${option_value[evidence-directory]}"
+    jq -n --arg runId "$run_id" '{runId: $runId, status: "timeout", reason: "unattended_launcher_deadline"}' \
+        >"${option_value[evidence-directory]}/launcher-result.json"
+fi
 runtime_error "unattended test exceeded the launcher timeout; its game process was stopped; run_id=$run_id"

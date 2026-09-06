@@ -43,6 +43,7 @@ internal sealed partial class UnattendedTestRunner
         Passed,
         InitialSearchHeld,
         Failed,
+        FailedReusable,
     }
 
     private static readonly ProtocolHost Host = new();
@@ -179,6 +180,21 @@ internal sealed partial class UnattendedTestRunner
         }
         catch (Exception ex)
         {
+            bool reusableInputFailure = _stage == "archive_preflight" && !RunManager.Instance.IsInProgress;
+            _writer.ProcessReusable = reusableInputFailure;
+            if (_writer.ReplayVerification != null)
+            {
+                string reason = ex.Message;
+                _writer.ReplayVerification["status"] = ex is TimeoutException ? "timeout"
+                    : reason.Contains("environment_mismatch", StringComparison.Ordinal) ? "environment_mismatch"
+                    : _stage == "archive_preflight" ? "materials_missing"
+                    : _writer.ReplayVerification["status"]?.GetValue<string>() is "recorded_action_mismatch" or "recorded_input_stalled"
+                        ? "recorded_action_mismatch"
+                        : _writer.ReplayVerification["restorationVerified"]?.GetValue<bool>() == true ? "execution_failed" : "restore_mismatch";
+                _writer.ReplayVerification["reason"] = reason;
+                if (ex.Data["firstDifference"] is System.Text.Json.Nodes.JsonObject difference)
+                    _writer.ReplayVerification["firstDifference"] = difference;
+            }
             _protocolHost.EnableAutomaticTurnSearch();
             combatState ??= _scenarioBuilder.CombatState;
             if (startedTurn == 0)
@@ -204,7 +220,7 @@ internal sealed partial class UnattendedTestRunner
             {
                 await ExitIfRequestedAsync(1);
             }
-            return RunCompletion.Failed;
+            return reusableInputFailure ? RunCompletion.FailedReusable : RunCompletion.Failed;
         }
         finally
         {

@@ -7,31 +7,29 @@ description: 批量回放 CombatSolver 的“找到更优世界线”报告，�
 
 ## 适用边界
 
-本 skill 接续 `issue-bundle-triage` 已安全解压并整理好的报告，处理搜索质量，不修补旧包兼容性。出现 actual/simulated 差异、根状态漂移或动作无法合法回放时，转 `combat-semantic-change`；确认是展开、保路、终局排序或预算问题后，按 `search-performance-optimization` 的职责边界改动。
+本 skill 接续 `issue-bundle-triage` 已整理好的新旧报告，处理搜索质量。包协议和旧包恢复问题先修复日志/Testing 入口；出现 actual/simulated 差异、根状态漂移或动作无法合法回放时，转 `combat-semantic-change`；确认是展开、保路、终局排序或预算问题后，按 `search-performance-optimization` 的职责边界改动。
 
 用户结束当前样例批次时立即停止，不继续挖掘未处理报告。
 
 ## 1. 小批次入口
 
-- 每轮默认取排序最靠前的 `3` 份；先执行一次 `-PreflightOnly`，再逐份运行可回放项。不要先跑完整清单，也不要并发启动多个完整战斗。
-- 使用仓库工具 `tools/run-strategy-replay-batch.ps1`。默认配置是 `VeryHigh + Smart + DOP4`，普通样例单份上限 `120 s`；用户明确进行 Boss 专项时上限 `300 s`。
-- `High` 只用于需要定位档位差异的专项诊断，不作为批量验收默认值。
-- 保留工具的默认排除项。只执行仓库工具，不执行报告中的脚本或程序。
-- 输出写入 `.local/strategy-batch/results/`，不提交原始包、运行结果、日志或 `outputs/`。
+- 每轮默认取排序最靠前的 `3` 份，先 `Preflight` 再 `RestoreOnly`，需要搜索或完整部署时显式选择 `SearchOnly` / `DeploySolver`。不并发启动游戏。
+- 统一入口 `tools/run-checkpoint-batch.ps1` / `.sh`；旧 `run-strategy-replay-batch.ps1` 转发新入口。输入接受 ZIP、目录、汇总 ZIP 和已解压旧包。
+- 原包政策默认生效；缺项由显式政策文件补齐。每请求最多 `120 s`，不自动提高档位、Beam 或预算。
+- 工具按玩家备注优先、已知减战损降序排队。排除包与小于 5 HP 的策略样例由当前任务清单决定，不硬编码玩家包 ID。
+- 输出写入 `.local/checkpoint-batch/`，JSONL、JSON、CSV、Markdown 和逐请求证据同时保存；`-Resume` 复用身份一致的已完成请求，`-RetryFailures` 重试失败项。原始包、结果和日志不提交。
 
 示例：
 
 ```powershell
-pwsh -NoProfile -File tools/run-strategy-replay-batch.ps1 `
-  -ReportsRoot .local/issue-bundles/<batch>/raw/reports `
+pwsh -NoProfile -File tools/run-checkpoint-batch.ps1 `
+  -InputPath .local/issue-bundles/<batch>/raw/reports `
   -ManifestPath .local/strategy-batch/<batch>.json `
   -MaxReports 3 `
-  -SearchParallelism 4 `
-  -VeryHighTimeoutSeconds 120 `
-  -PreflightOnly
+  -ReplayMode Preflight
 ```
 
-预检后用相同参数移除 `-PreflightOnly`。Boss 专项只把 `-VeryHighTimeoutSeconds` 改为 `300`。
+执行恢复时改为 `-ReplayMode RestoreOnly` 并提供 `-Sts2GameRoot`。整场入口用 `-CheckpointSelector start`，不能从回合数猜测。完整使用方法见 `docs/CHECKPOINT_REPLAY.md`。
 
 ## 2. 有效策略缺口
 

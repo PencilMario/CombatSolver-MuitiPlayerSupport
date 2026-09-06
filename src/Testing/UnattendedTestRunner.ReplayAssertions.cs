@@ -24,6 +24,12 @@ internal sealed partial class UnattendedTestRunner
         PacketReader reader = new();
         reader.Reset(expected);
         NetFullCombatState saved = reader.Read<NetFullCombatState>();
-        throw new InvalidDataException($"native_state_mismatch:byte={offset}:expected_bytes={expected.Length}:actual_bytes={bytes.Length}\nEXPECTED\n{saved}\nACTUAL\n{actual}");
+        InvalidDataException mismatch = new($"native_state_mismatch:byte={offset}:expected_bytes={expected.Length}:actual_bytes={bytes.Length}");
+        mismatch.Data["firstDifference"] = new System.Text.Json.Nodes.JsonObject
+        {
+            ["field"] = $"nativeState.bytes[{offset}]", ["expected"] = saved.ToString(), ["actual"] = actual.ToString(),
+            ["expectedBytes"] = expected.Length, ["actualBytes"] = bytes.Length,
+        };
+        throw mismatch;
     }
 }

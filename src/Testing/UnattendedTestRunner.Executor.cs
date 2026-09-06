@@ -23,6 +23,12 @@ internal sealed partial class UnattendedTestRunner
             if (_settingsBeforeTest != null)
                 SolverSettings.ApplyForTesting(_settingsBeforeTest);
         }
+        public void PrepareArchiveSettings()
+        {
+            if (runner._checkpointImport?["resolvedPolicy"] == null) return;
+            _settingsBeforeTest ??= SolverSettings.Current;
+            SolverSettings.ApplyForTesting(runner.ApplyRecordedCheckpointPolicy(_settingsBeforeTest));
+        }
 
         public async Task<ExecutionOutcome> ExecuteAsync(ScenarioContext scenario)
         {
@@ -530,7 +536,7 @@ internal sealed partial class UnattendedTestRunner
                 return null;
             }
 
-            _settingsBeforeTest = SolverSettings.Current;
+            _settingsBeforeTest ??= SolverSettings.Current;
             SolverSettingsData recordedSettings = runner.ApplyRecordedCheckpointPolicy(_settingsBeforeTest);
             SolverSettingsData testSettings = request.PerformancePresetForTest is { } preset
                 ? SolverSettings.ApplyPerformancePreset(recordedSettings, preset)

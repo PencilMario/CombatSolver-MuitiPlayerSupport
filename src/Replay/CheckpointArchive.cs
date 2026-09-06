@@ -26,6 +26,12 @@ internal static class CheckpointArchive
         JsonObject index = archive.GetEntry(IndexPath) == null
             ? BuildLegacyIndex(archive) : ReadObject(archive, IndexPath);
         int version = RequiredInt(index, "schemaVersion");
+        if (version == 1 && archive.Entries.Any(entry => entry.FullName.StartsWith("combat-solver/forensics/", StringComparison.Ordinal)))
+        {
+            index = BuildLegacyIndex(archive);
+            index["originalSchemaVersion"] = 1;
+            version = 2;
+        }
         JsonObject checkpoint;
         if (version == 1)
         {
@@ -66,6 +72,9 @@ internal static class CheckpointArchive
         {
             return Blocked($"unsupported_index_schema:{version}", index);
         }
+        if (index["diagnosticOnly"]?.GetValue<bool>() == true)
+            return Blocked("diagnostic_only:" + (index["recording"]?["incompleteReason"]?.GetValue<string>()
+                ?? index["captureErrors"]?.ToJsonString() ?? "capture_incomplete"), index, checkpoint);
 
         HashSet<string> materialPaths = new(StringComparer.OrdinalIgnoreCase);
         foreach (string field in StateArtifacts)
@@ -103,6 +112,23 @@ internal static class CheckpointArchive
                 if (archive.GetEntry(path) == null)
                     return Blocked($"missing_recording_artifact:{field}:{path}", index, checkpoint);
             }
+            long count = 0;
+            using StreamReader events = new(archive.GetEntry(RequiredString(recording, "eventsPath"))!.Open());
+            while (events.ReadLine() is { } line)
+            {
+                JsonObject value = JsonNode.Parse(line)?.AsObject() ?? throw new InvalidDataException("invalid_recording_event");
+                if (value["Sequence"]?.GetValue<long>() != count++)
+                    throw new InvalidDataException("recording_sequence_gap");
+                try
+                {
+                    if (Convert.FromBase64String(RequiredString(value, "Payload")).Length == 0)
+                        throw new InvalidDataException("empty_recording_event");
+                }
+                catch (FormatException error) { throw new InvalidDataException("invalid_recording_payload", error); }
+            }
+            if (count != recording["eventCount"]?.GetValue<long>()
+                || checkpoint["eventCursor"]?.GetValue<long>() is not long cursor || cursor < 0 || cursor > count)
+                throw new InvalidDataException("recording_event_cursor_mismatch");
         }
         JsonArray players = replay["players"] as JsonArray
             ?? throw new InvalidDataException("missing_players");
@@ -130,6 +156,9 @@ internal static class CheckpointArchive
                 ?? metadata["effectivePolicy"])?.DeepClone(),
             ["legacySettings"] = metadata["settings"]?.DeepClone(),
             ["legacySearchProfiles"] = replay["searchProfiles"]?.DeepClone(),
+            ["sourceOutcome"] = metadata["outcome"]?.DeepClone(),
+            ["report"] = archive.GetEntry("combat-solver/report.json") != null
+                ? ReadObject(archive, "combat-solver/report.json") : null,
             ["restorationVerified"] = false,
         };
     }
@@ -156,7 +185,7 @@ internal static class CheckpointArchive
             if (!target.StartsWith(destination + Path.DirectorySeparatorChar, StringComparison.Ordinal))
                 throw new InvalidDataException($"unsafe_destination:{relative}");
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-            if (relative == IndexPath && archive.GetEntry(relative) == null)
+            if (relative == IndexPath)
             {
                 using FileStream generated = new(target, FileMode.CreateNew, FileAccess.Write);
                 JsonSerializer.Serialize(generated, index, JsonOptions);
@@ -225,12 +254,13 @@ internal static class CheckpointArchive
         };
     }
 
-    private static ZipArchive OpenValidated(string path)
+    internal static ZipArchive OpenValidated(string path, long maximumArchiveBytes = MaximumArchiveBytes,
+        long maximumExpandedBytes = MaximumExpandedBytes)
     {
         FileInfo file = new(path);
         if (!file.Exists)
             throw new FileNotFoundException("archive_not_found", path);
-        if (file.Length is <= 0 or > MaximumArchiveBytes)
+        if (file.Length <= 0 || file.Length > maximumArchiveBytes)
             throw new InvalidDataException($"archive_size_limit:{file.Length}");
         ZipArchive archive = ZipFile.OpenRead(path);
         try
@@ -245,7 +275,7 @@ internal static class CheckpointArchive
                 if (((entry.ExternalAttributes >> 16) & 0xF000) == 0xA000)
                     throw new InvalidDataException($"symlink_entry:{entry.FullName}");
                 expanded = checked(expanded + entry.Length);
-                if (entry.Length > MaximumEntryBytes || expanded > MaximumExpandedBytes)
+                if (entry.Length > MaximumEntryBytes || expanded > maximumExpandedBytes)
                     throw new InvalidDataException($"expanded_size_limit:{entry.FullName}");
             }
             return archive;

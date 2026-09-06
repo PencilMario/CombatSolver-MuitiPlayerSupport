@@ -46,6 +46,7 @@ internal sealed partial class UnattendedTestRunner
         }
         if (_request.ReplayMode == "ReplayRecorded" && !HasNativeRecording)
             throw new InvalidDataException("missing_native_event_recording");
+        _writer.ReplayVerification["historySource"] = HasNativeRecording ? "native_events" : "legacy_checkpoint_fields";
         ResolveCheckpointPolicy();
         JsonObject input = JsonSerializer.SerializeToNode(_request, UnattendedTestFiles.JsonOptions)!.AsObject();
         foreach ((string key, JsonNode? value) in _checkpointImport["request"]!.AsObject())
@@ -124,6 +125,16 @@ internal sealed partial class UnattendedTestRunner
     }
 
     private bool HasNativeRecording => _checkpointImport?["index"]?["recording"]?["complete"]?.GetValue<bool>() == true;
+
+    private void ValidateCheckpointModsAfterStartup()
+    {
+        if (_checkpointImport?["index"]?["build"]?["mods"] is not JsonArray mods) return;
+        JsonNode actual = JsonSerializer.SerializeToNode(CombatReplayRecording.CaptureModIdentity(), UnattendedTestFiles.JsonOptions)!;
+        if (JsonNode.DeepEquals(mods, actual)) return;
+        _writer.ReplayVerification!["firstDifference"] = new JsonObject
+            { ["field"] = "environment.mods", ["expected"] = mods.DeepClone(), ["actual"] = actual };
+        throw new InvalidDataException("environment_mismatch:mods");
+    }
 
     private void ResolveCheckpointPolicy()
     {

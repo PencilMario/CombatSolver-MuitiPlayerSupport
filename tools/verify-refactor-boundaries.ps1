@@ -601,7 +601,7 @@ foreach ($check in @(
     @{ Path = $unattendedProtocolHostPath; Text = "private void Reset()" },
     @{ Path = $unattendedWriterPath; Text = "private sealed class Writer(" },
     @{ Path = $unattendedWriterPath; Text = "public RuntimeMemorySnapshot Write(" },
-    @{ Path = $unattendedWriterPath; Text = "private static void WriteResult(UnattendedTestResult result)" },
+    @{ Path = $unattendedWriterPath; Text = "private static void WriteResult(UnattendedTestResult result, UnattendedTestRequest request)" },
     @{ Path = $unattendedScenarioBuilderPath; Text = "private sealed class ScenarioBuilder(" },
     @{ Path = $unattendedScenarioBuilderPath; Text = "public async Task<ScenarioContext> BuildAsync()" },
     @{ Path = $unattendedScenarioBuilderPath; Text = "public CombatState? CombatState { get; private set; }" },
@@ -619,7 +619,7 @@ foreach ($check in @(
 foreach ($retiredProtocolHostMember in @(
     "private static bool _requestLoopStarted",
     "private static async Task RunRequestLoopAsync",
-    "private static void WriteResult(UnattendedTestResult result)",
+    "private static void WriteResult(UnattendedTestResult result, UnattendedTestRequest request)",
     "private static RuntimeMemorySnapshot CaptureRuntimeMemory()")) {
     if (Select-String -LiteralPath $unattendedEntryPath -SimpleMatch $retiredProtocolHostMember -Quiet) {
         $violations.Add("${unattendedEntryPath}: protocol host member '$retiredProtocolHostMember' returned to runner entry")

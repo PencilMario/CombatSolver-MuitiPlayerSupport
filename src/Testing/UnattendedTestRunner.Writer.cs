@@ -23,6 +23,7 @@ internal sealed partial class UnattendedTestRunner
         private UnattendedSolverMetrics? _solverMetrics;
         public bool HasSolverMetrics => _solverMetrics != null;
         public System.Text.Json.Nodes.JsonObject? ReplayVerification { get; set; }
+        public bool ProcessReusable { get; set; }
 
         public void CaptureSolverResult(SolverResult result)
         {
@@ -109,6 +110,7 @@ internal sealed partial class UnattendedTestRunner
             RuntimeMemorySnapshot memory = CaptureRuntimeMemory();
             WriteResult(new UnattendedTestResult
             {
+                ProcessReusable = ProcessReusable,
                 RunId = request.RunId,
                 ScenarioId = request.ScenarioId,
                 Status = status,
@@ -131,7 +133,7 @@ internal sealed partial class UnattendedTestRunner
                 StageTimings = captureStageTimings(),
                 CompletedChecks = completedChecks.ToArray(),
                 Error = error,
-            });
+            }, request);
             return memory;
         }
 
@@ -146,8 +148,23 @@ internal sealed partial class UnattendedTestRunner
                 process.PrivateMemorySize64);
         }
 
-        private static void WriteResult(UnattendedTestResult result)
+        private static void WriteResult(UnattendedTestResult result, UnattendedTestRequest request)
         {
+            if (!string.IsNullOrWhiteSpace(request.EvidenceDirectory))
+            {
+                Directory.CreateDirectory(request.EvidenceDirectory);
+                WriteEvidence("request.json", request);
+                WriteEvidence("result.json", result);
+                WriteEvidence("policy.json", result.ReplayVerification);
+                WriteEvidence("timings.json", result.StageTimings);
+                WriteEvidence("difference.json", result.ReplayVerification?["firstDifference"]);
+                void WriteEvidence(string name, object? value)
+                {
+                    string path = Path.Combine(request.EvidenceDirectory, name);
+                    File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(value, UnattendedTestFiles.JsonOptions));
+                    File.Move(path + ".tmp", path, true);
+                }
+            }
             string resultPath = UnattendedTestFiles.GlobalPath(UnattendedTestFiles.ResultUri);
             string tempPath = resultPath + ".tmp";
             File.WriteAllText(tempPath, JsonSerializer.Serialize(result, UnattendedTestFiles.JsonOptions));

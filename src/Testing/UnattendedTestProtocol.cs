@@ -27,6 +27,7 @@ internal sealed class UnattendedTestRequest
     public string CheckpointSelector { get; init; } = "latest";
     public string ReplayMode { get; init; } = "RestoreOnly";
     public string? ReplayPolicyOverridePath { get; init; }
+    public string? EvidenceDirectory { get; init; }
     public bool PreserveNativeCombatStateForTest { get; init; }
     public int Ascension { get; init; }
     public int ActIndexForTest { get; init; }
@@ -424,6 +425,8 @@ internal sealed class UnattendedOrbInjection
 
 internal sealed class UnattendedTestResult
 {
+    public bool ProcessReusable { get; init; }
+    public int ProcessId { get; init; } = System.Environment.ProcessId;
     public int SchemaVersion { get; init; } = 1;
     public required string RunId { get; init; }
     public required string ScenarioId { get; init; }

@@ -30,6 +30,7 @@ internal sealed partial class UnattendedTestRunner
     {
         SetStage("native_replay_startup");
         await _host.GameStartupComplete;
+        ValidateCheckpointModsAfterStartup();
         ApplyHeadlessFastModeOverride();
         EnsureWithinDeadline();
         if (RunManager.Instance.IsInProgress)
@@ -59,6 +60,16 @@ internal sealed partial class UnattendedTestRunner
         string expectedState = metadata["exactContinuationState"]!.GetValue<string>();
         bool combatStart = checkpoint["label"]!.GetValue<string>() == "combat_start";
         bool combatEnd = checkpoint["combatEnded"]?.GetValue<bool>() == true;
+        if (combatStart && _request.ReplayMode == "RestoreOnly")
+        {
+            JsonObject? firstPlayable = import["index"]!["checkpoints"]!.AsArray().OfType<JsonObject>()
+                .FirstOrDefault(item => item["canSearch"]?.GetValue<bool>() == true);
+            if (firstPlayable != null)
+            {
+                target = checked((int)firstPlayable["eventCursor"]!.GetValue<long>());
+                _writer.ReplayVerification!["readyCheckpointId"] = firstPlayable["checkpointId"]!.DeepClone();
+            }
+        }
 
         SetStage("native_replay_load_run");
         RunState state = RunState.FromSerializable(save);
@@ -84,6 +95,11 @@ internal sealed partial class UnattendedTestRunner
             {
                 AssertRecordedContinuation(expectedState, combat, 0);
                 openingVerified = true;
+                if (_request.ReplayMode is "SearchOnly" or "DeploySolver")
+                {
+                    driver.Dispose();
+                    _writer.ReplayVerification!["openingChoiceAuthority"] = "solver";
+                }
             }
         };
         CombatReplayRecording.TestCombatEndObserver = combat =>
@@ -151,6 +167,8 @@ internal sealed partial class UnattendedTestRunner
         private readonly Player _player;
         private readonly IDisposable _selector;
         private Exception? _failure;
+        private bool _disposed;
+        private bool _openingTakeoverRequested;
         public int Cursor { get; private set; }
 
         public NativeReplayDriver(UnattendedTestRunner runner, RecordedCombatEvent[] events, int target, Player player)
@@ -167,7 +185,8 @@ internal sealed partial class UnattendedTestRunner
         {
             if (_failure != null)
                 return;
-            if (Cursor >= _target || !_events[Cursor].Payload.AsSpan().SequenceEqual(actual.Payload))
+            if (Cursor >= _target || !_events[Cursor].Payload.AsSpan().SequenceEqual(actual.Payload)
+                || _events[Cursor].ChoiceContext != null && JsonSerializer.Serialize(_events[Cursor].ChoiceContext) != JsonSerializer.Serialize(actual.ChoiceContext))
             {
                 _runner._writer.ReplayVerification!["status"] = "recorded_action_mismatch";
                 _runner._writer.ReplayVerification["firstDifference"] = new JsonObject
@@ -177,6 +196,9 @@ internal sealed partial class UnattendedTestRunner
                     ["actual"] = Convert.ToBase64String(actual.Payload),
                     ["expectedDescription"] = Cursor < _target ? _events[Cursor].Description : "end_of_recording",
                     ["actualDescription"] = actual.Description,
+                    ["expectedChoice"] = Cursor < _target ? JsonSerializer.SerializeToNode(_events[Cursor].ChoiceContext) : null,
+                    ["actualChoice"] = JsonSerializer.SerializeToNode(actual.ChoiceContext),
+                    ["actionWindow"] = JsonSerializer.SerializeToNode(_events.Skip(Math.Max(0, Cursor - 3)).Take(7)),
                 };
                 _failure = new InvalidDataException($"recorded_action_mismatch:{Cursor}");
                 return;
@@ -197,13 +219,16 @@ internal sealed partial class UnattendedTestRunner
                     throw _failure;
                 if (entering.IsFaulted)
                     await entering;
+                if (_disposed && !_openingTakeoverRequested && _player.Creature.CombatState is CombatState opening)
+                    _openingTakeoverRequested = PlayerTurnSetupCoordinator.TryContinuePlannedChoice(
+                        _runner._host, opening, deployAfterSetup: false);
                 string currentProgress = $"{Cursor}:{entering.IsCompleted}:{_player.PlayerCombatState?.Phase}:{RunManager.Instance.ActionExecutor.CurrentlyRunningAction?.Id}";
                 if (currentProgress != progressKey)
                 {
                     progressKey = currentProgress;
                     lastProgress = _runner._stopwatch.ElapsedMilliseconds;
                 }
-                else if (_runner._stopwatch.ElapsedMilliseconds - lastProgress > 5000)
+                else if (!_disposed && _runner._stopwatch.ElapsedMilliseconds - lastProgress > 5000)
                 {
                     _runner._writer.ReplayVerification!["status"] = "recorded_input_stalled";
                     _runner._writer.ReplayVerification["stalledAt"] = progressKey;
@@ -264,6 +289,8 @@ internal sealed partial class UnattendedTestRunner
 
         public void Dispose()
         {
+            if (_disposed) return;
+            _disposed = true;
             _selector.Dispose();
             CombatReplayRecording.TestObserver = null;
             CombatReplayRecording.TestCombatStartObserver = null;

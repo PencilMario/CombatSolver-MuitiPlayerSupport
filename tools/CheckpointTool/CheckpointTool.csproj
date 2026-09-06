@@ -7,5 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../src/Replay/CheckpointArchive.cs" Link="CheckpointArchive.cs" />
+    <Compile Include="../../src/Replay/AppendOnlyEventLog.cs" Link="AppendOnlyEventLog.cs" />
   </ItemGroup>
 </Project>
