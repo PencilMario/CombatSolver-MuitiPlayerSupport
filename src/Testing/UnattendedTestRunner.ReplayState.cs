@@ -16,11 +16,45 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private static async Task<UnattendedCombatStartReplay?> PrepareCombatStartReplayAsync(
+        RunState runState, Player player, UnattendedTestRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.ReplayStatePath))
+            return null;
+        using JsonDocument document = JsonDocument.Parse(await File.ReadAllTextAsync(request.ReplayStatePath));
+        JsonElement root = document.RootElement;
+        JsonElement savedPlayer = root.GetProperty("players")[0];
+        if (RequiredString(savedPlayer, "phase") != "None")
+            return null;
+        if (root.GetProperty("roundNumber").GetInt32() != 1
+            || savedPlayer.GetProperty("turnNumber").GetInt32() != 1
+            || RequiredString(root, "currentSide") != "Player")
+            throw new InvalidOperationException("Legacy combat-start replay requires the first player round before setup.");
+        // FromRun includes piles only after CombatManager.IsInProgress becomes true.
+        // Compare at the exporter's actual opening boundary, after this injection seam.
+        string expectedOpening = RequiredString(root, "exactContinuationState");
+        void VerifyOpening(CombatState state)
+        {
+            string actualOpening = ContinuationStamp.CaptureLive(state).StateText;
+            if (!expectedOpening.Contains("/baselib=", StringComparison.Ordinal))
+                actualOpening = actualOpening.Replace("/baselib=-", "", StringComparison.Ordinal);
+            if (!ReplayContinuationMatches(expectedOpening, actualOpening))
+                throw new InvalidDataException("legacy_opening_boundary_mismatch:" +
+                    new ContinuationStamp(expectedOpening).DescribeFirstDifference(new ContinuationStamp(actualOpening)));
+            AssertNativeCheckpoint(state, request.NativeStatePath);
+        }
+        return new UnattendedCombatStartReplay(runState, async state =>
+        {
+            await ApplyReplayStateAsync(state, player, request.ReplayStatePath, request.RunSnapshotPath);
+        }, VerifyOpening);
+    }
+
     private static async Task ApplyReplayStateAsync(
         CombatState combatState,
         Player player,
         string replayStatePath,
-        string? runSnapshotPath)
+        string? runSnapshotPath,
+        string? nativeStatePath = null)
     {
         if (!File.Exists(replayStatePath))
             throw new FileNotFoundException("找不到无人测试中途战斗状态。", replayStatePath);
@@ -108,6 +142,7 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidOperationException(
                 "replay-state 严格导入不一致：" + expected.DescribeFirstDifference(actual));
         }
+        AssertNativeCheckpoint(combatState, nativeStatePath);
     }
 
     private static void RebuildReplayDampenState(Player player)
@@ -467,7 +502,7 @@ internal sealed partial class UnattendedTestRunner
             foreach (JsonElement savedCard in savedCards)
             {
                 UnattendedCardInjection injection = BuildReplayCardInjection(savedCard, pile);
-                CardModel restored = (await InjectCardAsync(combatState, player, injection)).Single();
+                CardModel restored = (await InjectCardAsync(combatState, player, injection, restoreSnapshot: true)).Single();
                 AttachReplayDeckVersion(restored, savedCard, player);
                 RestoreReplayPrimitiveState(
                     restored,
@@ -530,6 +565,8 @@ internal sealed partial class UnattendedTestRunner
                 $"零费攻击={actualZeroCostAttackStarts}/{expectedZeroCostAttackStarts}。");
         }
 
+        if (actualStatusDraws == expectedStatusDraws)
+            return;
         PlayerCombatState playerState = player.PlayerCombatState
             ?? throw new InvalidOperationException("replay-state 历史恢复时玩家没有战斗状态。");
         CardModel statusCard = playerState.Hand.Cards

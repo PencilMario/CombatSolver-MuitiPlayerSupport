@@ -45,6 +45,7 @@ internal static class SolverController
     private static SolverSearchSession? _search;
     private static SolverDeploymentSession? _deployment;
     private static CombatBugReportClassificationSnapshot? _lastBugReportClassification;
+    private static ManualProjectionComparison? _lastManualProjectionComparison;
     private static int _nextSearchGeneration;
     private static int _combatLifecycleGeneration;
     private static bool _solverDisabled;
@@ -469,7 +470,7 @@ internal static class SolverController
                 $"搜索并行度必须在 1..{SolverWeights.MaximumSearchMaxDegreeOfParallelism} 之间，" +
                 $"实际为 {maxDegreeOfParallelism}。");
         }
-        return new SearchPolicySnapshot(
+        SearchPolicySnapshot policy = new(
             settings.ShortProfile,
             settings.DeepProfile,
             settings.PotionPolicy,
@@ -494,6 +495,8 @@ internal static class SolverController
         {
             Interaction = interaction,
         };
+        CombatBugReportExporter.RecordSearchPolicy(state, policy);
+        return policy;
     }
 
     public static void BeginCombat(ICombatState? state)
@@ -925,7 +928,8 @@ internal static class SolverController
                 _combat.PendingManualProjectionBaseline = new ManualProjectionBaseline(
                     previousResult.StartTurnNumber,
                     previousResult.ProjectedBattleHpLost,
-                    "field=live_combat_stamp expected={solver_result} actual={manual_state_change}");
+                    "field=live_combat_stamp expected={solver_result} actual={manual_state_change}",
+                    CombatBugReportExporter.LastCompletedSearchRootId);
             }
             setupStage = "continuation";
             ContinuationStamp? continuationStamp = reason == SearchReason.AutoTurnStart && _combat.ContinuationSource != null
@@ -991,7 +995,8 @@ internal static class SolverController
                     _combat.PendingManualProjectionBaseline = new ManualProjectionBaseline(
                         _combat.ContinuationSource.StartTurnNumber,
                         _combat.ContinuationSource.ProjectedBattleHpLost,
-                        difference);
+                        difference,
+                        CombatBugReportExporter.LastCompletedSearchRootId);
                 }
                 if (followedBySolver
                     && _combat.ContinuationSource.BoundaryReason == SearchBoundaryReason.None
@@ -1766,6 +1771,7 @@ internal static class SolverController
         if (_combat.SearchesStarted > 0 || _combat.ContinuationsReused > 0)
             Entry.Logger.Info($"[CombatSolver/Test] REPLAN_SUMMARY reason={reason} {DescribeReplanCounts()}");
         _lastBugReportClassification = CaptureBugReportClassification();
+        _lastManualProjectionComparison = _combat.LastManualProjectionComparison;
         CancelSearch();
         Task searchReferenceRelease = DrainSearchReferenceReleases();
         if (searchCanceled)
@@ -2997,8 +3003,11 @@ internal static class SolverController
             currentTurnNumber,
             baseline.ProjectedBattleHpLost,
             currentProjectedBattleHpLost,
-            baseline.StateDifference);
+            baseline.StateDifference,
+            baseline.OriginalCheckpointId,
+            CombatBugReportExporter.CurrentSearchRootId);
         _combat.LastManualProjectionComparison = comparison;
+        CombatBugReportExporter.RecordComparisonReference(baseline.OriginalCheckpointId);
         string direction;
         if (comparison.Difference < 0)
         {
@@ -3107,6 +3116,12 @@ internal static class SolverController
             _combat.ReplanCounts.GetValueOrDefault(ReplanCause.PlanExhausted),
             _combat.ReplanCounts.GetValueOrDefault(ReplanCause.ManualDivergence),
             _combat.BugReportIssues.Snapshot());
+
+    internal static CombatBugReportClassificationSnapshot CaptureBugReportClassificationForExport()
+        => CombatManager.Instance.IsInProgress ? CaptureBugReportClassification()
+            : _lastBugReportClassification ?? CaptureBugReportClassification();
+    internal static ManualProjectionComparison? ManualProjectionComparisonForExport
+        => CombatManager.Instance.IsInProgress ? _combat.LastManualProjectionComparison : _lastManualProjectionComparison;
 
     private static void CompleteDeployment(SolverDeploymentSession deployment)
     {

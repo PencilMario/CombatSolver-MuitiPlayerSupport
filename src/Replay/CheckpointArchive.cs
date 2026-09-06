@@ -41,11 +41,17 @@ internal static class CheckpointArchive
         {
             JsonArray checkpoints = index["checkpoints"] as JsonArray
                 ?? throw new InvalidDataException("missing_checkpoint_catalog");
+            HashSet<string> identities = new(StringComparer.Ordinal);
+            foreach (JsonNode? item in checkpoints)
+                if (item is not JsonObject entry || !identities.Add(RequiredString(entry, "checkpointId")))
+                    throw new InvalidDataException("invalid_checkpoint_catalog_identity");
             string? id = selector switch
             {
                 "latest" => index["defaultCheckpointId"]?.GetValue<string>(),
                 "start" => index["combatStartCheckpointId"]?.GetValue<string>(),
                 "end" => index["combatEndCheckpointId"]?.GetValue<string>(),
+                "recorded" => index["combatEndCheckpointId"]?.GetValue<string>()
+                    ?? index["defaultCheckpointId"]?.GetValue<string>(),
                 _ => selector,
             };
             if (id == null)
@@ -61,12 +67,17 @@ internal static class CheckpointArchive
             return Blocked($"unsupported_index_schema:{version}", index);
         }
 
+        HashSet<string> materialPaths = new(StringComparer.OrdinalIgnoreCase);
         foreach (string field in StateArtifacts)
         {
             string path = RequiredString(checkpoint, field);
             ValidateEntryPath(path);
+            if (!materialPaths.Add(path))
+                throw new InvalidDataException($"aliased_state_artifact:{field}:{path}");
             if (archive.GetEntry(path) == null)
                 return Blocked($"missing_artifact:{field}:{path}", index, checkpoint);
+            if (archive.GetEntry(path)!.Length == 0)
+                return Blocked($"empty_artifact:{field}:{path}", index, checkpoint);
         }
         JsonObject metadata = ReadObject(archive, RequiredString(checkpoint, "metadataPath"));
         JsonObject replay = ReadObject(archive, RequiredString(checkpoint, "replayStatePath"));
@@ -81,6 +92,18 @@ internal static class CheckpointArchive
             return Blocked("unsupported_replay_state_schema", index, checkpoint);
         if (run["rng"] == null || replay["runRng"] == null)
             return Blocked("missing_rng", index, checkpoint);
+        if (RequiredString(run["rng"]!.AsObject(), "seed") != RequiredString(replay["runRng"]!.AsObject(), "seed"))
+            throw new InvalidDataException("checkpoint_pair_mismatch:seed");
+        if (index["recording"] is JsonObject recording && recording["complete"]?.GetValue<bool>() == true)
+        {
+            foreach (string field in new[] { "originPath", "runSavePath", "eventsPath" })
+            {
+                string path = RequiredString(recording, field);
+                ValidateEntryPath(path);
+                if (archive.GetEntry(path) == null)
+                    return Blocked($"missing_recording_artifact:{field}:{path}", index, checkpoint);
+            }
+        }
         JsonArray players = replay["players"] as JsonArray
             ?? throw new InvalidDataException("missing_players");
         if (players.Count != 1 || players[0] is not JsonObject player)
@@ -101,8 +124,12 @@ internal static class CheckpointArchive
             ["index"] = index.DeepClone(),
             ["checkpoint"] = checkpoint,
             ["request"] = request,
-            ["recordedPolicy"] = metadata["effectivePolicy"]?.DeepClone(),
+            ["recordedPolicy"] = (index["searchPolicies"]?.AsArray().OfType<JsonObject>()
+                .LastOrDefault(item => item["checkpointId"]?.GetValue<string>() != null
+                    && item["checkpointId"]?.GetValue<string>() == metadata["searchRootId"]?.GetValue<string>())?["policy"]
+                ?? metadata["effectivePolicy"])?.DeepClone(),
             ["legacySettings"] = metadata["settings"]?.DeepClone(),
+            ["legacySearchProfiles"] = replay["searchProfiles"]?.DeepClone(),
             ["restorationVerified"] = false,
         };
     }

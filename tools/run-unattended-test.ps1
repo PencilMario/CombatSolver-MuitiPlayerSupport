@@ -13,6 +13,8 @@ param(
     [string]$CheckpointSelector = "latest",
     [ValidateSet("Preflight", "RestoreOnly", "ReplayRecorded", "SearchOnly", "DeploySolver")]
     [string]$ReplayMode = "RestoreOnly",
+    [string]$ReplayPolicyOverridePath = "",
+    [switch]$PreserveNativeCombatStateForTest,
     [string]$ProgressSnapshotPath = "",
     [ValidateRange(0, 10)]
     [int]$Ascension = 0,
@@ -666,6 +668,8 @@ $request = [ordered]@{
     checkpointArchivePath = if ($CheckpointArchivePath) { $CheckpointArchivePath } else { $null }
     checkpointSelector = $CheckpointSelector
     replayMode = $ReplayMode
+    replayPolicyOverridePath = if ($ReplayPolicyOverridePath) { (Resolve-Path -LiteralPath $ReplayPolicyOverridePath).Path } else { $null }
+    preserveNativeCombatStateForTest = $PreserveNativeCombatStateForTest.IsPresent
     ascension = $Ascension
     actIndexForTest = $ActIndexForTest
     markEncounterAsSecondBossForTest = $MarkEncounterAsSecondBossForTest.IsPresent

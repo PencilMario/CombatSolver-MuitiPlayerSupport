@@ -71,7 +71,7 @@ internal static class ArchiveContractTests
             }.ToJsonString());
             Write(prefix + "replay-state/" + file,
                 """{"schemaVersion":1,"encounterId":"e","exactContinuationState":"root","ascensionLevel":0,"currentActIndex":0,"runRng":{"seed":"seed"},"players":[{"characterId":"c"}]}""");
-            Write(prefix + "run-state/" + Path.ChangeExtension(file, ".save"), "{\"rng\":{}}");
+            Write(prefix + "run-state/" + Path.ChangeExtension(file, ".save"), "{\"rng\":{\"seed\":\"seed\"}}");
             Write(prefix + "native-state/" + Path.ChangeExtension(file, ".bin"), "native");
             checkpoints.Add(new JsonObject
             {

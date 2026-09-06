@@ -48,6 +48,7 @@ internal sealed partial class UnattendedTestRunner
     private static readonly ProtocolHost Host = new();
 
     public static bool IsActive => Host.IsActive;
+    internal static bool IsReplayingRecordedInputs => CombatReplayRecording.TestObserver != null;
     public static bool AutomaticTurnSearchEnabled => Host.AutomaticTurnSearchEnabled;
     public static bool VerifyIncrementalSearch => Host.VerifyIncrementalSearch;
     public static bool ForceShortSearchOnly => Host.ForceShortSearchOnly;
@@ -85,6 +86,11 @@ internal sealed partial class UnattendedTestRunner
         _scenarioBuilder = new ScenarioBuilder(this);
         _assertions = new Assertions(this);
         _executor = new Executor(this);
+        CombatReplayRecording.TestSearchResultObserver = result =>
+        {
+            if (!_writer.HasSolverMetrics)
+                _writer.CaptureSolverResult(result);
+        };
     }
 
     public static void TryStart(NGame? host) => Host.TryStart(host);
@@ -127,6 +133,16 @@ internal sealed partial class UnattendedTestRunner
                 return RunCompletion.InitialSearchHeld;
             }
             _assertions.AssertAfterExecution(scenario, outcome);
+            if (_writer.ReplayVerification != null && outcome.CombatEnded)
+            {
+                _writer.ReplayVerification["actualOutcome"] = JsonSerializer.SerializeToNode(
+                    CombatBugReportExporter.CaptureOutcome(combatState), UnattendedTestFiles.JsonOptions);
+                CombatBugReportClassificationSnapshot classification = SolverController.CaptureBugReportClassificationForExport();
+                _writer.ReplayVerification["unexpectedReplans"] = classification.StateMismatchReplans
+                    + classification.DeploymentDriftReplans + classification.ContinuationMissingReplans + classification.PlanExhaustedReplans;
+                if (_request.ReplayMode == "DeploySolver")
+                    _writer.ReplayVerification["status"] = "deployment_completed";
+            }
             // SolverResult test observations are required through the post-combat assertions,
             // but must not survive into ReturnToMainMenu and the protocol's reuse Gen2.
             SolverController.ReleaseUnattendedResultReferencesForTesting();
@@ -297,6 +313,8 @@ internal sealed partial class UnattendedTestRunner
         JsonElement root = checkpointDocument.RootElement;
         if (!root.TryGetProperty("settings", out _))
             throw new InvalidDataException("问题包检查点没有当时生效的求解设置。");
+        if (root.GetProperty("settings").TryGetProperty("reporterContactQq", out _))
+            throw new InvalidDataException("检查点设置包含白名单外的联系方式字段。");
         if (!root.TryGetProperty("controlMode", out _)
             || !root.TryGetProperty("lastSolverDeployedTurn", out _))
         {

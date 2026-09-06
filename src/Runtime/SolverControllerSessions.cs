@@ -10,14 +10,17 @@ internal sealed record CompleteProjectionBaseline(
 internal sealed record ManualProjectionBaseline(
     int StartTurnNumber,
     int ProjectedBattleHpLost,
-    string StateDifference);
+    string StateDifference,
+    string? OriginalCheckpointId = null);
 
 internal sealed record ManualProjectionComparison(
     int OriginalTurnNumber,
     int CurrentTurnNumber,
     int PreviousProjectedBattleHpLost,
     int CurrentProjectedBattleHpLost,
-    string StateDifference)
+    string StateDifference,
+    string? OriginalCheckpointId = null,
+    string? CurrentCheckpointId = null)
 {
     public int Difference => CurrentProjectedBattleHpLost - PreviousProjectedBattleHpLost;
 }

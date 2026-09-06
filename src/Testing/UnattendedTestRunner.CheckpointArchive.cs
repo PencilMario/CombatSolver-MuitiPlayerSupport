@@ -20,7 +20,10 @@ internal sealed partial class UnattendedTestRunner
         _checkpointImportDirectory = Path.Combine(
             ProjectSettings.GlobalizePath("user://checkpoint-imports"), Guid.NewGuid().ToString("N"));
         _checkpointImport = CheckpointArchive.Prepare(
-            _request.CheckpointArchivePath, _request.CheckpointSelector, _checkpointImportDirectory);
+            _request.CheckpointArchivePath,
+            _request.ReplayMode == "ReplayRecorded" && _request.CheckpointSelector == "latest"
+                ? "recorded" : _request.CheckpointSelector,
+            _checkpointImportDirectory);
         _writer.ReplayVerification = new JsonObject
         {
             ["mode"] = _request.ReplayMode,
@@ -41,14 +44,16 @@ internal sealed partial class UnattendedTestRunner
             _writer.ReplayVerification["status"] = "environment_mismatch";
             throw new InvalidDataException("environment_mismatch:gameModuleId");
         }
-        if (_request.ReplayMode == "ReplayRecorded")
+        if (_request.ReplayMode == "ReplayRecorded" && !HasNativeRecording)
             throw new InvalidDataException("missing_native_event_recording");
+        ResolveCheckpointPolicy();
         JsonObject input = JsonSerializer.SerializeToNode(_request, UnattendedTestFiles.JsonOptions)!.AsObject();
         foreach ((string key, JsonNode? value) in _checkpointImport["request"]!.AsObject())
             input[key] = value?.DeepClone();
         input["runSnapshotPath"] = _checkpointImport["paths"]!["runStatePath"]!.DeepClone();
         input["replayStatePath"] = _checkpointImport["paths"]!["replayStatePath"]!.DeepClone();
-        if (_request.ReplayMode == "RestoreOnly")
+        input["nativeStatePath"] = _checkpointImport["paths"]!["nativeStatePath"]!.DeepClone();
+        if (_request.ReplayMode is "RestoreOnly" or "ReplayRecorded")
             input["stopAfterCombatRootSnapshotAssertion"] = true;
         if (_request.ReplayMode == "SearchOnly")
             input["stopAfterInitialSolverResultAssertion"] = true;
@@ -59,6 +64,8 @@ internal sealed partial class UnattendedTestRunner
             input["expectedUnexpectedReplansAtMost"] = 0;
         }
         _request = input.Deserialize<UnattendedTestRequest>(UnattendedTestFiles.JsonOptions)!;
+        if (_checkpointImport["resolvedPolicy"]?["forceShortOnly"] is JsonValue forceShort)
+            _protocolHost.ApplyRecordedShortSearchMode(_request.ForceShortSearchOnly || forceShort.GetValue<bool>());
     }
 
     private void RecordCheckpointRestored()
@@ -66,6 +73,7 @@ internal sealed partial class UnattendedTestRunner
         if (_writer.ReplayVerification == null)
             return;
         _writer.ReplayVerification["restorationVerified"] = true;
+        _writer.ReplayVerification["nativeStateVerified"] = !string.IsNullOrWhiteSpace(_request.NativeStatePath);
         _writer.ReplayVerification["status"] = "restored";
         _completedChecks.Add("CheckpointContinuationMatched");
     }
@@ -74,7 +82,7 @@ internal sealed partial class UnattendedTestRunner
     {
         if (_checkpointImport == null)
             return current;
-        if (_checkpointImport["recordedPolicy"] is not JsonObject recorded)
+        if (_checkpointImport["resolvedPolicy"] is not JsonObject recorded)
         {
             if (_request.ReplayMode is "SearchOnly" or "DeploySolver")
                 throw new InvalidDataException("legacy_missing_effective_policy");
@@ -107,7 +115,53 @@ internal sealed partial class UnattendedTestRunner
 
     private void ReleaseCheckpointImport()
     {
+        CombatReplayRecording.TestObserver = null;
+        CombatReplayRecording.TestCombatStartObserver = null;
+        CombatReplayRecording.TestCombatEndObserver = null;
+        CombatReplayRecording.TestSearchResultObserver = null;
         if (_checkpointImportDirectory != null && Directory.Exists(_checkpointImportDirectory))
             Directory.Delete(_checkpointImportDirectory, recursive: true);
+    }
+
+    private bool HasNativeRecording => _checkpointImport?["index"]?["recording"]?["complete"]?.GetValue<bool>() == true;
+
+    private void ResolveCheckpointPolicy()
+    {
+        JsonObject? recorded = _checkpointImport!["recordedPolicy"] as JsonObject;
+        JsonObject policy = recorded == null ? new JsonObject() : (JsonObject)recorded.DeepClone();
+        if (recorded == null && _checkpointImport["legacySettings"] is JsonObject legacy)
+        {
+            foreach (string key in new[] { "potionPolicy", "potionDirectives", "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism" })
+                if (legacy[key] != null)
+                    policy[key] = legacy[key]!.DeepClone();
+            if (_checkpointImport["legacySearchProfiles"] is JsonObject profiles)
+                foreach (string key in new[] { "shortProfile", "deepProfile" })
+                    policy[key] = profiles[key]?.DeepClone();
+        }
+        if (!string.IsNullOrWhiteSpace(_request.ReplayPolicyOverridePath))
+        {
+            JsonObject overrides = JsonNode.Parse(File.ReadAllText(_request.ReplayPolicyOverridePath)) as JsonObject
+                ?? throw new InvalidDataException("expected_replay_policy_override_object");
+            HashSet<string> allowed = new(StringComparer.Ordinal)
+            {
+                "potionPolicy", "potionDirectives", "actTransitionBossHpStrategy", "finalBossHpStrategy",
+                "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism", "shortProfile", "deepProfile", "forceShortOnly",
+            };
+            foreach ((string key, JsonNode? value) in overrides)
+            {
+                if (!allowed.Contains(key) || value == null)
+                    throw new InvalidDataException($"invalid_policy_override:{key}");
+                policy[key] = value.DeepClone();
+            }
+            _writer.ReplayVerification!["policyOverrides"] = overrides.DeepClone();
+        }
+        string[] required = ["potionPolicy", "potionDirectives", "actTransitionBossHpStrategy", "finalBossHpStrategy",
+            "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism", "shortProfile", "deepProfile"];
+        string[] missing = required.Where(key => policy[key] == null).ToArray();
+        _writer.ReplayVerification!["missingPolicyFields"] = JsonSerializer.SerializeToNode(missing);
+        if (missing.Length > 0 && _request.ReplayMode is "SearchOnly" or "DeploySolver")
+            throw new InvalidDataException("missing_recorded_policy:" + string.Join(',', missing));
+        if (missing.Length == 0)
+            _checkpointImport["resolvedPolicy"] = policy;
     }
 }

@@ -53,6 +53,8 @@ add_option replay-state-path "" string none
 add_option checkpoint-archive-path "" string raw_string
 add_option checkpoint-selector "latest" string raw_string
 add_option replay-mode "RestoreOnly" string raw_string "Preflight|RestoreOnly|ReplayRecorded|SearchOnly|DeploySolver"
+add_option replay-policy-override-path "" string raw_string
+add_option preserve-native-combat-state-for-test 0 switch bool
 add_option progress-snapshot-path "" string none
 add_option ascension 0 int raw_int
 add_option act-index-for-test 0 int raw_int

@@ -293,7 +293,7 @@ internal sealed partial class SolverSettingsPanel
             string uploadDescription = CombatBugReportDescription.AppendSubmissionId(
                 descriptionWithClassification,
                 submissionId);
-            path = await CombatBugReportExporter.ExportCurrentAsync();
+            path = await CombatBugReportExporter.ExportCurrentAsync(playerDescription: description);
             cancellationToken.ThrowIfCancellationRequested();
             FileInfo archive = new(path);
             Interlocked.Exchange(ref _uploadBytesSent, 0);

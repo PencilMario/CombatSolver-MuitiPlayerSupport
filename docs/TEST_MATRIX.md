@@ -10,6 +10,11 @@
 
 | 场景 | 当前结果 | 验证内容 | 日期 |
 | --- | --- | --- | --- |
+| `NATIVE-REPLAY-COMBAT-0300` | 通过 | 原生四回合16事件重放，runId `55b8fd0e302f4151be6878c8c24273a5`，完整续用状态一致；进入/回放阶段约961ms。战后回血与清牌之前的相同结束边界对账。 | 2026-09-06 |
+| `NATIVE-REPLAY-SETUP-CHOICE-0300` | 通过 | 工具箱开局生成及选择3个原生事件，runId `f97cf39891864fabb517e95b3def281f`；选择器限定在录制回放作用域，跳过求解器的页面接管，不启动搜索。 | 2026-09-06 |
+| `NATIVE-REPLAY-MIXED-0300` | 通过 | 刀刃之舞生成牌及力量药水，runId `e866e6c7c24f4223a5c3b20e856c4740`，10事件，原生二进制及续用状态一致，实际0HP/1药，零重算。 | 2026-09-06 |
+| `NATIVE-DEPLOY-FROM-OPENING-0300` | 通过 | runId `e716aea669114d199433daeb1bb8430f`，从原生开战恢复并通过二进制状态对账，求解器T1至T4实际5HP/0药、计划外重算0；记录实际政策及预测指标。 | 2026-09-06 |
+| `LEGACY-OPENING-RANK3-0300` | 通过（开战检查点） | 旧实验体ZIP直接选择start，runId `651be9ae9c4a4e998cac5d9f9c28e774`，17.0秒，通过完整续用状态及原生二进制对账。原生加载跑局保留遗物池和存档属性；校验时点与原始开战导出一致。 | 2026-09-06 |
 | `ARCHIVE-CONTRACT-0300` | 通过 | `dotnet run --project tools/CheckpointTool/CheckpointTool.csproj -c Release -- self-test`，12 项检查覆盖同名文件分离、稳定默认入口、战后选择、旧包无索引、会话错配、重复及不安全路径。 | 2026-09-06 |
 | `ARCHIVE-V2-EXPORT-0300` / `ARCHIVE-V2-IMPORT-0300` | 通过（检查点） | 导出 runId `7ccbe05b91c441d3a7ff5ebea12ee660`；相同 ZIP 直接导入 runId `30f462a75df5456286fddae1144736aa`，`CheckpointContinuationMatched`，材料准备约29ms。没有运行搜索或整场部署。证据 `.local/replay-validation/batch1/`。 | 2026-09-06 |
 | `CHECKPOINT-INDEX-0300` | 通过 | 导出 runId `b309d78548cd46708a8dcf008af8bd40` 生成唯一 `combat-solver/checkpoint.json`；索引指向的 metadata、replay-state、native-state、run-state 均存在。再以同一 ZIP 直接导入，runId `15fa0e74fee74af787116be3c2bf2dae` 通过开战根状态断言。 | 2026-09-05 |

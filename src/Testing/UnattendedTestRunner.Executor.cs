@@ -108,7 +108,7 @@ internal sealed partial class UnattendedTestRunner
                 return Observation(combatEnded: false);
             }
             if (request.StopAfterCombatRootSnapshotAssertion)
-                return Observation(combatEnded: false);
+                return Observation(combatEnded: runner.HasNativeRecording && !CombatManager.Instance.IsInProgress);
             if (request.VerifyTurnSetupManualRecalculate)
                 return Observation(combatEnded: false);
             if (request.StopAfterInitialSetupAssertion)
@@ -121,7 +121,8 @@ internal sealed partial class UnattendedTestRunner
 
             runner.SetStage("full_auto");
             FastModeType? fastModeBeforeDeployment = ApplySettingsOverrides();
-            if (SolverController.LastTurnSetupResultForTesting == null)
+            if (SolverController.LastTurnSetupResultForTesting == null
+                && !request.PreserveNativeCombatStateForTest && !runner.HasNativeRecording)
                 SolverController.BeginCombat(combatState);
             if (request.TheftPolicyForTest is { } theftPolicy)
                 SolverController.SetTheftPolicyForTesting(combatState, theftPolicy);

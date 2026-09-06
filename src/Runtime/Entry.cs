@@ -61,6 +61,8 @@ public static class Entry
         patcher.RegisterPatch<PowerDynamicVarMaterializationGuardPatch>();
         patcher.RegisterPatch<UnattendedTestIsolationPatch>();
         patcher.RegisterPatch<UnattendedHeadlessFtuePatch>();
+        patcher.RegisterPatch<CombatReplayRecordingPatch>();
+        patcher.RegisterPatch<UnattendedCombatStartReplayPatch>();
         RitsuLibFramework.ApplyRequiredPatcher(patcher, DisableMod);
 
         if (Enabled)

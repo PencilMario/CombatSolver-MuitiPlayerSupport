@@ -758,4 +758,12 @@ if ($violations.Count -gt 0) {
     throw "Refactor boundary verification failed with $($violations.Count) violation(s)."
 }
 
+$archiveContract = [IO.File]::ReadAllText((Join-Path $repositoryRoot 'src/Replay/CheckpointArchive.cs'))
+if ($archiveContract -match '\b(Godot|SolverController|RunManager)\b') {
+    throw 'Checkpoint archive contract must remain independent of the game runtime.'
+}
+$nativeReplay = [IO.File]::ReadAllText((Join-Path $repositoryRoot 'src/Testing/UnattendedTestRunner.NativeReplay.cs'))
+if ($nativeReplay.Contains('ApplyReplayStateAsync(')) {
+    throw 'Native recorded replay must reconstruct state through native actions.'
+}
 Write-Output "REFACTOR_BOUNDARIES_OK search_files=$($searchFiles.Count)"

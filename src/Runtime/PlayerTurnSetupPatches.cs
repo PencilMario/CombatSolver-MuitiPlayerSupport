@@ -44,6 +44,8 @@ internal sealed class PlayerTurnSetupPatch : IPatchMethod
         HookPlayerChoiceContext __2,
         ref Task __result)
     {
+        if (UnattendedTestRunner.IsReplayingRecordedInputs)
+            return true;
         if (!PlayerTurnSetupCoordinator.TryInterceptSetup(__instance, __0, __1, __2, out Task? task))
             return true;
         __result = task!;
@@ -77,6 +79,8 @@ internal sealed class PlayerTurnAutoPrePlayPatch : IPatchMethod
         Player __3,
         ref Task __result)
     {
+        if (UnattendedTestRunner.IsReplayingRecordedInputs)
+            return true;
         if (!PlayerTurnSetupCoordinator.TryInterceptAutoPrePlay(
                 __instance,
                 __0,
@@ -397,6 +401,8 @@ internal static class PlayerTurnSetupCoordinator
 
     internal static bool TakeoverRequestedForTesting
         => _active?.TakeoverRequested == true;
+    internal static bool IsDrivingChoiceForRecording
+        => _active is { ReplayDrivingStarted: true } active && IsCurrentActivePlan(active);
 
     public static bool HasPendingPlannedChoice(CombatState combat)
         => _active is { PlannedChoices: not null } active

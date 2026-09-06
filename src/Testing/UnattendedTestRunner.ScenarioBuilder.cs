@@ -1,3 +1,7 @@
+using System.Text.Json;
+using MegaCrit.Sts2.Core.Assets;
+using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Saves;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Context;
@@ -34,6 +38,13 @@ internal sealed partial class UnattendedTestRunner
         public async Task<ScenarioContext> BuildAsync()
         {
             runner.PrepareCheckpointRequest();
+            if (runner.HasNativeRecording)
+            {
+                ScenarioContext native = await runner.BuildNativeRecordedScenarioAsync();
+                CombatState = native.CombatState;
+                StartedTurn = native.StartedTurn;
+                return native;
+            }
             UnattendedTestRequest request = runner._request;
             runner.SetStage("game_startup");
             await runner._host.GameStartupComplete;
@@ -52,7 +63,21 @@ internal sealed partial class UnattendedTestRunner
                 .ToArray();
 
             runner.SetStage("start_run");
-            await runner._host.StartNewSingleplayerRun(
+            bool loadedRunSnapshot = !string.IsNullOrWhiteSpace(request.RunSnapshotPath);
+            if (loadedRunSnapshot)
+            {
+                SerializableRun savedRun = JsonSerializer.Deserialize(
+                    await File.ReadAllTextAsync(request.RunSnapshotPath!), JsonSerializationUtility.GetTypeInfo<SerializableRun>())!;
+                RunState savedState = RunState.FromSerializable(savedRun);
+                await RunManager.Instance.SetUpSavedSingleplayer(savedState, savedRun);
+                await PreloadManager.LoadRunAssets(savedState.Players.Select(player => player.Character));
+                await PreloadManager.LoadActAssets(savedState.Act);
+                RunManager.Instance.Launch();
+                runner._host.RootSceneContainer.SetCurrentScene(NRun.Create(savedState));
+                await RunManager.Instance.GenerateMap();
+            }
+            else
+                await runner._host.StartNewSingleplayerRun(
                 character,
                 shouldSave: false,
                 ActModel.GetDefaultList(),
@@ -65,7 +90,7 @@ internal sealed partial class UnattendedTestRunner
             runner.SetStage("inject_run_relics");
             RunState runState = RunManager.Instance.DebugOnlyGetState()
                 ?? throw new InvalidOperationException("创建跑局后找不到 RunState。");
-            if (request.ActIndexForTest != 0)
+            if (!loadedRunSnapshot && request.ActIndexForTest != 0)
             {
                 if ((uint)request.ActIndexForTest >= (uint)runState.Acts.Count)
                     throw new InvalidOperationException($"测试幕索引超出范围：{request.ActIndexForTest}。");
@@ -77,13 +102,16 @@ internal sealed partial class UnattendedTestRunner
                 ?? throw new InvalidOperationException("创建跑局后找不到本地玩家。");
             foreach (UnattendedRelicInjection injection in request.Relics)
                 await InjectRelicAsync(runPlayer, injection);
-            if (!string.IsNullOrWhiteSpace(request.RunSnapshotPath))
-                await ApplyRunSnapshotAsync(runState, runPlayer, request.RunSnapshotPath);
             if (request.ClearRunDeck)
                 ClearRunDeck(runState, runPlayer);
             foreach (UnattendedCardInjection injection in request.RunCards)
                 await InjectRunCardAsync(runState, runPlayer, injection);
+            if (request.PreserveNativeCombatStateForTest)
+                foreach (UnattendedPotionInjection injection in request.Potions)
+                    InjectPotionForTest(runPlayer, injection.PotionId);
 
+            using UnattendedCombatStartReplay? combatStartReplay =
+                await PrepareCombatStartReplayAsync(runState, runPlayer, request);
             runner.SetStage("enter_encounter");
             EncounterModel mutableEncounter = encounter.ToMutable();
             await RunManager.Instance.EnterRoomDebug(
@@ -91,6 +119,25 @@ internal sealed partial class UnattendedTestRunner
                 MapPointType.Unassigned,
                 mutableEncounter);
 
+            if (combatStartReplay != null)
+            {
+                runner.SetStage("restore_legacy_combat_start");
+                while (combatStartReplay.Restoration is not { IsCompleted: true })
+                {
+                    runner.EnsureWithinDeadline();
+                    await runner.NextFrameAsync();
+                }
+                await combatStartReplay.Restoration;
+                while (!combatStartReplay.OpeningVerification.IsCompleted)
+                {
+                    runner.EnsureWithinDeadline();
+                    await runner.NextFrameAsync();
+                }
+                await combatStartReplay.OpeningVerification;
+                runner._completedChecks.Add("ReplayCombatStartStateMatched");
+                if (runner._writer.ReplayVerification != null)
+                    runner._writer.ReplayVerification["comparisonScope"] = "full_combat";
+            }
             runner.SetStage("wait_player_turn");
             if (request.VerifyTurnSetupSceneExitCancellation)
             {
@@ -125,6 +172,9 @@ internal sealed partial class UnattendedTestRunner
             IReadOnlyList<UnattendedOrbCheck> orbChecks = request.OrbChecks;
             IReadOnlyList<UnattendedPotionCheck> potionChecks = runner.GetPotionChecks();
             IReadOnlyList<UnattendedMonsterMoveCheck> monsterMoveChecks = runner.GetMonsterMoveChecks();
+            if (request.PreserveNativeCombatStateForTest)
+                return new ScenarioContext(character, encounter, CombatState, player, StartedTurn, orbChecks, potionChecks, monsterMoveChecks);
+            CombatReplayRecording.Pending?.MarkIncomplete("test_fixture_state_injection");
             foreach (string monsterId in request.AdditionalMonsterIds
                          .Where(static id => !string.IsNullOrWhiteSpace(id))
                          .Distinct(StringComparer.OrdinalIgnoreCase))
@@ -133,11 +183,11 @@ internal sealed partial class UnattendedTestRunner
             }
             if (!string.IsNullOrWhiteSpace(request.ReplayStatePath))
             {
-                await ApplyReplayStateAsync(
-                    CombatState,
-                    player,
-                    request.ReplayStatePath,
-                    request.RunSnapshotPath);
+                if (combatStartReplay == null)
+                {
+                    await ApplyReplayStateAsync(CombatState, player, request.ReplayStatePath, request.RunSnapshotPath, request.NativeStatePath);
+                    CombatBugReportExporter.ResetOutcomeAtRestoredRoot(CombatState);
+                }
                 StartedTurn = player.PlayerCombatState!.TurnNumber;
                 runner.RecordCheckpointRestored();
                 await runner.NextFrameAsync();

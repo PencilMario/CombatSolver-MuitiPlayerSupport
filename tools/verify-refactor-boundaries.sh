@@ -617,4 +617,12 @@ if ((${#violations[@]} > 0)); then
     exit 1
 fi
 
+if grep -Eq '\b(Godot|SolverController|RunManager)\b' "$repository_root/src/Replay/CheckpointArchive.cs"; then
+    echo 'Checkpoint archive contract must remain independent of the game runtime.' >&2
+    exit 1
+fi
+if grep -Fq 'ApplyReplayStateAsync(' "$repository_root/src/Testing/UnattendedTestRunner.NativeReplay.cs"; then
+    echo 'Native recorded replay must reconstruct state through native actions.' >&2
+    exit 1
+fi
 printf 'REFACTOR_BOUNDARIES_OK search_files=%d\n' "${#search_files[@]}"

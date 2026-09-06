@@ -27,6 +27,7 @@ internal sealed partial class UnattendedTestRunner
         public bool AutomaticTurnSearchEnabled { get; private set; } = true;
         public bool VerifyIncrementalSearch { get; private set; }
         public bool ForceShortSearchOnly { get; private set; }
+        public void ApplyRecordedShortSearchMode(bool enabled) => ForceShortSearchOnly = enabled;
         public bool MeasureSearchPhases { get; private set; }
         public int? SearchMaxDegreeOfParallelismOverride { get; private set; }
         public int? ShortSearchBudgetOverrideMilliseconds { get; private set; }

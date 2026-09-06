@@ -21,10 +21,13 @@ internal sealed partial class UnattendedTestRunner
         Func<UnattendedStageTiming[]> captureStageTimings)
     {
         private UnattendedSolverMetrics? _solverMetrics;
+        public bool HasSolverMetrics => _solverMetrics != null;
         public System.Text.Json.Nodes.JsonObject? ReplayVerification { get; set; }
 
         public void CaptureSolverResult(SolverResult result)
         {
+            if (ReplayVerification != null && CombatBugReportExporter.LatestEffectivePolicy is { } policy)
+                ReplayVerification["executedPolicy"] = JsonSerializer.SerializeToNode(policy, UnattendedTestFiles.JsonOptions);
             RuntimeMemorySnapshot memory = CaptureRuntimeMemory();
             SolverSettingsSnapshot configuredSettings = SolverSettings.Capture();
             GCLatencyMode gcLatencyMode = GCSettings.LatencyMode;
