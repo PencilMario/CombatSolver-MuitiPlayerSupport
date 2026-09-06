@@ -1,5 +1,9 @@
 # CombatSolver 测试清单
 
+## 2026-09-06：PR #18 第三方 OnPlay 边界
+
+`PR18-FOREIGN-ONPLAY-BOUNDARY` Passed，runId `c374c02c64a34423b8f99a1da976a7b0`：真实 Harmony Prefix 安装/卸载，覆盖首次根捕获后新增补丁、已声明非玩法来源、未知来源、移除补丁后的正常捕获及 live 状态不变。既有 `PredictionFailureBoundaries` 和首结果增量短搜通过，3 节点/11 转移、无药零损 T1。Release 编译零警告/错误。夹具 `coverage/unattended/pr18-foreign-onplay-boundary.json`；未逐一覆盖 Prefix/Postfix/Transpiler/Finalizer，也未运行完整战斗或可见第三方 Mod 组合。
+
 ## 2026-09-06：PR #15 药水分档
 
 `PR15-POTION-VALUE-TIERS` Passed，runId `11959921f03041e9a9f6fe7001023315`：校验 9/14/18 HP 准入门槛、Token/可再生免费、龙涎香独立计价、救命和强制用药，以及根快照中的高档成本。Short1500ms、增量验证、首结果停止；3 节点/11 转移，无药零损 T1。Release 编译零警告/错误。夹具 `coverage/unattended/pr15-potion-value-tiers.json`，不代表静态分档在所有情境都优于原规则。

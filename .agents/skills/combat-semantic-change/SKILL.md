@@ -78,6 +78,7 @@ CombatRootSnapshot.Capture（主线程根）
 - 不在 worker 推进真实动作队列、牌堆、Power、Creature 或 run RNG。
 - 不新增宽泛 catch、静默默认值或“跳过该候选”。未支持行为让搜索明确失败或形成已定义边界。
 - gameplay mod subscriber 必须在根阶段识别所有权；未知来源显式拒绝，不做通用浅拷贝。
+- 根可达卡牌的第三方 OnPlay Harmony 补丁由 `PredictionModPatchAudit` 检查；跨根读取当前补丁表，避免缓存已卸载或后来安装的补丁。新增适配时明确其来源与语义，不能用未知来源放行代替适配；此入口不代表所有第三方方法已覆盖。
 
 ## 5. 验证选择
 

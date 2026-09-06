@@ -2,11 +2,76 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Potions;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Potions;
+using HarmonyLib;
+using CombatSolver.Engine.Common;
+using MegaCrit.Sts2.Core.Modding;
 
 namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private static class ForeignCardPatch
+    {
+        public static bool Prefix() => false;
+    }
+
+    private void AssertForeignCardPatchBoundary(CombatState combat)
+    {
+        CardModel[] cards = combat.Players.SelectMany(player => player.PlayerCombatState!.AllCards).ToArray();
+        CardModel card = cards.First();
+        var method = AccessTools.Method(card.GetType(), "OnPlay",
+            [typeof(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext),
+             typeof(MegaCrit.Sts2.Core.Entities.Cards.CardPlay)]);
+        var prefix = AccessTools.Method(typeof(ForeignCardPatch), nameof(ForeignCardPatch.Prefix));
+        Harmony harmony = new("CombatSolver.Unattended.Pr18");
+        var previousMocks = AssemblyInfo.MockTypes;
+        ModManifest manifest = new() { id = "PR18-TEST", name = "PR18 Test", affectsGameplay = true };
+        Mod mod = new() { path = "unattended-pr18", manifest = manifest };
+        AssemblyInfo.MockTypes = previousMocks == null ? [] : new(previousMocks);
+        AssemblyInfo.MockTypes[typeof(ForeignCardPatch)] = (mod, false);
+        ContinuationStamp before = ContinuationStamp.CaptureLive(combat);
+        try
+        {
+            _ = CombatRootSnapshot.Capture(combat);
+            harmony.Patch(method, prefix: new HarmonyMethod(prefix));
+            try
+            {
+                _ = CombatRootSnapshot.Capture(combat);
+                throw new InvalidOperationException("首次根捕获之后新增的玩法补丁没有被拒绝。");
+            }
+            catch (IncompatibleGameplayModException ex)
+            {
+                if (ex.ModId != manifest.id || !ex.Subject.Contains("OnPlay", StringComparison.Ordinal))
+                    throw new InvalidOperationException("补丁失败缺少 Mod 和方法上下文。", ex);
+            }
+            manifest.affectsGameplay = false;
+            _ = CombatRootSnapshot.Capture(combat);
+            AssemblyInfo.MockTypes[typeof(ForeignCardPatch)] = (null, false);
+            try
+            {
+                PredictionModPatchAudit.ValidateCardOnPlay(cards);
+                throw new InvalidOperationException("未知来源的玩法补丁被静默放行。");
+            }
+            catch (PredictionUnsupportedException ex)
+            {
+                if (!ex.Message.Contains("CombatSolver.Unattended.Pr18", StringComparison.Ordinal))
+                    throw new InvalidOperationException("未知来源补丁失败缺少 owner 上下文。", ex);
+            }
+            manifest.affectsGameplay = true;
+            AssemblyInfo.MockTypes[typeof(ForeignCardPatch)] = (mod, false);
+            harmony.Unpatch(method, prefix);
+            _ = CombatRootSnapshot.Capture(combat);
+            if (ContinuationStamp.CaptureLive(combat) != before)
+                throw new InvalidOperationException("补丁审计修改了真实战斗状态。");
+            _completedChecks.Add("ForeignOnPlay:LatePatch:Neutral:Unknown:Unpatch:RootUnchanged");
+        }
+        finally
+        {
+            harmony.Unpatch(method, prefix);
+            AssemblyInfo.MockTypes = previousMocks;
+        }
+    }
+
     private void AssertPotionValueTiers(CombatState combat)
     {
         if (PotionUsePolicy.StrategicHpCost("SWIFT_POTION") != 18
