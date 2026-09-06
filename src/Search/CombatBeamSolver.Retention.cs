@@ -194,7 +194,10 @@ internal sealed partial class CombatBeamSolver
         {
             SearchNode node = retained[index];
             if (ShouldPruneByPrimaryIncumbent(
-                    node.Snapshot.CumulativePlayerHpLost,
+                    node.Snapshot.CumulativePlayerHpLost
+                        + ActEndingBossPolicy.DeathSaveRelicPremium(
+                            node.Snapshot.DeathSaveRelicHpRestored,
+                            _strategicBossHpRelief),
                     node.Turn,
                     incumbent))
             {
@@ -306,7 +309,10 @@ internal sealed partial class CombatBeamSolver
             // ApplyPrimaryIncumbentBound deliberately keeps using cumulative HP loss alone
             // as the lower bound for incomplete nodes because max HP may still recover.
             int strategicHpDeficit = node.Snapshot.CumulativePlayerHpLost
-                + Math.Max(0, root.InitialPlayerMaxHp - node.Snapshot.PlayerMaxHp);
+                + Math.Max(0, root.InitialPlayerMaxHp - node.Snapshot.PlayerMaxHp)
+                + ActEndingBossPolicy.DeathSaveRelicPremium(
+                    node.Snapshot.DeathSaveRelicHpRestored,
+                    _strategicBossHpRelief);
             TryTightenPrimarySearchIncumbent(
                 _potionFreePolicyBaseline,
                 _minimumPotionUses,

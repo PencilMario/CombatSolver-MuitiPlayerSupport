@@ -87,7 +87,7 @@ internal sealed partial class CombatBeamSolver
         public Dictionary<StateFingerprint, TranspositionFrontier> Transpositions = [];
         public Dictionary<StateFingerprint, TranspositionFrontier> ExpandedTranspositions = [];
         public Dictionary<StateFingerprint, StandPatEvaluation> StandPatCache = [];
-        public Dictionary<(StateFingerprint State, int RoundIndex), int> ThreatProjectionCache = [];
+        public Dictionary<(StateFingerprint State, int RoundIndex), ThreatProjection> ThreatProjectionCache = [];
         public Dictionary<PredictionRiskSignature, CoverageSummary> CoverageCache = [];
         public int Expanded;
         public int DominatedActionsPruned;
@@ -220,6 +220,7 @@ internal sealed partial class CombatBeamSolver
         int PlayerHp,
         int PlayerMaxHp,
         int CumulativePlayerHpLost,
+        int DeathSaveRelicHpRestored,
         int LongTermResourceValue,
         int AngerCopiesGenerated,
         int PlayerBlock,
@@ -259,6 +260,7 @@ internal sealed partial class CombatBeamSolver
                 snapshot.PlayerHp,
                 snapshot.PlayerMaxHp,
                 snapshot.CumulativePlayerHpLost,
+                snapshot.DeathSaveRelicHpRestored,
                 snapshot.LongTermResourceValue,
                 snapshot.AngerCopiesGenerated,
                 snapshot.PlayerBlock,

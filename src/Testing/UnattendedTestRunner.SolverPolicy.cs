@@ -103,6 +103,7 @@ internal sealed partial class UnattendedTestRunner
         => _request.ExpectedInitialSoldHp.HasValue
             || _request.ExpectedInitialSoldHpAtMost.HasValue
             || _request.ExpectedInitialSoldHpBranchesPrunedAtLeast.HasValue
+            || _request.ExpectedInitialDeathSaveRelicHp.HasValue
             || _request.ExpectedInitialActionAdmissionRepresentativesProtectedAtLeast.HasValue
             || _request.ExpectedInitialHpInvestmentBranchesProtectedAtLeast.HasValue
             || _request.ExpectedInitialPotionCount.HasValue
@@ -277,6 +278,13 @@ internal sealed partial class UnattendedTestRunner
         {
             throw new InvalidOperationException(
                 $"首轮卖血预算剪枝为 {result.SoldHpBranchesPruned}，低于预期下限 {minimumPruned}。");
+        }
+        if (_request.ExpectedInitialDeathSaveRelicHp is { } expectedDeathSaveRelicHp
+            && result.Snapshot.DeathSaveRelicHpRestored != expectedDeathSaveRelicHp)
+        {
+            throw new InvalidOperationException(
+                $"首轮路线用掉一次性保命遗物回了 {result.Snapshot.DeathSaveRelicHpRestored} 点血，"
+                + $"预期为 {expectedDeathSaveRelicHp}。");
         }
         if (_request.ExpectedInitialActionAdmissionRepresentativesProtectedAtLeast is { } minimumProtected
             && result.ActionAdmissionRepresentativesProtected < minimumProtected)

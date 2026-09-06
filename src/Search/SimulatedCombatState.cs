@@ -1877,6 +1877,8 @@ internal sealed partial class SimulatedCombatState
         fingerprint.Add(_longTermResourceValue);
         fingerprint.Add('A');
         fingerprint.Add(_angerCopiesGenerated);
+        fingerprint.Add('L');
+        fingerprint.Add(_deathSaveRelicHpRestored);
         AddFeralStates(ref fingerprint, simulator, effectivePowers);
         AddJugglingStates(ref fingerprint, simulator, effectivePowers);
         AddTurnStartStates(ref fingerprint, simulator, effectivePowers);

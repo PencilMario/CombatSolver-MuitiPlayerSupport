@@ -106,6 +106,7 @@ internal sealed class UnattendedTestRequest
     public int? ExpectedInitialSoldHp { get; init; }
     public int? ExpectedInitialSoldHpAtMost { get; init; }
     public int? ExpectedInitialSoldHpBranchesPrunedAtLeast { get; init; }
+    public int? ExpectedInitialDeathSaveRelicHp { get; init; }
     public int? ExpectedInitialActionAdmissionRepresentativesProtectedAtLeast { get; init; }
     public int? ExpectedInitialHpInvestmentBranchesProtectedAtLeast { get; init; }
     public int? ExpectedInitialPotionCount { get; init; }

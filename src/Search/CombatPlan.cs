@@ -1032,6 +1032,7 @@ internal sealed class SimulationSnapshot(
     int playerHp,
     int playerMaxHp,
     int cumulativePlayerHpLost,
+    int deathSaveRelicHpRestored,
     int longTermResourceValue,
     int angerCopiesGenerated,
     int projectedPlayerHp,
@@ -1108,6 +1109,11 @@ internal sealed class SimulationSnapshot(
     public int PlayerHp { get; } = playerHp;
     public int PlayerMaxHp { get; } = playerMaxHp;
     public int CumulativePlayerHpLost { get; } = cumulativePlayerHpLost;
+
+    /// <summary>HP a one-shot death-save relic put back on this route.</summary>
+    /// <seealso cref="ActEndingBossPolicy.DeathSaveRelicPremium"/>
+    public int DeathSaveRelicHpRestored { get; } = deathSaveRelicHpRestored;
+
     public int LongTermResourceValue { get; } = longTermResourceValue;
     public int AngerCopiesGenerated { get; } = angerCopiesGenerated;
     public int ProjectedPlayerHp { get; } = projectedPlayerHp;
@@ -1209,6 +1215,7 @@ internal sealed record SolverSnapshot(
     int PlayerHp,
     int PlayerMaxHp,
     int CumulativePlayerHpLost,
+    int DeathSaveRelicHpRestored,
     int LongTermResourceValue,
     int AngerCopiesGenerated,
     int ProjectedPlayerHp,

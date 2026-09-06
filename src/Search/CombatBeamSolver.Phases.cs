@@ -508,6 +508,7 @@ internal sealed partial class CombatBeamSolver
                 finalSnapshot.PlayerHp,
                 finalSnapshot.PlayerMaxHp,
                 finalSnapshot.CumulativePlayerHpLost,
+                finalSnapshot.DeathSaveRelicHpRestored,
                 finalSnapshot.LongTermResourceValue,
                 finalSnapshot.AngerCopiesGenerated,
                 finalSnapshot.ProjectedPlayerHp,

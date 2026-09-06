@@ -418,11 +418,11 @@ internal static class CombatSearchCoordinator
         int? shortCheckpointMilliseconds,
         SolverResult primary)
     {
-        int primaryDeficit = StrategicHpDeficit(root, primary);
+        int primaryDeficit = StrategicHpDeficit(root, policy, primary);
         int maximumSmartPotionUses = policy.PotionPolicy == SolverPotionPolicy.Smart
             ? MaximumSmartPotionUses(root, policy, potionFreeWon: true, primaryDeficit)
             : Math.Max(1, primary.PotionCount);
-        if (HasReachedProvablePrimaryQualityLowerBound(root, primary)
+        if (HasReachedProvablePrimaryQualityLowerBound(root, policy, primary)
             || policy.PotionPolicy == SolverPotionPolicy.RequireAtLeastOne
                 && battleDamage.PotionsUsedSoFar == 0)
             return primary;
@@ -539,8 +539,8 @@ internal static class CombatSearchCoordinator
             bool posteriorWon = posterior.Snapshot.AllEnemiesDead
                 && !posterior.Snapshot.PlayerDead
                 && posterior.Snapshot.ProjectedPlayerHp > 0;
-            int posteriorDeficit = StrategicHpDeficit(root, posterior);
-            if (IsBetterCompletedResult(root, posterior, selected))
+            int posteriorDeficit = StrategicHpDeficit(root, policy, posterior);
+            if (IsBetterCompletedResult(root, policy, posterior, selected))
             {
                 selected = posterior;
             }
@@ -591,8 +591,8 @@ internal static class CombatSearchCoordinator
             bool linkedWon = linkedPosterior.Snapshot.AllEnemiesDead
                 && !linkedPosterior.Snapshot.PlayerDead
                 && linkedPosterior.Snapshot.ProjectedPlayerHp > 0;
-            int linkedDeficit = StrategicHpDeficit(root, linkedPosterior);
-            if (IsBetterCompletedResult(root, linkedPosterior, selected))
+            int linkedDeficit = StrategicHpDeficit(root, policy, linkedPosterior);
+            if (IsBetterCompletedResult(root, policy, linkedPosterior, selected))
             {
                 selected = linkedPosterior;
             }
@@ -644,13 +644,13 @@ internal static class CombatSearchCoordinator
                 posteriorDeepTriggered);
             searches.Add(resourceDefensePosterior);
 
-            if (IsBetterCompletedResult(root, resourceDefensePosterior, selected))
+            if (IsBetterCompletedResult(root, policy, resourceDefensePosterior, selected))
                 selected = resourceDefensePosterior;
             policy.Diagnostics.Info(
                 $"[CombatSolver/Test] OPENING_RESOURCE_DEFENSE_POSTERIOR " +
                 $"cards={openingResource.CardId}+{defensiveFollowUp.CardId} " +
                 $"won={resourceDefensePosterior.Snapshot.AllEnemiesDead && !resourceDefensePosterior.Snapshot.PlayerDead} " +
-                $"hp_deficit={StrategicHpDeficit(root, resourceDefensePosterior)} " +
+                $"hp_deficit={StrategicHpDeficit(root, policy, resourceDefensePosterior)} " +
                 $"selected={ReferenceEquals(selected, resourceDefensePosterior)}");
         }
 
@@ -692,8 +692,8 @@ internal static class CombatSearchCoordinator
             bool resourceWon = resourcePosterior.Snapshot.AllEnemiesDead
                 && !resourcePosterior.Snapshot.PlayerDead
                 && resourcePosterior.Snapshot.ProjectedPlayerHp > 0;
-            int resourceDeficit = StrategicHpDeficit(root, resourcePosterior);
-            if (IsBetterCompletedResult(root, resourcePosterior, selected))
+            int resourceDeficit = StrategicHpDeficit(root, policy, resourcePosterior);
+            if (IsBetterCompletedResult(root, policy, resourcePosterior, selected))
             {
                 selected = resourcePosterior;
             }
@@ -704,7 +704,7 @@ internal static class CombatSearchCoordinator
                 $"selected={ReferenceEquals(selected, resourcePosterior)}");
         }
 
-        if (HasReachedProvablePrimaryQualityLowerBound(root, selected)
+        if (HasReachedProvablePrimaryQualityLowerBound(root, policy, selected)
             && selected.PotionCount <= 1)
         {
             MergeAuditTotals(selected, searches.ToArray());
@@ -750,9 +750,9 @@ internal static class CombatSearchCoordinator
             bool jointWon = jointPosterior.Snapshot.AllEnemiesDead
                 && !jointPosterior.Snapshot.PlayerDead
                 && jointPosterior.Snapshot.ProjectedPlayerHp > 0;
-            int jointDeficit = StrategicHpDeficit(root, jointPosterior);
-            int comparisonDeficit = StrategicHpDeficit(root, selected);
-            if (IsBetterCompletedResult(root, jointPosterior, selected))
+            int jointDeficit = StrategicHpDeficit(root, policy, jointPosterior);
+            int comparisonDeficit = StrategicHpDeficit(root, policy, selected);
+            if (IsBetterCompletedResult(root, policy, jointPosterior, selected))
             {
                 selected = jointPosterior;
             }
@@ -763,7 +763,7 @@ internal static class CombatSearchCoordinator
                 $"selected={ReferenceEquals(selected, jointPosterior)}");
 
             if (!jointWon
-                || HasReachedProvablePrimaryQualityLowerBound(root, jointPosterior)
+                || HasReachedProvablePrimaryQualityLowerBound(root, policy, jointPosterior)
                 || jointDeficit > comparisonDeficit + 1)
             {
                 continue;
@@ -821,8 +821,8 @@ internal static class CombatSearchCoordinator
             bool defensiveWon = defensivePosterior.Snapshot.AllEnemiesDead
                 && !defensivePosterior.Snapshot.PlayerDead
                 && defensivePosterior.Snapshot.ProjectedPlayerHp > 0;
-            int defensiveDeficit = StrategicHpDeficit(root, defensivePosterior);
-            if (IsBetterCompletedResult(root, defensivePosterior, selected))
+            int defensiveDeficit = StrategicHpDeficit(root, policy, defensivePosterior);
+            if (IsBetterCompletedResult(root, policy, defensivePosterior, selected))
             {
                 selected = defensivePosterior;
             }
@@ -832,7 +832,7 @@ internal static class CombatSearchCoordinator
                 $"follow_up={defensiveFollowUp.CardId} won={defensiveWon} " +
                 $"hp_deficit={defensiveDeficit} selected={ReferenceEquals(selected, defensivePosterior)}");
 
-            if (HasReachedProvablePrimaryQualityLowerBound(root, defensivePosterior))
+            if (HasReachedProvablePrimaryQualityLowerBound(root, policy, defensivePosterior))
                 break;
         }
 
@@ -934,8 +934,8 @@ internal static class CombatSearchCoordinator
                 bool posteriorWon = posterior.Snapshot.AllEnemiesDead
                     && !posterior.Snapshot.PlayerDead
                     && posterior.Snapshot.ProjectedPlayerHp > 0;
-                int posteriorDeficit = StrategicHpDeficit(root, posterior);
-                if (IsBetterCompletedResult(root, posterior, selected))
+                int posteriorDeficit = StrategicHpDeficit(root, policy, posterior);
+                if (IsBetterCompletedResult(root, policy, posterior, selected))
                 {
                     selected = posterior;
                 }
@@ -993,8 +993,8 @@ internal static class CombatSearchCoordinator
                     bool pairWon = pairPosterior.Snapshot.AllEnemiesDead
                         && !pairPosterior.Snapshot.PlayerDead
                         && pairPosterior.Snapshot.ProjectedPlayerHp > 0;
-                    int pairDeficit = StrategicHpDeficit(root, pairPosterior);
-                    if (IsBetterCompletedResult(root, pairPosterior, selected))
+                    int pairDeficit = StrategicHpDeficit(root, policy, pairPosterior);
+                    if (IsBetterCompletedResult(root, policy, pairPosterior, selected))
                     {
                         selected = pairPosterior;
                     }
@@ -1005,7 +1005,7 @@ internal static class CombatSearchCoordinator
                         $"won={pairWon} hp_deficit={pairDeficit} " +
                         $"selected={ReferenceEquals(selected, pairPosterior)}");
 
-                    int selectedDeficit = StrategicHpDeficit(root, selected);
+                    int selectedDeficit = StrategicHpDeficit(root, policy, selected);
                     if (!pairWon || pairDeficit > selectedDeficit + 1)
                         continue;
 
@@ -1056,8 +1056,8 @@ internal static class CombatSearchCoordinator
                     bool defensiveWon = defensivePosterior.Snapshot.AllEnemiesDead
                         && !defensivePosterior.Snapshot.PlayerDead
                         && defensivePosterior.Snapshot.ProjectedPlayerHp > 0;
-                    int defensiveDeficit = StrategicHpDeficit(root, defensivePosterior);
-                    if (IsBetterCompletedResult(root, defensivePosterior, selected))
+                    int defensiveDeficit = StrategicHpDeficit(root, policy, defensivePosterior);
+                    if (IsBetterCompletedResult(root, policy, defensivePosterior, selected))
                     {
                         selected = defensivePosterior;
                     }
@@ -1185,7 +1185,7 @@ internal static class CombatSearchCoordinator
         bool potionFreeWon = potionFree.Snapshot.AllEnemiesDead
             && !potionFree.Snapshot.PlayerDead
             && potionFree.Snapshot.ProjectedPlayerHp > 0;
-        int potionFreeDeficit = StrategicHpDeficit(root, potionFree);
+        int potionFreeDeficit = StrategicHpDeficit(root, policy, potionFree);
         int maximumPotionUses = MaximumSmartPotionUses(
             root,
             policy,
@@ -1236,6 +1236,7 @@ internal static class CombatSearchCoordinator
             }
             PrimarySearchIncumbent? primaryIncumbent = BuildPrimarySearchIncumbent(
                 root,
+                policy,
                 selected);
             SolverResult candidate;
             try
@@ -1287,7 +1288,7 @@ internal static class CombatSearchCoordinator
             interimResultCallback?.Invoke(candidate);
 
             bool candidateWon = IsCompleteVictory(candidate);
-            int candidateDeficit = StrategicHpDeficit(root, candidate);
+            int candidateDeficit = StrategicHpDeficit(root, policy, candidate);
             int hpSaved = potionFreeWon
                 ? Math.Max(0, potionFreeDeficit - candidateDeficit)
                 : candidateWon
@@ -1441,7 +1442,7 @@ internal static class CombatSearchCoordinator
             Won: IsCompleteVictory(result),
             OutstandingStolenResource: result.OutstandingStolenResource,
             ProjectedBattleHpLost: result.ProjectedBattleHpLost,
-            StrategicHpDeficit: StrategicHpDeficit(root, result),
+            StrategicHpDeficit: StrategicHpDeficit(root, policy, result),
             PotionStrategicCost: SmartPotionHpRequired(root, policy, result),
             ProjectedBattlePotionCount: result.ProjectedBattlePotionCount,
             CombatEndedTurn: result.CombatEndedTurn,
@@ -1451,10 +1452,11 @@ internal static class CombatSearchCoordinator
 
     private static bool IsBetterCompletedResult(
         CombatRootSnapshot root,
+        SearchPolicySnapshot policy,
         SolverResult candidate,
         SolverResult current)
     {
-        int primaryQuality = CompareCompletedResultPrimaryQuality(root, candidate, current);
+        int primaryQuality = CompareCompletedResultPrimaryQuality(root, policy, candidate, current);
         if (primaryQuality != 0)
             return primaryQuality < 0;
         return candidate.PotionCount < current.PotionCount
@@ -1501,14 +1503,15 @@ internal static class CombatSearchCoordinator
 
     private static int CompareCompletedResultPrimaryQuality(
         CombatRootSnapshot root,
+        SearchPolicySnapshot policy,
         SolverResult candidate,
         SolverResult current)
         => SolverInterimResultOrdering.ComparePrimaryQuality(
             IsCompleteVictory(candidate),
-            StrategicHpDeficit(root, candidate),
+            StrategicHpDeficit(root, policy, candidate),
             candidate.CombatEndedTurn,
             IsCompleteVictory(current),
-            StrategicHpDeficit(root, current),
+            StrategicHpDeficit(root, policy, current),
             current.CombatEndedTurn);
 
     private static bool IsCompleteVictory(SolverResult result)
@@ -1534,10 +1537,11 @@ internal static class CombatSearchCoordinator
 
     private static bool HasReachedProvablePrimaryQualityLowerBound(
         CombatRootSnapshot root,
+        SearchPolicySnapshot policy,
         SolverResult result)
         => HasReachedProvablePrimaryQualityLowerBound(
             IsCompleteVictory(result),
-            StrategicHpDeficit(root, result),
+            StrategicHpDeficit(root, policy, result),
             result.CombatEndedTurn,
             root.StartTurnNumber);
 
@@ -1560,12 +1564,13 @@ internal static class CombatSearchCoordinator
 
     private static PrimarySearchIncumbent? BuildPrimarySearchIncumbent(
         CombatRootSnapshot root,
+        SearchPolicySnapshot policy,
         SolverResult result)
     {
         if (!IsCompleteVictory(result) || result.CombatEndedTurn is not { } combatEndedTurn)
             return null;
         return new PrimarySearchIncumbent(
-            StrategicHpDeficit(root, result),
+            StrategicHpDeficit(root, policy, result),
             combatEndedTurn);
     }
 
@@ -1602,9 +1607,15 @@ internal static class CombatSearchCoordinator
             StrategicBossHpRelief(root, policy));
     }
 
-    private static int StrategicHpDeficit(CombatRootSnapshot root, SolverResult result)
+    private static int StrategicHpDeficit(
+        CombatRootSnapshot root,
+        SearchPolicySnapshot policy,
+        SolverResult result)
         => result.Snapshot.CumulativePlayerHpLost
-            + Math.Max(0, root.InitialPlayerMaxHp - result.Snapshot.PlayerMaxHp);
+            + Math.Max(0, root.InitialPlayerMaxHp - result.Snapshot.PlayerMaxHp)
+            + ActEndingBossPolicy.DeathSaveRelicPremium(
+                result.Snapshot.DeathSaveRelicHpRestored,
+                StrategicBossHpRelief(root, policy));
 
     internal static bool CanAnySmartPotionQualify(
         CombatRootSnapshot root,

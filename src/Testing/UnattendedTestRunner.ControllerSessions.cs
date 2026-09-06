@@ -969,6 +969,16 @@ internal sealed partial class UnattendedTestRunner
         {
             throw new InvalidOperationException("跨幕回复没有按 80% 同步缩放药水与卖血阈值。");
         }
+        if (ActEndingBossPolicy.DeathSaveRelicPremium(0, BossHpRelief.None) != 0
+            || ActEndingBossPolicy.DeathSaveRelicPremium(40, BossHpRelief.None) != 360
+            || ActEndingBossPolicy.DeathSaveRelicPremium(40, BossHpRelief.ActClearHeal) != 360
+            || ActEndingBossPolicy.DeathSaveRelicPremium(40, BossHpRelief.RunEnding) != 0
+            || ActEndingBossPolicy.DeathSaveRelicBeamCost(40, BossHpRelief.None) != 400
+            || ActEndingBossPolicy.DeathSaveRelicBeamCost(40, BossHpRelief.RunEnding) != 0)
+        {
+            throw new InvalidOperationException(
+                "一次性保命遗物的复活没有按用掉它的代价计价，或者整局最后一战没有免收。");
+        }
         if (ActEndingBossPolicy.ResolveStrategicHpRelief(
                 BossHpRelief.ActClearHeal,
                 BossHpStrategy.ProgressionFirst,
