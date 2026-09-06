@@ -139,31 +139,40 @@ internal sealed partial class CombatBeamSolver
 
         int roundIndex = turn - _startTurnNumber;
         SearchMeasurement threatMeasurement = _run.Performance.Begin();
-        int projectedHp;
+        ThreatProjection threat;
         if (won)
         {
             // A lethal player action ends combat immediately. Enemy intent from that round must
             // never lower the route's projected HP or leak into battle-loss reporting.
-            projectedHp = player.CurrentHp;
+            threat = new ThreatProjection(player.CurrentHp, 0);
         }
         else if (boundary != SearchBoundaryReason.None)
         {
-            projectedHp = player.CurrentHp;
+            threat = new ThreatProjection(player.CurrentHp, 0);
         }
-        else if (!_run.ThreatProjectionCache.TryGetValue((key, roundIndex), out projectedHp))
+        else if (!_run.ThreatProjectionCache.TryGetValue((key, roundIndex), out threat))
         {
-            projectedHp = ProjectHpAfterThreat(simulator, player, roundIndex);
-            _run.ThreatProjectionCache.Add((key, roundIndex), projectedHp);
+            threat = ProjectHpAfterThreat(simulator, player, roundIndex);
+            _run.ThreatProjectionCache.Add((key, roundIndex), threat);
         }
+        int projectedHp = threat.Hp;
         _run.Performance.End(SearchMetricPhase.ThreatProjection, threatMeasurement);
         int cumulativePlayerHpLost = combat.GetCumulativeHpLost(_player.Creature);
         int recoveredPlayerHp = combat.GetRecoveredHp(_player.Creature);
+        int deathSaveRelicHpRestored = combat.DeathSaveRelicHpRestored;
         double hpWeight = SolverWeights.Hp;
         double score = dead || projectedHp <= 0
             ? SolverWeights.DeathPenalty
             : projectedHp * hpWeight;
         score += (player.MaxHp - root.InitialPlayerMaxHp) * hpWeight;
         score -= cumulativePlayerHpLost * hpWeight;
+        // A one-shot death save is a cross-combat resource. The HP it puts back is still sitting in
+        // projectedHp, so it is taken out again and charged a second time as the price of spending it. The
+        // projected part is included because walking into a lethal intent has to look as expensive as
+        // actually taking it, or retention keeps the route that plans to die and drops the one that does not.
+        score -= ActEndingBossPolicy.DeathSaveRelicBeamCost(
+            deathSaveRelicHpRestored + threat.DeathSaveRelicHpRestored,
+            _strategicBossHpRelief) * hpWeight;
         int exhaustedTheHunts = playerState.ExhaustPile.Cards.Count(card => card.Preview is TheHunt);
         int rewardedTheHunts = Math.Max(0, combat.GetAmount<TheHuntPower>(_player.Creature));
         int missedTheHuntRewards = Math.Max(0, exhaustedTheHunts - rewardedTheHunts);
@@ -398,6 +407,7 @@ internal sealed partial class CombatBeamSolver
             player.MaxHp,
             cumulativePlayerHpLost,
             recoveredPlayerHp,
+            deathSaveRelicHpRestored,
             longTermResourceValue,
             angerCopiesGenerated,
             projectedHp,
@@ -948,7 +958,13 @@ internal sealed partial class CombatBeamSolver
         return summary;
     }
 
-    private int ProjectHpAfterThreat(
+    /// <summary>
+    /// What the incoming enemy intent leaves the player at, and how much of that HP only exists because a
+    /// one-shot death-save relic would have to be spent to get there.
+    /// </summary>
+    private readonly record struct ThreatProjection(int Hp, int DeathSaveRelicHpRestored);
+
+    private ThreatProjection ProjectHpAfterThreat(
         CombatPredictionSimulator simulator,
         SimCreatureState player,
         int roundIndex)
@@ -1008,7 +1024,7 @@ internal sealed partial class CombatBeamSolver
                     ref deathPrevention);
             }
         }
-        return hp;
+        return new ThreatProjection(hp, deathPrevention.RelicHpRestored);
     }
 
     private void ProjectThreatHit(
@@ -1104,6 +1120,9 @@ internal sealed partial class CombatBeamSolver
         bool lizardTailAvailable,
         int lizardTailHeal)
     {
+        /// <summary>HP a projected Lizard Tail revive would restore, priced the same way a real one is.</summary>
+        public int RelicHpRestored { get; private set; }
+
         public void TryRevive(ref int hp)
         {
             if (hp > 0)
@@ -1117,6 +1136,9 @@ internal sealed partial class CombatBeamSolver
             if (!lizardTailAvailable)
                 return;
             lizardTailAvailable = false;
+            // Projected HP can run below zero; the real revive heals from zero, so the restored amount is
+            // the full heal either way.
+            RelicHpRestored += lizardTailHeal;
             hp = lizardTailHeal;
         }
     }

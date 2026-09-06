@@ -76,6 +76,7 @@ internal sealed partial class SimulatedCombatState
             _outstandingStolenCards = _outstandingStolenCards,
             _longTermResourceValue = _longTermResourceValue,
             _angerCopiesGenerated = _angerCopiesGenerated,
+            _deathSaveRelicHpRestored = _deathSaveRelicHpRestored,
         };
 
         if (_addedPowerInstances is not null)

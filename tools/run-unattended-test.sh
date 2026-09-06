@@ -153,7 +153,7 @@ for name in \
     expected-initial-choice-branches-evaluated-at-least \
     expected-initial-executable-action-count-at-least \
     expected-initial-sold-hp expected-initial-sold-hp-at-most \
-    expected-initial-sold-hp-branches-pruned-at-least \
+    expected-initial-sold-hp-branches-pruned-at-least \n    expected-initial-death-save-relic-hp \
     expected-initial-action-admission-representatives-protected-at-least \
     expected-initial-hp-investment-branches-protected-at-least \
     expected-initial-potion-count expected-initial-potion-hp-saved-at-least \

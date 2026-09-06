@@ -202,6 +202,7 @@ internal static class SolverDiagnostics
             .Append(" projected_battle_hp_lost=").Append(result.ProjectedBattleHpLost)
             .Append(" recovered_hp=").Append(result.Snapshot.RecoveredPlayerHp)
             .Append(" relic_heal=").Append(result.PostCombatRelicHeal)
+            .Append(" death_save_relic_hp=").Append(result.Snapshot.DeathSaveRelicHpRestored)
             .Append(" long_term_resource=").Append(result.Snapshot.LongTermResourceValue)
             .Append(" anger_copies=").Append(result.Snapshot.AngerCopiesGenerated)
             .Append(" battle_potions_used_so_far=").Append(result.BattlePotionsUsedSoFar)

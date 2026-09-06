@@ -86,7 +86,8 @@ internal sealed partial class CombatBeamSolver
                         hpDeficit,
                         maxHpDeficit,
                         features.RecoveredPlayerHp + relicHeal,
-                        bossHpRelief);
+                        bossHpRelief,
+                        features.DeathSaveRelicHpRestored);
                     int healthResourceCost = initialHp - features.PlayerHp
                         + initialPlayerMaxHp - features.PlayerMaxHp;
                     int strategicSold = battleSold;
@@ -360,7 +361,8 @@ internal sealed partial class CombatBeamSolver
                         leftWon,
                         leftSnapshot.PlayerHp,
                         leftSnapshot.PlayerMaxHp),
-                bossHpRelief)
+                bossHpRelief,
+                leftSnapshot.DeathSaveRelicHpRestored)
             .CompareTo(ActEndingBossPolicy.StrategicHpDeficit(
                 rightSnapshot.CumulativePlayerHpLost,
                 Math.Max(0, initialPlayerMaxHp - rightSnapshot.PlayerMaxHp),
@@ -370,7 +372,8 @@ internal sealed partial class CombatBeamSolver
                         rightWon,
                         rightSnapshot.PlayerHp,
                         rightSnapshot.PlayerMaxHp),
-                bossHpRelief));
+                bossHpRelief,
+                rightSnapshot.DeathSaveRelicHpRestored));
         if (comparison != 0)
             return comparison;
         comparison = (leftWon ? leftSnapshot.CombatEndedTurn ?? int.MaxValue : int.MaxValue)

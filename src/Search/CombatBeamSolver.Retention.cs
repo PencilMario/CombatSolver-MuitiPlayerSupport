@@ -367,7 +367,8 @@ internal sealed partial class CombatBeamSolver
             snapshot.CumulativePlayerHpLost,
             maxHpDeficit: 0,
             snapshot.RecoveredPlayerHp + Math.Max(0, snapshot.PlayerMaxHp - snapshot.PlayerHp),
-            _strategicBossHpRelief);
+            _strategicBossHpRelief,
+            snapshot.DeathSaveRelicHpRestored);
 
     internal static bool ShouldPruneByPrimaryIncumbent(
         int strategicHpLowerBound,
@@ -482,8 +483,11 @@ internal sealed partial class CombatBeamSolver
             int strategicHpDeficit = ActEndingBossPolicy.StrategicHpDeficit(
                 node.Snapshot.CumulativePlayerHpLost,
                 Math.Max(0, root.InitialPlayerMaxHp - node.Snapshot.PlayerMaxHp),
-                node.Snapshot.RecoveredPlayerHp,
-                _strategicBossHpRelief);
+                node.Snapshot.RecoveredPlayerHp
+                    + ActEndingBossPolicy.RankedPostCombatRelicHeal(
+                        root.PostCombatRelicHeal, true, node.Snapshot.PlayerHp, node.Snapshot.PlayerMaxHp),
+                _strategicBossHpRelief,
+                node.Snapshot.DeathSaveRelicHpRestored);
             TryTightenPrimarySearchIncumbent(
                 _potionFreePolicyBaseline,
                 _minimumPotionUses,

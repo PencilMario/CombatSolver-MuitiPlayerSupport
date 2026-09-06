@@ -194,8 +194,14 @@ internal sealed partial class CombatBeamSolver
                 OutstandingStolenResource: node.Snapshot.OutstandingStolenResource,
                 ProjectedBattleHpLost: battleDamage.HpLostSoFar
                     + node.Snapshot.CumulativePlayerHpLost,
-                StrategicHpDeficit: node.Snapshot.CumulativePlayerHpLost
-                    + Math.Max(0, root.InitialPlayerMaxHp - node.Snapshot.PlayerMaxHp),
+                StrategicHpDeficit: ActEndingBossPolicy.StrategicHpDeficit(
+                    node.Snapshot.CumulativePlayerHpLost,
+                    Math.Max(0, root.InitialPlayerMaxHp - node.Snapshot.PlayerMaxHp),
+                    node.Snapshot.RecoveredPlayerHp
+                        + ActEndingBossPolicy.RankedPostCombatRelicHeal(
+                            root.PostCombatRelicHeal, won, node.Snapshot.PlayerHp, node.Snapshot.PlayerMaxHp),
+                    _strategicBossHpRelief,
+                    node.Snapshot.DeathSaveRelicHpRestored),
                 PotionStrategicCost: PotionUsePolicy.EffectiveStrategicHpCost(
                     node.PotionStrategicCost,
                     ambergrisCount,
@@ -526,6 +532,7 @@ internal sealed partial class CombatBeamSolver
                 finalSnapshot.PlayerMaxHp,
                 finalSnapshot.CumulativePlayerHpLost,
                 finalSnapshot.RecoveredPlayerHp,
+                finalSnapshot.DeathSaveRelicHpRestored,
                 finalSnapshot.LongTermResourceValue,
                 finalSnapshot.AngerCopiesGenerated,
                 finalSnapshot.ProjectedPlayerHp,

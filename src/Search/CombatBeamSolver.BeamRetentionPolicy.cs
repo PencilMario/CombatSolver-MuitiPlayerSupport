@@ -6680,7 +6680,8 @@ internal sealed partial class CombatBeamSolver
                         completeVictory,
                         snapshot.PlayerHp,
                         snapshot.PlayerMaxHp),
-                _bossHpRelief);
+                _bossHpRelief,
+                snapshot.DeathSaveRelicHpRestored);
 
         private int HealthResourceCost(SimulationSnapshot snapshot)
             => _initialPlayerHp - snapshot.PlayerHp

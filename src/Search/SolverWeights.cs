@@ -69,6 +69,15 @@ internal static class SolverWeights
     public const int EliteSoldHpThreshold = 10;
     public const int BossSoldHpThreshold = 15;
     public const int PotionMinimumHpSaved = 9;
+
+    // 一次性保命遗物（蜥蜴尾巴）用掉就没了。除了不把复活回的血当成路线赚到的血，还要按复活血量的
+    // 若干倍再收一次「把它花掉」的代价。
+    //
+    // 倍数要够大。Beam 里和它抢分的不只是血：敌方总血量按 EnemyHp = -10_000 计价，一场双 Boss 战
+    // 光这一项就值一百多点血，所以按一比一收费时，靠复活换来的输出节奏仍然划算——实测就是这样，
+    // 路线照样把尾巴烧掉。收到十倍之后，任何一条能活着打赢的路线都比烧尾巴强，而这个数量级仍然
+    // 远低于 VictoryBonus 和 DeathPenalty：没有别的活路时，尾巴照用不误。
+    public const int DeathSaveRelicPremiumPercent = 900;
     // This is the minimum cross-turn no-progress horizon and the UI projection horizon. It is not a
     // total turn cap: every new historical combat improvement restarts the no-progress window.
     public const int SetupValueHorizonTurns = 16;

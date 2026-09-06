@@ -1722,7 +1722,8 @@ internal static partial class CombatSearchCoordinator
                         result.Snapshot.ProjectedPlayerHp),
                     result.Snapshot.PlayerHp,
                     result.Snapshot.PlayerMaxHp),
-            StrategicBossHpRelief(root, policy));
+            StrategicBossHpRelief(root, policy),
+            result.Snapshot.DeathSaveRelicHpRestored);
 
     /// <summary>
     /// Best strategic HP result any route could still reach from this root.
