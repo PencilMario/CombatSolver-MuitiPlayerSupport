@@ -10,7 +10,8 @@ namespace CombatSolver;
 internal static class PotionChoiceSupport
 {
     public static bool RequiresChoice(PotionModel potion)
-        => GeneratesCardChoice(potion)
+        => PotionChoiceMirrors.RequiresChoice(potion)
+            || GeneratesCardChoice(potion)
             || potion is Ashwater
             or DropletOfPrecognition
             or GamblersBrew
@@ -21,6 +22,9 @@ internal static class PotionChoiceSupport
         CombatPredictionSimulator simulator,
         PotionModel potion)
     {
+        // 第三方登记优先。登记表为空时这是一次字典 Count 检查。
+        if (PotionChoiceMirrors.TryGetSpec(simulator, potion, out CardChoiceSpec registered))
+            return registered;
         Player owner = potion.Owner;
         SimPlayerCombatState state = simulator.State.GetPlayerCombatState(owner);
         if (GeneratesCardChoice(potion))
@@ -79,6 +83,8 @@ internal static class PotionChoiceSupport
         PotionModel potion,
         PlanCardChoice choice)
     {
+        if (PotionChoiceMirrors.TryApply(simulator, potion, choice, out bool registeredCompleted))
+            return registeredCompleted;
         SimPlayerCombatState owner = simulator.State.GetPlayerCombatState(potion.Owner);
         List<PredictedCard> selected = new(choice.Cards.Count);
         if (choice.Effect == PlanChoiceEffect.GenerateToHand)

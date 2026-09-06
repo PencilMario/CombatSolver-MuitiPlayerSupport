@@ -389,7 +389,7 @@ internal sealed record SolverOverlaySnapshot(
             PlanChoiceEffect.Discard => "弃",
             PlanChoiceEffect.Exhaust => "耗尽",
             PlanChoiceEffect.Transform => "变换",
-            PlanChoiceEffect.GenerateToHand => "选择",
+            PlanChoiceEffect.GenerateToHand or PlanChoiceEffect.ModDefined => "选择",
             _ => choice.Effect.ToString(),
         };
         return $"{source}：{effect} {string.Join('、', choice.Cards.Select(card => card.Title))}";
