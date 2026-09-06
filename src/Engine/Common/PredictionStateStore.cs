@@ -4,22 +4,26 @@ namespace CombatSolver.Engine.Common;
 
 internal sealed class PredictionStateStore
 {
-    // 条目原本被包在唯一实现 OwnedStateEntry 里，而 Read/Materialize 都只是把构造时收下的
-    // 那一个引用还回去。包装层每条目多一次分配（Fork 时按条目数成倍出现），直接存状态对象。
-    private readonly Dictionary<(AbstractModel Model, Type StateType), object> _states;
-    // 绝大多数 store 从来不登记别名，惰性建表让 ResolveModel 在空表上直接短路。
+    // State values are already owned and eagerly forked. A separate heap-allocated entry
+    // around every value adds no isolation; keep the value directly in the same ordered table.
+    private Dictionary<(AbstractModel Model, Type StateType), object>? _states;
     private Dictionary<AbstractModel, AbstractModel>? _modelAliases;
     // 每种状态类型当前的条目数。ReadEntries<TState> 是热路径（每次动作后都要同步 Power 数量），
     // 绝大多数调用时该类型根本没有条目，用计数直接短路，避免整表扫描。
-    private readonly Dictionary<Type, int> _countByType = new();
+    private Dictionary<Type, int>? _countByType;
 
     public PredictionStateStore()
-        : this(0)
+        : this(0, 0)
     {
     }
 
-    private PredictionStateStore(int stateCapacity)
-        => _states = new Dictionary<(AbstractModel Model, Type StateType), object>(stateCapacity);
+    private PredictionStateStore(int stateCapacity, int aliasCapacity)
+    {
+        if (stateCapacity > 0)
+            _states = new(stateCapacity);
+        if (aliasCapacity > 0)
+            _modelAliases = new(aliasCapacity);
+    }
 
     public TState Get<TState>(AbstractModel model)
         where TState : IPredictionStateForkable, new()
@@ -43,15 +47,15 @@ internal sealed class PredictionStateStore
         where TState : IPredictionStateForkable
     {
         var key = (ResolveModel(model), typeof(TState));
-        if (!_states.TryGetValue(key, out object? entry))
+        if (_states is null || !_states.TryGetValue(key, out object? state))
         {
-            entry = create(argument)
+            state = create(argument)
                 ?? throw new InvalidOperationException("Prediction state factory returned null.");
-            _states[key] = entry;
+            (_states ??= [])[key] = state;
             IncrementCount(typeof(TState));
         }
 
-        return (TState)entry;
+        return (TState)state;
     }
 
     public TState GetReadOnly<TState>(AbstractModel model, Func<TState> create)
@@ -70,14 +74,14 @@ internal sealed class PredictionStateStore
         where TState : IPredictionStateForkable
     {
         var key = (ResolveModel(model), typeof(TState));
-        if (!_states.TryGetValue(key, out object? entry))
+        if (_states is null || !_states.TryGetValue(key, out object? state))
         {
-            entry = create(argument)
+            state = create(argument)
                 ?? throw new InvalidOperationException("Prediction state factory returned null.");
-            _states[key] = entry;
+            (_states ??= [])[key] = state;
             IncrementCount(typeof(TState));
         }
-        return (TState)entry;
+        return (TState)state;
     }
 
     /// <summary>
@@ -99,8 +103,9 @@ internal sealed class PredictionStateStore
         Func<TArgument, TState> create)
         where TState : IPredictionStateForkable
     {
-        if (_states.TryGetValue((ResolveModel(model), typeof(TState)), out object? entry))
-            return (TState)entry;
+        var key = (ResolveModel(model), typeof(TState));
+        if (_states is not null && _states.TryGetValue(key, out object? state))
+            return (TState)state;
         return create(argument)
             ?? throw new InvalidOperationException("Prediction state factory returned null.");
     }
@@ -108,38 +113,49 @@ internal sealed class PredictionStateStore
     public bool TryGetReadOnly<TState>(AbstractModel model, out TState? state)
         where TState : class, IPredictionStateForkable
     {
-        if (_states.TryGetValue((ResolveModel(model), typeof(TState)), out object? entry))
+        var key = (ResolveModel(model), typeof(TState));
+        if (_states is not null && _states.TryGetValue(key, out object? value))
         {
-            state = (TState)entry;
+            state = (TState)value;
             return true;
         }
         state = null;
         return false;
     }
 
+    public bool HasEntries<TState>()
+        where TState : class, IPredictionStateForkable
+        => _countByType is not null
+            && _countByType.TryGetValue(typeof(TState), out int count)
+            && count != 0;
+
     public IEnumerable<(AbstractModel Model, TState State)> ReadEntries<TState>()
         where TState : class, IPredictionStateForkable
     {
-        if (!_countByType.TryGetValue(typeof(TState), out int count) || count == 0)
+        if (!HasEntries<TState>())
             yield break;
-        foreach (((AbstractModel model, Type stateType), object entry) in _states)
+        foreach (((AbstractModel model, Type stateType), object state) in _states!)
         {
             if (stateType == typeof(TState))
-                yield return (model, (TState)entry);
+                yield return (model, (TState)state);
         }
     }
 
     public bool Remove<TState>(AbstractModel model)
         where TState : class, IPredictionStateForkable
     {
-        if (!_states.Remove((ResolveModel(model), typeof(TState))))
+        var key = (ResolveModel(model), typeof(TState));
+        if (_states is null || !_states.Remove(key))
             return false;
-        _countByType[typeof(TState)]--;
+        _countByType![typeof(TState)]--;
         return true;
     }
 
     private void IncrementCount(Type stateType)
-        => _countByType[stateType] = _countByType.GetValueOrDefault(stateType) + 1;
+    {
+        _countByType ??= [];
+        _countByType[stateType] = _countByType.GetValueOrDefault(stateType) + 1;
+    }
 
     public void RemapModel(AbstractModel source, AbstractModel replacement)
     {
@@ -148,66 +164,72 @@ internal sealed class PredictionStateStore
         if (ReferenceEquals(resolvedSource, resolvedReplacement))
             return;
 
-        (AbstractModel Model, Type StateType)[] keys = _states.Keys
-            .Where(key => ReferenceEquals(key.Model, resolvedSource))
-            .ToArray();
-        foreach ((AbstractModel _, Type stateType) in keys)
+        if (_states is not null)
         {
-            object entry = _states[(resolvedSource, stateType)];
-            _states.Remove((resolvedSource, stateType));
-            if (!_states.TryAdd((resolvedReplacement, stateType), entry))
-                throw new InvalidOperationException($"Prediction state remap collided for {stateType.FullName}.");
+            (AbstractModel Model, Type StateType)[] keys = _states.Keys
+                .Where(key => ReferenceEquals(key.Model, resolvedSource))
+                .ToArray();
+            foreach ((AbstractModel _, Type stateType) in keys)
+            {
+                object state = _states[(resolvedSource, stateType)];
+                _states.Remove((resolvedSource, stateType));
+                if (!_states.TryAdd((resolvedReplacement, stateType), state))
+                    throw new InvalidOperationException($"Prediction state remap collided for {stateType.FullName}.");
+            }
         }
 
-        Dictionary<AbstractModel, AbstractModel> aliases = _modelAliases ??= [];
-        foreach (AbstractModel alias in aliases
+        _modelAliases ??= [];
+        foreach (AbstractModel alias in _modelAliases
                      .Where(pair => ReferenceEquals(pair.Value, resolvedSource))
                      .Select(pair => pair.Key)
                      .ToArray())
         {
-            aliases[alias] = resolvedReplacement;
+            _modelAliases[alias] = resolvedReplacement;
         }
-        aliases[source] = resolvedReplacement;
-        aliases[resolvedSource] = resolvedReplacement;
+        _modelAliases[source] = resolvedReplacement;
+        _modelAliases[resolvedSource] = resolvedReplacement;
     }
 
     internal PredictionStateStore Fork(PredictionForkContext context)
     {
         AssertForkable();
-        PredictionStateStore fork = new(_states.Count);
-        foreach (((AbstractModel model, Type stateType), object state) in _states)
+        PredictionStateStore fork = new(_states?.Count ?? 0, _modelAliases?.Count ?? 0);
+        if (_states is { Count: > 0 })
         {
-            AbstractModel forkedModel = context.RemapOrSelf(model);
-            object forkedState;
-            if (context.TryRemap(state, out object? existing))
+            foreach (((AbstractModel model, Type stateType), object state) in _states)
             {
-                forkedState = existing!;
-            }
-            else
-            {
-                if (state is not IPredictionStateForkable forkable)
+                AbstractModel forkedModel = context.RemapOrSelf(model);
+                object forkedState;
+                if (context.TryRemap(state, out object? existing))
                 {
-                    throw new InvalidOperationException(
-                        $"Prediction state {state.GetType().FullName} does not implement {nameof(IPredictionStateForkable)}.");
+                    forkedState = existing!;
                 }
-                forkedState = forkable.Fork(context);
-                context.Register(state, forkedState);
+                else
+                {
+                    if (state is not IPredictionStateForkable forkable)
+                    {
+                        throw new InvalidOperationException(
+                            $"Prediction state {state.GetType().FullName} does not implement {nameof(IPredictionStateForkable)}.");
+                    }
+                    forkedState = forkable.Fork(context);
+                    context.Register(state, forkedState);
+                }
+                fork._states!.Add((forkedModel, stateType), forkedState);
             }
-            fork._states.Add((forkedModel, stateType), forkedState);
+            foreach ((Type stateType, int count) in _countByType!)
+            {
+                if (count != 0)
+                    (fork._countByType ??= [])[stateType] = count;
+            }
         }
-        foreach ((Type stateType, int count) in _countByType)
+        if (_modelAliases is not null)
         {
-            if (count != 0)
-                fork._countByType[stateType] = count;
-        }
-        if (_modelAliases is { Count: > 0 } aliases)
-        {
-            foreach ((AbstractModel source, AbstractModel replacement) in aliases)
+            foreach ((AbstractModel source, AbstractModel replacement) in _modelAliases)
             {
                 AbstractModel forkedSource = context.RemapOrSelf(source);
                 AbstractModel forkedReplacement = context.RemapOrSelf(replacement);
                 if (!ReferenceEquals(forkedSource, forkedReplacement))
-                    (fork._modelAliases ??= [])[forkedSource] = forkedReplacement;
+                    fork._modelAliases![forkedSource] = forkedReplacement;
             }
         }
         return fork;
@@ -215,6 +237,8 @@ internal sealed class PredictionStateStore
 
     internal void AssertForkable()
     {
+        if (_states is null)
+            return;
         foreach (object state in _states.Values)
         {
             if (state is IPredictionForkBoundary boundary)
@@ -224,10 +248,11 @@ internal sealed class PredictionStateStore
 
     private AbstractModel ResolveModel(AbstractModel model)
     {
-        if (_modelAliases is not { Count: > 0 } aliases)
-            return model;
+        ArgumentNullException.ThrowIfNull(model);
         AbstractModel current = model;
-        for (int guard = 0; guard < 16 && aliases.TryGetValue(current, out AbstractModel? replacement); guard++)
+        if (_modelAliases is null)
+            return current;
+        for (int guard = 0; guard < 16 && _modelAliases.TryGetValue(current, out AbstractModel? replacement); guard++)
             current = replacement;
         return current;
     }
