@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "combatSolverVersion": "0.15.0",
+  "combatSolverVersion": "0.30.0",
   "gameVersion": "0.111.0",
   "nativeAutoRescan": []
 }

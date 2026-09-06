@@ -1,5 +1,9 @@
 # CombatSolver 测试清单
 
+## 2026-09-06：PR #48 碎骨
+
+`BONE-SHARDS-OSTY-REPLAY-0300` 通过，runId `a6540dba59014aeb8ee79f00dee4f050`：奥斯提 10 HP，连续打出两张碎骨，逐动作 actual/simulated 严格差分一致；第二张不会额外加盾。夹具 `coverage/unattended/bone-shards-osty-replay-0300.json`。Release 与 CoverageCatalog `--verify-effective` 通过；未单独构造攻击触发待选牌的碎骨场景。
+
 ## 2026-09-06：八个 PR 集成验证
 
 本轮构建、结构门禁、容器与 GC 合同、Windows headless 资源隔离、失败边界、Fork/根/控制器、DOP1/DOP2、终局增量回放、长循环与保命遗物完整自动部署通过。[直接证据与失败修正](pr/integration-39-47-review.md) 单独记录，不覆盖下方原 PR 历史证据。新增可重跑夹具：`coverage/unattended/pr-integration-lizard-tail-rescue.json`。
