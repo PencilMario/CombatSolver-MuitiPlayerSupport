@@ -50,6 +50,7 @@ add_option sts2-game-root "$steam_root/steamapps/common/Slay the Spire 2" string
 add_option ritsu-workshop-root "$steam_root/steamapps/workshop/content/2868840/3747602295" string none
 add_option combat-solver-build-dir "" string none
 add_option headless-instance "" string none
+add_option stop-instance 0 switch none
 add_option headless-execution-mode "${COMBATSOLVER_HEADLESS_EXECUTION_MODE:-exclusive}" string none "exclusive|parallel"
 add_option headless-memory-reservation-mib 4096 int none
 default_headless_cpu=2
@@ -69,7 +70,9 @@ add_option ascension 0 int raw_int
 add_option act-index-for-test 0 int raw_int
 add_option mark-encounter-as-second-boss-for-test 0 switch bool
 add_option enemy-current-hp 1 int raw_int
+add_option initial-enemy-max-hps-json "" string none
 add_option initial-enemy-current-hps-json "" string none
+add_option initial-enemy-blocks-json "" string none
 add_option initial-player-hp -1 int positive_int
 add_option initial-player-max-hp -1 int positive_int
 for name in initial-player-block initial-player-energy initial-player-stars initial-round-number initial-player-turn-number; do
@@ -120,6 +123,7 @@ add_option search-max-degree-of-parallelism-for-test -1 int positive_int
 add_option expected-initial-search-phase "" string optional_string "Short|Deep"
 add_option expected-initial-deep-search-triggered -1 int tri_bool
 add_option expected-initial-deep-search-improved-result -1 int tri_bool
+add_option expected-initial-boundary-reason "" string optional_string "None|Shuffle|NoCards|UnsupportedEffect|DynamicResolution|PendingChoice|EventDefeat|TurnLimit|NodeLimit|TimeLimit"
 for name in \
     expected-initial-total-elapsed-milliseconds-at-most \
     expected-initial-total-gc-pause-milliseconds-at-most \
@@ -132,10 +136,15 @@ for name in \
     expected-initial-gen2-collections-at-most \
     expected-initial-main-thread-frames-over50-milliseconds-at-most \
     expected-initial-main-thread-frames-over100-milliseconds-at-most \
+    expected-initial-expanded-nodes-at-most \
+    expected-initial-transitions-at-most \
+    expected-initial-total-expanded-nodes-at-most \
+    expected-initial-total-transitions-at-most \
     expected-initial-transition-cache-hits-at-least \
     expected-initial-repeatable-no-progress-branches-pruned-at-least \
     expected-initial-cycle-shapes-detected-at-least \
     expected-initial-cycle-probe-continuations-expanded-at-least \
+    expected-initial-cycle-probe-continuations-expanded-at-most \
     expected-initial-cycle-candidates-protected-at-least \
     expected-initial-cycle-continuations-stopped-at-least \
     expected-initial-cross-turn-candidates-protected-at-least \
@@ -162,7 +171,8 @@ done
 add_option expected-initial-theft-policy "" string optional_string "PreserveResources|LetEscape"
 for name in \
     expected-initial-action-card-id expected-initial-absent-action-card-id \
-    expected-initial-first-action-card-id expected-initial-first-action-potion-id \
+    expected-initial-first-action-card-id expected-initial-first-action-choice-card-id \
+    expected-initial-first-action-potion-id \
     expected-initial-action-title; do
     add_option "$name" "" string optional_string
 done
@@ -448,11 +458,13 @@ result_path="$data_dir/combat_solver_test_result.json"
 ready_path="$data_dir/combat_solver_test_ready.json"
 lock_path="$headless_root/launcher.lock"
 
+if ((option_value[stop-instance] == 0)); then
 [[ -x "$source_game_root/SlayTheSpire2" ]] || runtime_error "game executable not found: $source_game_root/SlayTheSpire2"
 [[ -f "$combat_solver_dll" && -f "$combat_solver_manifest" ]] || runtime_error \
     "built CombatSolver DLL/manifest not found; build with -p:CopyModOnBuild=false or supply --combat-solver-build-dir"
 [[ -f "$ritsu_variant_dll" && -f "$ritsu_manifest_source" ]] || \
     runtime_error "headless RitsuLib source not found under: $ritsu_workshop_root"
+fi
 [[ "$(realpath -m -- "$data_dir")" != "$(realpath -m -- "$interactive_data_dir")" ]] || \
     runtime_error "isolated and interactive data directories resolve to the same path"
 
@@ -463,6 +475,7 @@ hr_init "$headless_root" "$headless_instance" "$game_executable" "$headless_data
     "${option_value[headless-execution-mode]}" "${option_value[headless-memory-reservation-mib]}" \
     "${option_value[headless-cpu-reservation]}" "${option_value[headless-queue-timeout-seconds]}" || runtime_error 'could not claim headless instance'
 launcher_lock_fd=$HR_INSTANCE_FD
+if ((option_value[stop-instance] == 0)); then
 mkdir -p -- "$headless_data_home" "$headless_config_home" "$headless_cache_home" "$data_dir"
 
 if ((option_value[hold-after-initial-search] == 1)) && [[ -f "$hold_release_path" ]]; then
@@ -581,9 +594,17 @@ array_from_path_or_json() {
     fi
 }
 
+initial_enemy_max_hps='[]'
+if ! is_blank "${option_value[initial-enemy-max-hps-json]}"; then
+    initial_enemy_max_hps="$(json_array_from_text --initial-enemy-max-hps-json "${option_value[initial-enemy-max-hps-json]}")"
+fi
 initial_enemy_current_hps='[]'
 if ! is_blank "${option_value[initial-enemy-current-hps-json]}"; then
     initial_enemy_current_hps="$(json_array_from_text --initial-enemy-current-hps-json "${option_value[initial-enemy-current-hps-json]}")"
+fi
+initial_enemy_blocks='[]'
+if ! is_blank "${option_value[initial-enemy-blocks-json]}"; then
+    initial_enemy_blocks="$(json_array_from_text --initial-enemy-blocks-json "${option_value[initial-enemy-blocks-json]}")"
 fi
 initial_enemy_move_ids='[]'
 if ! is_blank "${option_value[initial-enemy-move-ids-json]}"; then
@@ -710,7 +731,9 @@ request="$(jq -cn \
     --arg runId "$run_id" \
     --arg runSnapshotPath "$resolved_run_snapshot_path" \
     --arg replayStatePath "$resolved_replay_state_path" \
+    --argjson initialEnemyMaxHps "$initial_enemy_max_hps" \
     --argjson initialEnemyCurrentHps "$initial_enemy_current_hps" \
+    --argjson initialEnemyBlocks "$initial_enemy_blocks" \
     --argjson initialEnemyMoveIds "$initial_enemy_move_ids" \
     --argjson initialEnemyStateLogs "$initial_enemy_state_logs" \
     --argjson cards "$cards" \
@@ -749,7 +772,9 @@ request="$(jq -cn \
         runId: $runId,
         runSnapshotPath: (if ($runSnapshotPath | blank) then null else $runSnapshotPath end),
         replayStatePath: (if ($replayStatePath | blank) then null else $replayStatePath end),
+        initialEnemyMaxHps: $initialEnemyMaxHps,
         initialEnemyCurrentHps: $initialEnemyCurrentHps,
+        initialEnemyBlocks: $initialEnemyBlocks,
         initialEnemyMoveIds: $initialEnemyMoveIds,
         initialEnemyStateLogs: $initialEnemyStateLogs,
         cards: $cards,
@@ -767,6 +792,7 @@ request="$(jq -cn \
         modifierIds: $modifierIds,
         additionalMonsterIds: $additionalMonsterIds
     }')"
+fi
 
 process_is_alive() {
     local pid="$1" stat_line process_state
@@ -911,7 +937,7 @@ stop_test_process_and_remove_dependency() {
         wait "$pid" 2>/dev/null || true
     fi
     remove_process_marker_for_identity "$pid" "$start_time"
-    hr_release
+    hr_release "$pid" "$start_time"
     owned_cleanup_active=0
 }
 
@@ -970,6 +996,34 @@ arm_owned_cleanup() {
     trap 'exit 143' TERM
     trap 'exit 129' HUP
 }
+
+if ((option_value[stop-instance] == 1)); then
+    # Stop-only never enters snapshot construction, request publication or host
+    # admission. The ordinary producer lock and existing stop function own it.
+    if [[ ! -f $process_marker_path ]]; then
+        for candidate in /proc/[0-9]*/exe; do
+            [[ $(readlink -f -- "$candidate" 2>/dev/null) != "$game_executable" ]] || \
+                runtime_error 'markerless private game preserved; stop cannot prove ownership'
+        done
+        echo "UNATTENDED_STOP instance=$headless_instance state=absent"
+        exit 0
+    fi
+    jq -e --arg executable "$game_executable" --arg data "$data_dir" \
+        '(.pid | type == "number" and . > 0 and floor == .) and
+         (.procStartTimeTicks | type == "string" and test("^[0-9]+$")) and
+         .executable == $executable and .dataDir == $data' "$process_marker_path" >/dev/null || \
+        runtime_error 'invalid or foreign marker preserved; stop refused'
+    stop_pid="$(jq -r .pid "$process_marker_path")"
+    stop_birth="$(jq -r .procStartTimeTicks "$process_marker_path")"
+    stop_state=0
+    hr_checked_game_state "$stop_pid" "$stop_birth" "$game_executable" || stop_state=$?
+    ((stop_state != 2)) || runtime_error 'unknown, reused or foreign process identity preserved; stop refused'
+    # The existing function rechecks the /proc environment and birth before
+    # signaling; a concurrent exit remains idempotent and cannot spawn a game.
+    stop_test_process_and_remove_dependency "$stop_pid" "$stop_birth"
+    echo "UNATTENDED_STOP instance=$headless_instance state=stopped_or_exited pid=$stop_pid"
+    exit 0
+fi
 
 combat_solver_dll_sha256="$(sha256sum -- "$combat_solver_dll")"
 combat_solver_dll_sha256="${combat_solver_dll_sha256%% *}"

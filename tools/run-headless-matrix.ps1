@@ -16,7 +16,7 @@ param(
     [int]$HeadlessMemoryReservationMiB = 4096,
     [ValidateRange(1, 1024)]
     [int]$HeadlessCpuReservation = 2,
-    [ValidateRange(1, 86400)]
+    [ValidateRange(1, 3600)]
     [int]$HeadlessQueueTimeoutSeconds = 120,
     [string]$CombatSolverBuildDir = "",
     [string]$ResultsPath = ".local\headless-matrix-results.jsonl"
@@ -239,12 +239,9 @@ function Invoke-HeadlessCleanup([switch]$AllowBeforeFirstCase) {
     $cleanupArguments = @(
         "-NoProfile",
         "-File", $script:runner,
-        "-ScenarioId", "MATRIX-CLEANUP",
+        "-StopInstance",
         "-Sts2GameRoot", $script:Sts2GameRoot,
-        "-RitsuWorkshopRoot", $script:RitsuWorkshopRoot,
-        "-StopAfterCombatRootSnapshotAssertion",
-        "-TimeoutSeconds", "90",
-        "-ExitOnComplete") + $script:runtimeArguments
+        "-RitsuWorkshopRoot", $script:RitsuWorkshopRoot) + $script:runtimeArguments
     $child = Start-MatrixPwshProcess $cleanupArguments
     try {
         [CombatSolverHeadlessMatrixCancellation]::WaitForExit($child, $false) | Out-Null

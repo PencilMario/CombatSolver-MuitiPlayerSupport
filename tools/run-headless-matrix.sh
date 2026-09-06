@@ -197,16 +197,12 @@ cleanup_headless_process() {
         }
         marker_pid="$(jq -er '.pid | select(type == "number" and . > 0 and floor == .)' \
             "$process_marker_path" 2>/dev/null || true)"
-        [[ -n "$marker_pid" ]] || marker_pid=unknown
         echo "MATRIX_CLEANUP_BEGIN pid=$marker_pid"
         "$runner" \
-            --scenario-id MATRIX-CLEANUP \
+            --stop-instance \
             --sts2-game-root "$sts2_game_root" \
             --ritsu-workshop-root "$ritsu_workshop_root" \
-            "${runtime_arguments[@]}" \
-            --stop-after-combat-root-snapshot-assertion \
-            --timeout-seconds 90 \
-            --exit-on-complete {matrix_fd}>&- || cleanup_status=$?
+            "${runtime_arguments[@]}" {matrix_fd}>&- || cleanup_status=$?
         echo "MATRIX_CLEANUP_END exit_code=$cleanup_status"
     fi
     return "$cleanup_status"

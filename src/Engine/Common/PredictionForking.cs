@@ -266,7 +266,8 @@ internal interface ICombatPredictionNestedChoiceSink
     bool ResolveNestedCardChoice(
         CombatSolver.Engine.InCombat.Simulation.CombatPredictionSimulator simulator,
         CombatSolver.Engine.Common.PredictedCard card,
-        string sourceId);
+        string sourceId,
+        string? contextId);
 }
 
 internal interface ICombatPredictionManualCardChoiceSink

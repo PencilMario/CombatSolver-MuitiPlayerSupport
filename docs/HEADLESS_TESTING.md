@@ -34,8 +34,17 @@ Windows 使用 PowerShell 7.4 或更新版本，参数对应 `-HeadlessInstance`
 
 `COMBATSOLVER_HEADLESS_ROOT` 仍可指定精确实例目录，迁移前遗留的活进程/不兼容 marker 不会冒险接管。并行结果只作正确性和总测试吞吐证据，不用于单场速度、GC 暂停或峰值内存 A/B；最终性能结论仍来自正常可见 Steam 的独占测试。
 
+
+## 矩阵与停止实例
+
+`run-headless-matrix.sh` / `.ps1` 接受相同的实例、执行模式、资源预约和冻结构建参数，并传给每个场景。矩阵锁覆盖场景间隙；不同实例可以并行，同实例的第二个矩阵立即拒绝。结果文件也应为每个矩阵单独指定。
+
+仅停止本实例时使用 `--stop-instance` / `-StopInstance`，并传入原来的实例 ID 和 `COMBATSOLVER_HEADLESS_ROOT`（若曾指定）。它在实例 producer 锁内验证归属及 PID/出生身份；不会构建快照、检查构建产物、排队申请游戏名额、发布场景请求或启动游戏。已退出实例可幂等清理，未知身份或无 marker 的存活私有游戏保留并报错。矩阵的预清理、失败和尾部清理也调用此模式，不再通过一个额外游戏场景请求退出。
+
 ## 验证边界
 
 `bash tools/test-headless-runtime.sh` 使用原生子进程替身验证租约、排队与隔离，不启动游戏；`--snapshots` 单独验证产物隔离，`--snapshot-failures` 单独注入哈希/复制/发布失败。Windows helper 自测为 `pwsh -File tools/test-headless-runtime.ps1`，`-ProfileOnly` 单独检查资料复制与重解析点拒绝。这些结果不等于真实双游戏、真实 Mod 加载或 Windows 进程生命周期通过；真实验收另记入 TEST_MATRIX。
 
 GC 研究分支移植时，Linux 暖进程准入改为只预约尚未兑现的增长量（预约减已用 RSS，最小为 0），与 Windows 口径一致；总预约、CPU 和主机余量限制仍生效。`bash tools/test-headless-runtime.sh --warm-memory` 定向覆盖该边界和等待期间的租约替换。HoldAfterInitialSearch 与 StopAfterInitialSolverResultAssertion 互斥，两端入口在准入前拒绝同时使用；采样停在初次结果时使用 Hold 保持游戏存活。
+
+`test-headless-matrix-runtime.sh` / `.ps1` 检查矩阵参数、暖进程尾部清理、拒绝外来身份和取消隔离；`--stop-only` / `-StopOnly` 另调用真实启动器入口，验证无构建产物时也不会为清理启动游戏。Linux 停止测试使用原生进程替身；Linux 上的 PowerShell 测试不代表 Windows 实机或原生 Ctrl+C 通过。

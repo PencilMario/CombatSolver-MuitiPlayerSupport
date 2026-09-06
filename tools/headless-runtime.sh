@@ -18,6 +18,23 @@ hr_identity_state() {
     ((${#fields[@]} >= 20)) || return 2
     [[ ${fields[0]} != Z && ${fields[19]} == "$2" ]] || return 1
 }
+# Read-only preflight, not a termination primitive: 0 owned/live, 1 exited,
+# 2 uncertain/foreign/reused. A later launcher must still verify its own handle.
+hr_checked_game_state() {
+    local pid=$1 birth=$2 executable=$3 state=0 line
+    [[ $pid =~ ^[1-9][0-9]*$ && $birth =~ ^[0-9]+$ ]] || return 2
+    [[ -d /proc/$pid ]] || return 1
+    hr_identity_state "$pid" "$birth" || state=$?
+    if ((state != 0)); then
+        [[ -d /proc/$pid ]] || return 1
+        [[ -r /proc/$pid/stat ]] || return 2
+        IFS= read -r line <"/proc/$pid/stat" || return 2
+        line="${line##*) }"
+        [[ ${line%% *} != Z ]] || return 1
+        return 2
+    fi
+    [[ $(readlink -f -- "/proc/$pid/exe" 2>/dev/null) == "$executable" ]] || return 2
+}
 hr_init() {
     HR_ROOT="$(realpath -m -- "$1")"; HR_INSTANCE="$2"
     HR_EXECUTABLE="$(realpath -m -- "$3")"; HR_DATA="$4"
@@ -224,10 +241,15 @@ hr_bind() {
     hr_host_unlock
 }
 hr_release() {
-    [[ -n ${HR_TOKEN:-} ]] || return 0
+    local cleanup_pid=${1:-} cleanup_birth=${2:-}
+    [[ -n ${HR_TOKEN:-} || ( $cleanup_pid =~ ^[1-9][0-9]*$ && $cleanup_birth =~ ^[0-9]+$ ) ]] || return 0
     hr_host_lock || return 1
     local record identity=0 candidate
-    if record="$(jq -ce --arg token "$HR_TOKEN" 'select(.token == $token)' "$HR_LEASE_PATH" 2>/dev/null)"; then
+    if record="$(jq -ce --arg token "$HR_TOKEN" --arg pid "$cleanup_pid" --arg birth "$cleanup_birth" \
+        --arg root "$HR_ROOT" --arg exe "$HR_EXECUTABLE" \
+        'select(if ($token|length)>0 then .token == $token else
+            .schemaVersion == 1 and .state == "running" and .instanceRoot == $root and .executable == $exe and
+            (.gamePid|tostring) == $pid and .gameStart == $birth end)' "$HR_LEASE_PATH" 2>/dev/null)"; then
         if [[ $(jq -r .state <<<"$record") == running ]]; then
             hr_identity_state "$(jq -r .gamePid <<<"$record")" "$(jq -r .gameStart <<<"$record")" || identity=$?
             if ((identity != 1)); then hr_host_unlock; return 0; fi

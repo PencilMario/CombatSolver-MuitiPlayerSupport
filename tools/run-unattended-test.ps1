@@ -9,6 +9,7 @@ param(
     [string]$RitsuWorkshopRoot = "D:\Steam\steamapps\workshop\content\2868840\3747602295",
     [string]$CombatSolverBuildDir = "",
     [string]$HeadlessInstance = "",
+    [switch]$StopInstance,
     [ValidateSet("exclusive", "parallel")]
     [string]$HeadlessExecutionMode = "exclusive",
     [ValidateRange(1, 1048576)]
@@ -32,7 +33,9 @@ param(
     [int]$ActIndexForTest = 0,
     [switch]$MarkEncounterAsSecondBossForTest,
     [int]$EnemyCurrentHp = 1,
+    [string]$InitialEnemyMaxHpsJson = "",
     [string]$InitialEnemyCurrentHpsJson = "",
+    [string]$InitialEnemyBlocksJson = "",
     [int]$InitialPlayerHp = -1,
     [int]$InitialPlayerMaxHp = -1,
     [int]$InitialPlayerBlock = -1,
@@ -107,6 +110,12 @@ param(
     [int]$ExpectedInitialDeepSearchTriggered = -1,
     [ValidateSet(-1, 0, 1)]
     [int]$ExpectedInitialDeepSearchImprovedResult = -1,
+    [int]$ExpectedInitialExpandedNodesAtMost = -1,
+    [int]$ExpectedInitialTransitionsAtMost = -1,
+    [long]$ExpectedInitialTotalExpandedNodesAtMost = -1,
+    [long]$ExpectedInitialTotalTransitionsAtMost = -1,
+    [ValidateSet("", "None", "Shuffle", "NoCards", "UnsupportedEffect", "DynamicResolution", "PendingChoice", "EventDefeat", "TurnLimit", "NodeLimit", "TimeLimit")]
+    [string]$ExpectedInitialBoundaryReason = "",
     [double]$ExpectedInitialTotalElapsedMillisecondsAtMost = -1,
     [long]$ExpectedInitialTotalAllocatedBytesAtMost = -1,
     [int]$ExpectedInitialGen2CollectionsAtMost = -1,
@@ -119,6 +128,7 @@ param(
     [int]$ExpectedInitialRepeatableNoProgressBranchesPrunedAtLeast = -1,
     [int]$ExpectedInitialCycleShapesDetectedAtLeast = -1,
     [int]$ExpectedInitialCycleProbeContinuationsExpandedAtLeast = -1,
+    [int]$ExpectedInitialCycleProbeContinuationsExpandedAtMost = -1,
     [int]$ExpectedInitialCycleCandidatesProtectedAtLeast = -1,
     [int]$ExpectedInitialCycleContinuationsStoppedAtLeast = -1,
     [int]$ExpectedInitialCrossTurnCandidatesProtectedAtLeast = -1,
@@ -150,6 +160,7 @@ param(
     [string]$ExpectedInitialActionCardId = "",
     [string]$ExpectedInitialAbsentActionCardId = "",
     [string]$ExpectedInitialFirstActionCardId = "",
+    [string]$ExpectedInitialFirstActionChoiceCardId = "",
     [string]$ExpectedInitialFirstActionPotionId = "",
     [string]$ExpectedInitialActionTitle = "",
     [int]$ExpectedInitialActionReplayCount = -1,
@@ -346,6 +357,7 @@ $resultPath = Join-Path $dataDir "combat_solver_test_result.json"
 $readyPath = Join-Path $dataDir "combat_solver_test_ready.json"
 $launcherLockPath = Join-Path $headlessRoot "launcher.lock"
 
+if (-not $StopInstance) {
 if (-not (Test-Path -LiteralPath (Join-Path $sourceGameRoot 'SlayTheSpire2.exe') -PathType Leaf)) {
     throw "Source game executable not found: $sourceGameRoot"
 }
@@ -357,6 +369,7 @@ if (-not (Test-Path -LiteralPath $combatSolverDll -PathType Leaf) -or
 if (-not (Test-Path -LiteralPath $ritsuVariantDll -PathType Leaf) -or
     -not (Test-Path -LiteralPath $ritsuManifestSource -PathType Leaf)) {
     throw "Headless RitsuLib source not found under: $resolvedRitsuWorkshopRoot"
+}
 }
 if ([string]::Equals(
         [IO.Path]::GetFullPath($dataDir),
@@ -407,7 +420,7 @@ try {
 $launcherCancellationInstalled = $true
 Assert-LauncherNotCancelled
 Initialize-HeadlessRuntimeOwner $runtimeContext
-if ($HoldAfterInitialSearch.IsPresent -and (Test-Path -LiteralPath $holdReleasePath -PathType Leaf)) {
+if (-not $StopInstance -and $HoldAfterInitialSearch.IsPresent -and (Test-Path -LiteralPath $holdReleasePath -PathType Leaf)) {
     Remove-Item -LiteralPath $holdReleasePath -Force
 }
 
@@ -437,6 +450,14 @@ function Get-ProcessStartTimeUtc([Diagnostics.Process]$TestProcess) {
     return $TestProcess.StartTime.ToUniversalTime().ToString(
         "O",
         [Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Get-ProcessExecutablePath([Diagnostics.Process]$TestProcess) {
+    $executable = $TestProcess.MainModule.FileName
+    if ([string]::IsNullOrWhiteSpace($executable)) {
+        throw "Process $($TestProcess.Id) did not expose its executable path."
+    }
+    return [IO.Path]::GetFullPath($executable)
 }
 
 function ConvertTo-NormalizedUtcTimestamp([object]$Value) {
@@ -543,6 +564,50 @@ function Stop-ClaimedProcessAndRemoveDependency(
     Exit-HeadlessHostLease $runtimeContext $processIdForCleanup $ExpectedStartTimeUtc
 }
 
+if ($StopInstance) {
+    # No snapshot/DLL/dependency reads, request writes or resource admission.
+    # The same launcher lock, SafeHandle and stop routine own this path.
+    if (-not (Test-Path -LiteralPath $processMarkerPath -PathType Leaf)) {
+        if (Test-HeadlessUnboundGame $headlessRoot) {
+            throw 'Markerless private game preserved; stop cannot prove ownership.'
+        }
+        Write-Host "UNATTENDED_STOP instance=$($runtimeContext.Instance) state=absent"
+        return
+    }
+    $marker = Get-Content -LiteralPath $processMarkerPath -Raw | ConvertFrom-Json
+    $stopProcessId = 0
+    $stopBirth = ConvertTo-NormalizedUtcTimestamp $marker.processStartTimeUtc
+    if (-not [int]::TryParse([string]$marker.pid, [ref]$stopProcessId) -or $stopProcessId -le 0 -or
+        [string]::IsNullOrWhiteSpace($stopBirth) -or $marker.instance -ne $runtimeContext.Instance -or
+        -not [string]::Equals($marker.runtimeRoot, $headlessRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($marker.executable, $gameExe, [StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($marker.appData, $headlessRoaming, [StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($marker.dataDir, $dataDir, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Invalid or foreign marker preserved; stop refused.'
+    }
+    $candidate = Get-Process -Id $stopProcessId -ErrorAction SilentlyContinue
+    if ($null -eq $candidate) {
+        Remove-ProcessMarkerForIdentity $stopProcessId $stopBirth
+        Exit-HeadlessHostLease $runtimeContext $stopProcessId $stopBirth
+        Write-Host "UNATTENDED_STOP instance=$($runtimeContext.Instance) state=exited pid=$stopProcessId"
+        return
+    }
+    $candidateSafeHandle = $candidate.SafeHandle
+    $candidate.Refresh()
+    if (-not $candidate.HasExited -and -not (Test-ProcessMatchesHeadlessIdentity $candidate $stopBirth $gameExe)) {
+        $candidate.Dispose()
+        throw 'Unknown, reused or foreign process identity preserved; stop refused.'
+    }
+    $process = $candidate
+    $processSafeHandle = $candidateSafeHandle
+    $processIdentityStartTimeUtc = $stopBirth
+    $cleanupProcessOnExit = $true
+    Stop-ClaimedProcessAndRemoveDependency $process $stopBirth
+    $cleanupProcessOnExit = $false
+    Write-Host "UNATTENDED_STOP instance=$($runtimeContext.Instance) state=stopped_or_exited pid=$stopProcessId"
+    return
+}
+
 New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
 New-Item -ItemType Directory -Path $headlessLocal -Force | Out-Null
 if (-not (Test-Path -LiteralPath (Join-Path $dataDir "default") -PathType Container)) {
@@ -586,13 +651,6 @@ $resolvedRunSnapshotPath = if ([string]::IsNullOrWhiteSpace($RunSnapshotPath)) {
     (Resolve-Path -LiteralPath $RunSnapshotPath).Path
 }
 
-function Get-ProcessExecutablePath([Diagnostics.Process]$TestProcess) {
-    $executable = [CombatSolverUnattendedLauncherCancellation]::GetExecutablePath($TestProcess)
-    if ([string]::IsNullOrWhiteSpace($executable)) {
-        throw "Process $($TestProcess.Id) did not expose its executable path."
-    }
-    return [IO.Path]::GetFullPath($executable)
-}
 $resolvedReplayStatePath = if ([string]::IsNullOrWhiteSpace($ReplayStatePath)) {
     $null
 } else {
@@ -710,6 +768,11 @@ $request = [ordered]@{
     expectedInitialSearchPhase = if ([string]::IsNullOrWhiteSpace($ExpectedInitialSearchPhase)) { $null } else { $ExpectedInitialSearchPhase }
     expectedInitialDeepSearchTriggered = if ($ExpectedInitialDeepSearchTriggered -ge 0) { [bool]$ExpectedInitialDeepSearchTriggered } else { $null }
     expectedInitialDeepSearchImprovedResult = if ($ExpectedInitialDeepSearchImprovedResult -ge 0) { [bool]$ExpectedInitialDeepSearchImprovedResult } else { $null }
+    expectedInitialExpandedNodesAtMost = if ($ExpectedInitialExpandedNodesAtMost -ge 0) { $ExpectedInitialExpandedNodesAtMost } else { $null }
+    expectedInitialTransitionsAtMost = if ($ExpectedInitialTransitionsAtMost -ge 0) { $ExpectedInitialTransitionsAtMost } else { $null }
+    expectedInitialTotalExpandedNodesAtMost = if ($ExpectedInitialTotalExpandedNodesAtMost -ge 0) { $ExpectedInitialTotalExpandedNodesAtMost } else { $null }
+    expectedInitialTotalTransitionsAtMost = if ($ExpectedInitialTotalTransitionsAtMost -ge 0) { $ExpectedInitialTotalTransitionsAtMost } else { $null }
+    expectedInitialBoundaryReason = if ([string]::IsNullOrWhiteSpace($ExpectedInitialBoundaryReason)) { $null } else { $ExpectedInitialBoundaryReason }
     expectedInitialTotalElapsedMillisecondsAtMost = if ($ExpectedInitialTotalElapsedMillisecondsAtMost -ge 0) { $ExpectedInitialTotalElapsedMillisecondsAtMost } else { $null }
     expectedInitialTotalAllocatedBytesAtMost = if ($ExpectedInitialTotalAllocatedBytesAtMost -ge 0) { $ExpectedInitialTotalAllocatedBytesAtMost } else { $null }
     expectedInitialGen2CollectionsAtMost = if ($ExpectedInitialGen2CollectionsAtMost -ge 0) { $ExpectedInitialGen2CollectionsAtMost } else { $null }
@@ -722,6 +785,7 @@ $request = [ordered]@{
     expectedInitialRepeatableNoProgressBranchesPrunedAtLeast = if ($ExpectedInitialRepeatableNoProgressBranchesPrunedAtLeast -ge 0) { $ExpectedInitialRepeatableNoProgressBranchesPrunedAtLeast } else { $null }
     expectedInitialCycleShapesDetectedAtLeast = if ($ExpectedInitialCycleShapesDetectedAtLeast -ge 0) { $ExpectedInitialCycleShapesDetectedAtLeast } else { $null }
     expectedInitialCycleProbeContinuationsExpandedAtLeast = if ($ExpectedInitialCycleProbeContinuationsExpandedAtLeast -ge 0) { $ExpectedInitialCycleProbeContinuationsExpandedAtLeast } else { $null }
+    expectedInitialCycleProbeContinuationsExpandedAtMost = if ($ExpectedInitialCycleProbeContinuationsExpandedAtMost -ge 0) { $ExpectedInitialCycleProbeContinuationsExpandedAtMost } else { $null }
     expectedInitialCycleCandidatesProtectedAtLeast = if ($ExpectedInitialCycleCandidatesProtectedAtLeast -ge 0) { $ExpectedInitialCycleCandidatesProtectedAtLeast } else { $null }
     expectedInitialCycleContinuationsStoppedAtLeast = if ($ExpectedInitialCycleContinuationsStoppedAtLeast -ge 0) { $ExpectedInitialCycleContinuationsStoppedAtLeast } else { $null }
     expectedInitialCrossTurnCandidatesProtectedAtLeast = if ($ExpectedInitialCrossTurnCandidatesProtectedAtLeast -ge 0) { $ExpectedInitialCrossTurnCandidatesProtectedAtLeast } else { $null }
@@ -752,6 +816,7 @@ $request = [ordered]@{
     expectedInitialActionCardId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialActionCardId)) { $null } else { $ExpectedInitialActionCardId }
     expectedInitialAbsentActionCardId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialAbsentActionCardId)) { $null } else { $ExpectedInitialAbsentActionCardId }
     expectedInitialFirstActionCardId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialFirstActionCardId)) { $null } else { $ExpectedInitialFirstActionCardId }
+    expectedInitialFirstActionChoiceCardId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialFirstActionChoiceCardId)) { $null } else { $ExpectedInitialFirstActionChoiceCardId }
     expectedInitialFirstActionPotionId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialFirstActionPotionId)) { $null } else { $ExpectedInitialFirstActionPotionId }
     expectedInitialActionTitle = if ([string]::IsNullOrWhiteSpace($ExpectedInitialActionTitle)) { $null } else { $ExpectedInitialActionTitle }
     expectedInitialActionReplayCount = if ($ExpectedInitialActionReplayCount -ge 0) { $ExpectedInitialActionReplayCount } else { $null }
@@ -830,6 +895,12 @@ $request = [ordered]@{
 }
 if (-not [string]::IsNullOrWhiteSpace($InitialEnemyCurrentHpsJson)) {
     $request.initialEnemyCurrentHps = @($InitialEnemyCurrentHpsJson | ConvertFrom-Json)
+}
+if (-not [string]::IsNullOrWhiteSpace($InitialEnemyMaxHpsJson)) {
+    $request.initialEnemyMaxHps = @($InitialEnemyMaxHpsJson | ConvertFrom-Json)
+}
+if (-not [string]::IsNullOrWhiteSpace($InitialEnemyBlocksJson)) {
+    $request.initialEnemyBlocks = @($InitialEnemyBlocksJson | ConvertFrom-Json)
 }
 if (-not [string]::IsNullOrWhiteSpace($InitialEnemyMoveIdsJson)) {
     $request.initialEnemyMoveIds = @($InitialEnemyMoveIdsJson | ConvertFrom-Json)
@@ -1310,10 +1381,19 @@ throw [TimeoutException]::new("Unattended test exceeded the launcher timeout; it
         try {
             Exit-HeadlessHostLease $runtimeContext
         } finally {
-            if ($launcherCancellationInstalled) {
-                [CombatSolverUnattendedLauncherCancellation]::Uninstall()
+            try {
+                if ($launcherCancellationInstalled) {
+                    [CombatSolverUnattendedLauncherCancellation]::Uninstall()
+                }
+            } finally {
+                try {
+                    if ($null -ne $checkpointImportRoot -and (Test-Path -LiteralPath $checkpointImportRoot -PathType Container)) {
+                        Remove-Item -LiteralPath $checkpointImportRoot -Recurse -Force
+                    }
+                } finally {
+                    $launcherLock.Dispose()
+                }
             }
-            $launcherLock.Dispose()
         }
     }
 }
