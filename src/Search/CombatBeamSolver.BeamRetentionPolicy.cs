@@ -414,6 +414,7 @@ internal sealed partial class CombatBeamSolver
         SolverSearchProfile _profile,
         bool _isActEndingBoss,
         BossHpRelief _bossHpRelief,
+        PostCombatRelicHealProfile _postCombatRelicHeal,
         int _initialEnemyCount,
         int _initialPlayerHp,
         int _initialPlayerMaxHp,
@@ -486,6 +487,7 @@ internal sealed partial class CombatBeamSolver
                             _initialPlayerHp,
                             _initialPlayerMaxHp,
                             _bossHpRelief,
+                            _postCombatRelicHeal,
                             _theftPolicy) < 0))
                 {
                     potionFreeBaseline = candidate;
@@ -6606,10 +6608,10 @@ internal sealed partial class CombatBeamSolver
 
             int comparison = SolverInterimResultOrdering.ComparePrimaryQuality(
                 leftWon,
-                StrategicHpDeficit(leftSnapshot),
+                StrategicHpDeficit(leftSnapshot, leftWon),
                 leftWon ? CompletedCombatTurn(left) : null,
                 rightWon,
-                StrategicHpDeficit(rightSnapshot),
+                StrategicHpDeficit(rightSnapshot, rightWon),
                 rightWon ? CompletedCombatTurn(right) : null);
             if (comparison != 0)
                 return comparison;
@@ -6664,11 +6666,20 @@ internal sealed partial class CombatBeamSolver
                 node.Snapshot.PlayerDead,
                 node.Snapshot.ProjectedPlayerHp);
 
-        private int StrategicHpDeficit(SimulationSnapshot snapshot)
+        /// <summary>
+        /// Route quality on the same axis the final ordering uses, so retention keeps the candidate that
+        /// ordering would go on to pick.
+        /// </summary>
+        private int StrategicHpDeficit(SimulationSnapshot snapshot, bool completeVictory)
             => ActEndingBossPolicy.StrategicHpDeficit(
                 snapshot.CumulativePlayerHpLost,
                 Math.Max(0, _initialPlayerMaxHp - snapshot.PlayerMaxHp),
-                snapshot.RecoveredPlayerHp,
+                snapshot.RecoveredPlayerHp
+                    + ActEndingBossPolicy.RankedPostCombatRelicHeal(
+                        _postCombatRelicHeal,
+                        completeVictory,
+                        snapshot.PlayerHp,
+                        snapshot.PlayerMaxHp),
                 _bossHpRelief);
 
         private int HealthResourceCost(SimulationSnapshot snapshot)
