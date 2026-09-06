@@ -1,5 +1,9 @@
 # CombatSolver 测试清单
 
+## 2026-09-06：PR #15 药水分档
+
+`PR15-POTION-VALUE-TIERS` Passed，runId `11959921f03041e9a9f6fe7001023315`：校验 9/14/18 HP 准入门槛、Token/可再生免费、龙涎香独立计价、救命和强制用药，以及根快照中的高档成本。Short1500ms、增量验证、首结果停止；3 节点/11 转移，无药零损 T1。Release 编译零警告/错误。夹具 `coverage/unattended/pr15-potion-value-tiers.json`，不代表静态分档在所有情境都优于原规则。
+
 ## 2026-09-06：SL 路线记录
 
 - `ROUTE-CACHE-RECORD-V0111`：`47626b91d2834703a403819e5ef2ae2e` Passed，验证独立磁盘副本、动作/选择/预测一致、策略与真实 HP 变化隔离、首次记录保留、Reset 后命中及手动重算。

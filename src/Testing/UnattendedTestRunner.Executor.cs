@@ -39,6 +39,8 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "PR15-POTION-VALUE-TIERS")
+                runner.AssertPotionValueTiers(combatState);
 
             if (request.ScenarioId is "ROUTE-CACHE-RECORD-V0111" or "ROUTE-CACHE-RESTORE-V0111")
             {

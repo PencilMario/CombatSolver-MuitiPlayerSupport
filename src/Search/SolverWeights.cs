@@ -78,6 +78,11 @@ internal static class SolverWeights
     // 路线照样把尾巴烧掉。收到十倍之后，任何一条能活着打赢的路线都比烧尾巴强，而这个数量级仍然
     // 远低于 VictoryBonus 和 DeathPenalty：没有别的活路时，尾巴照用不误。
     public const int DeathSaveRelicPremiumPercent = 900;
+    /// <summary>Potions whose effect is worth roughly twice a baseline potion.</summary>
+    public const int PotionHighValueHpSaved = PotionMinimumHpSaved * 2;
+
+    /// <summary>Potions worth roughly one and a half times a baseline potion. Rounded up from 13.5.</summary>
+    public const int PotionElevatedValueHpSaved = (PotionMinimumHpSaved * 3 + 1) / 2;
     // This is the minimum cross-turn no-progress horizon and the UI projection horizon. It is not a
     // total turn cap: every new historical combat improvement restarts the no-progress window.
     public const int SetupValueHorizonTurns = 16;
