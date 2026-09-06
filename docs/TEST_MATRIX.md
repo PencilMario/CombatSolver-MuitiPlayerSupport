@@ -1,5 +1,9 @@
 # CombatSolver 测试清单
 
+## 0.31.0 定版
+
+收录九个玩家 PR，逐项说明见 [0.31.0 更新日志](0.31.0-RELEASE_NOTES.md)。本次仅变更版本和发布资料，沿用下列本会话已完成的集成与碎骨定向验证，执行一次最终 Release 构建；未追加完整发布门禁或可见性能验收。
+
 ## 2026-09-06：PR #48 碎骨
 
 `BONE-SHARDS-OSTY-REPLAY-0300` 通过，runId `a6540dba59014aeb8ee79f00dee4f050`：奥斯提 10 HP，连续打出两张碎骨，逐动作 actual/simulated 严格差分一致；第二张不会额外加盾。夹具 `coverage/unattended/bone-shards-osty-replay-0300.json`。Release 与 CoverageCatalog `--verify-effective` 通过；未单独构造攻击触发待选牌的碎骨场景。
@@ -8,7 +12,7 @@
 
 本轮构建、结构门禁、容器与 GC 合同、Windows headless 资源隔离、失败边界、Fork/根/控制器、DOP1/DOP2、终局增量回放、长循环与保命遗物完整自动部署通过。[直接证据与失败修正](pr/integration-39-47-review.md) 单独记录，不覆盖下方原 PR 历史证据。新增可重跑夹具：`coverage/unattended/pr-integration-lizard-tail-rescue.json`。
 
-> 当前发布：CombatSolver `0.30.0`、塔 2 `0.111.0`、RitsuLib 实测 `0.5.18`（清单最低 `0.5.13`）、CombatSolver 内置战斗模拟引擎。下方历史版本记录保留各自验证范围。无人测试运行隔离的原版 `--headless` 游戏进程，不使用自建 STS CLI；性能最终门槛另由 Steam 可见会话验证。完整战斗基准使用 `Instant / 0 秒` 部署。
+> 当前发布：CombatSolver `0.31.0`、塔 2 `0.111.0`、RitsuLib 实测 `0.5.18`（清单最低 `0.5.13`）、CombatSolver 内置战斗模拟引擎。下方历史版本记录保留各自验证范围。无人测试运行隔离的原版 `--headless` 游戏进程，不使用自建 STS CLI；性能最终门槛另由 Steam 可见会话验证。完整战斗基准使用 `Instant / 0 秒` 部署。
 
 单项启动器使用本 worktree 的构建产物与私有游戏/Mod 快照，各实例独立保存 Windows APPDATA/LOCALAPPDATA 或 Linux XDG 数据及协议。内容变化只重启当前精确认领的实例，不能按进程名结束其他任务。实例目录/主机租约由平台 `headless-runtime` helper 管理，请求及静稳 Ready ACK 仍由原启动器管理。默认 exclusive；双方显式 parallel 时，主机资源允许最多两个游戏。预约是准入记账，不是硬配额，暖进程与 Held 仍占名额。批次最后一个请求须 ExitOnComplete；取消、Failed、超时清理本实例。Linux 默认 Instant；Windows 可显式 `-HeadlessFastModeForTest Instant`。参数、资料隔离、队列规则与检查入口见 [Headless 实例与并行测试](HEADLESS_TESTING.md)。并行样本不能用于单场速度、GC 暂停或峰值内存 A/B。
 
