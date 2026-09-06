@@ -4243,6 +4243,8 @@ internal sealed partial class CombatBeamSolver
 
     internal static void VerifyCycleTranspositionLeasePolicyForTesting()
     {
+        SimulationSnapshot snapshot = (SimulationSnapshot)System.Runtime.CompilerServices
+            .RuntimeHelpers.GetUninitializedObject(typeof(SimulationSnapshot));
         StateFingerprint shapeKey = new(1, 2);
         StateFingerprint sequenceKey = new(3, 4);
         StateFingerprint actionKey = new(5, 6);
@@ -4295,7 +4297,7 @@ internal sealed partial class CombatBeamSolver
             BoundaryReason: SearchBoundaryReason.None,
             IsTerminal: false,
             Parent: null,
-            Snapshot: null!,
+            Snapshot: snapshot,
             CombatProgress: null!);
         SearchNode firstRecurrence = new(
             Action: new PlanAction(PlanActionKind.PlayCard, 1),
@@ -4311,7 +4313,7 @@ internal sealed partial class CombatBeamSolver
             BoundaryReason: SearchBoundaryReason.None,
             IsTerminal: false,
             Parent: testRoot,
-            Snapshot: null!,
+            Snapshot: snapshot,
             CombatProgress: null!,
             Cycle: coarseCycle);
         SearchNode secondRecurrence = firstRecurrence with

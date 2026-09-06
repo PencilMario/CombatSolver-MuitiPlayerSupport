@@ -1046,6 +1046,12 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidOperationException(
                 "一次性保命遗物的复活没有按用掉它的代价计价，或者整局最后一战没有免收。");
         }
+        if (ActEndingBossPolicy.StrategicHpDeficit(20, 0, 56, BossHpRelief.None, 40) != 364
+            || ActEndingBossPolicy.StrategicHpDeficit(20, 0, 56, BossHpRelief.ActClearHeal, 40) != 377
+            || ActEndingBossPolicy.StrategicHpDeficit(20, 0, 56, BossHpRelief.RunEnding, 40) != 20)
+        {
+            throw new InvalidOperationException("路线治疗、战后回血与保命遗物消耗的组合计价不一致。");
+        }
         if (ActEndingBossPolicy.ResolveStrategicHpRelief(
                 BossHpRelief.ActClearHeal,
                 BossHpStrategy.ProgressionFirst,
@@ -1358,6 +1364,8 @@ internal sealed partial class UnattendedTestRunner
             playerHp: 1,
             playerMaxHp: 1,
             cumulativePlayerHpLost: 0,
+            recoveredPlayerHp: 0,
+            deathSaveRelicHpRestored: 0,
             longTermResourceValue: 0,
             angerCopiesGenerated: 0,
             projectedPlayerHp: 1,

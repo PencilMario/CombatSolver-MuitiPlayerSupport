@@ -164,7 +164,7 @@ internal sealed partial class UnattendedTestRunner
         }
         if (fixture.Simulator.History
             .OfType<CombatPredictionDamageReceivedEntry>()
-            .Any(entry => ReferenceEquals(entry.CardSource, fiendFire)))
+            .Any(entry => ReferenceEquals(entry.CardSource?.Original, fiendFire.Original)))
         {
             throw new InvalidOperationException("批量穷尽产生选择后仍执行了卡牌攻击尾部。");
         }
@@ -425,7 +425,7 @@ internal sealed partial class UnattendedTestRunner
         fixture.Simulator.AddToPile(card, PileType.Hand);
         int startsBefore = fixture.Simulator.History
             .OfType<CombatPredictionCardPlayStartedEntry>()
-            .Count(entry => ReferenceEquals(entry.Card, card));
+            .Count(entry => ReferenceEquals(entry.Card.Original, card.Original));
 
         bool completed = fixture.Simulator.ManualPlay(card, target: null, out PredictionTraceFrame? frame);
 
@@ -433,7 +433,7 @@ internal sealed partial class UnattendedTestRunner
         if (frame != null
             || fixture.Simulator.History
                 .OfType<CombatPredictionCardPlayStartedEntry>()
-                .Count(entry => ReferenceEquals(entry.Card, card)) != startsBefore)
+                .Count(entry => ReferenceEquals(entry.Card.Original, card.Original)) != startsBefore)
         {
             throw new InvalidOperationException("资源消耗产生选择后仍进入了卡牌 OnPlayWrapper。");
         }

@@ -316,7 +316,8 @@ internal sealed partial class CombatBeamSolver
         List<SearchNode> bounded = ApplyPrimaryIncumbentBound(
             retained,
             incumbent,
-            out int pruned);
+            out int pruned,
+            _strategicBossHpRelief);
         _run.PrimaryIncumbentBranchesPruned += pruned;
         return bounded;
     }
@@ -324,7 +325,8 @@ internal sealed partial class CombatBeamSolver
     internal static List<SearchNode> ApplyPrimaryIncumbentBound(
         List<SearchNode> retained,
         PrimarySearchIncumbent incumbent,
-        out int pruned)
+        out int pruned,
+        BossHpRelief bossHpRelief = BossHpRelief.None)
     {
         pruned = 0;
         List<SearchNode>? bounded = null;
@@ -332,7 +334,7 @@ internal sealed partial class CombatBeamSolver
         {
             SearchNode node = retained[index];
             if (ShouldPruneByPrimaryIncumbent(
-                    StrategicHpLowerBound(node.Snapshot),
+                    StrategicHpLowerBound(node.Snapshot, bossHpRelief),
                     node.Turn,
                     incumbent))
             {
@@ -362,12 +364,12 @@ internal sealed partial class CombatBeamSolver
     /// Post-combat relic healing needs no term of its own here. It can never exceed the HP the route ends up
     /// missing, and that headroom is already credited in full, so this stays a valid lower bound.
     /// </remarks>
-    private int StrategicHpLowerBound(SimulationSnapshot snapshot)
+    private static int StrategicHpLowerBound(SimulationSnapshot snapshot, BossHpRelief bossHpRelief)
         => ActEndingBossPolicy.StrategicHpDeficit(
             snapshot.CumulativePlayerHpLost,
             maxHpDeficit: 0,
             snapshot.RecoveredPlayerHp + Math.Max(0, snapshot.PlayerMaxHp - snapshot.PlayerHp),
-            _strategicBossHpRelief,
+            bossHpRelief,
             snapshot.DeathSaveRelicHpRestored);
 
     internal static bool ShouldPruneByPrimaryIncumbent(

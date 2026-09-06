@@ -1388,13 +1388,7 @@ throw [TimeoutException]::new("Unattended test exceeded the launcher timeout; it
                     [CombatSolverUnattendedLauncherCancellation]::Uninstall()
                 }
             } finally {
-                try {
-                    if ($null -ne $checkpointImportRoot -and (Test-Path -LiteralPath $checkpointImportRoot -PathType Container)) {
-                        Remove-Item -LiteralPath $checkpointImportRoot -Recurse -Force
-                    }
-                } finally {
-                    $launcherLock.Dispose()
-                }
+                $launcherLock.Dispose()
             }
         }
     }

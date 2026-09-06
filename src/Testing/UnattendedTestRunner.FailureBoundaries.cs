@@ -93,8 +93,13 @@ internal sealed partial class UnattendedTestRunner
                     (_, _) => firstInferredActionRan = true,
                     (_, _) => throw inferredFailure,
                 ],
-                null!,
-                null!);
+                card,
+                new CardOnPlayMirrorContext
+                {
+                    Simulator = simulator,
+                    Card = new PredictedCard(card),
+                    CardPlay = null!,
+                });
             throw new InvalidOperationException("推断动作失败没有向外传播。");
         }
         catch (InvalidOperationException ex) when (ReferenceEquals(ex, inferredFailure))

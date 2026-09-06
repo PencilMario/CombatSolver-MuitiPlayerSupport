@@ -674,9 +674,9 @@ internal sealed partial class UnattendedTestRunner
             foreach (CombatPredictionHistoryEntry entry in simulator.History.EntriesFrom(historyStart))
             {
                 started |= entry is CombatPredictionCardPlayStartedEntry start
-                    && ReferenceEquals(start.Card, outer);
+                    && ReferenceEquals(start.Card.Original, outer.Original);
                 finished |= entry is CombatPredictionCardPlayFinishedEntry finish
-                    && ReferenceEquals(finish.Card, outer);
+                    && ReferenceEquals(finish.Card.Original, outer.Original);
             }
             if (!started || finished)
                 throw new InvalidOperationException("内层选牌待定时外层自动牌的开始/完成边界不正确。");
@@ -1370,12 +1370,12 @@ internal sealed partial class UnattendedTestRunner
         foreach (CombatPredictionHistoryEntry entry in simulator.History.EntriesFrom(historyStart))
         {
             if (entry is CombatPredictionCardPlayStartedEntry start
-                && ReferenceEquals(start.Card, card))
+                && ReferenceEquals(start.Card.Original, card.Original))
             {
                 started++;
             }
             if (entry is CombatPredictionCardPlayFinishedEntry finish
-                && ReferenceEquals(finish.Card, card))
+                && ReferenceEquals(finish.Card.Original, card.Original))
             {
                 finished++;
             }
@@ -1558,13 +1558,13 @@ internal sealed partial class UnattendedTestRunner
             foreach (CombatPredictionHistoryEntry entry in simulator.History.EntriesFrom(historyStart))
             {
                 outerStarted |= entry is CombatPredictionCardPlayStartedEntry outerStart
-                    && ReferenceEquals(outerStart.Card, outer);
+                    && ReferenceEquals(outerStart.Card.Original, outer.Original);
                 outerFinished |= entry is CombatPredictionCardPlayFinishedEntry outerFinish
-                    && ReferenceEquals(outerFinish.Card, outer);
+                    && ReferenceEquals(outerFinish.Card.Original, outer.Original);
                 nestedStarted |= entry is CombatPredictionCardPlayStartedEntry nestedStart
-                    && ReferenceEquals(nestedStart.Card, nested);
+                    && ReferenceEquals(nestedStart.Card.Original, nested.Original);
                 nestedFinished |= entry is CombatPredictionCardPlayFinishedEntry nestedFinish
-                    && ReferenceEquals(nestedFinish.Card, nested);
+                    && ReferenceEquals(nestedFinish.Card.Original, nested.Original);
             }
             if (!outerStarted || !outerFinished || !nestedStarted || nestedFinished)
             {

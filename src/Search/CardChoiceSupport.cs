@@ -942,7 +942,9 @@ internal static partial class CardChoiceSupport
     /// </remarks>
     private static double RemovalPriority(CardChoiceSpec spec, PredictedCard card)
     {
-        double value = BasicCardRemovalValue(card.Preview) ?? CardValue(card.Preview);
+        double value = spec.Effect is PlanChoiceEffect.Exhaust or PlanChoiceEffect.Transform
+            ? BasicCardRemovalValue(card.Preview) ?? CardValue(card.Preview)
+            : CardValue(card.Preview);
         if (LeavesOnItsOwn(spec, card))
             value += SelfClearingRemovalPenalty;
         return value;

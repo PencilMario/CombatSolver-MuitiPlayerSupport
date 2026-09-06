@@ -126,7 +126,7 @@ internal static class GcPolicyChecks
                     reasonSeen = reason;
                     signal.ObserveReclaimGcPause(TimeSpan.FromMilliseconds(11));
                     signal.ObserveReclaimGcPause(TimeSpan.FromMilliseconds(7));
-                });
+                }, _ => throw new InvalidOperationException("Unexpected default GC checkpoint."));
             signal.ReclaimAndContinue(CancellationToken.None, "smart_potion_layer");
             PolicyCheck.Require(reasonSeen == "smart_potion_layer" && signal.ReclaimCount == 1
                 && signal.LastReclaimMaxObservedGcPause == TimeSpan.FromMilliseconds(11),
@@ -137,7 +137,7 @@ internal static class GcPolicyChecks
             SearchMemoryPressureSignal signal = new();
             int calls = 0;
             signal.Configure(GC.GetTotalAllocatedBytes(false), 32 * MiB, 0, long.MaxValue,
-                _ => calls++);
+                _ => calls++, _ => calls++);
             signal.ObserveReclaimGcPause(TimeSpan.FromMilliseconds(50));
             PolicyCheck.Throws<OperationCanceledException>(() =>
                 signal.ReclaimAndContinue(new CancellationToken(canceled: true)));
@@ -156,7 +156,7 @@ internal static class GcPolicyChecks
                     signal.ObserveReclaimGcPause(TimeSpan.FromMilliseconds(13));
                     signal.UseDefaultGcFallback(systemHeadroomConstrained: false);
                     throw new OperationCanceledException();
-                });
+                }, _ => throw new InvalidOperationException("Unexpected default GC checkpoint."));
             PolicyCheck.Throws<OperationCanceledException>(() => signal.ReclaimAndContinue(CancellationToken.None));
             PolicyCheck.Require(!signal.IsEnabled && signal.CaptureGcLifecycle().ForcedCollections == 1
                 && signal.LastReclaimMaxObservedGcPause == TimeSpan.FromMilliseconds(13),
@@ -165,7 +165,8 @@ internal static class GcPolicyChecks
         PolicyCheck.Run("system and region reservations use the tighter remaining budget", () =>
         {
             SearchMemoryPressureSignal signal = new();
-            signal.Configure(GC.GetTotalAllocatedBytes(false), 64 * MiB, 30 * MiB, 32 * MiB, _ => { });
+            signal.Configure(GC.GetTotalAllocatedBytes(false), 64 * MiB, 30 * MiB, 32 * MiB,
+                _ => { }, _ => { });
             PolicyCheck.Require(signal.RemainingBytes <= 2 * MiB && !signal.CanReachCommit(3 * MiB),
                 "Healthy region allocation space cannot override tighter system headroom.");
             signal.UseDefaultGcFallback(systemHeadroomConstrained: false);
