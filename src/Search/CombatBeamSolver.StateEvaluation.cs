@@ -207,13 +207,8 @@ internal sealed partial class CombatBeamSolver
         for (int powerIndex = 0; powerIndex < effectivePowers.Count; powerIndex++)
         {
             PowerModel power = effectivePowers[powerIndex];
-            if (!ReferenceEquals(power.Owner, _player.Creature)
-                || power.Amount <= 0
-                || power.TypeForCurrentAmount != PowerType.Buff
-                || power is ITemporaryPower)
-            {
+            if (!StrategicEffectMirrors.Contributes(power, _player.Creature))
                 continue;
-            }
             strategicRequirements |= StrategicEffectModel.Requirements(power);
         }
         StrategicEffectContext? strategicContext = null;
@@ -223,13 +218,8 @@ internal sealed partial class CombatBeamSolver
         for (int powerIndex = 0; powerIndex < effectivePowers.Count; powerIndex++)
         {
             PowerModel power = effectivePowers[powerIndex];
-            if (!ReferenceEquals(power.Owner, _player.Creature)
-                || power.Amount <= 0
-                || power.TypeForCurrentAmount != PowerType.Buff
-                || power is ITemporaryPower)
-            {
+            if (!StrategicEffectMirrors.Contributes(power, _player.Creature))
                 continue;
-            }
             strategicContext ??= StrategicEffectContext.Build(
                 liveCards,
                 enemyHp,

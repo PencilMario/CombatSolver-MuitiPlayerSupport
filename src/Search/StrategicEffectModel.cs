@@ -339,7 +339,11 @@ internal readonly record struct StrategicEffectContext(
 internal static class StrategicEffectModel
 {
     public static StrategicEffectRequirements Requirements(PowerModel power)
-        => power switch
+    {
+        // 第三方登记优先。登记表为空时这是一次字典 Count 检查，热路径上可以忽略。
+        if (StrategicEffectMirrors.TryGetRequirements(power, out StrategicEffectRequirements registered))
+            return registered;
+        return power switch
         {
             AfterimagePower => StrategicEffectRequirements.UsefulCardPlays,
             BufferPower => StrategicEffectRequirements.RemainingTurns,
@@ -369,11 +373,14 @@ internal static class StrategicEffectModel
                 => StrategicEffectRequirements.RemainingTurns,
             _ => StrategicEffectRequirements.None,
         };
+    }
 
     public static StrategicEffectVector Evaluate(
         PowerModel power,
         StrategicEffectContext context)
     {
+        if (StrategicEffectMirrors.TryEvaluate(power, context, out StrategicEffectVector registered))
+            return registered;
         int amount = Math.Max(1, power.Amount);
         int enemyHp = context.EnemyHp;
         int energyUnit = Math.Max(3, context.AverageCardValue);
@@ -425,10 +432,10 @@ internal static class StrategicEffectModel
         };
     }
 
-    private static StrategicEffectVector Damage(int value, int enemyHp)
+    public static StrategicEffectVector Damage(int value, int enemyHp)
         => new(Math.Min(Math.Max(0, enemyHp), Math.Max(0, value)), 0, 0, 0, 0);
 
-    private static StrategicEffectVector Prevention(int value, StrategicEffectContext context)
+    public static StrategicEffectVector Prevention(int value, StrategicEffectContext context)
     {
         int cap = context.IncomingDamage == 0
             ? value
@@ -446,12 +453,12 @@ internal static class StrategicEffectModel
         return Math.Min(context.IncomingDamage, amount * averageHit);
     }
 
-    private static StrategicEffectVector Resource(int value)
+    public static StrategicEffectVector Resource(int value)
         => new(0, 0, Math.Max(0, value), 0, 0);
 
-    private static StrategicEffectVector CardAccess(int value)
+    public static StrategicEffectVector CardAccess(int value)
         => new(0, 0, 0, Math.Max(0, value), 0);
 
-    private static StrategicEffectVector Scaling(int value)
+    public static StrategicEffectVector Scaling(int value)
         => new(0, 0, 0, 0, Math.Max(0, value));
 }
