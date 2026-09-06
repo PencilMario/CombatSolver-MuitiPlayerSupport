@@ -22,6 +22,9 @@ internal sealed class UnattendedTestRequest
     public string Seed { get; init; } = "COMBATSOLVER";
     public string? RunSnapshotPath { get; init; }
     public string? ReplayStatePath { get; init; }
+    public string? CheckpointArchivePath { get; init; }
+    public string CheckpointSelector { get; init; } = "latest";
+    public string ReplayMode { get; init; } = "RestoreOnly";
     public int Ascension { get; init; }
     public int ActIndexForTest { get; init; }
     public bool MarkEncounterAsSecondBossForTest { get; init; }
@@ -437,6 +440,7 @@ internal sealed class UnattendedTestResult
     public long WorkingSetBytes { get; init; }
     public long PrivateMemoryBytes { get; init; }
     public UnattendedSolverMetrics? SolverMetrics { get; init; }
+    public System.Text.Json.Nodes.JsonObject? ReplayVerification { get; init; }
     public UnattendedStageTiming[] StageTimings { get; init; } = [];
     public string[] CompletedChecks { get; init; } = [];
     public string? Error { get; init; }

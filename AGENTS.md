@@ -201,7 +201,7 @@ Windows `.ps1` 与 Linux `.sh` 都是受维护的平台原生入口：PowerShell
 
 ## 10. 已知外部边界
 
-- 当前没有通用 `replay-state` / `native-state` 一键导入器。问题包可用于取证和建立 fixture，不能仅因存在状态文件就声称已经回放。
+- 问题包通过 `CheckpointArchivePath` 导入，`ReplayMode=RestoreOnly` 默认只验证检查点；`Preflight` 只验证材料，不能视作恢复成功。v2 索引和无索引旧包共用包校验层；当前 native-state 仍作为独立证据，不能仅因存在状态文件就声称完整战斗已回放。
 - Overlay 的人工布局、字体、拖动和真实动画需要可见游戏验证；headless 只证明结构化状态与部署事件。
 - No-GC 和卡顿受完整 Mod 栈及渲染分配影响；headless 数据不能替代可见 Steam 性能口径。
 - `.local/decompiled/sts2-v0.111.0/` 是当前游戏版本的只读原版源码参考。只有调查原版语义时定向读取，游戏版本变化后重新建立对应版本目录；不要在普通仓库扫描中载入它。

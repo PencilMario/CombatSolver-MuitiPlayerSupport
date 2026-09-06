@@ -50,6 +50,9 @@ add_option sts2-game-root "$steam_root/steamapps/common/Slay the Spire 2" string
 add_option ritsu-workshop-root "$steam_root/steamapps/workshop/content/2868840/3747602295" string none
 add_option run-snapshot-path "" string none
 add_option replay-state-path "" string none
+add_option checkpoint-archive-path "" string raw_string
+add_option checkpoint-selector "latest" string raw_string
+add_option replay-mode "RestoreOnly" string raw_string "Preflight|RestoreOnly|ReplayRecorded|SearchOnly|DeploySolver"
 add_option progress-snapshot-path "" string none
 add_option ascension 0 int raw_int
 add_option act-index-for-test 0 int raw_int
@@ -222,7 +225,7 @@ add_option expected-no-gc-region-rollovers-at-least -1 int nonnegative_int
 add_option inject-player-hp-loss-before-auto-search-turn 0 int positive_int
 add_option inject-player-hp-loss-amount 0 int raw_int
 add_option clear-player-block-before-end-turn-for-test 0 int positive_int
-add_option timeout-seconds 150 int raw_int
+add_option timeout-seconds 120 int raw_int
 add_option keep-game-open 0 switch none
 add_option exit-on-complete 0 switch bool
 
@@ -375,6 +378,14 @@ if ((option_value[stop-after-expected-player-power] == 1)) && is_blank "${option
     die "--stop-after-expected-player-power requires --expected-observed-player-power-id"
 fi
 ((option_value[timeout-seconds] > 0)) || die "--timeout-seconds must be a positive integer"
+
+if [[ -n "${option_value[checkpoint-archive-path]}" ]]; then
+    option_value[checkpoint-archive-path]="$(realpath -e -- "${option_value[checkpoint-archive-path]}")"
+    if [[ "${option_value[replay-mode]}" == "Preflight" ]]; then
+        exec dotnet run --project "$script_dir/CheckpointTool/CheckpointTool.csproj" -c Release --verbosity quiet -- \
+            preflight "${option_value[checkpoint-archive-path]}" "${option_value[checkpoint-selector]}"
+    fi
+fi
 
 for command_name in jq realpath flock setsid pgrep sha256sum; do
     command -v "$command_name" >/dev/null 2>&1 || runtime_error "$command_name is required"

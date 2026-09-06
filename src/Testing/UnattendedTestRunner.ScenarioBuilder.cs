@@ -33,6 +33,7 @@ internal sealed partial class UnattendedTestRunner
 
         public async Task<ScenarioContext> BuildAsync()
         {
+            runner.PrepareCheckpointRequest();
             UnattendedTestRequest request = runner._request;
             runner.SetStage("game_startup");
             await runner._host.GameStartupComplete;
@@ -138,6 +139,7 @@ internal sealed partial class UnattendedTestRunner
                     request.ReplayStatePath,
                     request.RunSnapshotPath);
                 StartedTurn = player.PlayerCombatState!.TurnNumber;
+                runner.RecordCheckpointRestored();
                 await runner.NextFrameAsync();
                 return new ScenarioContext(
                     character,

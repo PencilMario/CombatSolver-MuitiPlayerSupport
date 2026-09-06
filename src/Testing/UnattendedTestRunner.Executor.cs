@@ -515,7 +515,8 @@ internal sealed partial class UnattendedTestRunner
         private FastModeType? ApplySettingsOverrides()
         {
             UnattendedTestRequest request = runner._request;
-            if (!request.PerformancePresetForTest.HasValue
+            if (runner._checkpointImport == null
+                && !request.PerformancePresetForTest.HasValue
                 && !request.ShortMaxCardBranchesPerNodeForTest.HasValue
                 && !request.DeepMaxCardBranchesPerNodeForTest.HasValue
                 && !request.PotionPolicyForTest.HasValue
@@ -529,9 +530,10 @@ internal sealed partial class UnattendedTestRunner
             }
 
             _settingsBeforeTest = SolverSettings.Current;
+            SolverSettingsData recordedSettings = runner.ApplyRecordedCheckpointPolicy(_settingsBeforeTest);
             SolverSettingsData testSettings = request.PerformancePresetForTest is { } preset
-                ? SolverSettings.ApplyPerformancePreset(_settingsBeforeTest, preset)
-                : _settingsBeforeTest;
+                ? SolverSettings.ApplyPerformancePreset(recordedSettings, preset)
+                : recordedSettings;
             bool hasCustomPerformanceOverride = request.ShortMaxCardBranchesPerNodeForTest.HasValue
                 || request.DeepMaxCardBranchesPerNodeForTest.HasValue;
             if (request.NoGcRegionBudgetGigabytesForTest is { } noGcBudget)
@@ -568,7 +570,7 @@ internal sealed partial class UnattendedTestRunner
                 EnableDetailedDiagnosticLogs = request.EnableDetailedDiagnosticLogsForTest
                     ?? _settingsBeforeTest.EnableDetailedDiagnosticLogs,
                 PotionPolicy = request.PotionPolicyForTest
-                    ?? _settingsBeforeTest.PotionPolicy,
+                    ?? testSettings.PotionPolicy,
             });
             FastModeType fastModeBeforeDeployment = SaveManager.Instance.PrefsSave.FastMode;
             if (request.PerformancePresetForTest is { } expectedPreset)
@@ -579,6 +581,12 @@ internal sealed partial class UnattendedTestRunner
                         : expectedPreset);
             }
             SolverSettingsSnapshot snapshot = SolverSettings.Capture();
+            if (runner._writer.ReplayVerification != null)
+                runner._writer.ReplayVerification["executedPolicy"] = System.Text.Json.JsonSerializer.SerializeToNode(
+                    new { snapshot.PotionPolicy, SolverSettings.Current.PotionDirectives,
+                        snapshot.ActTransitionBossHpStrategy, snapshot.FinalBossHpStrategy,
+                        snapshot.ShortProfile, snapshot.DeepProfile, snapshot.SearchMaxDegreeOfParallelism },
+                    UnattendedTestFiles.JsonOptions);
             if (request.EnableNoGcRegionForTest is { } expectedNoGcEnabled
                 && snapshot.EnableNoGcRegion != expectedNoGcEnabled)
             {

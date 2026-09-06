@@ -10,6 +10,9 @@ param(
     [string]$RunSnapshotPath = "",
     [string]$ReplayStatePath = "",
     [string]$CheckpointArchivePath = "",
+    [string]$CheckpointSelector = "latest",
+    [ValidateSet("Preflight", "RestoreOnly", "ReplayRecorded", "SearchOnly", "DeploySolver")]
+    [string]$ReplayMode = "RestoreOnly",
     [string]$ProgressSnapshotPath = "",
     [ValidateRange(0, 10)]
     [int]$Ascension = 0,
@@ -221,82 +224,19 @@ param(
     [int]$InjectPlayerHpLossBeforeAutoSearchTurn = 0,
     [int]$InjectPlayerHpLossAmount = 0,
     [int]$ClearPlayerBlockBeforeEndTurnForTest = 0,
-    [int]$TimeoutSeconds = 150,
+    [int]$TimeoutSeconds = 120,
     [switch]$KeepGameOpen,
     [switch]$ExitOnComplete
 )
 
 $ErrorActionPreference = "Stop"
 
-$checkpointImportRoot = $null
-function Import-CheckpointArchive {
-    param([string]$ArchivePath)
-
-    $resolvedArchivePath = [IO.Path]::GetFullPath($ArchivePath)
-    if (-not (Test-Path -LiteralPath $resolvedArchivePath -PathType Leaf)) {
-        throw "Checkpoint archive not found: $resolvedArchivePath"
-    }
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $archive = [IO.Compression.ZipFile]::OpenRead($resolvedArchivePath)
-    try {
-        $indexEntry = $archive.GetEntry("combat-solver/checkpoint.json")
-        if ($null -eq $indexEntry) {
-            throw "Checkpoint archive is missing combat-solver/checkpoint.json"
-        }
-        $index = [IO.StreamReader]::new($indexEntry.Open()).ReadToEnd() | ConvertFrom-Json
-        if ([int]$index.schemaVersion -ne 1 -or $index.available -ne $true) {
-            throw "Checkpoint archive does not contain an available restorable checkpoint"
-        }
-        $paths = @("metadataPath", "replayStatePath", "nativeStatePath", "runStatePath")
-        $archiveRoot = Join-Path ([IO.Path]::GetTempPath()) ("CombatSolver-Checkpoint-" + [guid]::NewGuid().ToString("N"))
-        New-Item -ItemType Directory -Path $archiveRoot -Force | Out-Null
-        $script:checkpointImportRoot = $archiveRoot
-        foreach ($propertyName in $paths) {
-            $entryPath = [string]$index.$propertyName
-            if ([string]::IsNullOrWhiteSpace($entryPath) -or
-                [IO.Path]::IsPathRooted($entryPath) -or
-                $entryPath.Contains("..", [StringComparison]::Ordinal) -or
-                $entryPath.Contains("\\", [StringComparison]::Ordinal)) {
-                throw "Checkpoint archive contains an unsafe $propertyName"
-            }
-            $entry = $archive.GetEntry($entryPath)
-            if ($null -eq $entry) {
-                throw "Checkpoint archive is missing $propertyName entry: $entryPath"
-            }
-            $destination = Join-Path $archiveRoot ([IO.Path]::GetFileName($entryPath))
-            $input = $entry.Open()
-            $output = [IO.File]::Create($destination)
-            try { $input.CopyTo($output) } finally { $output.Dispose(); $input.Dispose() }
-            Set-Variable -Name $propertyName -Value $destination -Scope 1
-        }
-        $replay = Get-Content -LiteralPath $replayStatePath -Raw -Encoding UTF8 | ConvertFrom-Json -Depth 100
-        $player = @($replay.players)[0]
-        if ($null -eq $player) {
-            throw "Checkpoint replay-state does not contain a player"
-        }
-        $script:CharacterId = [string]$player.characterId
-        $script:Seed = [string]$replay.runRng.seed
-        $script:EncounterId = [string]$replay.encounterId
-        $script:Ascension = [int]$replay.ascensionLevel
-        $script:ActIndexForTest = [int]$replay.currentActIndex
-        $script:InitialPlayerHp = [int]$player.currentHp
-        $script:InitialPlayerMaxHp = [int]$player.maxHp
-        $script:InitialPlayerBlock = [int]$player.block
-        $script:InitialPlayerEnergy = [int]$player.energy
-        $script:InitialPlayerStars = [int]$player.stars
-        $script:InitialRoundNumber = [int]$replay.roundNumber
-        $script:InitialPlayerTurnNumber = [int]$player.turnNumber
-        $script:RunSnapshotPath = $runStatePath
-        $script:ReplayStatePath = $replayStatePath
-        Write-Host "CHECKPOINT_IMPORTED archive=$resolvedArchivePath checkpoint=$($index.checkpoint) turn=$($replay.roundNumber)" -ForegroundColor Cyan
-    }
-    finally {
-        $archive.Dispose()
-    }
-}
-
 if (-not [string]::IsNullOrWhiteSpace($CheckpointArchivePath)) {
-    Import-CheckpointArchive $CheckpointArchivePath
+    $CheckpointArchivePath = (Resolve-Path -LiteralPath $CheckpointArchivePath).Path
+    if ($ReplayMode -eq "Preflight") {
+        & dotnet run --project (Join-Path $PSScriptRoot "CheckpointTool/CheckpointTool.csproj") -c Release --verbosity quiet -- preflight $CheckpointArchivePath $CheckpointSelector
+        exit $LASTEXITCODE
+    }
 }
 
 if ($null -eq ("CombatSolverUnattendedLauncherCancellation" -as [type])) {
@@ -306,6 +246,20 @@ using System.Threading;
 
 public static class CombatSolverUnattendedLauncherCancellation
 {
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+    private static extern bool QueryFullProcessImageName(
+        Microsoft.Win32.SafeHandles.SafeProcessHandle process, int flags,
+        System.Text.StringBuilder path, ref int size);
+
+    public static string GetExecutablePath(System.Diagnostics.Process process)
+    {
+        var path = new System.Text.StringBuilder(32768);
+        int size = path.Capacity;
+        if (!QueryFullProcessImageName(process.SafeHandle, 0, path, ref size))
+            throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error());
+        return path.ToString();
+    }
+
     private static int requested;
     private static int installed;
 
@@ -646,7 +600,7 @@ $resolvedRunSnapshotPath = if ([string]::IsNullOrWhiteSpace($RunSnapshotPath)) {
 }
 
 function Get-ProcessExecutablePath([Diagnostics.Process]$TestProcess) {
-    $executable = $TestProcess.MainModule.FileName
+    $executable = [CombatSolverUnattendedLauncherCancellation]::GetExecutablePath($TestProcess)
     if ([string]::IsNullOrWhiteSpace($executable)) {
         throw "Process $($TestProcess.Id) did not expose its executable path."
     }
@@ -709,6 +663,9 @@ $request = [ordered]@{
     encounterId = $EncounterId
     runSnapshotPath = $resolvedRunSnapshotPath
     replayStatePath = $resolvedReplayStatePath
+    checkpointArchivePath = if ($CheckpointArchivePath) { $CheckpointArchivePath } else { $null }
+    checkpointSelector = $CheckpointSelector
+    replayMode = $ReplayMode
     ascension = $Ascension
     actIndexForTest = $ActIndexForTest
     markEncounterAsSecondBossForTest = $MarkEncounterAsSecondBossForTest.IsPresent
@@ -1343,9 +1300,6 @@ throw "Unattended test exceeded the launcher timeout; its game process was stopp
     } finally {
         if ($launcherCancellationInstalled) {
             [CombatSolverUnattendedLauncherCancellation]::Uninstall()
-        }
-        if ($null -ne $checkpointImportRoot -and (Test-Path -LiteralPath $checkpointImportRoot -PathType Container)) {
-            Remove-Item -LiteralPath $checkpointImportRoot -Recurse -Force
         }
         $launcherLock.Dispose()
     }

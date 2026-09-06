@@ -10,6 +10,8 @@
 
 | 场景 | 当前结果 | 验证内容 | 日期 |
 | --- | --- | --- | --- |
+| `ARCHIVE-CONTRACT-0300` | 通过 | `dotnet run --project tools/CheckpointTool/CheckpointTool.csproj -c Release -- self-test`，12 项检查覆盖同名文件分离、稳定默认入口、战后选择、旧包无索引、会话错配、重复及不安全路径。 | 2026-09-06 |
+| `ARCHIVE-V2-EXPORT-0300` / `ARCHIVE-V2-IMPORT-0300` | 通过（检查点） | 导出 runId `7ccbe05b91c441d3a7ff5ebea12ee660`；相同 ZIP 直接导入 runId `30f462a75df5456286fddae1144736aa`，`CheckpointContinuationMatched`，材料准备约29ms。没有运行搜索或整场部署。证据 `.local/replay-validation/batch1/`。 | 2026-09-06 |
 | `CHECKPOINT-INDEX-0300` | 通过 | 导出 runId `b309d78548cd46708a8dcf008af8bd40` 生成唯一 `combat-solver/checkpoint.json`；索引指向的 metadata、replay-state、native-state、run-state 均存在。再以同一 ZIP 直接导入，runId `15fa0e74fee74af787116be3c2bf2dae` 通过开战根状态断言。 | 2026-09-05 |
 
 ## 0.29.1（历史）：2026-09-04 19 点后问题包硬逻辑修复

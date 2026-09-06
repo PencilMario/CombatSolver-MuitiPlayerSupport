@@ -57,7 +57,7 @@ internal sealed partial class UnattendedTestRunner
     public static int? SearchMaxDegreeOfParallelismOverride => Host.SearchMaxDegreeOfParallelismOverride;
 
     private readonly NGame _host;
-    private readonly UnattendedTestRequest _request;
+    private UnattendedTestRequest _request;
     private readonly ProtocolHost _protocolHost;
     private readonly DateTimeOffset _startedAtUtc = DateTimeOffset.UtcNow;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
@@ -77,7 +77,7 @@ internal sealed partial class UnattendedTestRunner
         _request = request;
         _protocolHost = protocolHost;
         _writer = new Writer(
-            request,
+            () => _request,
             _stopwatch,
             _completedChecks,
             _startedAtUtc,
@@ -194,6 +194,7 @@ internal sealed partial class UnattendedTestRunner
         {
             _executor.RestoreSettings();
             RestoreHeadlessFastModeOverride();
+            ReleaseCheckpointImport();
         }
     }
 
@@ -269,7 +270,7 @@ internal sealed partial class UnattendedTestRunner
         using Stream checkpointIndexStream = archive.GetEntry("combat-solver/checkpoint.json")!.Open();
         using JsonDocument checkpointIndexDocument = JsonDocument.Parse(checkpointIndexStream);
         JsonElement checkpointIndex = checkpointIndexDocument.RootElement;
-        if (checkpointIndex.GetProperty("schemaVersion").GetInt32() != 1
+        if (checkpointIndex.GetProperty("schemaVersion").GetInt32() != 2
             || !checkpointIndex.GetProperty("available").GetBoolean())
         {
             throw new InvalidDataException("问题包没有可还原的战斗检查点。");
@@ -281,6 +282,9 @@ internal sealed partial class UnattendedTestRunner
         {
             throw new InvalidDataException("问题包检查点索引与战斗会话不一致。");
         }
+        string defaultCheckpointId = checkpointIndex.GetProperty("defaultCheckpointId").GetString()!;
+        checkpointIndex = checkpointIndex.GetProperty("checkpoints").EnumerateArray().Single(item =>
+            item.GetProperty("checkpointId").GetString() == defaultCheckpointId);
         string checkpointPath = RequiredRelativeArchivePath(checkpointIndex, "metadataPath");
         string replayStatePath = RequiredRelativeArchivePath(checkpointIndex, "replayStatePath");
         string nativeStatePath = RequiredRelativeArchivePath(checkpointIndex, "nativeStatePath");

@@ -14,13 +14,14 @@ internal sealed partial class UnattendedTestRunner
         long PrivateMemoryBytes);
 
     private sealed class Writer(
-        UnattendedTestRequest request,
+        Func<UnattendedTestRequest> getRequest,
         Stopwatch stopwatch,
         IReadOnlyList<string> completedChecks,
         DateTimeOffset startedAtUtc,
         Func<UnattendedStageTiming[]> captureStageTimings)
     {
         private UnattendedSolverMetrics? _solverMetrics;
+        public System.Text.Json.Nodes.JsonObject? ReplayVerification { get; set; }
 
         public void CaptureSolverResult(SolverResult result)
         {
@@ -101,6 +102,7 @@ internal sealed partial class UnattendedTestRunner
             int finishedTurn,
             string? error = null)
         {
+            UnattendedTestRequest request = getRequest();
             RuntimeMemorySnapshot memory = CaptureRuntimeMemory();
             WriteResult(new UnattendedTestResult
             {
@@ -122,6 +124,7 @@ internal sealed partial class UnattendedTestRunner
                 WorkingSetBytes = memory.WorkingSetBytes,
                 PrivateMemoryBytes = memory.PrivateMemoryBytes,
                 SolverMetrics = _solverMetrics,
+                ReplayVerification = ReplayVerification,
                 StageTimings = captureStageTimings(),
                 CompletedChecks = completedChecks.ToArray(),
                 Error = error,
