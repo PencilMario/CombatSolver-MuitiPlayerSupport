@@ -1,5 +1,9 @@
 # CombatSolver 测试清单
 
+## 0.31.2 定版
+
+收录 PR #15、#18、#43。本次仅修改版本与发布资料，沿用下列已完成的定向验证，执行最终 Release 构建；未追加完整发布门禁或可见 Steam 双 Mod 联动验收。
+
 ## 2026-09-06：PR #43 集成
 
 `PR43-PRECOMBAT-API-INTEGRATION`，runId `d44c83b14da04695b79f218e5056d32d`，68.0秒 Passed：规范化恢复、独立 Mod 文件、设置令牌、取消、确定/假设预测、2次 worker 创建和3次复用、静音与主跑局不变。`PR43-EXIT-CLEANUP`，runId `b2d1e2d25beb47eeb976f8062657a4a3`，18.9秒 Passed，另查正常退出后 startup-mods 已清除。Seed Oracle main `29cee875` 对新 DLL 编译通过。详见 [审查记录](pr/pr43-review.md)；未执行可见 Steam 双 Mod 联动。作者原 0.29.x 测试数据保留为历史证据。
