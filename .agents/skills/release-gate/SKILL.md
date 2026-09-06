@@ -54,6 +54,8 @@ dotnet clean -c Release
 
 ## 3. 一次最小 ZIP
 
+发布包统一输出到仓库根目录的 `releases/CombatSolver-<版本号>.zip`；当前工作区为 `D:\Desktop\sts2mod\CombatSolver\releases`。创建 ZIP 前确保目录存在，交付链接使用该路径，发布 ZIP 由现有 Git 忽略规则排除。
+
 当前 `has_pck=false`。命令显式只写入：
 
 - `CombatSolver.json`；
