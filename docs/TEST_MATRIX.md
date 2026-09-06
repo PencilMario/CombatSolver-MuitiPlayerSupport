@@ -1,5 +1,9 @@
 # CombatSolver 测试清单
 
+## 2026-09-07：Ritsu目标类型查询缓存
+
+10项直接合同覆盖静态正负查询、live旁路、动态晚创建、并发和程序集卸载。固定0.31.0研究基线的Headless目标分配−34.4%、可见Steam−33.1%，完整动作/126非时序字段一致；Aeon哨兵行为一致但分配+4.5%，保留未解释限制。当前PR基于main `0552b33`，不将历史A/B标为新上游政策下的结果；详见 [验收与复现](performance/metadata-target-type-cache-20260907.md)。
+
 ## 2026-09-06：PR #43 集成
 
 `PR43-PRECOMBAT-API-INTEGRATION`，runId `d44c83b14da04695b79f218e5056d32d`，68.0秒 Passed：规范化恢复、独立 Mod 文件、设置令牌、取消、确定/假设预测、2次 worker 创建和3次复用、静音与主跑局不变。`PR43-EXIT-CLEANUP`，runId `b2d1e2d25beb47eeb976f8062657a4a3`，18.9秒 Passed，另查正常退出后 startup-mods 已清除。Seed Oracle main `29cee875` 对新 DLL 编译通过。详见 [审查记录](pr/pr43-review.md)；未执行可见 Steam 双 Mod 联动。作者原 0.29.x 测试数据保留为历史证据。

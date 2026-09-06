@@ -1024,6 +1024,13 @@ if (Select-String -LiteralPath (Join-Path $repositoryRoot "src\Search\SimulatedC
     $violations.Add("SimulatedCombatState.cs: active-roster removal must retain known-monster AI state through move completion")
 }
 
+$ritsuTargetLookupPath = Join-Path $repositoryRoot "src/Runtime/RitsuBaseLibTargetTypeLookupPatch.cs"
+foreach ($rule in @('ConditionalWeakTable<Assembly, Resolution>', 'SimulationNotificationIsolation.IsActive', '__0.IsDynamic', 'callbacks.Length != 1')) {
+    if (-not (Select-String -LiteralPath $ritsuTargetLookupPath -SimpleMatch $rule -Quiet)) {
+        $violations.Add("${ritsuTargetLookupPath}: missing metadata cache boundary '$rule'")
+    }
+}
+
 if ($violations.Count -gt 0) {
     $violations | ForEach-Object { Write-Error $_ }
     throw "Refactor boundary verification failed with $($violations.Count) violation(s)."
