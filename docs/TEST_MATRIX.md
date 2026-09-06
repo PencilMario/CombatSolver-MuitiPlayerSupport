@@ -1,5 +1,11 @@
 # CombatSolver 测试清单
 
+## 2026-09-06：PR #43 集成
+
+`PR43-PRECOMBAT-API-INTEGRATION`，runId `d44c83b14da04695b79f218e5056d32d`，68.0秒 Passed：规范化恢复、独立 Mod 文件、设置令牌、取消、确定/假设预测、2次 worker 创建和3次复用、静音与主跑局不变。`PR43-EXIT-CLEANUP`，runId `b2d1e2d25beb47eeb976f8062657a4a3`，18.9秒 Passed，另查正常退出后 startup-mods 已清除。Seed Oracle main `29cee875` 对新 DLL 编译通过。详见 [审查记录](pr/pr43-review.md)；未执行可见 Steam 双 Mod 联动。作者原 0.29.x 测试数据保留为历史证据。
+
+复跑：`tools/run-unattended-test.ps1 -ScenarioId PR43-PRECOMBAT-API-INTEGRATION -HeadlessInstance pr-api -VerifyPreCombatForecastApi -ForceShortSearchOnly -ShortSearchBudgetOverrideMilliseconds 1500 -StopAfterInitialSolverResultAssertion -HeadlessFastModeForTest Instant -TimeoutSeconds 120 -ExitOnComplete`。Bash 对应 `--verify-pre-combat-forecast-api`，其余使用现有 kebab-case 参数。
+
 ## 2026-09-06：PR #18 第三方 OnPlay 边界
 
 `PR18-FOREIGN-ONPLAY-BOUNDARY` Passed，runId `c374c02c64a34423b8f99a1da976a7b0`：真实 Harmony Prefix 安装/卸载，覆盖首次根捕获后新增补丁、已声明非玩法来源、未知来源、移除补丁后的正常捕获及 live 状态不变。既有 `PredictionFailureBoundaries` 和首结果增量短搜通过，3 节点/11 转移、无药零损 T1。Release 编译零警告/错误。夹具 `coverage/unattended/pr18-foreign-onplay-boundary.json`；未逐一覆盖 Prefix/Postfix/Transpiler/Finalizer，也未运行完整战斗或可见第三方 Mod 组合。
@@ -311,7 +317,32 @@ v30 SearchPolicy 与下列8项最小搜索夹具在同一 headless 进程复用�
 | `ROOT-HOOK-NULL-0291` | 已修复，待专用复跑 | 根监听器快照过滤空项，针对 Queen `BeforeAttack` 钩子中的 NullReferenceException 完成根因修复。 | 2026-09-04 |
 | `POTION-SLOT-DRIFT-0291` | 已修复，待专用漂移夹具 | 部署前药水槽位为空或内容不符时转入 `DeploymentDrift` 重算；未使用宽泛异常吞掉真实执行错误。 | 2026-09-04 |
 
-## 0.29.0（历史开发记录）：2026-09-03 问题包硬逻辑修复
+## 0.29.5（本地扩展）：主进程 Mod 版本钉住
+
+| 场景 | 当前结果 | 验证内容 | 日期 |
+| --- | --- | --- | --- |
+| `PRECOMBAT-MOD-PIN-015` | 通过 | 十 Mod 组合加载 Combat Solver `0.29.5`、Seed Oracle `0.1.18`、HowlFromBeyondBgm `1.1.5` 等主进程版本；工坊式原子替换后，启动期硬链接快照仍保留旧内容。两次确定预测和一次假设样本复用同一 worker，计数 `starts=1 / reuses=3`；战损 `5`、内存可见、隔离音频静音、2/10/30 分钟与一直维持、自动关闭及 live 状态不变均通过。runId `8382cbd40ce74a44ac2cac7e444f6403`。 | 2026-09-05 |
+
+## 0.29.4（本地扩展）：作者 0.29.1 基线与可配置 worker 期限
+
+| 场景 | 当前结果 | 验证内容 | 日期 |
+| --- | --- | --- | --- |
+| `PRECOMBAT-API-V5-UPSTREAM-0291-013` | 通过 | 作者 `v0.29.1`、RitsuLib、Random Foreseer、Combat Solver `0.29.4` 与 Seed Oracle `0.1.16` 组合加载。停止状态接受 2/10 分钟和一直维持；预热后显示 PID/内存/静音并切换为 30 分钟；两次确定预测战损均为 `5`，一个假设样本复用同一 worker，计数 `starts=1 / reuses=3`，样本结束自动关闭，live 状态令牌不变。runId `e2236a4ec85041dc95c0b3417ed0b688`。 | 2026-09-04 |
+| `SEEDORACLE-PRECOMBAT-V5-LOCALIZATION-014` | 通过 | Seed Oracle UI 自检验证 5 个 worker 策略、内存/关闭/预热控件、11 个样本次数、6 类对象、完整模拟风险说明，以及当前幕所有遭遇标题均由游戏本地化解析，不再显示 `LocString … .title`。runId `e15b744f36e84d85aa8771cf02328121`。 | 2026-09-04 |
+
+## 0.29.3（本地扩展）：worker 资源控制与假设战斗样本
+
+| 场景 | 当前结果 | 验证内容 | 日期 |
+| --- | --- | --- | --- |
+| `PRECOMBAT-API-V4-WORKER-SIMULATION-010` | 通过 | RitsuLib、Combat Solver `0.29.3`、Random Foreseer 与 Seed Oracle `0.1.15` 四 Mod 同时加载。显式关闭后状态为停止；预热返回 PID、工作集、私有内存与静音标记；两次相同确定预测战损均为 `5`。同一 worker 计数 `starts=1 / reuses=3`；样本种子 `104372539623684` 在内层恢复校验后、开战前应用并回传匹配标记；样本结束自动关闭，主进程 live 状态令牌不变。runId `61f19e8db7ae4f9a8a217424e602f075`。 | 2026-09-04 |
+
+## 0.29.2（本地扩展）：可复用静音战前 worker
+
+| 场景 | 当前结果 | 验证内容 | 日期 |
+| --- | --- | --- | --- |
+| `PRECOMBAT-API-MANUAL-CACHE-REUSE-009` | 通过 | RitsuLib、Combat Solver `0.29.2`、Random Foreseer 与 Seed Oracle `0.1.14` 四 Mod 同时加载；同一快照两次强制预测返回相同战损 `5`，使用同一 worker PID，计数为 `starts=1 / reuses=1`。隔离设置四类音量均为 `0`，live 状态令牌不变；首请求 game startup `12.57 s`，第二次 `0.6 ms`。runId `08fc0ae91d39417b9c234bbc5d2da6ea`。 | 2026-09-04 |
+
+## 0.29.1（本地扩展）：基于 0.29.0 的战前预测 API 与硬逻辑修复
 
 | 场景 | 当前结果 | 验证内容 | 日期 |
 | --- | --- | --- | --- |
@@ -328,6 +359,12 @@ v30 SearchPolicy 与下列8项最小搜索夹具在同一 headless 进程复用�
 | `ISSUE-20260903-DEPLOYMENT-TURN-DRIFT` | 已修复，待专用时序夹具 | 部署动作检测到玩家回合已结束时现在清理旧路线并按 `DeploymentDrift` 重捕获，不再记为自动执行失败；其他部署异常仍显式失败。 | 2026-09-04 |
 | `ISSUE-20260903-PENDING-CHOICE-HOOK-BOUNDARY` | 已修复，待双监听器夹具 | 洗牌 Hook 在已有待处理选择时停止继续调用监听器，分支消费后再继续；避免同一模拟事件创建冲突选择。 | 2026-09-04 |
 | `ISSUE-20260903-NATIVE-CHOICE-SURFACE-TIMEOUT` | 已修复，待页面消失夹具 | 原生选牌页面或确认按钮等待超时现在按页面漂移关闭并请求 `DeploymentDrift` 重捕获；非原生等待超时仍走原有失败路径。 | 2026-09-04 |
+| `PRECOMBAT-API-FINAL-004` | 通过 | 外层真实 headless 跑局调用 public API v1；内层独立进程精确恢复完整规范化存档后进入毛绒伏地虫战斗并返回战损 `5`、药水 `0`、边界 `None`，外层调用前后完整状态令牌一致。runId `7da852343994495e923dec58bf624b28`。 | 2026-09-04 |
+| `PRECOMBAT-API-SEED-STACK-005` | 通过 | RitsuLib、Combat Solver、Random Foreseer 与 Seed Oracle 共四个 Mod 同时加载；Seed Oracle 探测到 API v1/隔离 worker，worker 对精确相同 Mod 集合完成直接恢复和战前搜索，无递归请求，状态令牌不变。runId `1961ef8c7d484da691e07cec99074215`。 | 2026-09-04 |
+| `PRECOMBAT-POTION-METRICS-006` | 通过 | 强制至少使用一瓶药水的短搜索把非空动作写入公共结果协议：`FIRE_POTION` / “火焰药水”、第 `3` 回合、槽位 `0`；战斗第 `3` 回合结束。runId `5e281451a3534051b605577cd51c9038`。 | 2026-09-04 |
+| `PRECOMBAT-REMOTE-CAMPFIRE-007` | 通过 | 从含历史事件选择的完整跑局精确恢复；按目标路线补记第 9 层篝火与第 10 层宝箱，用目标列坐标进入第 11 层 `SLIMES_NORMAL`，在开战 Hook 前覆盖为休息后的 `66 HP`。3 秒 DOP1 短搜返回战损 `12`、最终 `54 HP`；完成项包含 `DirectRunSnapshot:ExactStateRestored`、`PreCombatInterveningMapPoints:2`、`PreCombatPlayerHp:66`。runId `fe93b060ada64e78864fca8d825aeb85`。 | 2026-09-04 |
+| `PRECOMBAT-API-MANUAL-V2-008` | 通过 | public API v2 双进程往返使用目标坐标、独占可取消 worker、强制重算和入战 HP 覆盖；空事件历史变量被规范化、非空变量保留，返回 `EntryHp=79`、战损 `1`、药水 `0`、边界 `None`，调用前后 live 状态令牌一致。runId `f8db7c03ea9444cc89483495c985f221`。 | 2026-09-04 |
+| `PRECOMBAT-API-SEED-STACK-0.29.1-FINAL` | 通过 | API v2 改动重放到作者 `0.29.0` 后的四 Mod 组合回归；Combat Solver 以 `0.29.1.0` 加载，外层 Seed Oracle 记录 `precombat_public_api_v2=true`，公开 API 返回 `EntryHp=79`、战损 `5`、药水 `0`、边界 `None`，调用前后 live 状态令牌一致。runId `2e038fa1be6b45a19a7a5096c9be0f16`。 | 2026-09-04 |
 
 性能指标口径：`selected_*` 只描述最终选中的单个 solver；请求级 `total_expanded_nodes / total_transitions / total_choice_branches`、`total_solver_ms`、分配与 GC 累计对正常、失败和取消的每个 solver 工作区间精确记录一次，包括取消前已发生的部分工作。Smart 有限药水层之间由 coordinator 主动执行的内存整理也计入时间、分配与 GC，但不增加 solver 数；建立开局、层间比较等其他编排工作仍不在这些总值中。因此端到端耗时以请求/阶段外层墙钟为准，峰值内存以进程 `VmHWM` 为准。Smart 多层的取消时点可能令请求总工作量小幅波动，语义验收优先比较胜负、战损、回合和动作路线。峰值工作集是瞬时进程峰值，不能跨阶段相加；`16 GB` NoGC 是运行时请求预算，不等于实际占用或硬上限；NoGC 活跃时 `GC.GetTotalMemory(false)` 不是严格 live-set 测量。
 

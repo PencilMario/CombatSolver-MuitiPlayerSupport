@@ -209,6 +209,12 @@ internal static class SolverSettings
         }
     }
 
+    internal static byte[] CaptureSerializedSettings()
+    {
+        lock (Sync)
+            return JsonSerializer.SerializeToUtf8Bytes(_current, JsonOptions);
+    }
+
     public static void Load()
     {
         string path = ProjectSettings.GlobalizePath(SettingsUri);

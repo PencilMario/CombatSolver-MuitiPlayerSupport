@@ -19,6 +19,15 @@ param(
     [ValidateRange(1, 3600)]
     [int]$HeadlessQueueTimeoutSeconds = 120,
     [string]$RunSnapshotPath = "",
+    [switch]$LoadRunSnapshotDirectly,
+    [int]$TargetActFloor = -1,
+    [int]$TargetMapColumn = -1,
+    [ValidateSet("Monster", "Elite", "Boss")]
+    [string]$TargetRoomType = "Monster",
+    [ValidateSet("Unassigned", "Monster", "Elite", "Boss", "Unknown")]
+    [string]$TargetMapPointType = "Unassigned",
+    [int]$PreCombatPlayerCurrentHpOverride = -1,
+    [string]$PreCombatInterveningMapPointsJson = "",
     [string]$ReplayStatePath = "",
     [string]$CheckpointArchivePath = "",
     [string]$CheckpointSelector = "latest",
@@ -94,6 +103,7 @@ param(
     [switch]$VerifyControllerSessionLifecycle,
     [switch]$VerifyForkBoundaries,
     [switch]$VerifyCombatRootSnapshot,
+    [switch]$VerifyPreCombatForecastApi,
     [switch]$VerifyBaseLibCardModifierBoundary,
     [switch]$StopAfterCombatRootSnapshotAssertion,
     [switch]$VerifyIncrementalSearch,
@@ -708,6 +718,17 @@ $request = [ordered]@{
     characterId = $CharacterId
     encounterId = $EncounterId
     runSnapshotPath = $resolvedRunSnapshotPath
+    loadRunSnapshotDirectly = $LoadRunSnapshotDirectly.IsPresent
+    targetActFloor = if ($TargetActFloor -gt 0) { $TargetActFloor } else { $null }
+    targetMapColumn = if ($TargetMapColumn -ge 0) { $TargetMapColumn } else { $null }
+    targetRoomType = $TargetRoomType
+    targetMapPointType = $TargetMapPointType
+    preCombatPlayerCurrentHpOverride = if ($PreCombatPlayerCurrentHpOverride -gt 0) { $PreCombatPlayerCurrentHpOverride } else { $null }
+    preCombatInterveningMapPoints = if ([string]::IsNullOrWhiteSpace($PreCombatInterveningMapPointsJson)) {
+        @()
+    } else {
+        @($PreCombatInterveningMapPointsJson | ConvertFrom-Json -NoEnumerate)
+    }
     replayStatePath = $resolvedReplayStatePath
     checkpointArchivePath = if ($CheckpointArchivePath) { $CheckpointArchivePath } else { $null }
     evidenceDirectory = if ($EvidenceDirectory) { $EvidenceDirectory } else { $null }
@@ -757,6 +778,7 @@ $request = [ordered]@{
     verifyControllerSessionLifecycle = $VerifyControllerSessionLifecycle.IsPresent
     verifyForkBoundaries = $VerifyForkBoundaries.IsPresent
     verifyCombatRootSnapshot = $VerifyCombatRootSnapshot.IsPresent
+    verifyPreCombatForecastApi = $VerifyPreCombatForecastApi.IsPresent
     verifyBaseLibCardModifierBoundary = $VerifyBaseLibCardModifierBoundary.IsPresent
     stopAfterCombatRootSnapshotAssertion = $StopAfterCombatRootSnapshotAssertion.IsPresent
     verifyIncrementalSearch = $VerifyIncrementalSearch.IsPresent

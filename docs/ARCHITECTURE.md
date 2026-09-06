@@ -51,6 +51,23 @@ Entry / turn hooks
 `SearchGcPolicy` 将活动搜索期间收到的后台回收请求保存在独立的 deferred 完成链中，所有搜索退出后才提升为实际后台回收。搜索内内存检查点只等待自己能够完成的回收，不能等待以该搜索退出为前提的任务；手动工作集释放继续等待搜索后的回收链。已覆盖的取消及 GC 转换后注入失败路径会协调 CLR 实际模式与内部所有权，并落定对应完成链、释放等待屏障；这些断言不穷举 CLR 转换前失败、OOM 或日志系统异常。搜索账本的存活与运行时 GC 模式互不混用。
 
 搜索内检查点在 Gate 外直接等待非压缩后台 Gen2 primitive，不加入上述 deferred 链。primitive 先观察最新已完成 Gen2 的 index 与新 LOH 弱哨兵，仅在上一轮已完成却未覆盖哨兵时再次请求；不按定时器盲重发。全部异步等待不捕获调用方上下文。已发出的回收不能随搜索取消而放弃：确认完成后取消才落到默认 GC，超时或确认异常先显式阻塞排空，不能提前重建 NoGC。回收开始前的手动 GC 有独立完成信号，回收确认成功但搜索取消/超时不使它误报失败；开始后的手动请求与新的引用释放义务继续等待后续安全回收。日志分开记录请求模式、实际完成类型/index、CLR Concurrent 标志及阻塞超时兜底，不承诺每次都采用并发 GC 或没有暂停。
+### 2.1 战前预测 API 隔离边界
+
+PR #43 集成修正：Mod 使用独立文件复制，游戏程序继续使用硬链接；运行目录按主进程 PID 隔离。普通退出会移除大型游戏与 Mod 副本，保留会话诊断材料。启动快照缺失时 API 显式失败。当前账号目录由游戏路径 API 解析，并映射到禁用 Steam 的 worker 账号目录。求解设置按值冻结、进入状态令牌与 worker 签名，配置改变时重建 worker 并写入捕获值；整体期限从排队前开始，显式 Stop 会取消活动请求。
+
+`src/Api` 是供伴生 Mod 使用的公开战前边界。API v5 只暴露不可变请求选项、目标坐标、已确定的非战斗路径步骤、假设样本选项、枚举、结果，以及 worker 状态和生命周期入口，不暴露 `SolverController`、live `CombatState` 或搜索内部类型。
+
+- `PreCombatLiveStateSnapshot` 只能在主线程捕获当前单人跑局。它用 `RunManager.ToSave` 获取完整 `SerializableRun`、记录精确加载的 Mod 集合和游戏/用户目录，并生成包含规范化存档与当前房间身份的 SHA-256 状态令牌。Mod 源路径优先解析到主进程初始化时建立的独立文件副本，使内存中的已加载版本成为 worker 的权威来源。
+- `PreCombatRunSerialization` 清除墙钟、平台和地图涂鸦等非语义字段；显式写出游戏序列化器会省略、但反序列化默认成 `true` 的 `can_modify:false`；只移除恢复后会从空对象变成缺失值的事件历史 `variables:{}`，保留非空变量。这样子进程恢复后的全量快照能够逐字节核对。
+- `PreCombatForecastApi` 负责参数验证、相同状态确定请求的去重/缓存和返回前主线程复核。确定预测要求目标地图列坐标，避免远端战斗沿用当前位置派生怪物 RNG；可选路径步骤必须逐层连续且只能是已确定的篝火、宝箱或商店等非战斗房间，未决事件和中间战斗会被拒绝。活动跑局、战斗状态或令牌发生变化时只返回 `LiveStateChanged`。
+- `SimulateAsync` 是与确定预测分开的显式假设入口。它只接受当前幕原生普通、精英或 Boss 遭遇，以当前状态和下一可用地图行建立战斗，不进入确定预测缓存；调用方提供的样本种子只在隔离进程完成精确快照恢复后替换遭遇局部 RNG 和九条战斗相关 RNG。`UpFront`、奖励、地图与主进程 RNG 不被推进。
+- 调用方可读取 worker PID、忙闲、工作集、私有内存、峰值工作集、静音标记与空闲期限，也可显式停止或重启/预热。默认空闲期限为两分钟；API 可在 worker 待命时把期限重新设为任意合法毫秒值并重新计时，或以 `null` 取消空闲关闭。单个确定请求或一个调用方组织的样本批次可以在 reusable 屏障后选择立即关闭；生命周期选择不改变结果缓存键。
+- 默认调用仍共享相同请求；显式可见的手动面板可要求独占取消和强制重算。独占取消会等待其精确拥有的 worker 进程结束后才完成，不能留下后台计算。
+- `PreCombatForecastWorker` 串行拥有一个 Windows 子进程会话。主进程初始化期间先在游戏目录下带所有权标记的 `.combatsolver-precombat/startup-mods` 中钉住本次会话选中的 Mod 文件，后续 worker 从这些固定文件镜像实际加载的全部 Mod；工坊目录在运行中被 Steam 替换不会改变 worker 的版本。worker 另行硬链接游戏文件、复制必要配置，并使用独立的 `APPDATA` / `LOCALAPPDATA`、关闭 Steam 和 NoGC。隔离设置中的主音量、BGM、音效和环境音均强制为零并回读验证。
+- 相同游戏根、用户根和 Mod 集合的连续请求会在同一子进程中依次执行。父进程只有在收到匹配 runId 的 result，并等到子进程返回主菜单、后台活动归零及 matching ready 屏障后才允许复用；达到调用方选择的空闲期限、显式释放、失败、超时、取消或主进程退出都会关闭拥有的进程。“一直维持”仍会在显式停止、失败或主进程退出时清理，不会留下脱离所有权的进程。
+- 子进程由 `ScenarioBuilder` 直接恢复完整跑局，加载资源和地图后再次规范化序列化并核对精确哈希；只有通过后才按顺序补记已确定的中间非战斗地图历史，应用可选入战 HP，并用目标坐标、房间和节点类型进入遭遇。确定预测由此保持目标 `TotalFloor`、地图坐标、怪物局部种子、正常开战 Hook、首回合初始化和搜索流程一致。假设样本则在哈希核对之后、怪物生成之前注入独立样本 RNG。中间房间的购买、奖励、锻造和其他玩家状态变化不会被擅自执行，必须由调用方标为条件场景。
+
+`src/Api` 禁止直接调用 `SolverController.RequestSearch`、`CombatManager.SetUpCombat` 或 `RunManager.EnterRoomDebug`。这些静态边界由 Windows/Linux 两份 `verify-refactor-boundaries` 脚本共同检查。隔离 worker 内通过 `COMBATSOLVER_PRECOMBAT_WORKER=1` 关闭 API，避免加载伴生 Mod 后递归创建 worker。
 
 ## 3. Search
 
@@ -197,7 +214,7 @@ renderer 不得重新读取 `SolverResult`、`PlanAction`、`PlanCardChoice` 或
 | 组件 | 职责 |
 |---|---|
 | `ProtocolHost` | 请求文件循环、协议校验、进程复用、每请求测试开关、漂移注入与 reset |
-| `ScenarioBuilder` | 建立跑局/遭遇、加载快照、注入牌/Power/遗物/药水/球/RNG，返回 `ScenarioContext` |
+| `ScenarioBuilder` | 建立跑局/遭遇、加载快照、注入牌/Power/遗物/药水/球/RNG；战前 API 模式直接恢复完整跑局并在进入目标战斗前核对规范化快照，返回 `ScenarioContext` |
 | `Executor` | 分派严格差分、应用临时设置、启动搜索/全自动、等待复用/暂停/结束并恢复设置 |
 | `Assertions` | 执行前边界检查和执行后的回合、生命、出牌、药水、Power 断言 |
 | `Writer` | Passed/Held/Failed 公共协议字段、内存采集和结果文件原子替换 |

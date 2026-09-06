@@ -58,6 +58,13 @@ default_headless_cpu=2
 add_option headless-cpu-reservation "$default_headless_cpu" int none
 add_option headless-queue-timeout-seconds 120 int none
 add_option run-snapshot-path "" string none
+add_option load-run-snapshot-directly 0 switch bool
+add_option target-act-floor -1 int positive_int
+add_option target-map-column -1 int nonnegative_int
+add_option target-room-type "Monster" string raw_string "Monster|Elite|Boss"
+add_option target-map-point-type "Unassigned" string raw_string "Unassigned|Monster|Elite|Boss|Unknown"
+add_option pre-combat-player-current-hp-override -1 int positive_int
+add_option pre-combat-intervening-map-points-json "" string none
 add_option replay-state-path "" string none
 add_option checkpoint-archive-path "" string raw_string
 add_option checkpoint-selector "latest" string raw_string
@@ -112,7 +119,7 @@ for name in \
     clear-player-hand clear-player-piles clear-run-deck clear-all-powers \
     verify-prediction-failure-boundaries verify-search-policy-snapshot \
     verify-controller-session-lifecycle verify-fork-boundaries \
-    verify-combat-root-snapshot verify-base-lib-card-modifier-boundary \
+    verify-combat-root-snapshot verify-pre-combat-forecast-api verify-base-lib-card-modifier-boundary \
     stop-after-combat-root-snapshot-assertion verify-incremental-search \
     force-short-search-only measure-search-phases hold-after-initial-search; do
     add_option "$name" 0 switch bool
@@ -606,6 +613,12 @@ initial_enemy_blocks='[]'
 if ! is_blank "${option_value[initial-enemy-blocks-json]}"; then
     initial_enemy_blocks="$(json_array_from_text --initial-enemy-blocks-json "${option_value[initial-enemy-blocks-json]}")"
 fi
+pre_combat_intervening_map_points='[]'
+if ! is_blank "${option_value[pre-combat-intervening-map-points-json]}"; then
+    pre_combat_intervening_map_points="$(json_array_from_text \
+        --pre-combat-intervening-map-points-json \
+        "${option_value[pre-combat-intervening-map-points-json]}")"
+fi
 initial_enemy_move_ids='[]'
 if ! is_blank "${option_value[initial-enemy-move-ids-json]}"; then
     initial_enemy_move_ids="$(json_array_from_text --initial-enemy-move-ids-json "${option_value[initial-enemy-move-ids-json]}")"
@@ -736,6 +749,7 @@ request="$(jq -cn \
     --argjson initialEnemyBlocks "$initial_enemy_blocks" \
     --argjson initialEnemyMoveIds "$initial_enemy_move_ids" \
     --argjson initialEnemyStateLogs "$initial_enemy_state_logs" \
+    --argjson preCombatInterveningMapPoints "$pre_combat_intervening_map_points" \
     --argjson cards "$cards" \
     --argjson runCards "$run_cards" \
     --argjson powers "$powers" \
@@ -777,6 +791,7 @@ request="$(jq -cn \
         initialEnemyBlocks: $initialEnemyBlocks,
         initialEnemyMoveIds: $initialEnemyMoveIds,
         initialEnemyStateLogs: $initialEnemyStateLogs,
+        preCombatInterveningMapPoints: $preCombatInterveningMapPoints,
         cards: $cards,
         runCards: $runCards,
         powers: $powers,
