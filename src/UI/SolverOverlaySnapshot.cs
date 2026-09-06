@@ -205,20 +205,24 @@ internal sealed record SolverOverlaySnapshot(
             ? SolverOverlayTone.Accent
             : result.ProjectedBattleHpLossIncrease > 0
             ? SolverOverlayTone.Danger
-            : result.WasReused
+            : result.WasReused || result.WasRestoredFromCache
                 ? SolverOverlayTone.Success
                 : SolverOverlayTone.Accent;
         string statusText = pendingTurnSetup
             ? "等待回合开始选择"
             : result.ProjectedBattleHpLossIncrease > 0
             ? "重算后战损上升"
+            : result.WasRestoredFromCache
+                ? "路线已恢复"
             : result.WasReused
                 ? "方案已复用"
                 : "方案就绪";
         string summaryText = result.CombatEndedTurn == startTurnNumber
             ? $"[color={SolverUiTokens.Palette.SuccessHex}]本回合结束战斗  │  {confidence}[/color]"
             : $"[color={SolverUiTokens.Palette.TextSecondaryHex}]预计路线 [b]{searchedTurns}[/b] 回合  │  {confidence}[/color]";
-        string reviewSummaryText = result.WasReused
+        string reviewSummaryText = result.WasRestoredFromCache
+            ? "已恢复本场战斗记录的路线"
+            : result.WasReused
             ? $"路线已复用，共查阅了 {reviewedWorldlinesTotal:N0} 条世界线"
             : $"花费了 {result.TotalSearchElapsed.TotalSeconds:F1} 秒，共查阅了 {reviewedWorldlinesTotal:N0} 条世界线";
         bool projectedBattleHpLossKnown = result.CombatEndedTurn.HasValue;
@@ -398,7 +402,9 @@ internal sealed record SolverOverlaySnapshot(
         IReadOnlyList<string> compensated,
         bool unexpectedReplan)
     {
-        string searchDetails = result.WasReused
+        string searchDetails = result.WasRestoredFromCache
+            ? $"[color={SolverUiTokens.Palette.TextMutedHex}]搜索[/color]  战斗状态一致，恢复已记录路线  │  本次 0 节点"
+            : result.WasReused
             ? $"[color={SolverUiTokens.Palette.TextMutedHex}]搜索[/color]  跨回合状态一致，复用既有路线  │  本回合 0 节点"
             : $"[color={SolverUiTokens.Palette.TextMutedHex}]搜索[/color]  {(result.DeepSearchTriggered ? "深化" : "快速")}  │  {result.ExpandedNodes} 节点  │  置换剪枝 {result.TranspositionBranchesPruned}  │  {result.TotalSearchElapsed.TotalMilliseconds:F0} ms";
         List<string> detailLines =

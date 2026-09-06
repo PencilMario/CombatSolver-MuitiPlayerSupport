@@ -1,5 +1,15 @@
 # CombatSolver 测试清单
 
+## 2026-09-06：SL 路线记录
+
+- `ROUTE-CACHE-RECORD-V0111`：`47626b91d2834703a403819e5ef2ae2e` Passed，验证独立磁盘副本、动作/选择/预测一致、策略与真实 HP 变化隔离、首次记录保留、Reset 后命中及手动重算。
+- `ROUTE-CACHE-RESTORE-V0111`：新游戏进程 `5a23389a9b8e4ed485b28a912711974b` Passed，从上一进程文件恢复路线并于 T2 完成原生部署；部署过程断言没有额外搜索。结果协议的节点/耗时仍是被恢复路线的历史指标，实际恢复事件和搜索次数由 `ROUTE_CACHE_HIT` / `restored` 审计记录。
+- 回合开始原生选牌：`70c2a626c1614211b05b867beac7588b` 记录、`9085ab68abd14ae49333cb51327ebd28` 新建战斗后恢复，均 Passed；恢复项断言 `InitialRouteCacheRestore`、`TurnSetupNativeChoiceOrder` 和界面恢复状态。夹具沿用 `initial-gambling-chip-397.json` 的遗物与断言，将 seed 固定为 `ROUTECACHESETUP031`，scenario 分别设为 `ROUTE-CACHE-SETUP-RECORD-V0111` / `ROUTE-CACHE-SETUP-RESTORE-V0111`，同一实例依序运行。
+- 夹具：`coverage/unattended/route-cache-record-v0111.json`、`route-cache-restore-v0111.json`。在同一 headless 实例和同一 DLL 上依序运行，第一项退出进程、第二项重新启动。固定 seed `ROUTECACHE031`、敌 HP12、起始能量1、Short1500ms、Instant/0秒、每请求120秒上限。
+- 早期测试两次失败来自夹具：首次删除尚不存在的缓存目录，以及未启用无人测试的后续回合自动搜索。均修正后取得上述证据。原生保存菜单和各快速 SL Mod 的按钮未逐项操作验证；这里验证同根跨进程重建和会话生命周期恢复。
+- Release 编译零警告/错误、Windows 结构门禁通过。未运行 Linux 游戏或可见 UI 验收。
+- 缓存命中场景使用普通搜索模式；增量语义验证及阶段性能测量显式跳过缓存读取，保证它们实际执行搜索。最后只补充了该测试模式准入条件，普通恢复的行为证据沿用上述结果。
+
 ## 0.31.0 定版
 
 收录九个玩家 PR，逐项说明见 [0.31.0 更新日志](0.31.0-RELEASE_NOTES.md)。本次仅变更版本和发布资料，沿用下列本会话已完成的集成与碎骨定向验证，执行一次最终 Release 构建；未追加完整发布门禁或可见性能验收。

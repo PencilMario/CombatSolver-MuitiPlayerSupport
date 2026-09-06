@@ -9,6 +9,7 @@ $forbiddenSearchReferences = @(
     "Entry.Logger",
     "SolverController",
     "SolverOverlay",
+    "SolvedRouteCache",
     "UnattendedTestRunner"
 )
 

@@ -40,6 +40,15 @@ internal sealed partial class UnattendedTestRunner
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
 
+            if (request.ScenarioId is "ROUTE-CACHE-RECORD-V0111" or "ROUTE-CACHE-RESTORE-V0111")
+            {
+                _ = ApplySettingsOverrides();
+                runner.SetStage("solved_route_cache");
+                bool restoreOnly = request.ScenarioId == "ROUTE-CACHE-RESTORE-V0111";
+                await runner.RunSolvedRouteCacheAsync(combatState, player, restoreOnly);
+                return Observation(combatEnded: restoreOnly);
+            }
+
             if (request.ScenarioId.Equals("GC-CHECKPOINT-BACKGROUND-V0111", StringComparison.OrdinalIgnoreCase))
             {
                 if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0

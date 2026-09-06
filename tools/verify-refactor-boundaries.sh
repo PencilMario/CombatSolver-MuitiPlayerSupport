@@ -287,6 +287,7 @@ for file in "${search_files[@]}"; do
         'Entry.Logger' \
         'SolverController' \
         'SolverOverlay' \
+        'SolvedRouteCache' \
         'UnattendedTestRunner'; do
         forbid_fixed "$file" "$reference" 'forbidden Search reference'
     done

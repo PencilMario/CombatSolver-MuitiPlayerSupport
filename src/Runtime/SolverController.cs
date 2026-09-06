@@ -524,6 +524,8 @@ internal static class SolverController
 
     private static void RecordReviewedWorldlines(SolverResult result)
     {
+        if (result.WasRestoredFromCache)
+            return;
         if (!_combat.ReviewedWorldlineResults.Add(result))
             return;
         long reviewed = (long)result.ShortExpandedNodes + result.DeepExpandedNodes;
@@ -561,8 +563,13 @@ internal static class SolverController
         _combat.ContinuationSource = result.ResultScope == SolverResultScope.CurrentTurnAdoption
             ? null
             : result;
-        _combat.SearchesStarted++;
-        _combat.ReplanCounts[ReplanCause.InitialSearch] = _combat.ReplanCounts.GetValueOrDefault(ReplanCause.InitialSearch) + 1;
+        if (!result.WasRestoredFromCache)
+        {
+            _combat.SearchesStarted++;
+            _combat.ReplanCounts[ReplanCause.InitialSearch] = _combat.ReplanCounts.GetValueOrDefault(ReplanCause.InitialSearch) + 1;
+        }
+        else
+            _combat.RoutesRestored++;
         if (UnattendedTestRunner.IsActive)
         {
             LastCompletedResultForTesting = result;
@@ -1028,7 +1035,10 @@ internal static class SolverController
                 ++_nextSearchGeneration,
                 state,
                 stamp,
-                deployWhenReady);
+                deployWhenReady)
+            {
+                ReplanCause = replanCause,
+            };
             _search = search;
             CancellationToken token = search.Cancellation.Token;
             int generation = search.Generation;
@@ -1108,8 +1118,16 @@ internal static class SolverController
                 settings.DeepProfile));
 
             setupStage = "worker_schedule";
+            SolvedRouteCache routeCache = SolvedRouteCache.Capture(state, rootSnapshot, searchPolicy, battleDamage);
             Task<SolverResult> solveTask = Task.Run(() =>
             {
+                if (!searchPolicy.VerifyIncrementalSearch && !searchPolicy.MeasurePhasePerformance
+                    && reason is SearchReason.AutoTurnStart or SearchReason.Deploy or SearchReason.FullAuto
+                    && routeCache.Read(rootSnapshot.Forecast) is { } cached)
+                {
+                    token.ThrowIfCancellationRequested();
+                    return cached;
+                }
                 Entry.Logger.Info($"[CombatSolver/Test] SEARCH_WORKER_START generation={generation} thread={System.Environment.CurrentManagedThreadId} main_thread={NGame.IsMainThread()}");
                 Thread worker = Thread.CurrentThread;
                 ThreadPriority previousPriority = worker.Priority;
@@ -1131,6 +1149,9 @@ internal static class SolverController
                         token,
                         progress => PublishSearchProgress(search, progress));
                     finalizedResult = search.Interaction.FinalizeWorkerResult(result);
+                    token.ThrowIfCancellationRequested();
+                    if (!search.Interaction.StopRequested)
+                        routeCache.StoreFirst(finalizedResult);
                     return finalizedResult;
                 }
                 finally
@@ -2040,7 +2061,7 @@ internal static class SolverController
     {
         string counts = string.Join(' ', Enum.GetValues<ReplanCause>()
             .Select(cause => $"{CauseToken(cause)}={_combat.ReplanCounts.GetValueOrDefault(cause)}"));
-        return $"searches={_combat.SearchesStarted} reused={_combat.ContinuationsReused} {counts} " +
+        return $"searches={_combat.SearchesStarted} reused={_combat.ContinuationsReused} restored={_combat.RoutesRestored} {counts} " +
                $"control_mode={ControlModeForBugReport} " +
                $"last_solver_deployed_turn={_combat.LastSolverDeployedTurn?.ToString() ?? "-"}";
     }
@@ -2152,6 +2173,13 @@ internal static class SolverController
         }
 
         SolverResult result = task.Result;
+        if (result.WasRestoredFromCache)
+        {
+            _combat.SearchesStarted--;
+            _combat.RoutesRestored++;
+            _combat.ReplanCounts[search.ReplanCause]--;
+            Entry.Logger.Info($"[CombatSolver/Test] ROUTE_CACHE_HIT turn={result.StartTurnNumber} validation=exact_root");
+        }
         bool stopped = search.Interaction.StopRequested;
         bool currentTurnAdopted = result.ResultScope == SolverResultScope.CurrentTurnAdoption;
         bool routeAdopted = result.ResultScope == SolverResultScope.RouteAdoption;

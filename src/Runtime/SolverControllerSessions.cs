@@ -144,6 +144,7 @@ internal sealed class SolverCombatSession
     public int SearchesStarted { get; set; }
     public long ReviewedWorldlinesTotal { get; set; }
     public int ContinuationsReused { get; set; }
+    public int RoutesRestored { get; set; }
     public IReadOnlyList<string> LastContinuationDifferences { get; set; } = [];
     public int? LastSolverDeployedTurn { get; set; }
     public bool ManualControlObserved { get; set; }
@@ -161,6 +162,7 @@ internal sealed class SolverSearchSession(
     private readonly int[] _frameBuckets = new int[FrameBucketUpperBounds.Length];
 
     public int Generation { get; } = generation;
+    public ReplanCause ReplanCause { get; init; }
     public CombatState State { get; } = state;
     public LiveCombatStamp Stamp { get; } = stamp;
     public CancellationTokenSource Cancellation { get; } = new();

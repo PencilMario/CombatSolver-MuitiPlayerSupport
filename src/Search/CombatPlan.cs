@@ -1374,6 +1374,7 @@ internal sealed record CachedContinuation(
 
 internal sealed class SolverResult
 {
+    public bool WasRestoredFromCache { get; internal set; }
     public SolverResultScope ResultScope { get; internal set; } = SolverResultScope.SearchCompletion;
     public SolverSearchPhase SearchPhase { get; internal set; } = SolverSearchPhase.Short;
     public bool DeepSearchTriggered { get; internal set; }

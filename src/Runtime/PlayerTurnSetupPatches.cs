@@ -118,7 +118,8 @@ internal static class PlayerTurnSetupCoordinator
         SolverSettingsSnapshot Settings,
         BattleDamageSnapshot BattleDamage,
         SearchPolicySnapshot SearchPolicy,
-        CombatRootSnapshot RootSnapshot);
+        CombatRootSnapshot RootSnapshot,
+        SolvedRouteCache RouteCache);
 
     private sealed class ActivePlan(
         CombatState combat,
@@ -754,7 +755,8 @@ internal static class PlayerTurnSetupCoordinator
                 settings,
                 battleDamage,
                 searchPolicy,
-                rootSnapshot);
+                rootSnapshot,
+                SolvedRouteCache.Capture(combat, rootSnapshot, searchPolicy, battleDamage));
         }
         catch
         {
@@ -1068,7 +1070,8 @@ internal static class PlayerTurnSetupCoordinator
                 includeTurnSetup: true,
                 theftPolicy: SolverController.ResolveTheftPolicy(active.Combat),
                 interaction: active.Interaction),
-            original.RootSnapshot);
+            original.RootSnapshot,
+            original.RouteCache);
         Volatile.Write(ref active.MemoryPressureSignal, refreshed.SearchPolicy.MemoryPressureSignal);
         int turn = active.Player.PlayerCombatState!.TurnNumber;
         active.Interaction.ResetForSearch();
@@ -1187,6 +1190,14 @@ internal static class PlayerTurnSetupCoordinator
         {
             Task<SolverResult> solveTask = Task.Run(() =>
             {
+                if (!initialSearch.SearchPolicy.VerifyIncrementalSearch
+                    && !initialSearch.SearchPolicy.MeasurePhasePerformance
+                    && initialSearch.RouteCache.Read(initialSearch.RootSnapshot.Forecast) is { } cached)
+                {
+                    active.Token.ThrowIfCancellationRequested();
+                    Entry.Logger.Info($"[CombatSolver/Test] ROUTE_CACHE_HIT turn={cached.StartTurnNumber} phase=setup validation=exact_root");
+                    return cached;
+                }
                 Thread worker = Thread.CurrentThread;
                 ThreadPriority previousPriority = worker.Priority;
                 worker.Priority = ThreadPriority.BelowNormal;
@@ -1204,7 +1215,11 @@ internal static class PlayerTurnSetupCoordinator
                         initialSearch.SearchPolicy,
                         active.Token,
                         active.Interaction.PublishProgress);
-                    return active.Interaction.FinalizeWorkerResult(result);
+                    SolverResult finalized = active.Interaction.FinalizeWorkerResult(result);
+                    active.Token.ThrowIfCancellationRequested();
+                    if (!active.Interaction.StopRequested)
+                        initialSearch.RouteCache.StoreFirst(finalized);
+                    return finalized;
                 }
                 finally
                 {

@@ -204,12 +204,19 @@ internal sealed partial class UnattendedTestRunner
             ? reviewSnapshot.ReviewSummaryText.StartsWith("路线已复用，共查阅了 ", StringComparison.Ordinal)
             : reviewSnapshot.ReviewSummaryText.StartsWith("花费了 ", StringComparison.Ordinal)
                 && reviewSnapshot.ReviewSummaryText.Contains("秒，共查阅了 ", StringComparison.Ordinal);
-        if (!validReviewSummary
-            || !reviewSnapshot.ReviewSummaryText.EndsWith(" 条世界线", StringComparison.Ordinal))
+        bool validCachedSummary = reviewSnapshot.ReviewSummaryText == "已恢复本场战斗记录的路线";
+        if (result.WasRestoredFromCache ? !validCachedSummary
+            : !validReviewSummary || !reviewSnapshot.ReviewSummaryText.EndsWith(" 条世界线", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("搜索完成快照没有生成耗时与世界线汇总。");
         }
         _completedChecks.Add("InitialWorldlineSummary");
+        if (_request.ScenarioId == "ROUTE-CACHE-SETUP-RESTORE-V0111")
+        {
+            if (!result.WasRestoredFromCache)
+                throw new InvalidOperationException("回合开始选牌没有使用已记录路线。");
+            _completedChecks.Add("InitialRouteCacheRestore");
+        }
 
         if (_request.ExpectedInitialSetupChoiceCountAtLeast is { } minimumTurnSetupChoices
             && result.TurnSetupChoices.Count < minimumTurnSetupChoices)
