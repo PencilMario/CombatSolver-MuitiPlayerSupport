@@ -74,6 +74,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - 只有容器进入 `SearchRunContext` 的有界空闲池；每个发布批次必须持有独立 lease，归还前清空引用，旧 Dispose 不得触碰后来租户。不得池化 simulator/model。
 - Snapshot 临时牌列表只由当前 `_run` / lane 租用，维持 Discard → Draw → Hand 拼接顺序和原稳定洗牌。归还清空引用，只留一个容量不超过 4096 的列表；租用代次防止复制的旧 lease 清空新租户，禁止把列表存入返回快照或策略上下文。
 - GC 生命周期计数由 Runtime 在准入 Gate 内冻结。普通 GC 的共享进程窗口不得称为独占请求归因；总暂停、observed max 与 trace max 必须区分。Smart 预测只决定可选层间回收，不能改层预算或候选策略。
+- Ritsu BaseLib 目标桥的优化仅缓存静态程序集的精确元数据查询。保持模拟隔离域、动态程序集/live旁路及 ConditionalWeakTable 弱所有权；不得升级为框架全局负缓存、跳过自定义目标谓词或修改枚举顺序。新程序集与动态晚创建须由直接生产回调合同覆盖，采样与微基准不能代替固定工作量及可见性能。
 - worker 阶段 ticks 合并后是累计 CPU 时间，不是墙钟占比；同时记录 `parallel_waves`、`parallel_work_items` 与 `parallel_max_concurrency`，避免只凭配置值宣称已并行。
 - BaseLib `3.4.5` 的克隆扩展会以非原子的“先查后加”访问全局弱表。并行搜索必须保留 `BaseLibCloneConcurrencyPatch` 对原版 `MutableClone` 第三方扩展段的窄串行边界；不要删除该边界，也不要把它扩大到候选生成、模拟、剪枝或提交阶段。
 - 游戏 `0.111.0` 的 `LocManager.SmartFormat` 复用同一个 SmartFormat 实例及对象池，不支持并发调用。`PowerDynamicVarWarmup` 必须在主线程根捕获时物化规范 Power 与当前战斗 Power 的显示变量；`PowerDynamicVarMaterializationGuardPatch` 保证 worker 不再惰性创建 Power 显示变量。命中 guard 时补齐主线程物化边界，不给全局格式化器加锁，也不在 worker 内提供默认文本。`LocManager.SmartFormat` 本身含异常过滤器，禁止直接用 Harmony 改写。

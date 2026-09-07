@@ -69,6 +69,8 @@ PR #43 集成修正：Mod 使用独立文件复制，游戏程序继续使用硬
 
 `src/Api` 禁止直接调用 `SolverController.RequestSearch`、`CombatManager.SetUpCombat` 或 `RunManager.EnterRoomDebug`。这些静态边界由 Windows/Linux 两份 `verify-refactor-boundaries` 脚本共同检查。隔离 worker 内通过 `COMBATSOLVER_PRECOMBAT_WORKER=1` 关闭 API，避免加载伴生 Mod 后递归创建 worker。
 
+`RitsuBaseLibTargetTypeLookupPatch` 属于 Runtime 的第三方适配：只在模拟隔离域缓存 Ritsu BaseLib 目标桥的静态程序集元数据查询回调。缓存以 Assembly 弱键持有准确 Type/缺失，不缓存框架整体缺失、注册表或目标谓词；保留外层扫描顺序，新程序集不复用旧条目，动态程序集与live调用旁路。它不持有分支状态，也不参与 Search 策略。具体回调必须由当前桥中唯一的 Assembly→Type 签名定位，适配不匹配显式失败。
+
 ## 3. Search
 
 根创建时，`PredictionModPatchAudit` 在 Prediction 层检查已有卡牌 OnPlay 的第三方 Harmony 补丁；每根按类型去重并读取当前补丁表。它只负责未支持行为的准入边界，不执行补丁或提供第三方镜像注册，后续生成卡牌和其他方法不在此入口覆盖范围。

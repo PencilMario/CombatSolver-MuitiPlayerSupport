@@ -833,6 +833,10 @@ forbid_fixed \
     '_monsterAiStates?.Remove(creature)' \
     'active-roster removal must retain known-monster AI state through move completion:'
 
+for rule in 'ConditionalWeakTable<Assembly, Resolution>' 'SimulationNotificationIsolation.IsActive' '__0.IsDynamic' 'callbacks.Length != 1'; do
+    require_fixed "$repository_root/src/Runtime/RitsuBaseLibTargetTypeLookupPatch.cs" "$rule" 'missing metadata cache boundary'
+done
+
 if ((${#violations[@]} > 0)); then
     printf '%s\n' "${violations[@]}" >&2
     printf 'Refactor boundary verification failed with %d violation(s).\n' "${#violations[@]}" >&2
