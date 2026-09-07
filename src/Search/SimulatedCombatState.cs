@@ -2123,6 +2123,43 @@ internal sealed partial class SimulatedCombatState
             count++;
         }
         AddUnordered(ref fingerprint, 'T', count, first, second);
+        AddThirdPartyPowerHiddenStates(ref fingerprint, simulator, effectivePowers);
+    }
+
+    /// <summary>
+    /// 第三方登记的 Power 隐藏状态。上面那一节是按原版类型写死的 <c>switch</c>，第三方登记不
+    /// 进去；见 <see cref="PowerHiddenStateMirrors" /> 说明为什么这类状态只进指纹、不进续接戳。
+    /// </summary>
+    /// <remarks>
+    /// 这里刻意不照上面那样过滤 <c>Amount &lt;= 0</c>：第三方完全可以用一个数量恒为零的隐形
+    /// Power 当状态容器，那种 Power 的隐藏状态照样要进指纹。登记表为空时一格都不加。
+    /// </remarks>
+    private static void AddThirdPartyPowerHiddenStates(
+        ref StateFingerprintBuilder fingerprint,
+        CombatPredictionSimulator simulator,
+        IReadOnlyList<PowerModel> effectivePowers)
+    {
+        if (!PowerHiddenStateMirrors.HasAny)
+            return;
+        ulong first = 0;
+        ulong second = 0;
+        int count = 0;
+        for (int index = 0; index < effectivePowers.Count; index++)
+        {
+            PowerModel power = effectivePowers[index];
+            foreach (PowerHiddenStateMirrors.Slot slot in PowerHiddenStateMirrors.Slots(power))
+            {
+                StateFingerprintBuilder item = new();
+                item.Add(power.Owner.CombatId ?? uint.MaxValue);
+                item.Add(power.Id.Entry);
+                item.Add(slot.Name);
+                item.Add(slot.Read(simulator, power));
+                AddUnorderedItem(item.Finish(), ref first, ref second);
+                count++;
+            }
+        }
+        if (count > 0)
+            AddUnordered(ref fingerprint, 'h', count, first, second);
     }
 
     private int EncodeChainsOfBindingState(

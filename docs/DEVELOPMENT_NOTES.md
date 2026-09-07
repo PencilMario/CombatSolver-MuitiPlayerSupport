@@ -39,6 +39,21 @@
 - 实机证据：一份 `INFESTED_PRISMS_ELITE` 问题包，火花恒为 `2`，`state_mismatch=1`，差异字段 `H[0]` 上预测 `TAINTED:2`、实际 `TAINTED:4`。手牌里战斗开始生成的三张牌是 `4`，牌组里原有的五张技能牌是 `2`。
 - 回归用例 `AssertVitalSparkKeepsStackedTaintedAmount` 加进 Fork 边界批：按原版形状叠到 `4`，归一化后必须仍是 `4`；反向对照是把火花改成 `3` 之后必须同步成 `3`，防止改成「一律不同步」的另一个错。
 - 多个棱柱同场时还有一处既有近似未变：新入场牌按各个火花数量之和施加，而原版第二个火花的 `AfterCardEnteredCombat` 会被空判挡住、只吃到第一个的数量。本次改动不涉及，因为正确的顺序取决于钩子分派次序。
+## 下一版本（开发中）：Power 的隐藏状态可以登记进指纹
+
+- 状态指纹里 Power 的通用部分（`SimulatedCombatState.AddPower`）只收 `DynamicVars`。把语义状态放在 `_internalData` 或普通私有字段里的 Power 走的是另一条路：`AddTurnStartStates` 按原版类型 `switch`，从 `StateStore` 里的预测状态取一个计数塞进指纹。那个 `switch` 没有第三方入口。
+- 后果要分清。**对续接无害**：续接戳的 Power 段实机侧和模拟侧共用同一个方法，只读 `DynamicVars`，两边看到的东西一样，隐藏状态压根不进戳，也就不会对不上。**对搜索去重有害**：只在这个状态上不同的两条分支指纹相同，会被当成同一个状态去掉一条——镜像算出来的数值是对的，但搜索可能把算得对的那条丢了，所以记风险标记解决不了。
+- 新增 `PowerHiddenStateMirrors`，两条登记：
+  - `Register<TPower>(name, (simulator, power) => long)` 进指纹。同一类型可登记多个，登记时按名字排序一次，下游按数组顺序走，不在热路径上排序。新的指纹段标记是 `h`。
+  - `RegisterRootCapture<TPower>((simulator, clone, original) => ...)` 在 `PowerPredictionStateSupport.CaptureRootState` 末尾调用，让登记方把实机实例的隐藏状态搬进 `simulator.StateStore`。
+- **根捕获这条是必需的，不是方便。** `PowerModel.DeepCloneFields` 把 `_internalData` 重置成 `InitInternalData()`，所以靠它保存状态的 Power，模拟克隆一开始读到的是初值。原版虚空形态那一批就是这么处理的，本入口只是把同一条路开给第三方。状态在普通私有字段里的 Power 不受影响，`MemberwiseClone` 会带过去。
+- **隐藏状态明确不进续接戳。** 那个方法两侧共用，塞进去会让模拟侧的初值和实机侧的真值每回合对不上。真要进戳得像遗物那样拆成实机版和预测版两个追加方法，本批不做。
+- 只收整数：原版那个隐藏计数段里全部是整数或枚举，字符串只出现在展示用的名字上，那类字段按 `SemanticStateFieldPolicy` 本来就不该进指纹。
+- 新的指纹段刻意不过滤 `Amount <= 0`：第三方可以用一个数量恒为零的隐形 Power 当状态容器。
+- **两个登记表都为空时两处下游一行都不走**，指纹与登记前逐位相同，所以不装第三方 Mod 的玩家没有任何影响，也不需要重跑原版基线。
+- 原版**卡牌**那一侧的隐藏字段仍是按类型写死的 `switch`（利爪、基因算法、巨锤、狂暴、镰刀、疯狂科学），本批不动，已补进适配手册第 6 节。
+- 促成这个入口的两张牌都在观者：光辉的伤害等于牌面值加上本场战斗累计获得的真言，累计值在 `WatcherStatePower` 的一个普通私有 `int` 里，只需要读取函数；天人形态的那个 Power 用 `_internalData` 存实例表，每回合给「总和」点能量再把每个实例加一——总和就是 `Amount`（本来就在指纹里），缺的只是实例个数，需要根捕获加读取函数两条。
+- 和 PR #51／#53／#56 同一口径：求解器这一侧只提供入口并保证空登记表零影响，登记方效果的验收由适配层自己的夹具负责。
 
 ## 0.32.0：局外成长策略
 

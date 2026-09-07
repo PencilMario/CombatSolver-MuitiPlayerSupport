@@ -56,5 +56,9 @@ internal static class PowerPredictionStateSupport
                 _ = simulator.StateStore.GetReadOnly(value, () => new HardenedShellPredictionState(original));
                 break;
         }
+        // 上面这个 switch 按原版类型写死，第三方登记不进去。克隆会把 _internalData 重置成
+        // InitInternalData()，所以靠它保存状态的第三方 Power 同样必须在这里把实机实例的值搬进
+        // StateStore，否则模拟一开始读到的就是初值。
+        PowerHiddenStateMirrors.CaptureRootState(simulator, target, source);
     }
 }
