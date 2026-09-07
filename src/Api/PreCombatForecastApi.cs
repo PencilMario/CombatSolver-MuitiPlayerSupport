@@ -5,6 +5,7 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
+using MegaCrit.Sts2.Core.Saves;
 
 namespace CombatSolver.Api;
 
@@ -14,7 +15,7 @@ namespace CombatSolver.Api;
 /// </summary>
 public static class PreCombatForecastApi
 {
-    public const int ApiVersion = 5;
+    public const int ApiVersion = 6;
     public const int DefaultWorkerIdleTimeoutMilliseconds = 120_000;
     public const int MinimumWorkerIdleTimeoutMilliseconds = 1_000;
     public const int MaximumWorkerIdleTimeoutMilliseconds = 86_400_000;
@@ -106,12 +107,12 @@ public static class PreCombatForecastApi
                 requestId,
                 "SimulateAsync must be called on the game main thread."));
         }
-        if (!run.Act.AllEncounters.Any(candidate => candidate.Id == encounter.Id))
+        if (ModelDb.GetByIdOrNull<EncounterModel>(encounter.Id) is null)
         {
             return Task.FromResult(Failure(
                 PreCombatForecastStatus.Unsupported,
                 requestId,
-                $"Encounter {encounter.Id} does not belong to the current act."));
+                $"Encounter {encounter.Id} is not registered in the current game build."));
         }
 
         PreCombatSimulationOptions simulationOptions = options ?? PreCombatSimulationOptions.Default;
@@ -188,6 +189,151 @@ public static class PreCombatForecastApi
                 roomKind,
                 simulatedMapPointKind,
                 isSecondBoss: false,
+                workerOptions,
+                cancellationToken),
+            CancellationToken.None);
+        return CompleteAfterLiveValidation(
+            snapshot,
+            worker,
+            cancellationToken,
+            awaitOwnedWorkerCancellation: true);
+    }
+
+    /// <summary>
+    /// Runs one hypothetical combat from a caller-owned planning snapshot.
+    /// The active run is captured only for the game/mod environment and is
+    /// revalidated after the worker returns; the worker loads <paramref name="plannedRun" />
+    /// as its actual run state.
+    /// </summary>
+    public static Task<PreCombatForecastResult> SimulatePlanningAsync(
+        RunState liveRun,
+        SerializableRun plannedRun,
+        EncounterModel encounter,
+        int targetActFloor,
+        int targetMapColumn,
+        PreCombatRoomKind roomKind,
+        PreCombatMapPointKind mapPointKind,
+        PreCombatSimulationOptions? options = null,
+        CancellationToken cancellationToken = default)
+    {
+        string requestId = Guid.NewGuid().ToString("N");
+        if (!IsAvailable)
+        {
+            return Task.FromResult(Failure(
+                PreCombatForecastStatus.Unsupported,
+                requestId,
+                "The isolated pre-combat worker is currently available on Windows only."));
+        }
+        if (!NGame.IsMainThread())
+        {
+            return Task.FromResult(Failure(
+                PreCombatForecastStatus.Unsupported,
+                requestId,
+                "SimulatePlanningAsync must be called on the game main thread."));
+        }
+        if (ModelDb.GetByIdOrNull<EncounterModel>(encounter.Id) is null)
+        {
+            return Task.FromResult(Failure(
+                PreCombatForecastStatus.Unsupported,
+                requestId,
+                $"Encounter {encounter.Id} is not registered in the current game build."));
+        }
+
+        PreCombatSimulationOptions simulationOptions = options ?? PreCombatSimulationOptions.Default;
+        string? optionError = ValidateOptions(
+            new PreCombatForecastOptions
+            {
+                SearchBudgetMilliseconds = simulationOptions.SearchBudgetMilliseconds,
+                OverallTimeoutMilliseconds = simulationOptions.OverallTimeoutMilliseconds,
+                MaxDegreeOfParallelism = simulationOptions.MaxDegreeOfParallelism,
+                WorkerIdleTimeoutMilliseconds = simulationOptions.WorkerIdleTimeoutMilliseconds,
+            },
+            targetActFloor,
+            targetMapColumn,
+            roomKind,
+            mapPointKind);
+        if (optionError is not null)
+            return Task.FromResult(Failure(PreCombatForecastStatus.Unsupported, requestId, optionError));
+
+        RunState plannedState;
+        try
+        {
+            plannedState = RunState.FromSerializable(plannedRun);
+        }
+        catch (Exception exception)
+        {
+            return Task.FromResult(Failure(
+                PreCombatForecastStatus.Unsupported,
+                requestId,
+                $"The planning run snapshot could not be restored: {exception.GetBaseException().Message}"));
+        }
+        MapCoord target = new(targetMapColumn, targetActFloor - 1);
+        // FromSerializable intentionally leaves Map unset; the worker builds
+        // it during restoration. Planning stays within the active act.
+        if (plannedState.CurrentActIndex != liveRun.CurrentActIndex
+            || plannedRun.SerializableRng.Seed != liveRun.Rng.StringSeed
+            || liveRun.Players.Count != 1
+            || plannedState.Players.Count != 1
+            || plannedState.Players[0].Character.Id != liveRun.Players[0].Character.Id
+            || plannedState.Players[0].NetId != liveRun.Players[0].NetId
+            || liveRun.Map.GetPoint(target) is null)
+        {
+            return Task.FromResult(Failure(
+                PreCombatForecastStatus.Unsupported,
+                requestId,
+                $"The planning snapshot or target {target} does not belong to the active run."));
+        }
+        PreCombatRoomKind encounterRoomKind = encounter.RoomType switch
+        {
+            RoomType.Monster => PreCombatRoomKind.Normal,
+            RoomType.Elite => PreCombatRoomKind.Elite,
+            RoomType.Boss => PreCombatRoomKind.Boss,
+            _ => roomKind,
+        };
+        if (encounterRoomKind != roomKind)
+        {
+            return Task.FromResult(Failure(
+                PreCombatForecastStatus.Unsupported,
+                requestId,
+                $"Encounter room kind {encounterRoomKind} does not match requested kind {roomKind}."));
+        }
+
+        PreCombatLiveStateSnapshot snapshot;
+        try
+        {
+            snapshot = PreCombatLiveStateSnapshot.Capture(liveRun).WithPlanningRun(plannedRun);
+        }
+        catch (NotSupportedException exception)
+        {
+            return Task.FromResult(Failure(PreCombatForecastStatus.Unsupported, requestId, exception.Message));
+        }
+        catch (Exception exception)
+        {
+            return Task.FromResult(Failure(PreCombatForecastStatus.Failed, requestId, exception.Message));
+        }
+
+        PreCombatForecastOptions workerOptions = new()
+        {
+            SearchBudgetMilliseconds = simulationOptions.SearchBudgetMilliseconds,
+            OverallTimeoutMilliseconds = simulationOptions.OverallTimeoutMilliseconds,
+            MaxDegreeOfParallelism = simulationOptions.MaxDegreeOfParallelism,
+            CancelWorkerWhenCallerCancels = true,
+            ForceRefresh = true,
+            CloseWorkerAfterRequest = simulationOptions.CloseWorkerAfterRequest,
+            WorkerIdleTimeoutMilliseconds = simulationOptions.WorkerIdleTimeoutMilliseconds,
+            SimulationSeed = simulationOptions.SampleSeed,
+        };
+        bool isSecondBoss = liveRun.Map.SecondBossMapPoint?.coord == target;
+        string encounterId = encounter.Id.Entry;
+        Task<PreCombatForecastResult> worker = Task.Run(
+            () => PreCombatForecastWorker.RunAsync(
+                snapshot,
+                encounterId,
+                targetActFloor,
+                targetMapColumn,
+                roomKind,
+                mapPointKind,
+                isSecondBoss,
                 workerOptions,
                 cancellationToken),
             CancellationToken.None);
@@ -483,6 +629,7 @@ public static class PreCombatForecastApi
             (PreCombatMapPointKind.Normal, PreCombatRoomKind.Normal) => true,
             (PreCombatMapPointKind.Elite, PreCombatRoomKind.Elite) => true,
             (PreCombatMapPointKind.Boss, PreCombatRoomKind.Boss) => true,
+            (PreCombatMapPointKind.Event, _) => true,
             _ => false,
         };
         if (!roomMatchesMapPoint)

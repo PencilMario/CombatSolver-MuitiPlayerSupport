@@ -62,7 +62,9 @@ internal sealed partial class UnattendedTestRunner
                 throw new InvalidOperationException("无人测试要求从无进行中跑局的独立游戏进程启动。");
 
             CharacterModel character = ResolveUnique(ModelDb.AllCharacters, request.CharacterId, "角色");
-            EncounterModel encounter = ResolveUnique(ModelDb.AllEncounters, request.EncounterId, "遭遇");
+            // AllEncounters is a curated pool and omits some event encounters.
+            // The registry is authoritative for a caller-selected native model.
+            EncounterModel encounter = ResolveUnique(ModelDb.All.OfType<EncounterModel>(), request.EncounterId, "遭遇");
             AssertExpectedLoadedMods(request.ExpectedLoadedMods);
             ModifierModel[] modifiers = request.ModifierIds
                 .Select(id => ResolveUnique(

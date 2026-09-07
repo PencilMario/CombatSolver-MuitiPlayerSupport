@@ -201,7 +201,10 @@ internal static class PreCombatForecastWorker
             string snapshotPath = Path.Combine(requestRoot, "run.save.json");
             EnsureRuntimeRoot(runtimeRoot, snapshot.GameRoot);
             Directory.CreateDirectory(requestRoot);
-            await File.WriteAllBytesAsync(snapshotPath, snapshot.SerializedRun, cancellationToken)
+            await File.WriteAllBytesAsync(
+                    snapshotPath,
+                    snapshot.SerializedPlanningRun ?? snapshot.SerializedRun,
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             string sessionSignature = BuildSessionSignature(snapshot);
@@ -660,6 +663,7 @@ internal static class PreCombatForecastWorker
         PreCombatMapPointKind.Normal => MegaCrit.Sts2.Core.Map.MapPointType.Monster,
         PreCombatMapPointKind.Elite => MegaCrit.Sts2.Core.Map.MapPointType.Elite,
         PreCombatMapPointKind.Boss => MegaCrit.Sts2.Core.Map.MapPointType.Boss,
+        PreCombatMapPointKind.Event => MegaCrit.Sts2.Core.Map.MapPointType.Ancient,
         PreCombatMapPointKind.Unknown => MegaCrit.Sts2.Core.Map.MapPointType.Unknown,
         _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null),
     };

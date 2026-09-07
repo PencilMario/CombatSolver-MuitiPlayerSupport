@@ -85,7 +85,7 @@ internal sealed partial class UnattendedTestRunner
         RunManager.Instance.RewardsSetSynchronizer.FastForwardRewardIds(origin["rewardIds"]!.Deserialize<List<int>>()!);
 
         Player player = state.Players.Single();
-        EncounterModel encounter = ResolveUnique(ModelDb.AllEncounters, _request.EncounterId, "遭遇");
+        EncounterModel encounter = ResolveUnique(ModelDb.All.OfType<EncounterModel>(), _request.EncounterId, "遭遇");
         using NativeReplayDriver driver = new(this, events, target, player);
         bool openingVerified = false;
         bool endingVerified = false;

@@ -36,9 +36,10 @@ internal static class PreCombatRunSerialization
         {
             foreach (JsonObject act in acts.OfType<JsonObject>())
             {
-                if (act["saved_map"]?["points"] is not JsonArray points)
+                if (act["saved_map"] is not JsonObject map || map["points"] is not JsonArray points)
                     continue;
-                foreach (JsonObject point in points.OfType<JsonObject>())
+                foreach (JsonObject point in points.OfType<JsonObject>().Concat(
+                    new[] { map["boss"], map["start"], map["second_boss"] }.OfType<JsonObject>()))
                 {
                     if (!point.ContainsKey("can_modify"))
                         point["can_modify"] = false;

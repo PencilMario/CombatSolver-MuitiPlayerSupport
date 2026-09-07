@@ -37,6 +37,8 @@ public enum PreCombatMapPointKind
     Elite,
     Boss,
     Unknown,
+    /// <summary>The native event/ancient map point that can enter combat.</summary>
+    Event,
 }
 
 /// <summary>

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Godot;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Modding;
@@ -27,8 +28,19 @@ internal sealed record PreCombatLiveStateSnapshot(
     string UserDataRoot,
     string AccountDataRoot,
     byte[] SolverSettings,
-    IReadOnlyList<PreCombatModSnapshot> Mods)
+    IReadOnlyList<PreCombatModSnapshot> Mods,
+    byte[]? SerializedPlanningRun = null)
 {
+    internal PreCombatLiveStateSnapshot WithPlanningRun(SerializableRun plannedRun)
+    {
+        var typeInfo = JsonSerializationUtility.GetTypeInfo<SerializableRun>();
+        var root = JsonSerializer.SerializeToNode(plannedRun, typeInfo)!.AsObject();
+        PreCombatRunSerialization.NormalizeRoot(root);
+        var ownedCopy = JsonSerializer.Deserialize(root, typeInfo)
+            ?? throw new InvalidDataException("The planning snapshot is empty.");
+        return this with { SerializedPlanningRun = PreCombatRunSerialization.SerializeNormalized(ownedCopy) };
+    }
+
     public static PreCombatLiveStateSnapshot Capture(RunState run)
     {
         if (!NGame.IsMainThread())
