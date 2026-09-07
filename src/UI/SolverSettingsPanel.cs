@@ -122,6 +122,14 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
         return true;
     }
 
+    public override void _Input(InputEvent inputEvent)
+    {
+        if (IsVisibleInTree() && inputEvent is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } click
+            && GetViewport().GuiGetFocusOwner() is LineEdit focused && IsAncestorOf(focused)
+            && !new Rect2(Vector2.Zero, focused.Size).HasPoint(focused.GetGlobalTransformWithCanvas().AffineInverse() * click.Position))
+            focused.ReleaseFocus();
+    }
+
     public bool OpenPerformancePage() => TrySelectPage(SettingsPage.Performance);
 
     internal bool SettingsTabsConfiguredForTesting

@@ -1665,15 +1665,15 @@ internal static class SolverController
         string potionId)
         => SolverSettings.ResolvePotionDirective(slot, potionId);
 
-    internal static void SetGrowthPolicy(NGame host, CombatState state, GrowthValues budgets, int acceptableHpLoss)
+    internal static void SetGrowthPolicy(NGame host, CombatState state, GrowthValues budgets)
     {
         AssertMainThread();
         if (_deployment != null)
             return;
         SolverSettingsData current = SolverSettings.Current;
-        if (current.GrowthBudgets == budgets && current.AcceptableBattleHpLoss == acceptableHpLoss)
+        if (current.GrowthBudgets == budgets)
             return;
-        SolverSettings.Update(current with { GrowthBudgets = budgets, AcceptableBattleHpLoss = acceptableHpLoss });
+        SolverSettings.Update(current with { GrowthBudgets = budgets });
         _combat.ContinuationSource = null;
         _combat.PendingCompleteProjectionBaseline = null;
         SolverOverlay.RefreshControls();

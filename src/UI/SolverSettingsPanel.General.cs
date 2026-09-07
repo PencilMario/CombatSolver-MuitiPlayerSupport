@@ -13,6 +13,7 @@ internal sealed partial class SolverSettingsPanel
     private CheckButton _stopOnWorseRecalculation = null!;
     private OptionButton _actTransitionBossHpStrategy = null!;
     private OptionButton _finalBossHpStrategy = null!;
+    private LineEdit _acceptableBattleHpLoss = null!;
     private OptionButton _searchCompletionNotificationPolicy = null!;
     private OptionButton _overlayTheme = null!;
     private HSlider _overlayOpacity = null!;
@@ -59,6 +60,40 @@ internal sealed partial class SolverSettingsPanel
             SolverSettings.ApplyForTesting(original);
             Reload();
         }
+    }
+
+    internal bool AcceptableBattleHpLossSettingsConfiguredForTesting
+        => _acceptableBattleHpLoss.Text == SolverSettings.Current.AcceptableBattleHpLoss.ToString(CultureInfo.InvariantCulture);
+
+    internal bool ExerciseThresholdOutsideClickForTesting()
+    {
+        _acceptableBattleHpLoss.GrabFocus();
+        _acceptableBattleHpLoss.Text = "19";
+        using InputEventMouseButton click = new() { Pressed = true, ButtonIndex = MouseButton.Left, Position = new Vector2(-1, -1) };
+        _Input(click);
+        return !_acceptableBattleHpLoss.HasFocus() && SolverSettings.Current.AcceptableBattleHpLoss == 19;
+    }
+
+    private LineEdit CreateAcceptableBattleHpLossInput()
+    {
+        LineEdit input = CreateInput("0");
+        _reloadInputs.Add(data => input.Text = data.AcceptableBattleHpLoss.ToString(CultureInfo.InvariantCulture));
+        bool Commit()
+        {
+            if (!int.TryParse(input.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
+                || value < 0 || value > SolverSettings.MaximumAcceptableBattleHpLoss)
+            {
+                ShowInvalid(input, $"请输入 0–{SolverSettings.MaximumAcceptableBattleHpLoss} 的整数");
+                return false;
+            }
+            if (SolverSettings.Current.AcceptableBattleHpLoss == value)
+                return KeepUnchanged(input);
+            return SaveSetting(input, SolverSettings.Current with { AcceptableBattleHpLoss = value }, "已保存，下次搜索生效");
+        }
+        input.FocusExited += () => Commit();
+        input.TextSubmitted += _ => Commit();
+        _commitInputs.Add(Commit);
+        return input;
     }
 
     internal bool ExerciseVisualSettingsForTesting()
@@ -148,6 +183,9 @@ internal sealed partial class SolverSettingsPanel
             "搜索结束通知",
             _searchCompletionNotificationPolicy,
             "搜索成功、失败、停止或结果过期时发送 Windows 系统通知和提示音。可关闭、仅在游戏不处于前台时通知，或始终通知；其他平台不会调用 Windows 接口。");
+        _acceptableBattleHpLoss = CreateAcceptableBattleHpLossInput();
+        AddBasicRow(solverGrid, "提前结束搜索的战损阈值（HP）", _acceptableBattleHpLoss,
+            "找到预计整场战损不超过此值的完整胜利路线时，可提前结束搜索。默认 0。有成长目标或非零成长额度时不生效；下次搜索生效。");
         content.AddChild(solverGrid);
 
         content.AddChild(CreateSectionHeading("幕末 Boss"));

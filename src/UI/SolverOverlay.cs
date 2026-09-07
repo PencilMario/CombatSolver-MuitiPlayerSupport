@@ -177,7 +177,7 @@ internal static class SolverOverlay
     internal static bool BossHpStrategySettingsConfiguredForTesting
         => _settingsPanel?.BossHpStrategySettingsConfiguredForTesting == true;
     internal static bool AcceptableBattleHpLossSettingsConfiguredForTesting
-        => _growthStrategyPanel?.SettingsConfiguredForTesting == true;
+        => _settingsPanel?.AcceptableBattleHpLossSettingsConfiguredForTesting == true;
     internal static bool ResizeUiConfiguredForTesting
         => _rightResizeHandle != null
             && _bottomResizeHandle != null
@@ -342,13 +342,13 @@ internal static class SolverOverlay
                 AcceptableBattleHpLoss = 17,
                 GrowthBudgets = new GrowthValues(Feed: 3, GeneticAlgorithm: 2),
             }));
-            _growthStrategyPanel?.Refresh(false);
+            _settingsPanel?.Reload();
             return AcceptableBattleHpLossSettingsConfiguredForTesting;
         }
         finally
         {
             SolverSettings.ApplyForTesting(original);
-            _growthStrategyPanel?.Refresh(false);
+            _settingsPanel?.Reload();
         }
     }
 
@@ -2670,12 +2670,14 @@ internal static class SolverOverlay
     internal static async Task<bool> ExerciseGrowthPolicyUiForTesting()
     {
         EnsureCreated(NGame.Instance ?? throw new InvalidOperationException("Growth UI test requires an active game."));
+        SolverSettingsData originalPolicy = SolverSettings.Current;
         bool originalGrowth = _growthStrategyVisible;
         bool originalPotion = _potionStrategyVisible;
         bool originalSettings = _settingsVisible;
         bool originalCollapsed = _collapsed;
         try
         {
+            SolverSettings.ApplyForTesting(originalPolicy with { AutomaticCalculationEnabled = false });
             if (!_growthStrategyVisible)
                 ToggleGrowthStrategy();
             ApplyResponsiveLayout();
@@ -2683,15 +2685,23 @@ internal static class SolverOverlay
             await _growthStrategyPanel.ToSignal(_growthStrategyPanel.GetTree(), SceneTree.SignalName.ProcessFrame);
             Rect2 bounds = _growthStrategyPanel.GetGlobalRect();
             Vector2 viewport = _viewport!.GetVisibleRect().Size;
-            return _growthStrategyButton != null && _growthStrategyPanel.Visible
+            bool growthValid = _growthStrategyButton != null && _growthStrategyPanel.Visible
                 && ReferenceEquals(_growthStrategyPanel.GetParent(), _layer)
                 && !_potionStrategyVisible && !_settingsVisible
                 && bounds.Position.X >= 0 && bounds.Position.Y >= 0
                 && bounds.End.X <= viewport.X && bounds.End.Y <= viewport.Y
-                && _growthStrategyPanel.SettingsConfiguredForTesting;
+                && _growthStrategyPanel.SettingsConfiguredForTesting
+                && ExerciseAcceptableBattleHpLossSettingsForTesting()
+                && _growthStrategyPanel.ExerciseOutsideClickForTesting();
+            ToggleSettings();
+            await _settingsPanel!.ToSignal(_settingsPanel.GetTree(), SceneTree.SignalName.ProcessFrame);
+            return growthValid && _settingsPanel.ExerciseThresholdOutsideClickForTesting();
         }
         finally
         {
+            SolverSettings.ApplyForTesting(originalPolicy);
+            _settingsPanel?.Reload();
+            _growthStrategyPanel?.Refresh(false);
             _growthStrategyVisible = originalGrowth;
             _potionStrategyVisible = originalPotion;
             _settingsVisible = originalSettings;
@@ -2715,12 +2725,12 @@ internal static class SolverOverlay
         QueueResponsiveLayout();
     }
 
-    private static void OnGrowthPolicyChanged(GrowthValues budgets, int acceptableHpLoss)
+    private static void OnGrowthPolicyChanged(GrowthValues budgets)
     {
         NGame? host = NGame.Instance;
         CombatState? state = CombatManager.Instance.DebugOnlyGetState();
         if (host != null && state != null && CombatManager.Instance.IsInProgress)
-            SolverController.SetGrowthPolicy(host, state, budgets, acceptableHpLoss);
+            SolverController.SetGrowthPolicy(host, state, budgets);
     }
 
     private static void OnPotionDirectiveChanged(
