@@ -39,6 +39,19 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "ONLINE-PRESENCE-CONTRACT")
+            {
+                if (!OnlinePresence.IsHeadless()) throw new InvalidOperationException("Presence fixture requires headless isolation.");
+                if (!new SolverSettingsData().OnlineStatisticsEnabled
+                    || SolverSettings.RoundTripForTesting(new SolverSettingsData { OnlineStatisticsEnabled = false }).OnlineStatisticsEnabled)
+                    throw new InvalidOperationException("Presence opt-out did not persist.");
+                OnlinePresencePayload payload = OnlinePresence.Capture("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "test");
+                if (payload.Floor != combatState.RunState.TotalFloor || payload.Character.Length == 0 || payload.Encounter.Length == 0 || payload.HpLoss != null)
+                    throw new InvalidOperationException("Presence scalar snapshot differs from the current combat.");
+                await OnlinePresence.VerifyTransportForTestingAsync();
+                runner._completedChecks.Add("PresenceDefaultOptOutSnapshotTlsAndInvalidPinRejection");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "PR57-58-STATE-CONTRACT")
             {
                 AssertVitalSparkKeepsStackedTaintedAmount(combatState, player);

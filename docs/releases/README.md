@@ -6,7 +6,7 @@
 
 | 版本系列 | 更新日志 |
 |---|---|
-| 0.33 | [0.33.0](0.33.0-RELEASE_NOTES.md) |
+| 0.33 | [0.33.1](0.33.1-RELEASE_NOTES.md)（待发布） · [0.33.0](0.33.0-RELEASE_NOTES.md) |
 | 0.32 | [0.32.0](0.32.0-RELEASE_NOTES.md) |
 | 0.31 | [0.31.3](0.31.3-RELEASE_NOTES.md) · [0.31.2](0.31.2-RELEASE_NOTES.md) · [0.31.1](0.31.1-RELEASE_NOTES.md) · [0.31.0](0.31.0-RELEASE_NOTES.md) |
 | 0.30 | [0.30.0](0.30.0-RELEASE_NOTES.md) |

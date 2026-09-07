@@ -26,6 +26,7 @@ Entry / turn hooks
 | 文件 | 职责 | 不负责 |
 |---|---|---|
 | `src/Runtime/Entry.cs` | Mod 初始化、补丁安装、战斗与回合生命周期入口、无人请求循环启动 | 搜索策略和战斗语义 |
+| `src/Runtime/OnlinePresence.cs` | 主线程在线标量采样、持久安装标识、可取消 HTTPS 心跳；无头和多人隔离 | 搜索策略、完整路线上传、服务端历史存储 |
 | `src/Runtime/SolverController.cs` | 主线程搜索/续用/部署/全自动编排，结果过期与重算审计 | Beam 内部算法和 UI 布局 |
 | `src/Runtime/SolverControllerSessions.cs` | combat/search/deployment 三类会话的状态与取消所有权 | 跨会话全局静态字段堆积 |
 | `src/Runtime/CombatRootSnapshot.cs` | 主线程捕获完整预测根，比较捕获前后 live 状态，并向 worker 提供 Fork 根 | worker 惰性读取 live 战斗 |

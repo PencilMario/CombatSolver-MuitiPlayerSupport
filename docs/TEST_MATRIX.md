@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 0.33.1 在线统计
+
+- `ONLINE-PRESENCE-CONTRACT` Passed，runId `76c3b303aee842b687562655577b551b`，23 秒。验证默认开启、关闭值序列化持久化、当前角色/楼层/战斗/未知战损标量快照、真实 .NET HTTPS 校验及错误证书指纹拒绝。网络检查发送无个人字段的空对象，预期 400；没有向正式统计写入测试玩家。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId ONLINE-PRESENCE-CONTRACT -HeadlessInstance presence -TimeoutSeconds 120 -ExitOnComplete`。要求私有端点配置；普通无人请求仍完全隔离上报。
+- `tools/OnlinePresence` 的 `npm test`：3 项通过，包含字段/数值拒绝、鉴权与 Origin、安装标识去重、TTL、重启后聚合历史持久化及限流。
+- Playwright 使用真实服务登录与空列表；注入页面级样例后验证桌面/手机布局、折线画布非空、搜索和昵称作为纯文本渲染。样例未发送至正式采集端。未以此声称已观察真实玩家的战斗路线或精确 Steam 人数。
+- 正常 Steam 游戏启动后，正式后台收到 1 个带昵称的菜单心跳，角色为空、楼层和战损为 null；没有进入跑局。此行为检查使用版本元数据调整前的 0.33.0 测试构建，行为源码与 0.33.1 相同。
+
 ## 0.33.0 发布集成
 
 - PR #57、#58 已合入本批。`PR57-58-STATE-CONTRACT` Passed，runId `e59d8568334c490c9ad9d488288c2ba7`，22 秒。验证污染叠加保持为 4、火花数量变化后同步为 3；隐藏状态槽排序、重复登记拒绝、根捕获委托参数分派、隐藏值变化区分指纹，以及撤销测试登记后恢复原指纹。

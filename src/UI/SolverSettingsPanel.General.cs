@@ -242,6 +242,20 @@ internal sealed partial class SolverSettingsPanel
             CreateOverlayOpacityInput(),
             "调整整个求解器覆盖层的透明度，范围为 25%–100%，立即生效。");
         content.AddChild(interfaceGrid);
+        content.AddChild(CreateSectionHeading("在线统计"));
+        GridContainer statisticsGrid = CreateSettingsGrid();
+        CheckButton statistics = CreateToggle();
+        _reloadInputs.Add(data => statistics.SetPressedNoSignal(data.OnlineStatisticsEnabled));
+        statistics.Toggled += enabled =>
+        {
+            if (_loading) return;
+            SolverSettings.Update(SolverSettings.Current with { OnlineStatisticsEnabled = enabled });
+            OnlinePresence.SettingsChanged();
+            SetStatus(enabled ? "在线统计已开启" : "在线统计已关闭", SolverUiTokens.Palette.Success);
+        };
+        AddBasicRow(statisticsGrid, "向作者发送在线状态（默认开启）", statistics,
+            "每 30 秒发送随机安装标识、昵称、角色、楼层、当前战斗、预计战损和 Mod 版本。作者后台可见当前状态，不上传完整路线；离线后清除玩家详情，仅保留历史人数。关闭后停止发送，最迟 90 秒从在线列表移除。");
+        content.AddChild(statisticsGrid);
         return CreatePageScroll(content);
     }
 

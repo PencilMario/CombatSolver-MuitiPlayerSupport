@@ -1,5 +1,11 @@
 <Project Sdk="Godot.NET.Sdk/4.5.1">
   <Import Project="./local.props" Condition="Exists('./local.props')" />
+  <Import Project="./.local/presence.props" Condition="Exists('./.local/presence.props')" />
+
+  <ItemGroup Condition="'$(PresenceEndpoint)' != ''">
+    <AssemblyMetadata Include="PresenceEndpoint" Value="$(PresenceEndpoint)" />
+    <AssemblyMetadata Include="PresenceCertificateSha256" Value="$(PresenceCertificateSha256)" />
+  </ItemGroup>
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
@@ -9,7 +15,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>CombatSolver</RootNamespace>
-    <Version>0.33.0</Version>
+    <Version>0.33.1</Version>
     <SteamRoot Condition="'$(SteamRoot)' == '' and '$(OS)' == 'Windows_NT' and Exists('D:/Steam')">D:/Steam</SteamRoot>
     <SteamRoot Condition="'$(SteamRoot)' == '' and '$(OS)' == 'Windows_NT'">$(MSBuildProgramFiles32)/Steam</SteamRoot>
     <SteamRoot Condition="'$(SteamRoot)' == ''">$(HOME)/.local/share/Steam</SteamRoot>

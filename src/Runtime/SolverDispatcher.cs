@@ -18,6 +18,7 @@ internal sealed partial class SolverDispatcher : Node
             return;
         _instance = new SolverDispatcher { Name = "CombatSolverDispatcher" };
         host.AddChild(_instance);
+        OnlinePresence.Start(host);
         _instance.SetProcess(true);
     }
 
