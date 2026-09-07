@@ -1,5 +1,10 @@
 # CombatSolver 测试清单
 
+## 2026-09-07 后台公网 HTTPS
+
+- 服务端原 3 项测试通过；实际公网管理入口验证证书名称/信任、页面 200、匿名 API 401、登录、Secure/HttpOnly cookie、错误协议 Origin 403、退出后会话拒绝。未上传测试玩家明细。
+- 本轮只更新 Node 服务与运维配置，沿用已发布客户端；未重建或重发 Mod。
+
 ## 0.33.2 新召唤敌人行动
 
 - `LIVING-FOG-SUMMON-INTENT`：失败基线 `9c5be94ee8ae48aeac82d4ef1b42a5d4` 精确复现 EXPLODE_MOVE 无后继异常；最终 `d54fff51d884479bb39176b0fa38d02f` Passed，34 秒。T1 BLOAT_MOVE 召唤至 T2，再推进自爆至 T3，两处完整原生状态、阵容、牌堆、AI、RNG 与 Fork 一致。中间运行的召唤数量断言修正见问题记录。

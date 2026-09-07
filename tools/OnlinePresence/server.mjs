@@ -20,7 +20,7 @@ export function validate(body) {
     && (body.hpLoss === null || Number.isInteger(body.hpLoss) && body.hpLoss >= 0 && body.hpLoss <= 10000000);
 }
 
-export function createApp({ database = ':memory:', password, now = Date.now, secureCookie = false }) {
+export function createApp({ database = ':memory:', password, now = Date.now, secureCookie = false, publicHost }) {
   if (!password || password.length < 20) throw new Error('ADMIN_PASSWORD must contain at least 20 characters');
   const db = new DatabaseSync(database);
   db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS history (time INTEGER PRIMARY KEY, count INTEGER NOT NULL) STRICT;');
@@ -28,6 +28,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   const players = new Map(), sessions = new Map(), buckets = new Map();
   const salt = randomBytes(32), passwordHash = scryptSync(password, salt, 32);
   const allowedHosts = new Set(['127.0.0.1', 'localhost', '[::1]']);
+  if (publicHost) allowedHosts.add(publicHost);
   const historyInsert = db.prepare('INSERT INTO history(time,count) VALUES (?,?) ON CONFLICT(time) DO UPDATE SET count=excluded.count');
   const historyRead = db.prepare('SELECT time,count FROM history WHERE time >= ? ORDER BY time');
   const historyDelete = db.prepare('DELETE FROM history WHERE time < ?');
@@ -95,10 +96,11 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
     const host = req.headers.host;
     if (!host) return send(res,400);
     let url;
-    try { url = new URL(req.url,`http://${host}`); }
+    const scheme = req.socket.encrypted ? 'https' : 'http';
+    try { url = new URL(req.url,`${scheme}://${host}`); }
     catch { return send(res,400); }
     if (!allowedHosts.has(url.hostname)) return send(res,403);
-    if (req.method === 'POST' && req.headers.origin !== `http://${host}`) return send(res,403);
+    if (req.method === 'POST' && req.headers.origin !== `${scheme}://${host}`) return send(res,403);
     if (req.method === 'POST' && url.pathname === '/api/login') {
       expire();
       if (!limit('login:'+req.socket.remoteAddress,5)) return send(res,429);
@@ -107,7 +109,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
       if (!timingSafeEqual(scryptSync(body.password,salt,32),passwordHash)) return send(res,401);
       const token = randomBytes(32).toString('hex');
       sessions.set(token,now()+8*3600000);
-      res.setHeader('Set-Cookie',`session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secureCookie?'; Secure':''}`);
+      res.setHeader('Set-Cookie',`session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secureCookie || req.socket.encrypted?'; Secure':''}`);
       return send(res,200,{ok:true});
     }
     const token = /(?:^|;\s*)session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
@@ -115,7 +117,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
       if (!token || (sessions.get(token) || 0) <= now()) return send(res,401);
       if (req.method === 'POST' && url.pathname === '/api/logout') {
         sessions.delete(token);
-        res.setHeader('Set-Cookie','session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0');
+        res.setHeader('Set-Cookie',`session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookie || req.socket.encrypted?'; Secure':''}`);
         return send(res,204);
       }
       if (req.method === 'GET' && url.pathname === '/api/overview') {
@@ -136,11 +138,16 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   mkdirSync(resolve(root,'data'),{recursive:true,mode:0o700});
-  const app = createApp({database:process.env.DATABASE_PATH || resolve(root,'data/presence.sqlite'),password:process.env.ADMIN_PASSWORD});
-  const admin = http.createServer({requestTimeout:10000,headersTimeout:10000,maxHeaderSize:8192},app.admin);
+  const adminTls = process.env.ADMIN_TLS === 'true';
+  const adminBind = process.env.ADMIN_BIND || '127.0.0.1';
+  if (!['127.0.0.1','::1'].includes(adminBind) && (!adminTls || !process.env.ADMIN_PUBLIC_HOST))
+    throw new Error('Public admin listener requires ADMIN_TLS and ADMIN_PUBLIC_HOST');
+  const app = createApp({database:process.env.DATABASE_PATH || resolve(root,'data/presence.sqlite'),password:process.env.ADMIN_PASSWORD,publicHost:process.env.ADMIN_PUBLIC_HOST});
+  const tls = {key:readFileSync(process.env.TLS_KEY),cert:readFileSync(process.env.TLS_CERT),minVersion:'TLSv1.2'};
+  const admin = (adminTls ? https : http).createServer({...(adminTls ? tls : {}),requestTimeout:10000,headersTimeout:10000,maxHeaderSize:8192},app.admin);
   admin.maxConnections = 30;
-  admin.listen(Number(process.env.ADMIN_PORT || 12889),'127.0.0.1');
-  const collector = https.createServer({key:readFileSync(process.env.TLS_KEY),cert:readFileSync(process.env.TLS_CERT),minVersion:'TLSv1.2',requestTimeout:10000,headersTimeout:10000,maxHeaderSize:8192},app.collector);
+  admin.listen(Number(process.env.ADMIN_PORT || 12889),adminBind);
+  const collector = https.createServer({...tls,requestTimeout:10000,headersTimeout:10000,maxHeaderSize:8192},app.collector);
   collector.maxConnections = 200;
   collector.listen(Number(process.env.COLLECTOR_PORT || 12888),'0.0.0.0');
   app.sample();

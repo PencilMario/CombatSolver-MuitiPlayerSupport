@@ -16,7 +16,7 @@
 
 采集端仅提供 `POST /v1/heartbeat`，严格接受既定字段和大小，按请求来源与安装标识限流，并限制连接数和在线记录总量。它不提供玩家列表或管理 API。客户端请求属于自行上报，接口不声称提供 Steam 身份认证或防伪在线人数。
 
-管理端只监听回环地址，通过 SSH 隧道访问，并需要独立管理密码。登录限制尝试频率，使用 HttpOnly、SameSite 会话 cookie；写入请求核对 Origin，拒绝外部 Host。玩家字段通过 textContent 渲染，页面不加载第三方 CDN。管理密码和 SSH 凭据不分发给 Mod 客户端。
+管理端默认监听回环地址，也支持通过私有环境配置开放独立 HTTPS 端口，并需要独立管理密码。监听非回环地址时强制要求 TLS 和允许的公网 Host。登录限制尝试频率，使用 HttpOnly、SameSite 会话 cookie，HTTPS 下增加 Secure；写入请求按实际连接协议核对 Origin，拒绝未登记的 Host。玩家字段通过 textContent 渲染，页面不加载第三方 CDN。管理密码和 SSH 凭据不分发给 Mod 客户端。
 
 服务端明细只在内存里，业务日志不打印心跳内容、来源 IP 或玩家昵称。服务器网络层能看到连接来源，管理员应使代理和网络日志策略与这里的明细保留口径一致。
 
@@ -26,7 +26,7 @@
 
 客户端同时验证证书名称、有效期和固定证书指纹，禁止重定向、明文传输和任意证书信任。无域名部署可使用带 IP SAN 的专用自签名证书。更新证书需要同步客户端信任配置；私钥始终仅保存在服务器。服务地址是客户端连接所必需的信息，不能靠不写文档实现隐藏。
 
-服务环境变量为 `ADMIN_PASSWORD`、`TLS_KEY`、`TLS_CERT`，可覆盖 `COLLECTOR_PORT`、`ADMIN_PORT` 和 `DATABASE_PATH`。密码至少 20 个字符，环境文件与私钥权限为 600；`presence.service` 是用户级 systemd 模板，使用独立工作目录、资源上限与重启策略。启用 linger 后可随服务器启动运行。
+服务环境变量为 `ADMIN_PASSWORD`、`TLS_KEY`、`TLS_CERT`，可覆盖 `COLLECTOR_PORT`、`ADMIN_PORT` 和 `DATABASE_PATH`。公网管理端额外配置 `ADMIN_BIND`、`ADMIN_TLS=true`、`ADMIN_PUBLIC_HOST`，复用专用服务证书；使用自签名证书时浏览器首次访问需要核对确认。密码至少 20 个字符，环境文件与私钥权限为 600；`presence.service` 是用户级 systemd 模板，使用独立工作目录、资源上限与重启策略。启用 linger 后可随服务器启动运行。
 
 部署前执行 `npm ci --omit=dev --ignore-scripts`。服务端源码、package-lock 与前端资源可以版本管理；`private/`、`.env`、密钥、数据库和 node_modules 已被忽略。真实连接地址及本机管理访问凭据仅保留于维护者的 `.local/` 私有文件。
 
