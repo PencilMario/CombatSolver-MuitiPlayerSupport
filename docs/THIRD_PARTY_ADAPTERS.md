@@ -149,7 +149,40 @@ PotionChoiceMirrors.Register<TYourPotion>(spec, apply);
 减去被弃牌牌值，并加上弃牌触发收益。`maxBranches` 对排序后的候选设置保留上限，省略时沿用
 现有枚举策略；传 `1` 只保留排序第一项，会牺牲其他选择路线，适配者应使用目标场景验证取舍。
 
-### 2.5 还没有登记入口的地方
+### 2.5 卡牌的玩家选择
+
+```csharp
+CardChoiceMirrors.Register<TYourCard>(spec, apply);
+```
+
+和药水那条是同一堵墙的两面。`CardChoiceSupport.GetSpec` 是按原版卡牌类型写死的 `switch`，
+默认分支返回 `null`，也就是「这张牌没有选择」。第三方卡牌落到那里就是这个答案，于是它的选牌
+效果**永远不会被展开成搜索分支**：牌照样打得出去，效果在模拟里静默变成空操作。卡牌自己的
+`CardOnPlayMirrors` 补不了这个——选择的展开发生在出牌路径上，不在效果镜像里。
+
+两个委托：
+
+- `spec(simulator, playedCard, card)` 返回一个 `CardChoiceSpec`。
+- `apply(simulator, combat, playedCard, card, choice)` 施加效果，返回是否已经结算完。
+
+比药水那条多两件要注意的事：
+
+1. **升级等级必须对。** 部署时按 CardId 加升级等级在原生页面上定位选项。三选一这类牌通常会让
+   三张选项跟着本牌一起升级，`spec` 里就要把选项牌也升级，否则部署定位不到。
+2. **选项牌不在任何模拟牌堆里。** 所以 `apply` 拿到的是计划里的 `PlanCardToken`，不是
+   `PredictedCard`；按 CardId 自己认，求解器不会替你解析。数值要读就从选项牌自己的
+   `DynamicVars` 上读，不要写死。
+
+效果同样用 `PlanChoiceEffect.ModDefined`。求解器自己从不产生这个值；如果它出现在卡牌选牌上
+而没有登记方认领，结算会直接抛，不会静默空操作。
+
+**一个真实例子。** 观者的许愿是 3 费，打出后在「力量 +3」「多层护甲 6」「金币 25」之间三选一
+（升级后 4 / 8 / 30，三张选项牌各自的 `MagicNumber` 就是这三个数）。三个选项的单位完全不同，
+但都不需要新的估值刻度：力量和多层护甲本来就是 Power，金币走求解器现成的长期资源刻度
+（`GainPlayerGold` 加 `RecordLongTermResource`，`贪婪之手` 就是面值直记）。登记成三个真分支之后，
+「值不值这 3 点能量」和「三个里挑哪个」都由搜索自己比出来，不需要写任何策略规则。
+
+### 2.6 还没有登记入口的地方
 
 见第 6 节。目前只能 Harmony 打补丁，或者等对应的扩展点合并。
 
@@ -265,7 +298,6 @@ PotionChoiceMirrors.Register<TYourPotion>(spec, apply);
 | 位置 | 症状 | 状态 |
 |---|---|---|
 | `PredictionModHookSubscriberCapture.KnownPreRootSubscriberTypeNames` | 私有静态白名单，没有公开登记入口 | 待做 |
-| `CardChoiceSupport` 的选牌规格 | 第三方**卡牌**的选牌效果不会被展开成搜索分支。药水那条已经有入口了（见 2.3），卡牌这条还没有 | 待做 |
 | `CorePowerSupport.TriggerPlayerSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、`TurnStartPowerSupport.TriggerAfterPlayerTurnStart`、`SimulatedCombatState.TriggerRelicsAfterPlayerTurnStart` | 回合边界的效果没有注册表 | 待做 |
 | `SimulatedCombatState.TryPrepareExtraPlayerTurn` / `TryPrepareLiveExtraPlayerTurn` / `ConsumeExtraTurnSources` | 额外回合的来源硬编码，只认龙涎香和帕尔之眼 | 待做 |
 | `CombatPredictionSimulator.OnPlayWrapper` | 出牌后补抽没有挂载点 | 待做 |
