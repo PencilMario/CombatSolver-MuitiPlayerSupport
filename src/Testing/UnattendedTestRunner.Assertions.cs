@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "CYCLE-EXIT-REVOKED-PARENT")
+            {
+                runner.SetStage("cycle_exit_revoked_parent");
+                CombatBeamSolver.VerifyCycleExitAdmissionMaterializationPolicyForTesting();
+                runner._completedChecks.Add("CycleExitRevokedParent");
+            }
             if (request.ScenarioId == "NARROW-ORDERED-PILE-CAPACITY")
             {
                 runner.SetStage("narrow_ordered_pile_capacity");

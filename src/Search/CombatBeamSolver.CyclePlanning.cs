@@ -523,6 +523,38 @@ internal sealed partial class CombatBeamSolver
             && ReferenceEquals(currentLease.Tracker, pending.OriginTracker)
             && currentLease.NextActionIndex == pending.OriginPhaseIndex;
 
+    private static bool NeedsCycleExitAdmission(
+        SearchNode parent,
+        IReadOnlyList<ActionCandidate> cards,
+        IReadOnlyList<SearchNode>? potions,
+        IReadOnlyList<SearchNode>? endTurns)
+    {
+        if (parent.CycleProbeLease != null)
+            return true;
+        for (int index = 0; index < cards.Count; index++)
+        {
+            if (cards[index].Node.PendingCycleExitObservation != null)
+                return true;
+        }
+        if (potions != null)
+        {
+            for (int index = 0; index < potions.Count; index++)
+            {
+                if (potions[index].PendingCycleExitObservation != null)
+                    return true;
+            }
+        }
+        if (endTurns != null)
+        {
+            for (int index = 0; index < endTurns.Count; index++)
+            {
+                if (endTurns[index].PendingCycleExitObservation != null)
+                    return true;
+            }
+        }
+        return false;
+    }
+
     private static SearchNode? MaterializeAdmittedCycleExitObservation(
         IReadOnlyList<SearchNode> candidates,
         IReadOnlyDictionary<CanonicalCycleFamilyKey, CycleFamilyLedgerEntry> ledgers)
@@ -1711,7 +1743,7 @@ internal sealed partial class CombatBeamSolver
         }
     }
 
-    private static void VerifyCycleExitAdmissionMaterializationPolicyForTesting()
+    internal static void VerifyCycleExitAdmissionMaterializationPolicyForTesting()
     {
         SimulationSnapshot snapshot = (SimulationSnapshot)System.Runtime.CompilerServices
             .RuntimeHelpers.GetUninitializedObject(typeof(SimulationSnapshot));
@@ -1800,6 +1832,24 @@ internal sealed partial class CombatBeamSolver
             new(PlanActionKind.EndTurn, 7, EndsPlayerTurn: true),
         ];
         var forward = BuildCandidates(mixedActions);
+        for (int index = 0; index < mixedActions.Length; index++)
+        {
+            var revoked = BuildCandidates([mixedActions[index]]);
+            SearchNode child = revoked.Candidates[0];
+            SearchNode parent = child.Parent!;
+            parent.CycleProbeLease = null;
+            ActionCandidate candidate = new(child, default, null, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                ActionOptionFamily.None, false, 0);
+            if (NeedsCycleExitAdmission(parent,
+                    index == 0 ? [candidate] : [],
+                    index == 1 ? [child] : [],
+                    index == 2 ? [child] : []))
+                _ = MaterializeAdmittedCycleExitObservation(revoked.Candidates, revoked.Ledgers);
+            if (child.PendingCycleExitObservation != null
+                || child.CycleExitProbe != null
+                || revoked.Tracker.ExitEnvelopeActionCountForTesting != 0)
+                throw new InvalidOperationException("Revoked parent lease left an unissued exit observation across action admission.");
+        }
         if (forward.Tracker.ExitEnvelopeActionCountForTesting != 0
             || forward.Tracker.ExitQualityEpoch != 0
             || !HasCycleAdmissionTranspositionLease(forward.Candidates[0])
