@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 export const TTL = 90_000;
+export const PAGE_SIZE = 30;
 export function validate(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
   const fields = ['sessionId','name','character','floor','encounter','hpLoss','version'];
@@ -24,7 +25,8 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   if (!password || password.length < 20) throw new Error('ADMIN_PASSWORD must contain at least 20 characters');
   const db = new DatabaseSync(database);
   db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS history (time INTEGER PRIMARY KEY, count INTEGER NOT NULL) STRICT;');
-  // Personal details are memory-only; the database retains aggregate counts.
+  db.exec('CREATE TABLE IF NOT EXISTS durations (session_id TEXT PRIMARY KEY, total_ms INTEGER NOT NULL, last_seen INTEGER NOT NULL) STRICT;');
+  // Nicknames and combat details stay in memory; only installation IDs and durations persist.
   const players = new Map(), sessions = new Map(), buckets = new Map();
   const salt = randomBytes(32), passwordHash = scryptSync(password, salt, 32);
   const allowedHosts = new Set(['127.0.0.1', 'localhost', '[::1]']);
@@ -32,6 +34,8 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   const historyInsert = db.prepare('INSERT INTO history(time,count) VALUES (?,?) ON CONFLICT(time) DO UPDATE SET count=excluded.count');
   const historyRead = db.prepare('SELECT time,count FROM history WHERE time >= ? ORDER BY time');
   const historyDelete = db.prepare('DELETE FROM history WHERE time < ?');
+  const durationRead = db.prepare('SELECT total_ms,last_seen FROM durations WHERE session_id = ?');
+  const durationWrite = db.prepare('INSERT INTO durations(session_id,total_ms,last_seen) VALUES (?,?,?) ON CONFLICT(session_id) DO UPDATE SET total_ms=excluded.total_ms,last_seen=excluded.last_seen');
   function expire() {
     const t = now();
     for (const [key,p] of players) if (p.lastSeen <= t - TTL) players.delete(key);
@@ -83,7 +87,12 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
     if (!validate(body)) return send(res,400,{error:'invalid_payload'});
     if (!limit('player:'+body.sessionId,6)) return send(res,429);
     if (!players.has(body.sessionId) && players.size >= 10000) return send(res,503);
-    players.set(body.sessionId,{...body,lastSeen:now()});
+    const receivedAt = now();
+    const previous = durationRead.get(body.sessionId);
+    const elapsed = previous ? Math.max(0, receivedAt-previous.last_seen) : 0;
+    const totalMs = (previous?.total_ms ?? 0) + (elapsed < TTL ? elapsed : 0);
+    durationWrite.run(body.sessionId,totalMs,receivedAt);
+    players.set(body.sessionId,{...body,totalMs,lastSeen:receivedAt});
     send(res,204);
   });
   const files = new Map([
@@ -124,7 +133,24 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
         expire();
         const hours = Number(url.searchParams.get('hours') || 24);
         if (![1,24,168,720].includes(hours)) return send(res,400);
-        return send(res,200,{now:now(),ttl:TTL,players:[...players.values()].sort((a,b)=>b.lastSeen-a.lastSeen),history:historyRead.all(now()-hours*3600000)});
+        return send(res,200,{now:now(),ttl:TTL,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.encounter).length,history:historyRead.all(now()-hours*3600000)});
+      }
+      if (req.method === 'GET' && url.pathname === '/api/players') {
+        expire();
+        const pageValue = url.searchParams.get('page') ?? '1';
+        const query = (url.searchParams.get('q') ?? '').trim();
+        if (!/^[1-9]\d*$/.test(pageValue) || !Number.isSafeInteger(Number(pageValue)) || query.length > 128)
+          return send(res,400);
+        const term = query.toLocaleLowerCase();
+        const ranked = [...players.values()]
+          .sort((a,b)=>b.totalMs-a.totalMs || a.sessionId.localeCompare(b.sessionId))
+          .map(({totalMs,...player},index)=>({...player,rank:index+1,onlineSeconds:Math.floor(totalMs/1000)}));
+        const matching = term ? ranked.filter(player=>[player.name,player.character,player.encounter].some(value=>value.toLocaleLowerCase().includes(term))) : ranked;
+        const total = matching.length;
+        const totalPages = Math.max(1,Math.ceil(total/PAGE_SIZE));
+        const page = Math.min(Number(pageValue),totalPages);
+        const offset = (page-1)*PAGE_SIZE;
+        return send(res,200,{now:now(),onlineCount:players.size,total,page,pageSize:PAGE_SIZE,totalPages,players:matching.slice(offset,offset+PAGE_SIZE)});
       }
       return send(res,404);
     }

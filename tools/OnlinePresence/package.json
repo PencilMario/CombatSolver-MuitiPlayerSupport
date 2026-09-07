@@ -1,1 +1,1 @@
-{"name":"combat-solver-presence","private":true,"type":"module","scripts":{"start":"node server.mjs","test":"node --test test.mjs"},"dependencies":{"chart.js":"4.5.1"}}
+{"name":"combat-solver-presence","private":true,"type":"module","scripts":{"start":"node server.mjs","test":"node --test test.mjs pagination.test.mjs"},"dependencies":{"chart.js":"4.5.1"}}
