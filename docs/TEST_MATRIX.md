@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 0.33.5 受伤历史与攻击次数
+
+- `TURN-START-DAMAGE-SPITE` / `THE_OBSCURA_NORMAL`：失败基线 `6fa9c33e5aca495cad4c1c0a8b662c95`，T2 怨恨后 E1.hp 预测 86、原生 81；最终 `18a3b15c05f94038a6cfb080fe41ef9c` Passed，28 秒。覆盖回合开始 Inferno 自伤后的双次攻击、召唤阵容、完整状态和 Fork，以及伤害记录不泄漏到敌方/额外玩家回合。
+- `TEAR-ASUNDER-DAMAGE-HISTORY`：失败基线 `29bcf598a611426aad1d1a90c9810975`，两次根受伤和一次分支回合开始受伤后，预测 86、原生 71；最终 `0fefaa871ab344008481d54e8de10a23` Passed，29 秒。精确验证扯碎四次攻击、完整原生状态与 Fork。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId TURN-START-DAMAGE-SPITE -EncounterId THE_OBSCURA_NORMAL -EnemyCurrentHp 100 -HeadlessInstance obscurafix -TimeoutSeconds 120 -ExitOnComplete`；另一场替换 ScenarioId 为 `TEAR-ASUNDER-DAMAGE-HISTORY`。
+- 初始两次夹具尝试 `50e220ad84fc4deebd62fb70189905f4`、`242abeca01374dafb2d42fc937ee1efb` 使用默认 1 HP 敌人，回合开始伤害已结束战斗，未到目标断言；修正回放参数并设置 EnemyCurrentHp=100 后取得有效基线。一次编译缺少测试 ValueProps 引用，补齐后成功。
+- 两包 Preflight 为 materials_valid、restorationVerified=false。制造者包声明 0.33.2，顺序差异复用 0.33.3 同根证据，本轮未重复整场测试。未做完整发布门禁或整场零重算结论。
+
 ## 0.33.4 在线战斗缓存
 
 - 服务端 8 项测试通过；新增旧协议空心跳保留、0 损保留、新战斗尚未算完时整组保留、完成后整组替换、新协议状态/采集时间、累计时长与超时清除。

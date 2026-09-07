@@ -18,10 +18,55 @@ using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using System.Reflection;
 using HarmonyLib;
 
+using MegaCrit.Sts2.Core.ValueProps;
+
 namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertTurnStartDamageSpiteAsync(CombatState combat, Player player, string cardId = "SPITE")
+    {
+        Creature source = combat.Enemies.Single();
+        await ClearPlayerPilesAsync(player);
+        await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = cardId, Pile = "Draw" });
+        if (cardId == "TEAR_ASUNDER")
+            for (int hit = 0; hit < 2; hit++)
+                await CreatureCmd.Damage(new ThrowingPlayerChoiceContext(), player.Creature, 1, ValueProp.Unblockable | ValueProp.Unpowered, player.Creature);
+        await PowerCmd.Apply<InfernoPower>(new ThrowingPlayerChoiceContext(), player.Creature, 9, player.Creature, null);
+        player.Creature.GetPower<InfernoPower>()!.IncrementSelfDamage();
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatBeamSolver driver = new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
+            SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+        SimulationSnapshot predicted = InvokeForcedTerminalReplay(driver,
+            [new PlanAction(PlanActionKind.EndTurn, root.StartTurnNumber),
+             new PlanAction(PlanActionKind.PlayCard, root.StartTurnNumber + 1, CardId: cardId, TargetCombatId: source.CombatId)],
+            null, root.StartTurnNumber, null);
+        try
+        {
+            CombatPredictionSimulator simulator = predicted.Simulator;
+            MoveStateSnapshot expected = CaptureSimulated(simulator, (SimulatedCombatState)simulator.State.CombatState, player, source);
+            CombatPredictionSimulator fork = simulator.Fork();
+            AssertSnapshotEqual(expected, CaptureSimulated(fork, (SimulatedCombatState)fork.State.CombatState, player, source), "TurnStartDamageSpite", "Fork");
+            await AdvanceMercuryActualTurnAsync(combat, player, expectVictory: false);
+            if (!FindActualHandCard(player, cardId, 0).TryManualPlay(source))
+                throw new InvalidOperationException($"Native {cardId} was not playable.");
+            await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+            AssertSnapshotEqual(expected, CaptureActual(combat, player, source), "TurnStartDamageSpite", "NativeAfterSpite");
+            SimulatedCombatState forkState = (SimulatedCombatState)fork.State.CombatState;
+            if (!forkState.HasLostHpThisTurn(player.Creature))
+                throw new InvalidOperationException("Turn-start damage was absent from fork history.");
+            forkState.CurrentSide = CombatSide.Enemy;
+            if (forkState.HasLostHpThisTurn(player.Creature))
+                throw new InvalidOperationException("Player-side damage leaked into the enemy turn.");
+            CombatPredictionSimulator extraTurn = simulator.Fork();
+            SimulatedCombatState extraState = (SimulatedCombatState)extraTurn.State.CombatState;
+            extraState.AdvancePlayerTurn(player);
+            if (extraState.HasLostHpThisTurn(player.Creature))
+                throw new InvalidOperationException("Previous-turn damage leaked into an extra player turn.");
+        }
+        finally { predicted.ReleaseSimulator(); }
+    }
+
     private async Task AssertSummonDeathPowerOrderAsync(CombatState combat, Player player)
     {
         Creature source = combat.Enemies.Single();

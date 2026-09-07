@@ -489,8 +489,24 @@ internal sealed partial class SimulatedCombatState
     public IReadOnlyList<Player> Players => _players;
     public IReadOnlyList<ModifierModel> Modifiers => _modifiers;
     public MultiplayerScalingModel? MultiplayerScalingModel => _multiplayerScalingModel;
-    public int RoundNumber { get => _roundNumber; set => _roundNumber = value; }
-    public CombatSide CurrentSide { get => _currentSide; set => _currentSide = value; }
+    public int RoundNumber
+    {
+        get => _roundNumber;
+        set
+        {
+            if (_roundNumber != value) _unblockedDamageThisTurn = null;
+            _roundNumber = value;
+        }
+    }
+    public CombatSide CurrentSide
+    {
+        get => _currentSide;
+        set
+        {
+            if (_currentSide != value) _unblockedDamageThisTurn = null;
+            _currentSide = value;
+        }
+    }
     public bool BattlewornDummyTimedOut => _battlewornDummyTimedOut;
     public EncounterModel? Encounter => _encounter;
     public IReadOnlyList<Creature> EscapedCreatures => _escapedCreatures;
@@ -553,6 +569,8 @@ internal sealed partial class SimulatedCombatState
     {
         int nextTurn = GetPlayerTurnNumber(player) + 1;
         (_playerTurnNumbers ??= [])[player] = nextTurn;
+        // History's turn window changes before turn-start damage and draw effects run.
+        _unblockedDamageThisTurn = null;
         (_statusCardsDrawnThisTurn ??= [])[player] = 0;
     }
 
@@ -1144,7 +1162,6 @@ internal sealed partial class SimulatedCombatState
             }
         }
         _doomAppliersThisTurn?.Remove(owner);
-        _unblockedDamageThisTurn?.Remove(owner);
         RemovePoweredAttackHitsDealtBy(owner);
         TickDuration<BlurPower>(owner);
         if (GetAmount<DrawCardsNextTurnPower>(owner) > 0)

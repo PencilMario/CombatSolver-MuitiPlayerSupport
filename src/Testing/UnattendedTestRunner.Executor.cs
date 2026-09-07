@@ -45,6 +45,18 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("SummonDeathPowerOrderNativeFork");
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "TURN-START-DAMAGE-SPITE")
+            {
+                await runner.AssertTurnStartDamageSpiteAsync(combatState, player);
+                runner._completedChecks.Add("TurnStartDamageSpiteNativeFork");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "TEAR-ASUNDER-DAMAGE-HISTORY")
+            {
+                await runner.AssertTurnStartDamageSpiteAsync(combatState, player, "TEAR_ASUNDER");
+                runner._completedChecks.Add("TearAsunderDamageHistoryNativeFork");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "LIVING-FOG-SUMMON-INTENT")
             {
                 await runner.AssertLivingFogSummonIntentAsync(combatState, player);

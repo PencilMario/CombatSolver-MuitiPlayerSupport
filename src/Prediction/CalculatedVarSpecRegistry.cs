@@ -102,7 +102,7 @@ internal static class CalculatedVarSpecRegistry
             MementoMori => combat.GetCardsDiscardedThisTurn(owner),
             SoulStorm => playerState.ExhaustPile.Cards.Count(candidate => candidate.Preview is Soul),
             Voltaic => CountLightningChannels(simulator, model.Owner),
-            TearAsunder => CountUnblockedDamageEvents(simulator, owner),
+            TearAsunder => 1 + CountUnblockedDamageEvents(simulator, owner),
             ExpectAFight => Math.Max(0, combat.GetAmount<StrengthPower>(owner)),
             HelixDrill => Math.Max(0, combat.GetEnergySpentThisTurn(model.Owner)
                 - card.GetEnergyCostWithModifiers(simulator, playerState)),
