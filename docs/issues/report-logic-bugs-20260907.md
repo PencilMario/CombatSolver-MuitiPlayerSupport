@@ -53,6 +53,14 @@
 
 ## 修复进度
 
+### 回合准备重算与接管竞态：固定执行计划的来源
+
+- `19033790` 的原生日志明确记录：手动重算 START 后，玩家 TAKEOVER，筹码 Selected 消费旧计划，随后重算 RESULT 发布，再发生手牌状态 MISMATCH。旧计划执行时，`active.Result` 被新结果替换，执行选牌与结束后的校验来源不同。该包还选中了狡猾连续反弹，因此不把所有差异单独归因到竞态。
+- 当前代码保留这一入口。最小 `TURN-SETUP-REFRESH-TAKEOVER` 在真实筹码页面生成计划、请求重算，再于重算期间接管。基线 `34ed1aaed32a4deca433ce2847c43ff7` 明确失败于“接管开始驱动旧计划”，无需依赖新旧搜索偶然选出不同卡牌。
+- Runtime 在手动重算开始时清除旧 Result，使该期间的接管等待新结果；已经开始驱动选择时，排队的重算停止启动，包括等待原生页面锁期间发生接管的情况。复用现有 ActivePlan、请求队列和发布流程，没有放宽 continuation 比较。
+- 修复后竞态流程 `94d006288b364d529ae5a579c5625855` 与正常刷新后接管 `4fc6aa624a5a46b1b061cb7ec35e362a` 均通过，包含原生选牌顺序与准备阶段结果激活。测试读取的 LastTurnSetupResult 仅在 ActivateTurnSetupResult 的 live/expected 精确比较通过后发布。
+- 本组 9 份中有 5 份携带筹码；其他报告没有同样的重算交错证据，不能整组标记解决。`1965602a` 的保留日志被外部错误刷屏，未保留可用的选牌时序，不调查该外部 Mod。
+
 ### 卡牌增能命令：补齐禁止回能钩子
 
 - 沿放血的既有命令遗漏检查 `CardOnPlaySupport`，另发现 11 张原版增能牌仍直接修改 `SimPlayerCombatState.Energy`。原版均调用 `PlayerCmd.GainEnergy`，因此既需要终局门，也需要 `ModifyEnergyGain`；`NoEnergyGainPower` 会把获得量改成 0。

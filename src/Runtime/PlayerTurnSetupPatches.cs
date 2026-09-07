@@ -1053,10 +1053,12 @@ internal static class PlayerTurnSetupCoordinator
 
     private static async Task RecalculatePendingChoiceAsync(ActivePlan active, NGame host)
     {
+        if (active.ReplayDrivingStarted)
+            return;
         InitialSearchContext original = active.InitialSearch
             ?? throw new InvalidOperationException("回合开始选项重算缺少选择前搜索根。");
         await active.Choices.LockVisibleSurfaceForSearchAsync(host, active.Token);
-        if (!IsCurrentActivePlan(active))
+        if (!IsCurrentActivePlan(active) || active.ReplayDrivingStarted)
             return;
 
         SolverSettingsSnapshot settings = SolverSettings.Capture();
@@ -1076,6 +1078,8 @@ internal static class PlayerTurnSetupCoordinator
         int turn = active.Player.PlayerCombatState!.TurnNumber;
         active.Interaction.ResetForSearch();
         Interlocked.Exchange(ref active.ManualSearchState, 1);
+        // A takeover during this search must use the result that will validate its choices.
+        active.Result = null;
         SolverOverlay.ShowSearching(
             host,
             turn,

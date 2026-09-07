@@ -533,6 +533,17 @@ internal sealed partial class UnattendedTestRunner
                     $"[CombatSolver/Test] TURN_SETUP_INITIAL_SEARCH_CONTROLS_SUBMITTED " +
                     $"turn={turn} adopted_interim=true");
             }
+            if (_request.ScenarioId == "TURN-SETUP-REFRESH-TAKEOVER"
+                && manualRefreshRequested && !turnSetupPlanAccepted
+                && state != null && PlayerTurnSetupCoordinator.IsSearching)
+            {
+                if (!PlayerTurnSetupCoordinator.TryContinuePlannedChoice(_host, state, deployAfterSetup: false))
+                    throw new InvalidOperationException("Recalculation takeover was not accepted.");
+                if (PlayerTurnSetupCoordinator.IsDrivingChoiceForRecording)
+                    throw new InvalidOperationException("Recalculation takeover started driving the previous plan.");
+                turnSetupPlanAccepted = true;
+                _completedChecks.Add("TurnSetupRefreshTakeover:QueuedDuringSearch");
+            }
             if (!turnSetupPlanAccepted
                 && state != null
                 && PlayerTurnSetupCoordinator.HasPendingPlannedChoice(state))
@@ -655,8 +666,22 @@ internal sealed partial class UnattendedTestRunner
                 }
                 if (_request.VerifyTurnSetupManualRefresh && !manualRefreshCompleted)
                 {
-                    await NextFrameAsync();
-                    continue;
+                    if (_request.ScenarioId == "TURN-SETUP-REFRESH-TAKEOVER")
+                    {
+                        if (!_completedChecks.Contains("TurnSetupRefreshTakeover:QueuedDuringSearch"))
+                            throw new InvalidOperationException("Takeover fixture did not reach an active recalculation.");
+                        int turn = player.PlayerCombatState.TurnNumber;
+                        if (NativeChoiceRuntime.TraceSnapshotForTesting.Count(trace =>
+                                trace.Owner == $"turn_setup:{turn}" && trace.Stage == "PlanReady") < 2)
+                            throw new InvalidOperationException("Takeover completed before the refreshed plan was ready.");
+                        manualRefreshCompleted = true;
+                        _completedChecks.Add("TurnSetupRefreshTakeover:RefreshedPlanCompleted");
+                    }
+                    else
+                    {
+                        await NextFrameAsync();
+                        continue;
+                    }
                 }
                 if (_request.VerifyTurnSetupControlsDuringInitialSearch)
                 {
