@@ -1,5 +1,23 @@
 # CombatSolver 测试清单
 
+## 2026-09-07：PR #50–#55 合并验证
+
+本轮验证六条 PR 合并后的行为源码。Release 编译零警告/错误，Windows 结构门禁、Git Bash `bash -n tools/run-unattended-test.sh`、CoverageCatalog `--verify-effective --verify-pre-play-choices --verify-combat-choices` 均通过。覆盖目录检查限原版目录，生成的时间戳变化未提交。
+
+| 场景 | 结果与证据 | 复跑参数（共同使用 `tools/run-unattended-test.ps1 -HeadlessInstance pr50-55 -TimeoutSeconds 120`） |
+|---|---|---|
+| `PR50-55-GAMBLERS-REGRESSION` | Passed，runId `3fc6e575501d4b9596576c5167466cdb`；赌博药水弃牌与补抽严格差分 | `-ScenarioId PR50-55-GAMBLERS-REGRESSION -PotionCheckPath coverage/unattended/potion-batch-045-gamblers.json` |
+| `PR50-55-OPTIONAL-CHOICE` | Passed，runId `28167ce3490c41d2bf04bc603732c637`；两种可选选牌空选的严格差分 | `-ScenarioId PR50-55-OPTIONAL-CHOICE -MonsterMoveChecksPath coverage/unattended/card-on-play-batch-042-choice-zero-optional.json -EnemyCurrentHp 100` |
+| `PR50-55-CLASH-PLAYABILITY` | Passed，runId `376b830cdecb499aa4a9c0fe9a7a527e`；先出防御再出 Clash，2 动作、2 节点/4 转移、T1 零战损、未镜像项为 0，增量回放通过 | 见下方完整参数 |
+
+```powershell
+./tools/run-unattended-test.ps1 -ScenarioId PR50-55-CLASH-PLAYABILITY -HeadlessInstance pr50-55 -TimeoutSeconds 120 -CardId "" -ClearPlayerPiles -CardsJson '[{"cardId":"CLASH","pile":"Hand"},{"cardId":"DEFEND_IRONCLAD","pile":"Hand"}]' -EnemyCurrentHp 10 -InitialPlayerEnergy 1 -ForceShortSearchOnly -ShortSearchBudgetOverrideMilliseconds 1500 -VerifyIncrementalSearch -ExpectedInitialFirstActionCardId DEFEND_IRONCLAD -ExpectedInitialExecutableActionCountAtLeast 2 -StopAfterInitialSolverResultAssertion
+```
+
+首次 Clash 请求 `990db5f805574a8c8c050d44a0fa136a` 因同时要求卡牌 ID 与标题的测试参数被单独使用而失败；改为首动作与动作数断言后通过，行为源码未改。首次 Bash 语法检查使用了不存在的安装路径，定位本机 Git Bash 后通过。
+
+上述用例证明原版相关通道回归通过。第三方战略估值委托、形态药剂、预视弃牌和未登记第三方可打出条件的专属夹具，本轮未执行；PR 作者提供的观者结果仍为作者历史证据。未运行可见 Steam 联动或完整战斗回归。测试实例已停止。
+
 ## 2026-09-06：PR #43 集成
 
 `PR43-PRECOMBAT-API-INTEGRATION`，runId `d44c83b14da04695b79f218e5056d32d`，68.0秒 Passed：规范化恢复、独立 Mod 文件、设置令牌、取消、确定/假设预测、2次 worker 创建和3次复用、静音与主跑局不变。`PR43-EXIT-CLEANUP`，runId `b2d1e2d25beb47eeb976f8062657a4a3`，18.9秒 Passed，另查正常退出后 startup-mods 已清除。Seed Oracle main `29cee875` 对新 DLL 编译通过。详见 [审查记录](pr/pr43-review.md)；未执行可见 Steam 双 Mod 联动。作者原 0.29.x 测试数据保留为历史证据。
