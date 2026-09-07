@@ -1886,7 +1886,7 @@ internal sealed partial class SimulatedCombatState
             PowerModel power = effectivePowers[index];
             if (power.Amount == 0)
                 continue;
-            AddPower(power, ref powersFirst, ref powersSecond);
+            AddPower(power, simulator, ref powersFirst, ref powersSecond);
             powerCount++;
         }
         AddUnordered(ref fingerprint, 'P', powerCount, powersFirst, powersSecond);
@@ -1954,7 +1954,7 @@ internal sealed partial class SimulatedCombatState
         fingerprint.Add(OutstandingStolenResource(simulator));
     }
 
-    private static void AddPower(PowerModel power, ref ulong first, ref ulong second)
+    private static void AddPower(PowerModel power, CombatPredictionSimulator simulator, ref ulong first, ref ulong second)
     {
         StateFingerprintBuilder item = new();
         item.Add(power.Owner.CombatId ?? uint.MaxValue);
@@ -1965,6 +1965,8 @@ internal sealed partial class SimulatedCombatState
         item.Add(PowerLifecycleSupport.SemanticallyRelevantAmountOnTurnStart(power));
         if (power is RitualPower ritual)
             item.Add(ritual._wasJustAppliedByEnemy);
+        if (power is SurroundedPower surrounded)
+            item.Add((int)PowerPredictionStateSupport.SurroundedFacing(simulator, surrounded));
         ulong dynamicFirst = 0;
         ulong dynamicSecond = 0;
         int dynamicCount = 0;

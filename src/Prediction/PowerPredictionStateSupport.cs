@@ -9,6 +9,9 @@ namespace CombatSolver;
 
 internal static class PowerPredictionStateSupport
 {
+    public static SurroundedPower.Direction SurroundedFacing(CombatPredictionSimulator simulator, SurroundedPower power)
+        => simulator.StateStore.Peek(power, () => new SurroundedPredictionState(power)).Facing;
+
     public static void CaptureRootState(
         CombatPredictionSimulator simulator,
         PowerModel target,

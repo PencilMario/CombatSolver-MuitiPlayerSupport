@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "SURROUNDED-STATE-IDENTITY")
+            {
+                runner.SetStage("surrounded_state_identity");
+                AssertSurroundedStateIdentity(scenario.CombatState);
+                runner._completedChecks.Add("SurroundedStateIdentity");
+            }
             if (request.VerifyPredictionFailureBoundaries)
             {
                 runner.SetStage("prediction_failure_boundaries");

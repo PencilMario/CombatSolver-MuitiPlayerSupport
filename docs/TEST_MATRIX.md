@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 2026-09-07：汇总日志硬逻辑批次
+
+- 材料预检：`95e19fb8` 报告为 `materials_valid`。原生 `RestoreOnly` 请求 `4f52cb972f4447c5b87dcd4b1b3a9f2e` 因 `environment_mismatch:mods` 失败；本机与原报告 Mod 集合不同，保持严格拦截，未宣称原包恢复成功。
+- `SURROUNDED-STATE-IDENTITY` 基线 `bfa9cc597f6647929f193c9aac98f163` Failed：左右朝向产生相同指纹。修复后 `e25cc4a6d62841ed97bcc3b179e1361a` Passed：状态指纹与 continuation 区分朝向、Fork 修改不回写父分支、背击预测为 10/15。命令：`tools/run-unattended-test.ps1 -ScenarioId SURROUNDED-STATE-IDENTITY -HeadlessInstance logic0907 -EncounterId KAISER_CRAB_BOSS -CharacterId SILENT -StopAfterCombatRootSnapshotAssertion -TimeoutSeconds 120`。
+- `SURROUNDED-POTION-DIFFERENTIAL` Passed，`99ee091bfceb42509e49cc62b78c3d7d`：虚弱药水转向左侧的 actual/simulated 严格差分与明确朝向断言通过。命令：`tools/run-unattended-test.ps1 -ScenarioId SURROUNDED-POTION-DIFFERENTIAL -HeadlessInstance logic0907 -EncounterId KAISER_CRAB_BOSS -CharacterId SILENT -PotionCheckPath coverage/unattended/power-lifecycle-batch-051-surrounded-potion.json -TimeoutSeconds 120 -ExitOnComplete`。
+- Release 编译零警告/错误，Windows 结构门禁通过，默认构建同步本地 mods。该合同与单步差分不替代完整蟹皇战斗或整批报告验收。
+
 ## 0.32.0 定版
 
 行为源码沿用下列成长策略与点击外部保存的通过证据，本次仅同步版本和发布文档，不重复行为场景。PR #22 按维护者决定关闭，其强制收益逻辑与精进成长未纳入版本；PR #56 既有适配入口随本版发布。最终产物从版本提交执行 Release 构建并同步本地 mods，发布使用最小 ZIP；未执行完整发布门禁或可见 Steam 人工验收。
