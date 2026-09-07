@@ -31,7 +31,7 @@ test('collector privacy, login, deduplication, expiry and durable aggregate hist
     assert.equal((await post(c+'/v1/heartbeat',payload)).status,204);
     assert.equal((await post(c+'/v1/heartbeat',{...payload,hpLoss:7})).status,204);
     app.sample();const current=await overview();assert.equal(current.onlineCount,1);assert.equal((await playerPage()).players[0].hpLoss,7);assert.equal(current.history.at(-1).count,1);assert.ok(!('players' in current));
-    time+=TTL+1;app.sample();assert.equal((await playerPage()).players.length,0);assert.equal((await overview()).history.at(-1).count,0);
+    time+=TTL+1;app.sample();assert.equal((await playerPage()).players.length,0);assert.equal((await overview()).history.at(-1).count,0.5);
     assert.equal((await fetch(a+'/api/logout',{method:'POST',headers:{Cookie:cookie,Origin:a}})).status,204);
     assert.equal((await fetch(a+'/api/overview',{headers:{Cookie:cookie}})).status,401);
   }finally{collector.closeAllConnections();admin.closeAllConnections();await Promise.all([new Promise(r=>collector.close(r)),new Promise(r=>admin.close(r))]);app.close();}
@@ -42,7 +42,7 @@ test('collector privacy, login, deduplication, expiry and durable aggregate hist
     const login=await post(reopenedUrl+'/api/login',{password},{Origin:reopenedUrl});
     const cookie=login.headers.get('set-cookie').split(';')[0];
     const data=await fetch(reopenedUrl+'/api/overview',{headers:{Cookie:cookie}}).then(r=>r.json());
-    assert.equal(data.onlineCount,0);assert.equal(data.history[0].count,1);assert.equal(data.history.at(-1).count,0);
+    assert.equal(data.onlineCount,0);assert.equal(data.historyPeak,1);assert.equal(data.history[0].count,0.5);assert.equal(data.history[0].samples,2);
   } finally { reopened.closeAllConnections();await new Promise(r=>reopened.close(r));restored.close();rmSync(dir,{recursive:true}); }
 });
 test('heartbeat per-identity throttling',async()=>{

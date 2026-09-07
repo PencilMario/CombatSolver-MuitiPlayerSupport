@@ -2,6 +2,30 @@ const $ = id => document.getElementById(id);
 let chart, timer, searchTimer, overviewRequest, playersRequest;
 let currentPage = 1;
 let pageData;
+let resizeTimer;
+const verticalGuide = {
+  id: 'vertical-guide',
+  afterDatasetsDraw(chart) {
+    const active = chart.tooltip?.getActiveElements()[0];
+    if (!active || chart.data.datasets[active.datasetIndex].data[active.index].y === null) return;
+    const x = active.element.x;
+    const {top,bottom,left,right} = chart.chartArea;
+    if (x < left || x > right) return;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(left,top,right-left,bottom-top);
+    ctx.clip();
+    ctx.setLineDash([4,4]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = '#647d73';
+    ctx.beginPath();
+    ctx.moveTo(x,top);
+    ctx.lineTo(x,bottom);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
 
 function loggedOut() {
   clearTimeout(timer);
@@ -70,23 +94,32 @@ function renderOverview(data) {
   $('error').hidden = true;
   $('online').textContent = String(data.onlineCount);
   $('fighting').textContent = String(data.fightingCount);
-  $('peak').textContent = String(Math.max(data.onlineCount, ...data.history.map(p => p.count), 0));
+  $('peak').textContent = String(Math.max(data.onlineCount, data.historyPeak));
   $('updated').textContent = new Date(data.now).toLocaleTimeString('zh-CN');
   const points = [];
   let previous;
   for (const p of data.history) {
-    if (previous !== undefined && p.time - previous > 90000) points.push({x: previous + 60000, y: null});
-    points.push({x: p.time, y: p.count});
+    if (previous !== undefined && p.breakBefore) points.push({x: Math.floor((previous+p.time)/2), y: null});
+    points.push({x: p.time, y: p.count, start:p.start, end:p.end, samples:p.samples});
     previous = p.time;
   }
   $('history-empty').hidden = points.length > 0;
   if (!chart) {
     chart = new Chart($('chart'), {
       type: 'line',
-      data: {datasets: [{label: '在线人数', data: points, borderColor: '#237c62', backgroundColor: '#237c6218', fill: true, borderWidth: 2, pointRadius: points.length === 1 ? 3 : 0, pointHitRadius: 10, spanGaps: false, tension: 0}]},
+      plugins: [verticalGuide],
+      data: {datasets: [{label: '在线人数', data: points, borderColor: '#237c62', backgroundColor: '#237c6218', fill: true, borderWidth: 2, pointRadius: points.length === 1 ? 3 : 0, pointHitRadius: 10, spanGaps: false, cubicInterpolationMode:'monotone', tension:0.25}]},
       options: {
         animation: false, maintainAspectRatio: false, parsing: false,
-        plugins: {legend: {display: false}, tooltip: {callbacks: {title: items => new Date(items[0].parsed.x).toLocaleString('zh-CN')}}},
+        interaction: {mode:'index',axis:'x',intersect:false},
+        plugins: {legend: {display: false}, tooltip: {callbacks: {
+          title: items => {
+            const point = items[0].raw;
+            const start = new Date(point.start).toLocaleString('zh-CN');
+            return point.start === point.end ? start : `${start} 至 ${new Date(point.end).toLocaleString('zh-CN')}`;
+          },
+          label: item => `${item.raw.samples > 1 ? '平均在线' : '在线人数'}：${item.parsed.y.toLocaleString('zh-CN',{maximumFractionDigits:1})} 人`,
+        }}},
         scales: {
           x: {type: 'linear', min: data.now - Number($('range').value) * 3600000, max: data.now, grid: {display: false}, ticks: {maxTicksLimit: 7, callback: value => new Date(value).toLocaleString('zh-CN', {month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit'})}},
           y: {beginAtZero: true, suggestedMax: 5, ticks: {precision: 0}, grid: {color: '#e5eaed'}},
@@ -106,7 +139,9 @@ async function refreshOverview() {
   overviewRequest?.abort();
   const request = overviewRequest = new AbortController();
   try {
-    const data = await api(`/api/overview?hours=${$('range').value}`, {signal: request.signal});
+    const width = $('chart').parentElement.clientWidth || Math.max(240,window.innerWidth-64);
+    const maxPoints = Math.max(32,Math.min(240,Math.floor(width/6)));
+    const data = await api(`/api/overview?hours=${$('range').value}&maxPoints=${maxPoints}`, {signal: request.signal});
     if (!request.signal.aborted) renderOverview(data);
   } catch (error) {
     if (request.signal.aborted || $('dashboard').hidden) return;
@@ -160,6 +195,10 @@ $('logout').addEventListener('click', async () => {
   catch (error) { $('error').hidden = false; $('error').textContent = error.message; }
 });
 $('range').addEventListener('change', refreshOverview);
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  if (!$('dashboard').hidden) resizeTimer = setTimeout(refreshOverview,250);
+});
 $('search').addEventListener('input', () => {
   clearTimeout(searchTimer);
   playersRequest?.abort();

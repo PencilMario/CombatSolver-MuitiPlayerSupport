@@ -5,6 +5,7 @@ import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
+import { aggregateHistory } from './history.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
 export const TTL = 90_000;
@@ -132,8 +133,11 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
       if (req.method === 'GET' && url.pathname === '/api/overview') {
         expire();
         const hours = Number(url.searchParams.get('hours') || 24);
-        if (![1,24,168,720].includes(hours)) return send(res,400);
-        return send(res,200,{now:now(),ttl:TTL,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.encounter).length,history:historyRead.all(now()-hours*3600000)});
+        const maxPoints = Number(url.searchParams.get('maxPoints') ?? 240);
+        if (![1,24,168,720].includes(hours) || !Number.isInteger(maxPoints) || maxPoints < 32 || maxPoints > 240) return send(res,400);
+        const at = now();
+        const history = aggregateHistory(historyRead.all(at-hours*3600000),hours,maxPoints);
+        return send(res,200,{now:at,ttl:TTL,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.encounter).length,...history});
       }
       if (req.method === 'GET' && url.pathname === '/api/players') {
         expire();
