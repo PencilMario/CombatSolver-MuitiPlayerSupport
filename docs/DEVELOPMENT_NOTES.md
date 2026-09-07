@@ -6,7 +6,8 @@
 
 ## 下一版本（开发中）：不考虑局外收益开关
 
-- 成长策略侧栏顶部新增「不考虑局外收益」开关，默认关闭。打开后金币、永久升级这类只在战斗之外兑现的收益不再参与 Beam 打分：`LongTermResourceBeamValue` 那一项不计，逐来源成长额度按零算，`HasGrowthTargets` 视为无目标，于是「提前结束搜索的战损阈值」重新生效。最终选择仍是字典序、长期资源仍排在战损之后，所以白拿的收益照样拿。
+- 成长策略侧栏顶部新增「不考虑局外收益」开关，默认关闭。打开后金币、永久升级这类只在战斗之外兑现的收益不再参与搜索：状态快照在源头把 `LongTermResourceValue` 与 `GrowthRewards` 清零，`HasGrowthTargets` 视为无目标，于是「提前结束搜索的战损阈值」重新生效。
+- 清零放在快照源头而不是逐处判断：局外收益不止是一个分数项，它还是 `Retention.RankLongTermResource` 的独立保路泳道、`SearchRouteTraits.LongTermResource` 的必留泳道、Pareto 支配的一个维度和循环进展信号；已实现成长次数在 `FinalPlanOrdering` 里排在结束回合之前。只关分数项时上述每一条仍在替局外收益路线占位置，实机表现为开关打开后依然优先取金币。
 - 开关只存在 `SolverSettingsData.IgnoreLongTermRewards` 一处；玩家填的逐来源额度原样保留，折算集中在 `SearchPolicySnapshot.EffectiveGrowthBudgets` 与 `EffectiveHasGrowthTargets` 两个计算属性上，搜索层一律读这两个。问题包的有效策略同时记录原始额度和开关，便于区分「填了零」和「开了开关」。
 - 开关进路线缓存键；更新后立即保存、废弃旧续用与完整路线比较基线，自动计算开启时重算，与既有成长额度改动同一条通路。开关打开期间侧栏下方每一项额度置灰，表示填了不生效。旧设置文件与旧问题包缺该字段时按关闭还原。
 - 背景：`LongTermResourceBeamValue` 乘的是资源面值而非固定量，`hp=30000` 下 25 金币折约 20.8 HP、猎杀与同档永久成长折 25 HP、禁忌魔典折约 41.7 HP，且该项是同文件唯一没有上限的 Beam 项。本开关不改这个定价，只给玩家一个整体关掉的入口；定价本身另行提 issue。

@@ -96,13 +96,20 @@ internal sealed partial class UnattendedTestRunner
             "ignoring re-enables the early stop that growth targets had switched off");
         SolverResult ignored = await Task.Run(() => CombatSearchCoordinator.Solve(root, names, damage, ignoring, CancellationToken.None, null));
         Check(ignored.Snapshot.AllEnemiesDead && !ignored.Snapshot.PlayerDead, "the ignoring route still wins");
-        Check(ignored.Snapshot.GrowthHpCredit == 0, "ignoring earns no growth credit");
+        // 源头清零，不是下游各判一次：局外收益还有独立保路泳道、必留泳道、Pareto 维度和循环进展
+        // 信号，只关分数项的话它们都还在替这类路线占位置。免费夹具本来会拿到成长，快照仍须为零。
+        Check(ignored.Snapshot.LongTermResourceValue == 0
+            && ignored.Snapshot.GrowthRewards.Total == 0
+            && ignored.Snapshot.GrowthHpCredit == 0,
+            $"ignoring zeroes long-term resource and growth counts at the source: "
+                + $"resource={ignored.Snapshot.LongTermResourceValue} rewards={ignored.Snapshot.GrowthRewards} credit={ignored.Snapshot.GrowthHpCredit}");
         Check(ignored.ProjectedBattleHpLost <= baseline.ProjectedBattleHpLost,
             $"ignoring never pays more HP than the zero-budget baseline: {ignored.ProjectedBattleHpLost} vs {baseline.ProjectedBattleHpLost}");
         if (paidFixture)
         {
-            Check(ignored.Snapshot.GrowthRewards.GeneticAlgorithm == 0,
-                "ignoring rejects paid growth even with a full budget still in the policy");
+            Check(ignored.ProjectedBattleHpLost < growth.ProjectedBattleHpLost,
+                $"ignoring gives up the paid growth a full budget would have bought: "
+                    + $"{ignored.ProjectedBattleHpLost} vs {growth.ProjectedBattleHpLost}");
         }
 
         Entry.Logger.Info($"[CombatSolver/Test] GROWTH_POLICY_OK baseline_hp={baseline.ProjectedBattleHpLost} baseline_turn={baseline.CombatEndedTurn} growth_hp={growth.ProjectedBattleHpLost} growth_turn={growth.CombatEndedTurn} credit={growth.Snapshot.GrowthHpCredit}");

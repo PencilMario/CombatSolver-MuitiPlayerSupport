@@ -177,14 +177,20 @@ internal sealed partial class CombatBeamSolver
         int exhaustedTheHunts = playerState.ExhaustPile.Cards.Count(card => card.Preview is TheHunt);
         int rewardedTheHunts = Math.Max(0, combat.GetAmount<TheHuntPower>(_player.Creature));
         int missedTheHuntRewards = Math.Max(0, exhaustedTheHunts - rewardedTheHunts);
-        int realizedLongTermResourceValue = combat.LongTermResourceValue;
-        int longTermResourceValue = realizedLongTermResourceValue
-            - missedTheHuntRewards * CorePowerSupport.TheHuntLongTermResourceValue;
-        // 「不考虑局外收益」只关这一项。最终选择是字典序、长期资源排在血量之后，那个位置不动，
-        // 所以白拿的收益照样拿，只是不再在 Beam 里占分、也就不会把省血的路线挤掉。
-        if (!_ignoreLongTermRewards)
-            score += realizedLongTermResourceValue * SolverWeights.LongTermResourceBeamValue;
-        int growthHpCredit = _growthBudgets.Credit(combat.GrowthRewards);
+        // 「不考虑局外收益」在快照的源头把两个量清零，而不是在下游一处处判断。
+        // 局外收益不止是一个分数项：它还是一条独立的保路泳道（Retention.RankLongTermResource）、
+        // 一条必留泳道（BeamRetentionPolicy 的 SearchRouteTraits.LongTermResource）、Pareto 支配
+        // 的一个维度，以及循环进展的一个信号；已实现成长次数在终局排序里更是排在结束回合之前。
+        // 只关分数项的话，上面每一条都还在替局外收益的路线占位置。从源头清零之后，所有下游看到
+        // 的是同一个 0，各处一致，也不需要各自记得这个开关。
+        int realizedLongTermResourceValue = _ignoreLongTermRewards ? 0 : combat.LongTermResourceValue;
+        int longTermResourceValue = _ignoreLongTermRewards
+            ? 0
+            : realizedLongTermResourceValue
+                - missedTheHuntRewards * CorePowerSupport.TheHuntLongTermResourceValue;
+        GrowthValues growthRewards = _ignoreLongTermRewards ? default : combat.GrowthRewards;
+        score += realizedLongTermResourceValue * SolverWeights.LongTermResourceBeamValue;
+        int growthHpCredit = _growthBudgets.Credit(growthRewards);
         score += (double)growthHpCredit * hpWeight;
         int angerCopiesGenerated = combat.AngerCopiesGenerated;
         score += angerCopiesGenerated * SolverWeights.AngerCopyBeamPenalty;
@@ -466,7 +472,7 @@ internal sealed partial class CombatBeamSolver
             simulator.TerminalStamp)
         {
             GrowthHpCredit = growthHpCredit,
-            GrowthRewards = combat.GrowthRewards,
+            GrowthRewards = growthRewards,
         };
     }
 
