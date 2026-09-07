@@ -39,6 +39,13 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "DEATH-EFFECTS-ONCE")
+            {
+                runner.SetStage("death_effects_once");
+                await runner.AssertDeathEffectsOnceAsync(combatState, player);
+                runner._completedChecks.Add("DeathEffectsOnce");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "FEED-THORNS-TERMINAL-DIFFERENTIAL")
             {
                 runner.SetStage("feed_thorns_terminal_differential");

@@ -626,6 +626,13 @@ internal static class CorePowerSupport
             {
                 continue;
             }
+            // Orb and card callbacks may use different local sets for the same death.
+            // The branch death phase survives those call boundaries and resets on revival.
+            if (combat.HasCompletedDeathEffects(enemy))
+            {
+                processedDeaths.Add(combatId);
+                continue;
+            }
             bool steamEruptionTriggered = combat.TryTriggerSteamEruptionDeath(simulator, enemy);
             if (simulator.HasPendingChoice)
                 return false;

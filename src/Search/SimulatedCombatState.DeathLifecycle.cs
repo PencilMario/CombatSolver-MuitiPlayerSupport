@@ -130,6 +130,9 @@ internal sealed partial class SimulatedCombatState
             SetDeathPhase(creature, PredictedDeathPhase.PermanentlyDead);
     }
 
+    public bool HasCompletedDeathEffects(Creature creature)
+        => _deathPhases?.GetValueOrDefault(creature) is PredictedDeathPhase.Reviving or PredictedDeathPhase.PermanentlyDead;
+
     private bool CanReceivePredictedPowers(Creature creature)
     {
         PredictedDeathPhase phase = _deathPhases?.GetValueOrDefault(creature)

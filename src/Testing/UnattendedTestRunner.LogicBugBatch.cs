@@ -14,6 +14,38 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertDeathEffectsOnceAsync(CombatState combat, Player player)
+    {
+        Creature killed = combat.Enemies[0];
+        Creature survivor = combat.Enemies[1];
+        int reward = survivor.GetPower<RavenousPower>()!.Amount;
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatBeamSolver driver = new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
+            SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+        PlanAction action = new(PlanActionKind.PlayCard, player.PlayerCombatState!.TurnNumber,
+            CardId: "STRIKE_IRONCLAD", TargetCombatId: killed.CombatId);
+        SimulationSnapshot prediction = InvokeForcedTerminalReplay(driver, [action], null, 0, null);
+        try
+        {
+            CombatPredictionSimulator simulator = prediction.Simulator;
+            SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+            CorePowerSupport.ApplyEnemyDeathPowers(simulator, shadow, shadow.KnownEnemies, new HashSet<uint>());
+            if (shadow.GetAmount<StrengthPower>(survivor) != reward)
+                throw new InvalidOperationException($"Repeated death notification granted {shadow.GetAmount<StrengthPower>(survivor)} Strength, expected {reward}.");
+            CombatPredictionSimulator fork = simulator.Fork();
+            SimulatedCombatState forkState = (SimulatedCombatState)fork.State.CombatState;
+            CorePowerSupport.ApplyEnemyDeathPowers(fork, forkState, forkState.KnownEnemies, new HashSet<uint>());
+            if (forkState.GetAmount<StrengthPower>(survivor) != reward)
+                throw new InvalidOperationException("Fork lost completed death identity.");
+            MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, survivor);
+            if (!FindActualHandCard(player, "STRIKE_IRONCLAD", 0).TryManualPlay(killed))
+                throw new InvalidOperationException("Native Strike was not playable.");
+            await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+            AssertSnapshotEqual(expected, CaptureActual(combat, player, survivor), "DeathEffectsOnce", "NativeStrike");
+        }
+        finally { prediction.ReleaseSimulator(); }
+    }
+
     private async Task AssertFeedThornsTerminalAsync(CombatState combat, Player player)
     {
         Creature enemy = combat.Enemies[0];
