@@ -96,13 +96,12 @@ internal sealed partial class UnattendedTestRunner
             "ignoring re-enables the early stop that growth targets had switched off");
         SolverResult ignored = await Task.Run(() => CombatSearchCoordinator.Solve(root, names, damage, ignoring, CancellationToken.None, null));
         Check(ignored.Snapshot.AllEnemiesDead && !ignored.Snapshot.PlayerDead, "the ignoring route still wins");
-        // 源头清零，不是下游各判一次：局外收益还有独立保路泳道、必留泳道、Pareto 维度和循环进展
-        // 信号，只关分数项的话它们都还在替这类路线占位置。免费夹具本来会拿到成长，快照仍须为零。
-        Check(ignored.Snapshot.LongTermResourceValue == 0
-            && ignored.Snapshot.GrowthRewards.Total == 0
-            && ignored.Snapshot.GrowthHpCredit == 0,
-            $"ignoring zeroes long-term resource and growth counts at the source: "
-                + $"resource={ignored.Snapshot.LongTermResourceValue} rewards={ignored.Snapshot.GrowthRewards} credit={ignored.Snapshot.GrowthHpCredit}");
+        // 这是**偏好**开关，不是状态开关：快照仍然如实记录这条路线实际拿到了什么，只有打分和
+        // 最终挑选不再偏向局外收益。曾经试过在快照源头清零，搜索会卡死——那两个量同时还是保路
+        // 泳道、必留泳道和 Pareto 维度，全部并列为零之后 Beam 的分道结构塌掉，预算全烧在同一个
+        // 回合层里。所以这里只断言额度信用为零，不断言快照被清零。
+        Check(ignored.Snapshot.GrowthHpCredit == 0,
+            $"ignoring earns no growth credit: {ignored.Snapshot.GrowthHpCredit}");
         Check(ignored.ProjectedBattleHpLost <= baseline.ProjectedBattleHpLost,
             $"ignoring never pays more HP than the zero-budget baseline: {ignored.ProjectedBattleHpLost} vs {baseline.ProjectedBattleHpLost}");
         if (paidFixture)

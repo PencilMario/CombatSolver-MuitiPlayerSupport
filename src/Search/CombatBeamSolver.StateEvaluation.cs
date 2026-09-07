@@ -177,20 +177,20 @@ internal sealed partial class CombatBeamSolver
         int exhaustedTheHunts = playerState.ExhaustPile.Cards.Count(card => card.Preview is TheHunt);
         int rewardedTheHunts = Math.Max(0, combat.GetAmount<TheHuntPower>(_player.Creature));
         int missedTheHuntRewards = Math.Max(0, exhaustedTheHunts - rewardedTheHunts);
-        // 「不考虑局外收益」在快照的源头把两个量清零，而不是在下游一处处判断。
-        // 局外收益不止是一个分数项：它还是一条独立的保路泳道（Retention.RankLongTermResource）、
-        // 一条必留泳道（BeamRetentionPolicy 的 SearchRouteTraits.LongTermResource）、Pareto 支配
-        // 的一个维度，以及循环进展的一个信号；已实现成长次数在终局排序里更是排在结束回合之前。
-        // 只关分数项的话，上面每一条都还在替局外收益的路线占位置。从源头清零之后，所有下游看到
-        // 的是同一个 0，各处一致，也不需要各自记得这个开关。
-        int realizedLongTermResourceValue = _ignoreLongTermRewards ? 0 : combat.LongTermResourceValue;
-        int longTermResourceValue = _ignoreLongTermRewards
-            ? 0
-            : realizedLongTermResourceValue
-                - missedTheHuntRewards * CorePowerSupport.TheHuntLongTermResourceValue;
-        GrowthValues growthRewards = _ignoreLongTermRewards ? default : combat.GrowthRewards;
-        score += realizedLongTermResourceValue * SolverWeights.LongTermResourceBeamValue;
-        int growthHpCredit = _growthBudgets.Credit(growthRewards);
+        int realizedLongTermResourceValue = combat.LongTermResourceValue;
+        int longTermResourceValue = realizedLongTermResourceValue
+            - missedTheHuntRewards * CorePowerSupport.TheHuntLongTermResourceValue;
+        // 「不考虑局外收益」是**偏好**开关，不是状态开关：快照如实记录，只是打分和最终挑选不再
+        // 因为局外收益而偏向某条路线。
+        //
+        // 曾经试过在快照源头把这两个量清零，让下游一处都不用判断。那样做搜索会卡死：局外收益
+        // 同时还是 Retention.RankLongTermResource 的保路泳道、SearchRouteTraits.LongTermResource
+        // 的必留泳道和 Pareto 的一个维度，全部并列为零之后 Beam 的分道结构塌掉，预算全烧在同一
+        // 个回合层里出牌，推不到下一回合（实测 turn_layer 停在 2、play_depth 从 173 涨到 248，
+        // 而开关关掉时同样的展开数已经到 turn_layer=3）。所以**结构一律不动**，只动偏好。
+        if (!_ignoreLongTermRewards)
+            score += realizedLongTermResourceValue * SolverWeights.LongTermResourceBeamValue;
+        int growthHpCredit = _growthBudgets.Credit(combat.GrowthRewards);
         score += (double)growthHpCredit * hpWeight;
         int angerCopiesGenerated = combat.AngerCopiesGenerated;
         score += angerCopiesGenerated * SolverWeights.AngerCopyBeamPenalty;
@@ -472,7 +472,7 @@ internal sealed partial class CombatBeamSolver
             simulator.TerminalStamp)
         {
             GrowthHpCredit = growthHpCredit,
-            GrowthRewards = growthRewards,
+            GrowthRewards = combat.GrowthRewards,
         };
     }
 
