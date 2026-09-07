@@ -126,6 +126,20 @@ forbid_regex() {
     fi
 }
 
+for relative_path in \
+    src/Search/CombatBeamSolver.Expansion.cs \
+    src/Runtime/LiveEndTurnRiskEvaluator.cs \
+    src/Testing/UnattendedTestRunner.cs \
+    src/Testing/UnattendedTestRunner.Potions.cs; do
+    for reference in \
+        'CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects(' \
+        'TurnStartRelicSupport.TriggerAfterSideTurnEnd(' \
+        'EndTurnPowerSupport.TriggerLate('; do
+        forbid_fixed "$repository_root/$relative_path" "$reference" \
+            'player phase two must use PlayerTurnEndLifecycle'
+    done
+done
+
 mapfile -d '' -t search_files < <(
     find "$search_root" -type f -name '*.cs' -print0 | sort -z
 )

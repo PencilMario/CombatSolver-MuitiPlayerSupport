@@ -14,6 +14,23 @@ $forbiddenSearchReferences = @(
 )
 
 $violations = [System.Collections.Generic.List[string]]::new()
+$playerTurnEndCallers = @(
+    "src/Search/CombatBeamSolver.Expansion.cs",
+    "src/Runtime/LiveEndTurnRiskEvaluator.cs",
+    "src/Testing/UnattendedTestRunner.cs",
+    "src/Testing/UnattendedTestRunner.Potions.cs"
+)
+foreach ($relativePath in $playerTurnEndCallers) {
+    $callerPath = Join-Path $repositoryRoot $relativePath
+    foreach ($reference in @(
+        "CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects(",
+        "TurnStartRelicSupport.TriggerAfterSideTurnEnd(",
+        "EndTurnPowerSupport.TriggerLate(")) {
+        foreach ($match in Select-String -LiteralPath $callerPath -SimpleMatch $reference) {
+            $violations.Add("$($match.Path):$($match.LineNumber): player phase two must use PlayerTurnEndLifecycle")
+        }
+    }
+}
 $searchFiles = Get-ChildItem -LiteralPath $searchRoot -Filter *.cs -File -Recurse
 $beamFiles = Get-ChildItem -LiteralPath $searchRoot -Filter "CombatBeamSolver*.cs" -File
 $beamPaths = @($beamFiles.FullName)

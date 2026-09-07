@@ -970,7 +970,7 @@ internal sealed partial class UnattendedTestRunner
         }
         if (check.TriggerPlayerSideTurnEndBeforeMove)
         {
-            if (!CorePowerSupport.TriggerPlayerSideTurnEndEffects(
+            if (!PlayerTurnEndLifecycle.RunPhaseTwo(
                     simulator,
                     simulatedCombat,
                     [player.Creature]))
@@ -1048,7 +1048,7 @@ internal sealed partial class UnattendedTestRunner
             simulator.State.GetCreature(player.Creature).Block;
         if (check.TriggerPlayerSideTurnEndAfterMove)
         {
-            if (!CorePowerSupport.TriggerPlayerSideTurnEndEffects(
+            if (!PlayerTurnEndLifecycle.RunPhaseTwo(
                     simulator,
                     simulatedCombat,
                     [player.Creature]))
@@ -1205,15 +1205,7 @@ internal sealed partial class UnattendedTestRunner
                 combatState.Enemies,
                 new HashSet<uint>());
             CorePowerSupport.FlushPlayerHandAtTurnEnd(simulator, simulatedCombat, player);
-            if (!TurnStartRelicSupport.TriggerAfterSideTurnEnd(
-                    simulator,
-                    simulatedCombat,
-                    [player.Creature],
-                    etherealExhaustCount))
-            {
-                throw new InvalidOperationException("回合结束遗物测试遇到未提供的挂起选择。");
-            }
-            if (!CorePowerSupport.TriggerPlayerSideTurnEndEffects(
+            if (!PlayerTurnEndLifecycle.RunPhaseTwo(
                     simulator,
                     simulatedCombat,
                     [player.Creature],

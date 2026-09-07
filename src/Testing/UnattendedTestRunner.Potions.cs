@@ -140,7 +140,7 @@ internal sealed partial class UnattendedTestRunner
                             "药水回合结束测试遇到未提供的挂起选择。");
                     }
                 }
-                if (!CorePowerSupport.TriggerPlayerSideTurnEndEffects(
+                if (!PlayerTurnEndLifecycle.RunPhaseTwo(
                         simulator,
                         simulatedCombat,
                         [player.Creature]))

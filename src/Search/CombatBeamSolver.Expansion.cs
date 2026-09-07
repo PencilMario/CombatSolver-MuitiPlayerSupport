@@ -3258,24 +3258,17 @@ internal sealed partial class CombatBeamSolver
             using (_run.Performance.Measure(SearchMetricPhase.RoundFlush))
                 CorePowerSupport.FlushPlayerHandAtTurnEnd(simulator, simulatedCombat, _player);
             int turnEndShuffleEvents = simulator.ShuffleEventCount;
-            bool relicTurnEndCompleted = TurnStartRelicSupport.TriggerAfterSideTurnEnd(
-                simulator,
-                simulatedCombat,
-                [_player.Creature],
-                etherealExhaustCount);
-            shufflesCrossed += simulator.ShuffleEventCount - turnEndShuffleEvents;
-            if (!relicTurnEndCompleted)
-                return SearchBoundaryReason.PendingChoice;
-            bool playerTurnEndPowersCompleted;
+            bool playerTurnEndCompletedPhaseTwo;
             using (_run.Performance.Measure(SearchMetricPhase.RoundPlayerEndPowers))
             {
-                playerTurnEndPowersCompleted = CorePowerSupport.TriggerPlayerSideTurnEndEffects(
+                playerTurnEndCompletedPhaseTwo = PlayerTurnEndLifecycle.RunPhaseTwo(
                     simulator,
                     simulatedCombat,
                     [_player.Creature],
                     etherealExhaustCount);
             }
-            if (!playerTurnEndPowersCompleted)
+            shufflesCrossed += simulator.ShuffleEventCount - turnEndShuffleEvents;
+            if (!playerTurnEndCompletedPhaseTwo)
                 return SearchBoundaryReason.PendingChoice;
             if (!CorePowerSupport.ApplyEnemyDeathPowers(
                     simulator,

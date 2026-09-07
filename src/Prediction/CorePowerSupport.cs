@@ -477,7 +477,7 @@ internal static class CorePowerSupport
         return true;
     }
 
-    public static bool TriggerPlayerSideTurnEndEffects(
+    public static bool TriggerPlayerRegularSideTurnEndEffects(
         CombatPredictionSimulator simulator,
         SimulatedCombatState combat,
         IReadOnlyList<Creature> players,
@@ -513,9 +513,6 @@ internal static class CorePowerSupport
         if (simulator.HasPendingChoice)
             return false;
         TriggerTransientSideTurnEndPowers(simulator, combat, CombatSide.Player, players);
-        if (!EndTurnPowerSupport.TriggerLate(simulator, combat, players))
-            return false;
-        combat.NormalizeCardAfflictions(simulator);
         return true;
     }
 

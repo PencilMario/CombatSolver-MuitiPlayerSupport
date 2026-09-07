@@ -196,6 +196,8 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 这里可以保存具体领域规则，但不能决定 Beam 配额、最终路线或 UI 显示。新增补偿前检查 mirror、spec、support 和 `SimulatedCombatState` 的完整调用链，确保只有一个权威结算点。
 
+`PlayerTurnEndLifecycle.RunPhaseTwo` 拥有清空手牌后的玩家回合末补偿顺序：常规 Power、遗物、晚期 Power，最后规范化卡牌词条。Search、风险预估和无人差分共用此入口；每个阶段的挂起选择立即向上传播。`CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects` 仅承担常规 Power 阶段，晚期伤害在遗物之后结算。
+
 ## 6. UI
 
 `src/UI/SolverOverlaySnapshot.cs` 是结果或只读候选路线到显示数据的唯一转换边界。它在主线程复制状态、概览、详情、回合、动作标题、选牌文本、遗物标注、击杀、逐回合对敌伤害、tooltip 和视觉类别。

@@ -1044,11 +1044,13 @@ internal sealed partial class UnattendedTestRunner
         int exhaustThreshold = jossPaper.DynamicVars[JossPaper._exhaustAmountKey].IntValue;
         if (exhaustThreshold <= 0 || laterRelic.DynamicVars.Stars.IntValue <= 0)
             throw new InvalidOperationException("遗物挂起测试的规范动态数值无效。");
+        simulatedCombat.Apply<DisintegrationPower>(player.Creature, 1, player.Creature);
+        int hpBefore = simulator.State.GetCreature(player.Creature).CurrentHp;
 
         simulatedCombat.BeginActionChoices((IReadOnlyList<PlanCardChoice>?)null);
         try
         {
-            bool completed = TurnStartRelicSupport.TriggerAfterSideTurnEnd(
+            bool completed = PlayerTurnEndLifecycle.RunPhaseTwo(
                 simulator,
                 simulatedCombat,
                 [player.Creature],
@@ -1062,6 +1064,8 @@ internal sealed partial class UnattendedTestRunner
                 "回合结束遗物抽牌");
             if (playerState.Stars != starsBefore)
                 throw new InvalidOperationException("回合结束遗物挂起后仍执行了后续遗物。");
+            if (simulator.State.GetCreature(player.Creature).CurrentHp != hpBefore)
+                throw new InvalidOperationException("回合结束遗物挂起期间执行了晚期伤害。");
         }
         finally
         {
@@ -1117,7 +1121,7 @@ internal sealed partial class UnattendedTestRunner
         simulatedCombat.BeginActionChoices((IReadOnlyList<PlanCardChoice>?)null);
         try
         {
-            bool completed = CorePowerSupport.TriggerPlayerSideTurnEndEffects(
+            bool completed = PlayerTurnEndLifecycle.RunPhaseTwo(
                 simulator,
                 simulatedCombat,
                 [player.Creature],

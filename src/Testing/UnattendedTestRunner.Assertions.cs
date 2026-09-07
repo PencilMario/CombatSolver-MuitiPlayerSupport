@@ -18,6 +18,13 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "PLAYER-END-PHASE-TWO-PENDING")
+            {
+                runner.SetStage("player_end_phase_two_pending");
+                AssertAfterSideTurnEndRelicChoiceSuspends(scenario.CombatState, scenario.Player);
+                AssertEndTurnPowerChoiceSuspends(scenario.CombatState, scenario.Player);
+                runner._completedChecks.Add("PlayerEndPhaseTwoPending");
+            }
             if (request.ScenarioId == "BOUND-COUNTER-FORK")
             {
                 runner.SetStage("bound_counter_fork");
