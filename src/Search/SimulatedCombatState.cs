@@ -1891,6 +1891,18 @@ internal sealed partial class SimulatedCombatState
         }
         AddUnordered(ref fingerprint, 'P', powerCount, powersFirst, powersSecond);
 
+        fingerprint.Add("energy_reset_order");
+        int energyResetPowerCount = 0;
+        foreach (PowerModel power in effectivePowers)
+        {
+            if (!PersistentPowerSupport.ParticipatesInEnergyReset(power))
+                continue;
+            fingerprint.Add(power.Owner.CombatId ?? 0);
+            fingerprint.Add(power.Id.Entry);
+            energyResetPowerCount++;
+        }
+        fingerprint.Add(energyResetPowerCount);
+
         AddPlayerIntMap(ref fingerprint, 'D', _drawNextTurn);
         AddCreatureTypeSet(ref fingerprint, 'K', _skipNextDurationTick);
         AddCreatureSet(ref fingerprint, 'S', _skipNextMove);

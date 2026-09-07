@@ -14,6 +14,57 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertEnergyResetPowerOrderAsync(CombatState combat, Player player)
+    {
+        CombatRootSnapshot emptyRoot = CombatRootSnapshot.Capture(combat);
+        CombatPredictionSimulator left = emptyRoot.ForkSimulator();
+        CombatPredictionSimulator right = emptyRoot.ForkSimulator();
+        SimulatedCombatState leftState = (SimulatedCombatState)left.State.CombatState;
+        SimulatedCombatState rightState = (SimulatedCombatState)right.State.CombatState;
+        leftState.Apply<SpinnerPower>(player.Creature, 1);
+        leftState.Apply<LightningRodPower>(player.Creature, 1);
+        rightState.Apply<LightningRodPower>(player.Creature, 1);
+        rightState.Apply<SpinnerPower>(player.Creature, 1);
+        StateFingerprintBuilder leftKey = new();
+        StateFingerprintBuilder rightKey = new();
+        leftState.AppendFingerprint(ref leftKey, left);
+        rightState.AppendFingerprint(ref rightKey, right);
+        if (leftKey.Finish() == rightKey.Finish())
+            throw new InvalidOperationException("Energy-reset power order collides in the branch fingerprint.");
+        if (CaptureSimulated(left, leftState, player, combat.Enemies[0]).ExactContinuationState
+            == CaptureSimulated(right, rightState, player, combat.Enemies[0]).ExactContinuationState)
+            throw new InvalidOperationException("Energy-reset power order collides in continuation state.");
+        bool reverse = _request.ScenarioId.EndsWith("-REVERSE", StringComparison.Ordinal);
+        string[] powerIds = reverse
+            ? ["LIGHTNING_ROD_POWER", "SPINNER_POWER"]
+            : ["SPINNER_POWER", "LIGHTNING_ROD_POWER"];
+        foreach (string id in powerIds)
+            await InjectPowerAsync(combat, player, new UnattendedPowerInjection
+            {
+                PowerId = id, Target = "Player", Amount = 1
+            });
+        foreach (string id in new[] { "GENESIS_POWER", "STAR_NEXT_TURN_POWER", "RADIANCE_POWER" })
+            await InjectPowerAsync(combat, player, new UnattendedPowerInjection
+            {
+                PowerId = id, Target = "Player", Amount = 1
+            });
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatPredictionSimulator simulator = root.ForkSimulator();
+        CombatPredictionSimulator fork = simulator.Fork();
+        SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+        if (!PersistentPowerSupport.TriggerAfterEnergyReset(simulator, shadow, player))
+            throw new InvalidOperationException("Energy-reset fixture encountered a choice.");
+        MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, combat.Enemies[0]);
+        SimulatedCombatState forkState = (SimulatedCombatState)fork.State.CombatState;
+        if (!PersistentPowerSupport.TriggerAfterEnergyReset(fork, forkState, player))
+            throw new InvalidOperationException("Fork energy-reset fixture encountered a choice.");
+        AssertSnapshotEqual(expected, CaptureSimulated(fork, forkState, player, combat.Enemies[0]),
+            "EnergyResetPowerOrder", "Fork");
+        await MegaCrit.Sts2.Core.Hooks.Hook.AfterEnergyReset(combat, player);
+        await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+        AssertSnapshotEqual(expected, CaptureActual(combat, player, combat.Enemies[0]), "EnergyResetPowerOrder", "NativeHook");
+    }
+
     private async Task AssertReplayStartHistoryAsync(CombatState combat, Player player)
     {
         Creature enemy = combat.Enemies[0];

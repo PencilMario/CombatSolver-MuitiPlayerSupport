@@ -429,6 +429,12 @@ internal sealed record ContinuationStamp(string StateText)
                     : PowerPredictionStateSupport.SurroundedFacing(simulator, surrounded)).Append(',');
             text.Append("],");
         }
+        text.Append(";energy_reset_order=");
+        foreach (PowerModel power in powers)
+        {
+            if (PersistentPowerSupport.ParticipatesInEnergyReset(power))
+                text.Append(power.Owner.CombatId).Append(':').Append(power.Id.Entry).Append(',');
+        }
     }
 
     private static void AppendRng(
