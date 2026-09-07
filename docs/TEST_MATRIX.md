@@ -4,7 +4,15 @@
 
 PR #49 直接合同在本机 RitsuLib `0.5.19` 上通过全部 10 项：当前真实回调匹配、静态正负查询、live 旁路、动态晚创建、并发、可卸载程序集与模拟后恢复。100000 次缺失类型查询的合同测量为 `18400000 -> 0` 字节，仅表示该查询，不代表整场性能。Windows 结构门禁通过。
 
-本版本收录 PR #49–#55 和已定版 `0.31.2` 元数据。PR #50–#55 与战前 API 的既有证据见下方；本轮最终构建与药水回归结果另记。未执行完整发布门禁或可见 Steam 性能 A/B。
+本版本收录 PR #49–#55 和已定版 `0.31.2` 元数据。发布源提交 `d71ca2d` 的最终 Release 构建零警告/错误。PR #50–#55 与战前 API 的既有证据见下方；未执行完整发布门禁或可见 Steam 性能 A/B。
+
+- `PR49-FIRE-POTION-0313` Passed，runId `c5c6183f6d424fbd84596ab86e8bef74`：强制火焰药水，Short1500ms，增量回放；1 节点/2 转移，首动作使用目标药水，1 瓶、T1 敌 HP0、未镜像项0。首请求 `3e1a71fc7c24497594eeb81b165475b7` 因空 `CardId` 在建局时报错，改为零能量的防御牌后通过，行为源码未改。
+- `PR49-POTION-DIFF-0313` Passed，runId `41a2a580df544528b1585143e5829f3e`：复用同一 headless 进程，火焰药水对敌目标与结算严格差分，最后请求 `-ExitOnComplete` 退出。
+
+```powershell
+./tools/run-unattended-test.ps1 -ScenarioId PR49-FIRE-POTION-0313 -HeadlessInstance release0313 -CardId DEFEND_IRONCLAD -ClearPlayerPiles -InitialPlayerEnergy 0 -EnemyCurrentHp 20 -PotionId FIRE_POTION -PotionPolicyForTest RequireAtLeastOne -ForceShortSearchOnly -ShortSearchBudgetOverrideMilliseconds 1500 -VerifyIncrementalSearch -ExpectedInitialFirstActionPotionId FIRE_POTION -ExpectedInitialPotionCount 1 -ExpectedInitialFinalEnemyHpAtMost 0 -ExpectedInitialUnmirroredCount 0 -StopAfterInitialSolverResultAssertion -TimeoutSeconds 120
+./tools/run-unattended-test.ps1 -ScenarioId PR49-POTION-DIFF-0313 -HeadlessInstance release0313 -PotionCheckPath coverage/unattended/potion-batch-044-fire.json -TimeoutSeconds 120 -ExitOnComplete
+```
 
 ## 2026-09-07：PR #50–#55 合并验证
 
