@@ -1,5 +1,11 @@
 # CombatSolver 测试清单
 
+## 0.31.3 定版
+
+PR #49 直接合同在本机 RitsuLib `0.5.19` 上通过全部 10 项：当前真实回调匹配、静态正负查询、live 旁路、动态晚创建、并发、可卸载程序集与模拟后恢复。100000 次缺失类型查询的合同测量为 `18400000 -> 0` 字节，仅表示该查询，不代表整场性能。Windows 结构门禁通过。
+
+本版本收录 PR #49–#55 和已定版 `0.31.2` 元数据。PR #50–#55 与战前 API 的既有证据见下方；本轮最终构建与药水回归结果另记。未执行完整发布门禁或可见 Steam 性能 A/B。
+
 ## 2026-09-07：PR #50–#55 合并验证
 
 本轮验证六条 PR 合并后的行为源码。Release 编译零警告/错误，Windows 结构门禁、Git Bash `bash -n tools/run-unattended-test.sh`、CoverageCatalog `--verify-effective --verify-pre-play-choices --verify-combat-choices` 均通过。覆盖目录检查限原版目录，生成的时间戳变化未提交。

@@ -4,6 +4,8 @@ Combat Solver 是一个面向《杀戮尖塔 2》单人模式的战斗路线求�
 
 玩家可以只查看建议，也可以让求解器执行当前回合，或连续接管整场战斗。搜索不会修改游戏 RNG，也不会在后台操作真实战斗状态。
 
+当前版本为 **0.31.3**：合并社区 PR，开放战前预测 API，并补充第三方角色适配入口。详见 [更新日志](docs/0.31.3-RELEASE_NOTES.md)。
+
 ## 主要功能
 
 - **跨回合搜索**：继续预测抽牌、洗牌、敌人行动、持续状态和后续资源，而不是只计算眼前一回合。
@@ -25,7 +27,7 @@ Combat Solver 是一个面向《杀戮尖塔 2》单人模式的战斗路线求�
 
 这一设计把“预测”和“实机执行”分开：后台线程不能读取持续变化的实机值，模拟分支也不能修改真实战斗。
 
-## 战前预测 API（开发接口）
+## 战前预测 API（面向 Mod 开发者）
 
 该接口从 `0.31.2` 起提供，公开 API 版本为 v5。使用此接口的伴生 Mod 应将 CombatSolver 最低依赖设为 `0.31.2`。
 
@@ -52,12 +54,18 @@ if (PreCombatForecastApi.IsAvailable)
 
 当前 API 版本为 `5`，仅支持 Windows、单人跑局和未处于战斗中的状态。首次请求需要建立隔离游戏镜像并启动进程，适合由地图信息类 Mod 异步调用。相同状态与目标的确定请求会复用运行中任务或已完成结果；显式假设样本不进入确定结果缓存。`SetWorkerIdleTimeoutAsync()` 与请求选项中的 `WorkerIdleTimeoutMilliseconds` 控制当前及后续 worker 的空闲期限，`null` 表示不自动关闭。
 
+## 第三方角色适配
+
+`0.31.3` 合入 PR #50–#55，提供第三方 Power 战略估值、药水玩家选择与牌堆可选弃牌入口，并补充未镜像可打出条件的覆盖提示。使用这些入口的适配 Mod 应将 CombatSolver 最低依赖设为 `0.31.3`。
+
+各角色的具体战斗效果由适配层实现与验证。登记方式、分支状态要求和验证方法见 [第三方 Mod 适配手册](docs/THIRD_PARTY_ADAPTERS.md)。
+
 ## 安装与兼容性
 
 运行要求：
 
 - 《杀戮尖塔 2》`0.111.0`
-- [RitsuLib](https://steamcommunity.com/sharedfiles/filedetails/?id=3747602295) `0.5.13` 或更高版本
+- [RitsuLib](https://steamcommunity.com/sharedfiles/filedetails/?id=3747602295) `0.5.18` 或更高版本
 - 单人战斗模式
 
 推荐通过 Steam 创意工坊订阅。使用 GitHub Release 手动安装时，在游戏目录的 `mods/CombatSolver` 下放置以下文件：
@@ -65,6 +73,7 @@ if (PreCombatForecastApi.IsAvailable)
 ```text
 CombatSolver.dll
 CombatSolver.json
+CombatSolver.MemoryCleaner.exe
 THIRD_PARTY_NOTICES.md
 ```
 
