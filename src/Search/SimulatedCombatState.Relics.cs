@@ -64,6 +64,11 @@ internal sealed partial class SimulatedCombatState
                         player,
                         CardPilePosition.Random);
                     break;
+                case FuneraryMask when turn == 1:
+                    for (int index = 0; index < relic.DynamicVars.Cards.BaseValue; index++)
+                        simulator.CreateAndAddGeneratedCardsToCombat<Soul>(
+                            player, PileType.Draw, 1, player, CardPilePosition.Random);
+                    break;
                 case JeweledMask when turn <= 1:
                 {
                     SimPlayerCombatState playerState = simulator.State.GetPlayerCombatState(player);

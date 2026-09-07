@@ -22,6 +22,32 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertFuneraryMaskBeforeDrawAsync(CombatState combat, Player player)
+    {
+        await InjectRelicAsync(player, new UnattendedRelicInjection { RelicId = "FUNERARY_MASK" });
+        await ClearPlayerPilesAsync(player);
+        foreach (string cardId in new[] { "STRIKE_NECROBINDER", "DEFEND_NECROBINDER", "POKE", "BODYGUARD" })
+            await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = cardId, Pile = "Draw" });
+        Creature enemy = combat.Enemies[0];
+        for (int turn = 1; turn <= 2; turn++)
+        {
+            CombatPredictionSimulator simulator = CombatRootSnapshot.Capture(combat).ForkSimulator();
+            SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+            if (shadow.PrepareBeforeHandDraw(simulator, player, new TurnStartChoiceCursor(null)))
+                throw new InvalidOperationException("Funerary Mask unexpectedly requested a choice.");
+            MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, enemy);
+            CombatPredictionSimulator fork = simulator.Fork();
+            AssertSnapshotEqual(expected, CaptureSimulated(fork, (SimulatedCombatState)fork.State.CombatState, player, enemy),
+                "FuneraryMaskBeforeDraw", "Fork");
+            await MegaCrit.Sts2.Core.Hooks.Hook.BeforeHandDraw(combat, player, new BlockingPlayerChoiceContext());
+            AssertSnapshotEqual(expected, CaptureActual(combat, player, enemy), "FuneraryMaskBeforeDraw", "NativeHook");
+            if (simulator.State.GetPlayerCombatState(player).DrawPile.Cards.Count(card => card.Preview is Soul) != 3)
+                throw new InvalidOperationException("Funerary Mask did not generate exactly three Souls only on the first turn.");
+            if (turn == 1)
+                player.PlayerCombatState!.IncrementTurnNumber();
+        }
+    }
+
     private async Task AssertCardEnergyGainCommandAsync(CombatState combat, Player player)
     {
         Creature enemy = combat.Enemies[0];

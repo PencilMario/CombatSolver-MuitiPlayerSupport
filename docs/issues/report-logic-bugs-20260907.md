@@ -53,6 +53,13 @@
 
 ## 修复进度
 
+### FUNERARY_MASK：首回合随机插入灵魂遗漏
+
+- `cb0b0936` 携带筹码与 FUNERARY_MASK，已记录的选择是 CLUMSY、FOLLY、DEFY，没有狡猾牌，也没有重算覆盖交错。手牌首差异为预测 ENFEEBLING_TOUCH / 原生 SOUL；真实状态在初始 28 张牌之外多出 3 张灵魂。检查发现 `PrepareRelicsBeforeHandDraw` 缺少 FUNERARY_MASK，而原版在玩家第 1 回合的 BeforeHandDraw 逐张随机插入灵魂。
+- 最小原生 Hook 基线 `2cea9bef9f8d4b9198d1d3bf5859d694`：预测抽牌堆 4 张，实际 7 张，第一张实际为 SOUL。补齐既有遗物阶段中的生成操作，沿用逐张生成和随机插入 API，仅在 turn == 1 触发。
+- `f9fe9225531b4729930707d0688e344c` 完整原生状态、牌序、RNG 与 Fork 通过；用原生 IncrementTurnNumber 将玩家回合改成 2 后单独再次调用 Hook，确认不重复生成。这是两个回合条件的 Hook 对照，不是完整两回合推进。
+- `a7c54bdfd1e44721b30b184a0a8556b9` 验证真实开局同时持有筹码与面具：搜索、原生选择及准备阶段精确状态激活通过。未恢复原包完整跑局。
+
 ### 回合准备重算与接管竞态：固定执行计划的来源
 
 - `19033790` 的原生日志明确记录：手动重算 START 后，玩家 TAKEOVER，筹码 Selected 消费旧计划，随后重算 RESULT 发布，再发生手牌状态 MISMATCH。旧计划执行时，`active.Result` 被新结果替换，执行选牌与结束后的校验来源不同。该包还选中了狡猾连续反弹，因此不把所有差异单独归因到竞态。

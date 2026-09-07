@@ -39,6 +39,13 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "FUNERARY-MASK-BEFORE-DRAW")
+            {
+                runner.SetStage("funerary_mask_before_draw");
+                await runner.AssertFuneraryMaskBeforeDrawAsync(combatState, player);
+                runner._completedChecks.Add("FuneraryMaskBeforeDraw");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "CARD-ENERGY-GAIN-COMMAND")
             {
                 runner.SetStage("card_energy_gain_command");
