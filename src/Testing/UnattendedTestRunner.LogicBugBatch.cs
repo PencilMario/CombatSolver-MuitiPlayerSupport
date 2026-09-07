@@ -15,6 +15,50 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private void AssertTurnEndPowerOrderFork(CombatState combat, Player player)
+    {
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatPredictionSimulator left = root.ForkSimulator();
+        CombatPredictionSimulator right = root.ForkSimulator();
+        SimulatedCombatState leftState = (SimulatedCombatState)left.State.CombatState;
+        SimulatedCombatState rightState = (SimulatedCombatState)right.State.CombatState;
+        leftState.Apply<NoDrawPower>(player.Creature, 1);
+        leftState.Apply<DarkEmbracePower>(player.Creature, 1);
+        rightState.Apply<DarkEmbracePower>(player.Creature, 1);
+        rightState.Apply<NoDrawPower>(player.Creature, 1);
+        PowerLifecycleSupport.ResolvePowerAmountChanges(left, leftState);
+        PowerLifecycleSupport.ResolvePowerAmountChanges(right, rightState);
+        StateFingerprintBuilder leftKey = new();
+        StateFingerprintBuilder rightKey = new();
+        leftState.AppendFingerprint(ref leftKey, left);
+        rightState.AppendFingerprint(ref rightKey, right);
+        if (leftKey.Finish() == rightKey.Finish())
+            throw new InvalidOperationException("Turn-end power order collides in the branch fingerprint.");
+        Creature enemy = combat.Enemies[0];
+        MoveStateSnapshot parentBefore = CaptureSimulated(left, leftState, player, enemy);
+        if (parentBefore.ExactContinuationState
+            == CaptureSimulated(right, rightState, player, enemy).ExactContinuationState)
+            throw new InvalidOperationException("Turn-end power order collides in continuation state.");
+        CombatPredictionSimulator fork = left.Fork();
+        SimulatedCombatState forkState = (SimulatedCombatState)fork.State.CombatState;
+        StateFingerprintBuilder forkKey = new();
+        forkState.AppendFingerprint(ref forkKey, fork);
+        if (forkKey.Finish() != leftKey.Finish())
+            throw new InvalidOperationException("Fork changed the ordered power fingerprint.");
+        if (!PlayerTurnEndLifecycle.RunPhaseTwo(fork, forkState, [player.Creature], 1))
+            throw new InvalidOperationException("Turn-end order fixture encountered a choice.");
+        AssertSnapshotEqual(parentBefore, CaptureSimulated(left, leftState, player, enemy),
+            "TurnEndPowerOrder", "ParentAfterFork");
+        if (!PlayerTurnEndLifecycle.RunPhaseTwo(left, leftState, [player.Creature], 1)
+            || !PlayerTurnEndLifecycle.RunPhaseTwo(right, rightState, [player.Creature], 1))
+            throw new InvalidOperationException("Turn-end order fixture encountered a choice.");
+        AssertSnapshotEqual(CaptureSimulated(left, leftState, player, enemy),
+            CaptureSimulated(fork, forkState, player, enemy), "TurnEndPowerOrder", "ForkResult");
+        if (left.State.GetPlayerCombatState(player).Hand.Cards.Count != 1
+            || right.State.GetPlayerCombatState(player).Hand.Cards.Count != 0)
+            throw new InvalidOperationException("Power order must distinguish allowed and blocked end-turn draws.");
+    }
+
     private static void AssertBoundCounterFork(CombatState combat)
     {
         CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);

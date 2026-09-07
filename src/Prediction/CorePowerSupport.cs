@@ -770,7 +770,6 @@ internal static class CorePowerSupport
             Remove<BorrowedTimePower>(simulator, combat, creature);
             Remove<BurstPower>(simulator, combat, creature);
             Remove<DuplicationPower>(simulator, combat, creature);
-            Remove<NoDrawPower>(simulator, combat, creature);
             Remove<NoEnergyGainPower>(simulator, combat, creature);
             Remove<OneTwoPunchPower>(simulator, combat, creature);
             Remove<RagePower>(simulator, combat, creature);

@@ -1917,8 +1917,7 @@ internal sealed partial class SimulatedCombatState
         ref StateFingerprintBuilder fingerprint,
         CombatPredictionSimulator simulator)
     {
-        ulong powersFirst = 0;
-        ulong powersSecond = 0;
+        fingerprint.Add('P');
         int powerCount = 0;
         IReadOnlyList<PowerModel> effectivePowers = EffectivePowers();
         for (int index = 0; index < effectivePowers.Count; index++)
@@ -1926,23 +1925,13 @@ internal sealed partial class SimulatedCombatState
             PowerModel power = effectivePowers[index];
             if (power.Amount == 0)
                 continue;
-            AddPower(power, simulator, ref powersFirst, ref powersSecond);
+            StateFingerprint powerFingerprint = GetPowerFingerprint(power, simulator);
+            fingerprint.Add(powerFingerprint.First);
+            fingerprint.Add(powerFingerprint.Second);
             powerCount++;
         }
-        AddUnordered(ref fingerprint, 'P', powerCount, powersFirst, powersSecond);
+        fingerprint.Add(powerCount);
         AddCreatureTypeSet(ref fingerprint, 'r', _retiredRootPowerSlots);
-
-        fingerprint.Add("energy_reset_order");
-        int energyResetPowerCount = 0;
-        foreach (PowerModel power in effectivePowers)
-        {
-            if (!PersistentPowerSupport.ParticipatesInEnergyReset(power))
-                continue;
-            fingerprint.Add(power.Owner.CombatId ?? 0);
-            fingerprint.Add(power.Id.Entry);
-            energyResetPowerCount++;
-        }
-        fingerprint.Add(energyResetPowerCount);
 
         AddPlayerIntMap(ref fingerprint, 'D', _drawNextTurn);
         AddCreatureTypeSet(ref fingerprint, 'K', _skipNextDurationTick);
@@ -2007,7 +1996,7 @@ internal sealed partial class SimulatedCombatState
         fingerprint.Add(OutstandingStolenResource(simulator));
     }
 
-    private static void AddPower(PowerModel power, CombatPredictionSimulator simulator, ref ulong first, ref ulong second)
+    private static StateFingerprint GetPowerFingerprint(PowerModel power, CombatPredictionSimulator simulator)
     {
         StateFingerprintBuilder item = new();
         item.Add(power.Owner.CombatId ?? uint.MaxValue);
@@ -2041,9 +2030,7 @@ internal sealed partial class SimulatedCombatState
         item.Add(dynamicCount);
         item.Add(dynamicFirst);
         item.Add(dynamicSecond);
-        StateFingerprint value = item.Finish();
-        first += StateFingerprintBuilder.MixFirst(value.First);
-        second += StateFingerprintBuilder.MixSecond(value.Second);
+        return item.Finish();
     }
 
     private void AddFeralStates(

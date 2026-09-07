@@ -406,10 +406,7 @@ internal sealed record ContinuationStamp(string StateText)
     private static void AppendPowers(StringBuilder text, IEnumerable<PowerModel> powers, CombatPredictionSimulator? simulator = null)
     {
         text.Append(";P=");
-        foreach (PowerModel power in powers
-            .Where(power => power.Amount != 0)
-            .OrderBy(power => power.Owner.CombatId)
-            .ThenBy(power => power.Id.Entry, StringComparer.Ordinal))
+        foreach (PowerModel power in powers.Where(power => power.Amount != 0))
         {
             text.Append(power.Owner.CombatId).Append(':').Append(power.Id.Entry).Append('=')
                 .Append(power.Amount).Append('/')
@@ -428,12 +425,6 @@ internal sealed record ContinuationStamp(string StateText)
                 text.Append("Facing=").Append(simulator == null ? surrounded.Facing
                     : PowerPredictionStateSupport.SurroundedFacing(simulator, surrounded)).Append(',');
             text.Append("],");
-        }
-        text.Append(";energy_reset_order=");
-        foreach (PowerModel power in powers)
-        {
-            if (PersistentPowerSupport.ParticipatesInEnergyReset(power))
-                text.Append(power.Owner.CombatId).Append(':').Append(power.Id.Entry).Append(',');
         }
     }
 

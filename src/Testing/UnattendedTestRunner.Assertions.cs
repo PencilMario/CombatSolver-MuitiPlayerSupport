@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "TURN-END-POWER-ORDER-FORK")
+            {
+                runner.SetStage("turn_end_power_order_fork");
+                runner.AssertTurnEndPowerOrderFork(scenario.CombatState, scenario.Player);
+                runner._completedChecks.Add("TurnEndPowerOrderFork");
+            }
             if (request.ScenarioId == "PLAYER-END-PHASE-TWO-PENDING")
             {
                 runner.SetStage("player_end_phase_two_pending");
