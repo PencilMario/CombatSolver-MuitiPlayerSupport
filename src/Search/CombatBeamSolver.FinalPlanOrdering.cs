@@ -15,8 +15,7 @@ internal sealed partial class CombatBeamSolver
         int minimumPotionUses,
         SearchDiagnosticsSink diagnostics,
         bool detailedDiagnostics,
-        BattleDamageSnapshot battleDamage,
-        bool ignoreLongTermRewards)
+        BattleDamageSnapshot battleDamage)
     {
         /// <summary>
         /// The HP a potion must save to be worth spending, scaled by how much HP is worth in this fight. When HP
@@ -254,18 +253,15 @@ internal sealed partial class CombatBeamSolver
                         : 0)
                 // Compare HP after earned growth credit, then realized growth and duration.
                 .ThenBy(candidate => candidate.StrategicHpDeficit)
-                // 「不考虑局外收益」把这三个键中性化：候选照常保留（Beam 的分道结构一律不动），
-                // 只是最终挑选不再因为局外收益而偏向某条路线。已实现成长次数原本排在结束回合
-                // 之前，所以不把它一起中性化的话，开着开关仍然会为了多拿一次收益而晚一回合结束。
-                .ThenByDescending(candidate => ignoreLongTermRewards ? 0 : candidate.Snapshot.GrowthHpCredit)
-                .ThenByDescending(candidate => ignoreLongTermRewards ? 0 : candidate.Snapshot.GrowthRewards.Total)
+                .ThenByDescending(candidate => candidate.Snapshot.GrowthHpCredit)
+                .ThenByDescending(candidate => candidate.Snapshot.GrowthRewards.Total)
                 .ThenBy(candidate => candidate.CombatEndedTurn ?? int.MaxValue)
                 .ThenBy(candidate => theftPolicy == SolverTheftPolicy.PreserveResources
                     ? candidate.Features.OutstandingStolenResource
                     : 0)
                 .ThenBy(candidate => candidate.PolicyHpDeficit)
                 .ThenBy(candidate => candidate.HealthResourceCost)
-                .ThenByDescending(candidate => ignoreLongTermRewards ? 0 : candidate.Features.LongTermResourceValue)
+                .ThenByDescending(candidate => candidate.Features.LongTermResourceValue)
                 .ThenBy(candidate => candidate.Features.AngerCopiesGenerated)
                 .ThenBy(candidate => CombatBeamSolver.PolicyBoundaryRank(candidate.Features.BoundaryReason))
                 .ThenBy(candidate => candidate.OptionalPotionCount)

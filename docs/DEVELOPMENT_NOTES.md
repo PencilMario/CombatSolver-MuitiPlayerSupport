@@ -7,8 +7,8 @@
 ## 下一版本（开发中）：不考虑局外收益开关
 
 - 成长策略侧栏顶部新增「不考虑局外收益」开关，默认关闭。打开后金币、永久升级这类只在战斗之外兑现的收益不再参与搜索：状态快照在源头把 `LongTermResourceValue` 与 `GrowthRewards` 清零，`HasGrowthTargets` 视为无目标，于是「提前结束搜索的战损阈值」重新生效。
-- 这是**偏好**开关而不是状态开关：状态快照仍然如实记录 `LongTermResourceValue` 与 `GrowthRewards`，Beam 的保路泳道、必留泳道与 Pareto 维度一律不动；只有 Beam 的 `LongTermResourceBeamValue` 分数项和 `FinalPlanOrdering` 里的三个局外收益排序键（`GrowthHpCredit`、`GrowthRewards.Total`、`LongTermResourceValue`）按开关中性化。
-- 两条失败路径都记在这里，避免以后重走：只关分数项不够，`GrowthRewards.Total` 在 `FinalPlanOrdering` 里排在 `CombatEndedTurn` 之前，实机表现为开关打开后依然优先取金币；改成在快照源头清零则会卡死搜索——那两个量同时还是保路泳道、必留泳道和 Pareto 维度，全部并列为零之后分道结构塌掉，预算全烧在同一个回合层里（实测 `turn_layer` 停在 2、`play_depth` 从 173 涨到 248，而开关关闭时同样的展开数已经推进到 `turn_layer=3`）。
+- 打开时在状态快照源头把 `LongTermResourceValue` 与 `GrowthRewards` 清零，下游十几处读到同一个 0。不逐处判断是因为局外收益同时是分数项、终局排序键、`Retention.RankLongTermResource` 保路泳道、`SearchRouteTraits.LongTermResource` 必留泳道、Pareto 维度、循环进展信号和 `BeamRetentionPolicy.CompareFinalCandidates` 比较键；逐处列举先后漏过 `FinalPlanOrdering` 的 `GrowthRewards.Total`（排在 `CombatEndedTurn` 之前）和 `CompareFinalCandidates`，两次实机表现都是「开了开关还是拿钱」。源头清零按构造不会漏。
+- 源头清零早先试过一次会卡死搜索：分道结构一并塌掉后 Beam 名额被同一类候选占满，预算全烧在同一个回合层（`turn_layer` 停在 2、`play_depth` 173→248）。该失败模式现由「节点预算按回合层分配」兜住，单层不再能吃掉整份节点预算；塌掉分道只降低单层内部的多样性，不会拖住整场搜索。**本项因此依赖那一项，不可单独回合并。**
 - 开关只存在 `SolverSettingsData.IgnoreLongTermRewards` 一处；玩家填的逐来源额度原样保留，折算集中在 `SearchPolicySnapshot.EffectiveGrowthBudgets` 与 `EffectiveHasGrowthTargets` 两个计算属性上，搜索层一律读这两个。问题包的有效策略同时记录原始额度和开关，便于区分「填了零」和「开了开关」。
 - 开关进路线缓存键；更新后立即保存、废弃旧续用与完整路线比较基线，自动计算开启时重算，与既有成长额度改动同一条通路。开关打开期间侧栏下方每一项额度置灰，表示填了不生效。旧设置文件与旧问题包缺该字段时按关闭还原。
 - 背景：`LongTermResourceBeamValue` 乘的是资源面值而非固定量，`hp=30000` 下 25 金币折约 20.8 HP、猎杀与同档永久成长折 25 HP、禁忌魔典折约 41.7 HP，且该项是同文件唯一没有上限的 Beam 项。本开关不改这个定价，只给玩家一个整体关掉的入口；定价本身另行提 issue。
