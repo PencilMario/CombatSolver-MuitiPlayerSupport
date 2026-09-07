@@ -57,7 +57,7 @@ internal static partial class CardOnPlaySupport
                     null);
                 if (simulator.HasPendingChoice)
                     return;
-                simulator.State.GetPlayerCombatState(card.Owner).GainEnergy(card.DynamicVars.Energy.IntValue);
+                simulator.GainEnergy(card.Owner, card.DynamicVars.Energy.IntValue);
                 break;
             case Conqueror when target != null:
                 PersistentPowerSupport.Forge(simulator, card.Owner, card.DynamicVars.Forge.IntValue);

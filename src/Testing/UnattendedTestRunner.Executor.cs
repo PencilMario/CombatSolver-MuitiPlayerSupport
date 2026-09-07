@@ -39,12 +39,12 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
-            if (request.ScenarioId == "QUEEN-INFERNO-MINION-DEATH")
+            if (request.ScenarioId is "QUEEN-INFERNO-MINION-DEATH" or "QUEEN-INFERNO-TERMINAL")
             {
                 runner.SetStage("queen_inferno_minion_death");
                 await runner.AssertQueenInfernoMinionDeathAsync(combatState, player);
                 runner._completedChecks.Add("QueenInfernoMinionDeath");
-                return Observation(combatEnded: false);
+                return Observation(combatEnded: !CombatManager.Instance.IsInProgress);
             }
             if (request.ScenarioId == "GAMBLING-CHIP-SLY-ORDER")
             {

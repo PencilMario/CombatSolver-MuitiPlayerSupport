@@ -15,6 +15,8 @@ using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Cards;
 using MegaCrit.Sts2.Core.GameActions.Multiplayer;
+using System.Reflection;
+using HarmonyLib;
 
 namespace CombatSolver;
 
@@ -24,7 +26,9 @@ internal sealed partial class UnattendedTestRunner
     {
         Creature minion = combat.Enemies.Single(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.TorchHeadAmalgam);
         Creature queen = combat.Enemies.Single(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.Queen);
-        await CreatureCmd.SetCurrentHp(queen, queen.MaxHp);
+        bool terminal = _request.ScenarioId == "QUEEN-INFERNO-TERMINAL";
+        if (!terminal)
+            await CreatureCmd.SetCurrentHp(queen, queen.MaxHp);
         ConfigureMonsterMove(queen, new UnattendedMonsterMoveCheck
         {
             MoveId = "BURN_BRIGHT_FOR_ME_MOVE"
@@ -39,6 +43,45 @@ internal sealed partial class UnattendedTestRunner
         AssertSnapshotEqual(expected,
             CaptureSimulated(fork, (SimulatedCombatState)fork.State.CombatState, player, minion),
             "QueenInfernoMinionDeath", "Fork");
+        if (terminal)
+        {
+            MethodInfo endCombat = typeof(CombatManager).GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
+                .Single(method => method.Name == "EndCombatInternal"
+                    && method.GetParameters() is [{ ParameterType.Name: "CombatTurnState" }]);
+            PropertyInfo stateProperty = endCombat.GetParameters()[0].ParameterType.GetProperty("State")
+                ?? throw new MissingMemberException("CombatTurnState.State");
+            MethodInfo prefix = typeof(UnattendedTestRunner).GetMethod(
+                nameof(ObserveMercuryCombatEndPrefix), BindingFlags.Static | BindingFlags.NonPublic)
+                ?? throw new MissingMethodException(nameof(ObserveMercuryCombatEndPrefix));
+            if (_mercuryTerminalObservation != null)
+                throw new InvalidOperationException("Queen terminal observation is already active.");
+            Harmony patch = new("CombatSolver.Testing.QueenInfernoTerminal." + _request.RunId);
+            MercuryTerminalObservation observation = new(this, combat, player, minion, stateProperty, "QueenInfernoTerminal");
+            _mercuryTerminalObservation = observation;
+            try
+            {
+                CombatManager.Instance.CombatEnded += observation.ObserveCombatEnded;
+                patch.Patch(endCombat, prefix: new HarmonyMethod(prefix));
+                if (!FindActualHandCard(player, "BLOODLETTING", 0).TryManualPlay(null))
+                    throw new InvalidOperationException("Native Bloodletting was not playable.");
+                await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+                while (observation.Snapshot == null || !observation.CombatEnded || CombatManager.Instance.IsInProgress)
+                {
+                    EnsureWithinDeadline();
+                    observation.Failure?.Throw();
+                    await NextFrameAsync();
+                }
+                observation.Failure?.Throw();
+                AssertSnapshotEqual(expected, observation.Snapshot, "QueenInfernoTerminal", "NativePreTeardown");
+            }
+            finally
+            {
+                patch.Unpatch(endCombat, prefix);
+                CombatManager.Instance.CombatEnded -= observation.ObserveCombatEnded;
+                _mercuryTerminalObservation = null;
+            }
+            return;
+        }
         if (!FindActualHandCard(player, "BLOODLETTING", 0).TryManualPlay(null))
             throw new InvalidOperationException("Native Bloodletting was not playable.");
         await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
