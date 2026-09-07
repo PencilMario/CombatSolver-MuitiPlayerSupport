@@ -70,6 +70,7 @@ internal sealed partial class SimulatedCombatState
             _simulatedPlayerGold = _simulatedPlayerGold?.Fork(),
             _liveCardsAtSnapshot = _liveCardsAtSnapshot?.Fork(),
             _swordSageCardsInitialized = _swordSageCardsInitialized,
+            _lastNormalizedVitalSparkAmount = _lastNormalizedVitalSparkAmount,
             _skillsPlayedThisTurn = _skillsPlayedThisTurn?.Fork(),
             _potionSlots = _potionSlots?.Fork(),
             _potionUses = _potionUses?.Fork(),
