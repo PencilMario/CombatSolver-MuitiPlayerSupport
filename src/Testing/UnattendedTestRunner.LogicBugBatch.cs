@@ -14,11 +14,39 @@ using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Cards;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 
 namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertGamblingChipSlyOrderAsync(CombatState combat, Player player)
+    {
+        Creature enemy = combat.Enemies[0];
+        CardModel nativeCard = FindActualHandCard(player, "RICOCHET", 0);
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatPredictionSimulator parent = root.ForkSimulator();
+        CombatPredictionSimulator fork = parent.Fork();
+        MoveStateSnapshot? expected = null;
+        foreach (CombatPredictionSimulator simulator in new[] { parent, fork })
+        {
+            SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+            TurnStartChoiceCursor choices = TurnStartChoiceCursor.ForAutomaticPolicy(request =>
+                CardChoiceSupport.BuildRequestedChoice(request.Spec!, ["RICOCHET"]));
+            if (!TurnStartChoiceSupport.ResolveDiscardAndDraw(
+                    simulator, shadow, player, choices, "GAMBLING_CHIP"))
+                throw new InvalidOperationException("Gambling Chip fixture encountered a choice.");
+            MoveStateSnapshot result = CaptureSimulated(simulator, shadow, player, enemy);
+            if (expected != null)
+                AssertSnapshotEqual(expected, result, "GamblingChipSlyOrder", "Fork");
+            expected = result;
+        }
+        await CardCmd.DiscardAndDraw(new BlockingPlayerChoiceContext(), [nativeCard], 1);
+        await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+        AssertSnapshotEqual(expected!, CaptureActual(combat, player, enemy),
+            "GamblingChipSlyOrder", "NativeDiscardAndDraw");
+    }
+
     private async Task AssertGalvanicGeneratedPowerAsync(CombatState combat, Player player)
     {
         Creature enemy = combat.Enemies[0];

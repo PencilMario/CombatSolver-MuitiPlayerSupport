@@ -39,6 +39,13 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "GAMBLING-CHIP-SLY-ORDER")
+            {
+                runner.SetStage("gambling_chip_sly_order");
+                await runner.AssertGamblingChipSlyOrderAsync(combatState, player);
+                runner._completedChecks.Add("GamblingChipSlyOrder");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "GALVANIC-GENERATED-POWER")
             {
                 runner.SetStage("galvanic_generated_power");

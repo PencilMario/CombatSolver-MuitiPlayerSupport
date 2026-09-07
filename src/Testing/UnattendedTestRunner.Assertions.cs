@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "DISCARD-DRAW-SLY-PENDING")
+            {
+                runner.SetStage("discard_draw_sly_pending");
+                AssertPotionDiscardAndDrawStopsAtNestedPending(scenario.CombatState, scenario.Player);
+                runner._completedChecks.Add("DiscardDrawSlyPending");
+            }
             if (request.ScenarioId == "TURN-END-POWER-ORDER-FORK")
             {
                 runner.SetStage("turn_end_power_order_fork");
