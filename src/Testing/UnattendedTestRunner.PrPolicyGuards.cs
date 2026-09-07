@@ -10,6 +10,35 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private static void AssertKnownGameplayModBoundary()
+    {
+        ModManifest manifest = new() { id = "WheelchairSpire", name = "WheelchairSpire", affectsGameplay = false };
+        Mod byId = new() { path = "unattended-incompatible-mod", manifest = manifest };
+        Mod byAssembly = new()
+        {
+            path = "unattended-incompatible-assembly",
+            manifest = new ModManifest { id = "renamed-mod", name = "Renamed Mod", affectsGameplay = true },
+        };
+        byAssembly.assemblies.Add(System.Reflection.Emit.AssemblyBuilder.DefineDynamicAssembly(
+            new System.Reflection.AssemblyName("WheelchairSpire"),
+            System.Reflection.Emit.AssemblyBuilderAccess.RunAndCollect));
+        foreach (Mod mod in new[] { byId, byAssembly })
+        {
+            try
+            {
+                PredictionModPatchAudit.ValidateLoadedMods([mod]);
+                throw new InvalidOperationException("Known incompatible gameplay mod was admitted.");
+            }
+            catch (IncompatibleGameplayModException exception)
+            {
+                if (exception.ModId != mod.manifest!.id
+                    || !exception.Subject.Contains("WheelchairSpire", StringComparison.Ordinal))
+                    throw new InvalidOperationException("Incompatible mod rejection lost source context.");
+            }
+        }
+        PredictionModPatchAudit.ValidateLoadedMods([]);
+    }
+
     private static class ForeignCardPatch
     {
         public static bool Prefix() => false;

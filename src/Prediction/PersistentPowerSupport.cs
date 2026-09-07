@@ -116,6 +116,10 @@ internal static class PersistentPowerSupport
             _ => 0m,
         };
 
+    public static bool ParticipatesInEnergyReset(PowerModel power)
+        => power.Amount > 0 && power is GenesisPower or LightningRodPower or RadiancePower
+            or SpinnerPower or StarNextTurnPower;
+
     public static bool TriggerAfterEnergyReset(
         CombatPredictionSimulator simulator,
         SimulatedCombatState combat,
@@ -124,46 +128,39 @@ internal static class PersistentPowerSupport
         Creature owner = player.Creature;
         SimPlayerCombatState state = simulator.State.GetPlayerCombatState(player);
 
-        int genesis = combat.GetAmount<GenesisPower>(owner);
-        if (genesis > 0)
+        // Channel order affects the queue and the effects evoked when it is full.
+        foreach (PowerModel power in combat.EffectivePowers())
         {
-            simulator.GainStars(player, genesis);
+            if (power.Owner != owner || !ParticipatesInEnergyReset(power))
+                continue;
+            switch (power)
+            {
+                case GenesisPower:
+                    simulator.GainStars(player, power.Amount);
+                    break;
+                case LightningRodPower:
+                    simulator.OrbChannel<LightningOrb>(player);
+                    if (simulator.HasPendingChoice)
+                        return false;
+                    combat.SetAmount<LightningRodPower>(owner, power.Amount - 1);
+                    break;
+                case RadiancePower:
+                    if (combat.GetAmount<NoEnergyGainPower>(owner) <= 0)
+                        state.GainEnergy(power.DynamicVars.Energy.IntValue);
+                    combat.SetAmount<RadiancePower>(owner, power.Amount - 1);
+                    break;
+                case SpinnerPower:
+                    simulator.OrbChannel<GlassOrb>(player, power.Amount);
+                    break;
+                case StarNextTurnPower:
+                    simulator.GainStars(player, power.Amount);
+                    if (simulator.HasPendingChoice)
+                        return false;
+                    combat.SetAmount<StarNextTurnPower>(owner, 0);
+                    break;
+            }
             if (simulator.HasPendingChoice)
                 return false;
-        }
-
-        int lightningRod = combat.GetAmount<LightningRodPower>(owner);
-        if (lightningRod > 0)
-        {
-            simulator.OrbChannel<LightningOrb>(player);
-            if (simulator.HasPendingChoice)
-                return false;
-            combat.SetAmount<LightningRodPower>(owner, lightningRod - 1);
-        }
-
-        RadiancePower? radiance = combat.GetPower<RadiancePower>(owner);
-        if (radiance is { Amount: > 0 })
-        {
-            if (combat.GetAmount<NoEnergyGainPower>(owner) <= 0)
-                state.GainEnergy(radiance.DynamicVars.Energy.IntValue);
-            combat.SetAmount<RadiancePower>(owner, radiance.Amount - 1);
-        }
-
-        int spinner = combat.GetAmount<SpinnerPower>(owner);
-        if (spinner > 0)
-        {
-            simulator.OrbChannel<GlassOrb>(player, spinner);
-            if (simulator.HasPendingChoice)
-                return false;
-        }
-
-        int starsNextTurn = combat.GetAmount<StarNextTurnPower>(owner);
-        if (starsNextTurn > 0)
-        {
-            simulator.GainStars(player, starsNextTurn);
-            if (simulator.HasPendingChoice)
-                return false;
-            combat.SetAmount<StarNextTurnPower>(owner, 0);
         }
         return !simulator.HasPendingChoice;
     }

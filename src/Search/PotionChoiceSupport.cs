@@ -118,10 +118,7 @@ internal static class PotionChoiceSupport
                 }
                 break;
             case PlanChoiceEffect.DiscardAndDraw:
-                simulator.Discard(selected);
-                if (simulator.HasPendingChoice)
-                    return false;
-                simulator.Draw(potion.Owner, selected.Count);
+                simulator.DiscardAndDraw(selected, selected.Count);
                 break;
             case PlanChoiceEffect.MoveToHandFreeThisTurn:
                 foreach (PredictedCard card in selected)

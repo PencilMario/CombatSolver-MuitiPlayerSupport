@@ -179,15 +179,15 @@ internal sealed partial class SimulatedCombatState
 
     void ICombatPredictionCardExecutionSink.RecordCardPlayStarted(PredictedCard card, CardPlay cardPlay)
     {
-        if (!cardPlay.IsFirstInSeries)
-            return;
         Creature owner = card.Preview.Owner.Creature;
-        (_cardPlaysStartedThisTurn ??= [])[owner] = GetCardPlaysStartedThisTurn(owner) + 1;
         if (card.Preview.Type == CardType.Attack && cardPlay.Resources.EnergyValue == 0)
         {
             (_zeroCostAttackStartsThisTurn ??= [])[owner] =
                 GetZeroCostAttackStartsThisTurn(owner) + 1;
         }
+        if (!cardPlay.IsFirstInSeries)
+            return;
+        (_cardPlaySeriesStartedThisTurn ??= [])[owner] = GetCardPlaySeriesStartedThisTurn(owner) + 1;
         if (!cardPlay.IsAutoPlay)
         {
             (_manualCardsPlayedThisTurn ??= [])[owner] = GetManualCardsPlayedThisTurn(owner) + 1;
@@ -547,14 +547,15 @@ internal sealed partial class SimulatedCombatState
         return value;
     }
 
-    public int GetCardPlaysStartedThisTurn(Creature owner)
+    public int GetCardPlaySeriesStartedThisTurn(Creature owner)
     {
-        if (_cardPlaysStartedThisTurn?.TryGetValue(owner, out int value) == true)
+        if (_cardPlaySeriesStartedThisTurn?.TryGetValue(owner, out int value) == true)
             return value;
         value = _rootHistory.CardPlaysStarted.Count(entry =>
             entry.HappenedThisTurn(this)
+            && entry.CardPlay.IsFirstInSeries
             && entry.CardPlay.Player.Creature == owner);
-        (_cardPlaysStartedThisTurn ??= [])[owner] = value;
+        (_cardPlaySeriesStartedThisTurn ??= [])[owner] = value;
         return value;
     }
 

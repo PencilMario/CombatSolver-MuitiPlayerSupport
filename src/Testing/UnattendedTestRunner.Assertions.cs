@@ -18,6 +18,55 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "KNOWN-GAMEPLAY-MOD-BOUNDARY")
+            {
+                runner.SetStage("known_gameplay_mod_boundary");
+                AssertKnownGameplayModBoundary();
+                runner._completedChecks.Add("KnownGameplayModBoundary");
+            }
+            if (request.ScenarioId == "CYCLE-EXIT-REVOKED-PARENT")
+            {
+                runner.SetStage("cycle_exit_revoked_parent");
+                CombatBeamSolver.VerifyCycleExitAdmissionMaterializationPolicyForTesting();
+                runner._completedChecks.Add("CycleExitRevokedParent");
+            }
+            if (request.ScenarioId == "NARROW-ORDERED-PILE-CAPACITY")
+            {
+                runner.SetStage("narrow_ordered_pile_capacity");
+                AssertNarrowOrderedPileCapacity(scenario.CombatState, scenario.Player);
+                runner._completedChecks.Add("NarrowOrderedPileCapacity");
+            }
+            if (request.ScenarioId == "DISCARD-DRAW-SLY-PENDING")
+            {
+                runner.SetStage("discard_draw_sly_pending");
+                AssertPotionDiscardAndDrawStopsAtNestedPending(scenario.CombatState, scenario.Player);
+                runner._completedChecks.Add("DiscardDrawSlyPending");
+            }
+            if (request.ScenarioId == "TURN-END-POWER-ORDER-FORK")
+            {
+                runner.SetStage("turn_end_power_order_fork");
+                runner.AssertTurnEndPowerOrderFork(scenario.CombatState, scenario.Player);
+                runner._completedChecks.Add("TurnEndPowerOrderFork");
+            }
+            if (request.ScenarioId == "PLAYER-END-PHASE-TWO-PENDING")
+            {
+                runner.SetStage("player_end_phase_two_pending");
+                AssertAfterSideTurnEndRelicChoiceSuspends(scenario.CombatState, scenario.Player);
+                AssertEndTurnPowerChoiceSuspends(scenario.CombatState, scenario.Player);
+                runner._completedChecks.Add("PlayerEndPhaseTwoPending");
+            }
+            if (request.ScenarioId == "BOUND-COUNTER-FORK")
+            {
+                runner.SetStage("bound_counter_fork");
+                AssertBoundCounterFork(scenario.CombatState);
+                runner._completedChecks.Add("BoundCounterFork");
+            }
+            if (request.ScenarioId == "SURROUNDED-STATE-IDENTITY")
+            {
+                runner.SetStage("surrounded_state_identity");
+                AssertSurroundedStateIdentity(scenario.CombatState);
+                runner._completedChecks.Add("SurroundedStateIdentity");
+            }
             if (request.VerifyPredictionFailureBoundaries)
             {
                 runner.SetStage("prediction_failure_boundaries");

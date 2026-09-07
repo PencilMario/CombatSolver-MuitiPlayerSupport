@@ -16,11 +16,13 @@ namespace CombatSolver;
 internal sealed partial class UnattendedTestRunner
 {
     private const string ForcedTurnTerminalScenarioId = "forced-turn-terminal-v0111";
+    private const string PotionForcedTurnTerminalScenarioId = "potion-forced-turn-terminal-v0111";
 
     // Explicit one-card replay and native manual play: no Solve, added EndTurn action,
     // or direct AdvanceRound call can substitute for the card's forced-end request.
     private async Task<int> RunForcedTurnTerminalDifferentialAsync(CombatState combat, Player player)
     {
+        bool fromPotion = _request.ScenarioId.Equals(PotionForcedTurnTerminalScenarioId, StringComparison.OrdinalIgnoreCase);
         if (combat.Players.Count != 1 || player.Osty != null
             || player.PlayerCombatState?.OrbQueue.Orbs.Count > 0
             || player.PlayerCombatState?.Phase != PlayerTurnPhase.Play
@@ -41,10 +43,11 @@ internal sealed partial class UnattendedTestRunner
         await SetBlockAsync(enemy, 0);
         await CreatureCmd.SetCurrentHp(enemy, 1);
         SetEnergy(player, 3);
-        await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = "VOID_FORM", Pile = "Hand" });
+        await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = "VOID_FORM", Pile = fromPotion ? "Draw" : "Hand" });
+        PotionModel? potion = fromPotion ? InjectPotionForTest(player, "DISTILLED_CHAOS") : null;
         await InjectRelicAsync(player, new UnattendedRelicInjection { RelicId = "MERCURY_HOURGLASS" });
         await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
-        CardModel actualCard = FindActualHandCard(player, "VOID_FORM", 0);
+        CardModel actualCard = player.PlayerCombatState!.AllCards.Single();
         if (actualCard is not VoidForm || player.PlayerCombatState!.AllCards.Count() != 1
             || !enemy.IsAlive || enemy.CurrentHp != 1)
             throw new InvalidOperationException("强制结束夹具没有建立唯一虚空形态与存活的 1 HP 目标。");
@@ -55,7 +58,10 @@ internal sealed partial class UnattendedTestRunner
             BattleDamageTracker.Observe(combat),
             SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat,
                 includeTurnSetup: false, theftPolicy: null));
-        PlanAction action = new(PlanActionKind.PlayCard, actionTurn, CardId: "VOID_FORM");
+        PlanAction action = potion == null
+            ? new(PlanActionKind.PlayCard, actionTurn, CardId: "VOID_FORM")
+            : new(PlanActionKind.UsePotion, actionTurn, PotionId: potion.Id.Entry,
+                PotionSlot: player.GetPotionSlotIndex(potion), TargetCombatId: player.Creature.CombatId);
         ActionRelicTriggerRecorder triggers = new();
         MoveStateSnapshot initial = CaptureActual(combat, player, enemy);
         List<(string Name, MoveStateSnapshot State)> predictions = [];
@@ -84,7 +90,7 @@ internal sealed partial class UnattendedTestRunner
                 {
                     CombatPredictionSimulator simulator = snapshot.Simulator;
                     SimulatedCombatState state = (SimulatedCombatState)simulator.State.CombatState;
-                    if (action.Kind != PlanActionKind.PlayCard || action.Turn != actionTurn
+                    if (action.Kind != (fromPotion ? PlanActionKind.UsePotion : PlanActionKind.PlayCard) || action.Turn != actionTurn
                         || action.EndsPlayerTurn || snapshot.Turn != actionTurn + 1
                         || state.GetPlayerTurnNumber(player) != actionTurn + 1
                         || state.PlayerTurnEndRequested || simulator.IsInProgress
@@ -147,7 +153,9 @@ internal sealed partial class UnattendedTestRunner
         {
             CombatManager.Instance.CombatEnded += observation.ObserveCombatEnded;
             patch.Patch(endCombat, prefix: new HarmonyMethod(prefix));
-            if (!actualCard.TryManualPlay(null))
+            if (potion != null)
+                potion.EnqueueManualUse(player.Creature);
+            else if (!actualCard.TryManualPlay(null))
                 throw new InvalidOperationException("原版拒绝手动打出唯一的虚空形态。");
             await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
             while (observation.Snapshot == null || !observation.CombatEnded || CombatManager.Instance.IsInProgress)
@@ -166,7 +174,7 @@ internal sealed partial class UnattendedTestRunner
                 AssertSnapshotEqual(predicted, actual, "ForcedTurnTerminal", name);
                 _completedChecks.Add("ForcedTurnTerminal:NativePreTeardown:" + name);
             }
-            _completedChecks.Add("ForcedTurnTerminal:NativeVoidFormOnly:ActionTurnT:VictoryTurnTPlusOne");
+            _completedChecks.Add($"ForcedTurnTerminal:{(fromPotion ? "NativeDistilledChaos" : "NativeVoidFormOnly")}:ActionTurnT:VictoryTurnTPlusOne");
             return observation.Turn;
         }
         finally

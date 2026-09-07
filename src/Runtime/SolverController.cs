@@ -152,6 +152,7 @@ internal static class SolverController
             : "solver_only";
     internal static int? LastSolverDeployedTurnForBugReport => _combat.LastSolverDeployedTurn;
     internal static SolverResult? LastCompletedResultForTesting { get; private set; }
+    internal static bool HasActiveSearchSessionForTesting => _search != null;
     internal static SolverResult? LastTurnSetupResultForTesting { get; private set; }
     internal static Exception? LastSearchFailureForTesting { get; private set; }
     internal static bool LastFullAutoStoppedForWorseRecalculationForTesting { get; private set; }
@@ -898,6 +899,18 @@ internal static class SolverController
             SolverOverlay.ShowSearchStopped(host);
             return;
         }
+        // Queue completion includes post-action victory checks; a paused choice also keeps
+        // its action completion pending even when the queue temporarily has no ready work.
+        ActionExecutor actionExecutor = RunManager.Instance.ActionExecutor;
+        Task nativeActionBarrier = actionExecutor.CurrentlyRunningAction is { } runningAction
+            ? Task.WhenAll(actionExecutor.FinishedExecutingActions(), runningAction.CompletionTask)
+            : actionExecutor.FinishedExecutingActions();
+        if (!nativeActionBarrier.IsCompleted)
+        {
+            DeferSearchUntilRootCaptureBarrier(host, state, reason, deployWhenReady, nativeActionBarrier);
+            return;
+        }
+        nativeActionBarrier.GetAwaiter().GetResult();
         ReplanCause replanCause = reason switch
         {
             SearchReason.AutoTurnStart => ReplanCause.InitialSearch,

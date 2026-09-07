@@ -5,6 +5,7 @@ using MegaCrit.Sts2.Core.Models.Orbs;
 using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.ValueProps;
 using CombatSolver.Engine.InCombat.Mirrors.Hooks.Card;
+using CombatSolver.Engine.InCombat.Mirrors.Hooks;
 using CombatSolver.Engine.InCombat.Simulation;
 
 namespace CombatSolver;
@@ -109,6 +110,10 @@ internal static partial class EndTurnPowerSupport
                         combat.SetPowerAmount(power, power.Amount - 1);
                     else
                         combat.MarkBattlewornDummyTimedOut();
+                    break;
+                case NoDrawPower when ownerParticipates:
+                    simulator.StateStore.GetPowerAmount(power).Consume();
+                    combat.SetPowerAmount(power, 0);
                     break;
                 case DarkEmbracePower when ownerParticipates
                                                  && etherealExhaustCount > 0

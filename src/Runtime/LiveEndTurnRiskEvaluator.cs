@@ -96,15 +96,7 @@ internal static class LiveEndTurnRiskEvaluator
             return BuildProjection(hpBefore, simulatedPlayer, []);
         }
         CorePowerSupport.FlushPlayerHandAtTurnEnd(simulator, combat, player);
-        if (!TurnStartRelicSupport.TriggerAfterSideTurnEnd(
-                simulator,
-                combat,
-                [player.Creature],
-                etherealExhaustCount))
-        {
-            return BuildProjection(hpBefore, simulatedPlayer, []);
-        }
-        if (!CorePowerSupport.TriggerPlayerSideTurnEndEffects(
+        if (!PlayerTurnEndLifecycle.RunPhaseTwo(
                 simulator,
                 combat,
                 [player.Creature],

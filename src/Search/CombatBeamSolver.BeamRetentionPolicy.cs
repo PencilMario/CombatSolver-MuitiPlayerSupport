@@ -3007,12 +3007,12 @@ internal sealed partial class CombatBeamSolver
                     AddRequired(required, FindBestTurnBoundaryHand(potionGroup), effectiveLimit);
                 }
             }
-            int orderedPileQuota = orderedPileCohorts.Count == 0
+            int orderedPileQuota = Math.Min(effectiveLimit, orderedPileCohorts.Count == 0
                 ? 0
                 : endTurnFrontier
                     || ranked.Any(node => node.Traits.HasFlag(SearchRouteTraits.EndTurnDeckCompression))
                     ? Math.Max(8, limit * 2 / 3)
-                    : limit + 1;
+                    : limit + 1);
             int orderedPileRounds = orderedPileCohorts.Count == 0
                 ? 0
                 : orderedPileCohorts.Max(cohort => cohort.PrefixVariants.Count);
@@ -7412,6 +7412,24 @@ internal sealed partial class CombatBeamSolver
                 SolverWeights.RetainedAttackGrowthBeamCap,
                 Math.Max(0, snapshot.RetainedAttackValue - _run.InitialRetainedAttackValue));
 
+    }
+
+    internal void VerifyNarrowOrderedPileCapacityForTesting(IReadOnlyList<SimulationSnapshot> snapshots)
+    {
+        List<SearchNode> nodes = snapshots.Select(snapshot => new SearchNode(
+            new PlanAction(PlanActionKind.EndTurn, snapshot.Turn - 1), 5,
+            snapshot.PotionUseCount, snapshot.PotionStrategicCost, snapshot.Turn,
+            SearchRouteTraits.None, 0, snapshot.Score, snapshot.StateKey,
+            snapshot.HasRisk, snapshot.BoundaryReason, false, null,
+            snapshot, CombatProgressState.Capture(snapshot))).ToList();
+        List<SearchNode> narrow = Retention.RankBest(nodes, 6, preserveDefensiveRoute: true);
+        if (narrow.Count is < 6 or > 7
+            || narrow.Distinct(ReferenceEqualityComparer.Instance).Count() != narrow.Count
+            || narrow.Any(node => !nodes.Contains(node)))
+            throw new InvalidOperationException("Narrow ordered-pile retention exceeded its capacity or lost candidate identity.");
+        List<SearchNode> full = Retention.RankBest(nodes, nodes.Count, preserveDefensiveRoute: true);
+        if (full.Count != nodes.Count)
+            throw new InvalidOperationException("An unsaturated retention channel lost candidates.");
     }
 
     internal static void VerifyRoutingChoicePortfolioBoundsForTesting()

@@ -1642,7 +1642,7 @@ internal sealed partial class CombatBeamSolver
             nonDominated,
             deferredCycleCandidates,
             batch);
-        if (parent.CycleProbeLease != null)
+        if (NeedsCycleExitAdmission(parent, nonDominated, batch.Potions, batch.EndTurns))
         {
             SearchNode[] directChildren = nonDominated.Select(candidate => candidate.Node)
                 .Concat(batch.Potions)

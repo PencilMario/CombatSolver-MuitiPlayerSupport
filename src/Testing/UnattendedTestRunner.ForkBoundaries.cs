@@ -193,6 +193,7 @@ internal sealed partial class UnattendedTestRunner
         AssertAmountOnTurnStartCacheReuse(combat, player);
         AssertPowerListenerCacheTransitionsAndForkIsolation(combat, player);
         AssertSparsePowerAfflictionCardTracking(combat, player, card);
+        AssertVitalSparkKeepsStackedTaintedAmount(combat, player);
         AssertProjectedShuffleEquivalence(simulator, player);
         AssertSpawnHpUsesSimulatedCreatureState(combat);
         AssertPendingSpawnCanEnterIllusionRevive(combat);
@@ -1044,11 +1045,13 @@ internal sealed partial class UnattendedTestRunner
         int exhaustThreshold = jossPaper.DynamicVars[JossPaper._exhaustAmountKey].IntValue;
         if (exhaustThreshold <= 0 || laterRelic.DynamicVars.Stars.IntValue <= 0)
             throw new InvalidOperationException("遗物挂起测试的规范动态数值无效。");
+        simulatedCombat.Apply<DisintegrationPower>(player.Creature, 1, player.Creature);
+        int hpBefore = simulator.State.GetCreature(player.Creature).CurrentHp;
 
         simulatedCombat.BeginActionChoices((IReadOnlyList<PlanCardChoice>?)null);
         try
         {
-            bool completed = TurnStartRelicSupport.TriggerAfterSideTurnEnd(
+            bool completed = PlayerTurnEndLifecycle.RunPhaseTwo(
                 simulator,
                 simulatedCombat,
                 [player.Creature],
@@ -1062,6 +1065,8 @@ internal sealed partial class UnattendedTestRunner
                 "回合结束遗物抽牌");
             if (playerState.Stars != starsBefore)
                 throw new InvalidOperationException("回合结束遗物挂起后仍执行了后续遗物。");
+            if (simulator.State.GetCreature(player.Creature).CurrentHp != hpBefore)
+                throw new InvalidOperationException("回合结束遗物挂起期间执行了晚期伤害。");
         }
         finally
         {
@@ -1117,7 +1122,7 @@ internal sealed partial class UnattendedTestRunner
         simulatedCombat.BeginActionChoices((IReadOnlyList<PlanCardChoice>?)null);
         try
         {
-            bool completed = CorePowerSupport.TriggerPlayerSideTurnEndEffects(
+            bool completed = PlayerTurnEndLifecycle.RunPhaseTwo(
                 simulator,
                 simulatedCombat,
                 [player.Creature],
@@ -2504,6 +2509,61 @@ internal sealed partial class UnattendedTestRunner
         parentCombat.NormalizePowerCardState(parentSimulator);
         if (parentKnown.Count != 2 || !parentKnown.Contains(secondGeneratedCard))
             throw new InvalidOperationException("Power affliction 没有区分两个独立生成牌 wrapper。");
+    }
+
+    /// <summary>
+    /// 归一化不得把叠高了的污染层数拍平成当前的生命火花数量；只有火花数量真的变了才同步。
+    /// </summary>
+    /// <remarks>
+    /// 原版的生命火花有两个施加入口，只有 <c>AfterCardEnteredCombat</c> 判空，
+    /// <c>BeforeCombatStart</c> 不判；而 <c>CardCmd.Afflict</c> 遇到同类污染是
+    /// <c>Amount += amount</c>。所以战斗开始前就进场的技能牌会被施加两次，层数是火花数量的
+    /// 两倍。实机问题包（INFESTED_PRISMS_ELITE，火花恒为 2）里，战斗开始生成的三张牌是
+    /// <c>TAINTED:4</c>，牌组里原有的技能牌是 <c>TAINTED:2</c>。
+    ///
+    /// 层数不影响结算，但它进续接戳，所以拍平的后果是每一回合的续接都作废、玩家每回合被强制
+    /// 重算。这条用例的反向对照在最后一段：火花数量真的变化时，同步必须照样发生，否则就是把
+    /// 一个错换成另一个错。
+    /// </remarks>
+    private static void AssertVitalSparkKeepsStackedTaintedAmount(CombatState combat, Player player)
+    {
+        SimulatedCombatState simulatedCombat = new(combat);
+        CombatPredictionSimulator simulator = new(simulatedCombat);
+        Creature enemy = simulatedCombat.HittableEnemies.FirstOrDefault()
+            ?? throw new InvalidOperationException("生命火花污染层数测试要求至少有一名敌人。");
+        PredictedCard skill = simulator.State.GetPlayerCombatState(player).AllCards
+            .FirstOrDefault(candidate =>
+                candidate.Preview.Type == CardType.Skill && candidate.Preview.Affliction == null)
+            ?? throw new InvalidOperationException("生命火花污染层数测试要求一张未受污染的技能牌。");
+
+        ((ICombatPredictionEffectSink)simulatedCombat).ApplyPower(
+            typeof(VitalSparkPower), enemy, 2, applier: null);
+        // 先跑一次记基线，这一次不该动任何层数。
+        simulatedCombat.NormalizePowerCardState(simulator);
+
+        if (simulator.Afflict<Tainted>(skill, 2) == null)
+            throw new InvalidOperationException("生命火花污染层数测试无法给技能牌施加污染。");
+        simulator.Afflict<Tainted>(skill, 2);
+        if (skill.Preview.Affliction is not Tainted { Amount: 4 })
+            throw new InvalidOperationException("污染没有按原版那样叠加。");
+
+        simulatedCombat.NormalizePowerCardState(simulator);
+        if (skill.Preview.Affliction is not Tainted { Amount: 4 })
+        {
+            throw new InvalidOperationException(
+                "归一化把叠高的污染层数拍平成了生命火花数量，续接戳会与实机不符。");
+        }
+
+        VitalSparkPower spark = simulatedCombat.EffectivePowers()
+            .OfType<VitalSparkPower>()
+            .Single(power => ReferenceEquals(power.Owner, enemy));
+        simulatedCombat.SetPowerAmount(spark, 3);
+        simulatedCombat.NormalizePowerCardState(simulator);
+        if (skill.Preview.Affliction is not Tainted { Amount: 3 })
+        {
+            throw new InvalidOperationException(
+                "生命火花数量变化后归一化没有把污染层数同步成新的数量。");
+        }
     }
 
     private static HashSet<PredictedCard>? GetPowerAfflictionKnownCards(

@@ -288,10 +288,7 @@ internal static class TurnStartChoiceSupport
             maxCount: options.Count);
         if (selected.Count > 0)
         {
-            simulator.Discard(selected);
-            if (combat.HasPendingChoice)
-                return false;
-            simulator.Draw(player, selected.Count);
+            simulator.DiscardAndDraw(selected, selected.Count);
             if (combat.HasPendingChoice)
                 return false;
         }

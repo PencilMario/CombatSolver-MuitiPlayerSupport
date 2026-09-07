@@ -477,7 +477,7 @@ internal static class CorePowerSupport
         return true;
     }
 
-    public static bool TriggerPlayerSideTurnEndEffects(
+    public static bool TriggerPlayerRegularSideTurnEndEffects(
         CombatPredictionSimulator simulator,
         SimulatedCombatState combat,
         IReadOnlyList<Creature> players,
@@ -513,9 +513,6 @@ internal static class CorePowerSupport
         if (simulator.HasPendingChoice)
             return false;
         TriggerTransientSideTurnEndPowers(simulator, combat, CombatSide.Player, players);
-        if (!EndTurnPowerSupport.TriggerLate(simulator, combat, players))
-            return false;
-        combat.NormalizeCardAfflictions(simulator);
         return true;
     }
 
@@ -624,6 +621,13 @@ internal static class CorePowerSupport
                 || processedDeaths.Contains(combatId)
                 || simulator.State.GetCreature(enemy).IsAlive)
             {
+                continue;
+            }
+            // Orb and card callbacks may use different local sets for the same death.
+            // The branch death phase survives those call boundaries and resets on revival.
+            if (combat.HasCompletedDeathEffects(enemy))
+            {
+                processedDeaths.Add(combatId);
                 continue;
             }
             bool steamEruptionTriggered = combat.TryTriggerSteamEruptionDeath(simulator, enemy);
@@ -766,7 +770,6 @@ internal static class CorePowerSupport
             Remove<BorrowedTimePower>(simulator, combat, creature);
             Remove<BurstPower>(simulator, combat, creature);
             Remove<DuplicationPower>(simulator, combat, creature);
-            Remove<NoDrawPower>(simulator, combat, creature);
             Remove<NoEnergyGainPower>(simulator, combat, creature);
             Remove<OneTwoPunchPower>(simulator, combat, creature);
             Remove<RagePower>(simulator, combat, creature);

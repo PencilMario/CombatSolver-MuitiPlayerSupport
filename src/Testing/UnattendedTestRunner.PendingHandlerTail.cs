@@ -163,8 +163,6 @@ internal sealed partial class UnattendedTestRunner
         PlanCardChoice choice = CardChoiceSupport.BuildRequestedChoice(
             PotionChoiceSupport.GetSpec(simulator, potion),
             [sly.Preview.Id.Entry, discarded.Preview.Id.Entry]);
-        PredictedCard[] drawPileBefore = playerState.DrawPile.Cards.ToArray();
-
         simulatedCombat.BeginActionChoices((IReadOnlyList<PlanCardChoice>?)null);
         try
         {
@@ -177,8 +175,8 @@ internal sealed partial class UnattendedTestRunner
                 sly.Preview.Id.Entry,
                 PlanChoiceEffect.GenerateToHand,
                 "丢弃重抽药水");
-            if (!playerState.DrawPile.Cards.SequenceEqual(drawPileBefore))
-                throw new InvalidOperationException("丢弃重抽药水在内层选择挂起后仍执行了后续抽牌。");
+            if (!playerState.Hand.Cards.Contains(drawSentinel))
+                throw new InvalidOperationException("丢弃重抽药水应先抽牌，再进入狡猾自动牌的挂起选择。");
         }
         finally
         {

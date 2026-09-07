@@ -18,6 +18,7 @@ internal sealed partial class SimulatedCombatState
             _escapedCreatures.Fork())
         {
             _drawNextTurn = _drawNextTurn?.Fork(),
+            _retiredRootPowerSlots = _retiredRootPowerSlots?.Fork(),
             _skipNextDurationTick = _skipNextDurationTick?.Fork(),
             _skipNextMove = _skipNextMove?.Fork(),
             _pressureGunBonus = _pressureGunBonus?.Fork(),
@@ -43,7 +44,7 @@ internal sealed partial class SimulatedCombatState
             _starsGainedThisTurn = _starsGainedThisTurn?.Fork(),
             _nonHandDrawsThisTurn = _nonHandDrawsThisTurn?.Fork(),
             _statusCardsDrawnThisTurn = _statusCardsDrawnThisTurn?.Fork(),
-            _cardPlaysStartedThisTurn = _cardPlaysStartedThisTurn?.Fork(),
+            _cardPlaySeriesStartedThisTurn = _cardPlaySeriesStartedThisTurn?.Fork(),
             _zeroCostAttackStartsThisTurn = _zeroCostAttackStartsThisTurn?.Fork(),
             _enemiesIntendingAttack = _enemiesIntendingAttack?.Fork(),
             _hasPredictedEnemyIntents = _hasPredictedEnemyIntents,
@@ -69,6 +70,7 @@ internal sealed partial class SimulatedCombatState
             _simulatedPlayerGold = _simulatedPlayerGold?.Fork(),
             _liveCardsAtSnapshot = _liveCardsAtSnapshot?.Fork(),
             _swordSageCardsInitialized = _swordSageCardsInitialized,
+            _lastNormalizedVitalSparkAmount = _lastNormalizedVitalSparkAmount,
             _skillsPlayedThisTurn = _skillsPlayedThisTurn?.Fork(),
             _potionSlots = _potionSlots?.Fork(),
             _potionUses = _potionUses?.Fork(),

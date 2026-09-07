@@ -17,18 +17,32 @@ internal sealed class CounterPredictionState(int value) : IPredictionStateForkab
     public object Fork(PredictionForkContext context) => MemberwiseClone();
 }
 
-internal sealed class ChainsOfBindingPredictionState(ChainsOfBindingPower power) : IPredictionStateForkable
+internal sealed class ChainsOfBindingPredictionState : IPredictionStateForkable
 {
-    public bool BoundCardPlayed { get; set; } =
-        power.GetInternalData<ChainsOfBindingPower.Data>().boundCardPlayed;
+    public bool BoundCardPlayed { get; set; }
 
-    public int BoundCardsAfflictedThisTurn { get; set; } =
-        CombatManager.Instance.History.Entries
-            .OfType<CardAfflictedEntry>()
-            .Count(entry =>
-                entry.HappenedThisTurn(power.CombatState)
-                && entry.Actor == power.Owner
-                && entry.Affliction is Bound);
+    private int _afflictionTurn;
+    private int _boundCardsAfflicted;
+
+    public static ChainsOfBindingPredictionState CaptureRoot(ChainsOfBindingPower power)
+        => new()
+        {
+            BoundCardPlayed = power.GetInternalData<ChainsOfBindingPower.Data>().boundCardPlayed,
+            _afflictionTurn = power.Owner.Player?.PlayerCombatState?.TurnNumber ?? 0,
+            _boundCardsAfflicted = CombatManager.Instance.History.Entries
+                .OfType<CardAfflictedEntry>()
+                .Count(entry => entry.HappenedThisTurn(power.CombatState)
+                    && entry.Actor == power.Owner && entry.Affliction is Bound)
+        };
+
+    public int GetBoundCardsAfflictedThisTurn(int turn)
+        => _afflictionTurn == turn ? _boundCardsAfflicted : 0;
+
+    public void RecordBoundCardAfflicted(int turn)
+    {
+        _boundCardsAfflicted = GetBoundCardsAfflictedThisTurn(turn) + 1;
+        _afflictionTurn = turn;
+    }
 
     public object Fork(PredictionForkContext context) => MemberwiseClone();
 }

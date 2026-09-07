@@ -39,6 +39,99 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "PR57-58-STATE-CONTRACT")
+            {
+                AssertVitalSparkKeepsStackedTaintedAmount(combatState, player);
+                AssertPowerHiddenStateRegistration(combatState, player);
+                runner._completedChecks.Add("VitalSparkStackingAndPowerHiddenStateRegistration");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "RAT-SUMMON-NEXT-INTENT")
+            {
+                runner.SetStage("rat_summon_next_intent");
+                await runner.AssertRatSummonNextIntentAsync(combatState, player);
+                runner._completedChecks.Add("RatSummonNextIntent");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "FUNERARY-MASK-BEFORE-DRAW")
+            {
+                runner.SetStage("funerary_mask_before_draw");
+                await runner.AssertFuneraryMaskBeforeDrawAsync(combatState, player);
+                runner._completedChecks.Add("FuneraryMaskBeforeDraw");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "CARD-ENERGY-GAIN-COMMAND")
+            {
+                runner.SetStage("card_energy_gain_command");
+                await runner.AssertCardEnergyGainCommandAsync(combatState, player);
+                runner._completedChecks.Add("CardEnergyGainCommand");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "MELANCHOLY-OSTY-DEATH")
+            {
+                runner.SetStage("melancholy_osty_death");
+                await runner.AssertMelancholyOstyDeathAsync(combatState, player);
+                runner._completedChecks.Add("MelancholyOstyDeath");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId is "QUEEN-INFERNO-MINION-DEATH" or "QUEEN-INFERNO-TERMINAL")
+            {
+                runner.SetStage("queen_inferno_minion_death");
+                await runner.AssertQueenInfernoMinionDeathAsync(combatState, player);
+                runner._completedChecks.Add("QueenInfernoMinionDeath");
+                return Observation(combatEnded: !CombatManager.Instance.IsInProgress);
+            }
+            if (request.ScenarioId == "GAMBLING-CHIP-SLY-ORDER")
+            {
+                runner.SetStage("gambling_chip_sly_order");
+                await runner.AssertGamblingChipSlyOrderAsync(combatState, player);
+                runner._completedChecks.Add("GamblingChipSlyOrder");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "GALVANIC-GENERATED-POWER")
+            {
+                runner.SetStage("galvanic_generated_power");
+                await runner.AssertGalvanicGeneratedPowerAsync(combatState, player);
+                runner._completedChecks.Add("GalvanicGeneratedPower");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId is "ENERGY-RESET-POWER-ORDER" or "ENERGY-RESET-POWER-ORDER-REVERSE"
+                or "ENERGY-RESET-POWER-ORDER-REAPPLY" or "ENERGY-RESET-POWER-ORDER-OVERFLOW")
+            {
+                runner.SetStage("energy_reset_power_order");
+                await runner.AssertEnergyResetPowerOrderAsync(combatState, player);
+                runner._completedChecks.Add("EnergyResetPowerOrder");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId is "REPLAY-START-HISTORY" or "REPLAY-START-HISTORY-ECHO")
+            {
+                runner.SetStage("replay_start_history");
+                await runner.AssertReplayStartHistoryAsync(combatState, player);
+                runner._completedChecks.Add("ReplayStartHistory");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "DEATH-EFFECTS-ONCE")
+            {
+                runner.SetStage("death_effects_once");
+                await runner.AssertDeathEffectsOnceAsync(combatState, player);
+                runner._completedChecks.Add("DeathEffectsOnce");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "FEED-THORNS-TERMINAL-DIFFERENTIAL")
+            {
+                runner.SetStage("feed_thorns_terminal_differential");
+                await runner.AssertFeedThornsTerminalAsync(combatState, player);
+                runner._completedChecks.Add("FeedThornsTerminalDifferential");
+                return Observation(combatEnded: true);
+            }
+            if (request.ScenarioId == "ROOT-CAPTURE-ACTION-BARRIER")
+            {
+                _ = ApplySettingsOverrides();
+                runner.SetStage("root_capture_action_barrier");
+                await runner.AssertSearchWaitsForNativeActionAsync(combatState, player);
+                runner._completedChecks.Add("RootCaptureActionBarrier");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "PR15-POTION-VALUE-TIERS")
                 runner.AssertPotionValueTiers(combatState);
             if (request.ScenarioId == "PR18-FOREIGN-ONPLAY-BOUNDARY")
@@ -250,7 +343,8 @@ internal sealed partial class UnattendedTestRunner
                     expectedPlayerPowerObserved, InitialSearchHeld: false);
             }
 
-            if (request.ScenarioId.Equals(ForcedTurnTerminalScenarioId, StringComparison.OrdinalIgnoreCase))
+            if (request.ScenarioId.Equals(ForcedTurnTerminalScenarioId, StringComparison.OrdinalIgnoreCase)
+                || request.ScenarioId.Equals(PotionForcedTurnTerminalScenarioId, StringComparison.OrdinalIgnoreCase))
             {
                 if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
                     || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)

@@ -49,7 +49,7 @@ internal static class ShouldPlayMirrors
     {
         return context.Card.Preview.Owner.Creature != power.Owner ||
             context.Card.Preview.Affliction is not Bound ||
-            !context.StateStore.Get(power, static value => new ChainsOfBindingPredictionState(value)).BoundCardPlayed;
+            !context.StateStore.Get(power, static _ => new ChainsOfBindingPredictionState()).BoundCardPlayed;
     }
 
     private static bool HandleSlothPower(SlothPower power, ShouldPlayMirrorContext context)
@@ -69,7 +69,7 @@ internal static class ShouldPlayMirrors
 
         SimulatedCombatState combat = context.CombatState as SimulatedCombatState
             ?? throw new InvalidOperationException("昏眩出牌限制缺少分支出牌历史。");
-        return combat.GetCardPlaysStartedThisTurn(power.Owner) == 0;
+        return combat.GetCardPlaySeriesStartedThisTurn(power.Owner) == 0;
     }
 
     private static bool HandleVelvetChoker(VelvetChoker relic, ShouldPlayMirrorContext context)

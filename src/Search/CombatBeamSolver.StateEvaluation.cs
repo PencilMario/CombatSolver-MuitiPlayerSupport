@@ -93,7 +93,8 @@ internal sealed partial class CombatBeamSolver
         StateFingerprint enemyCombatDistributionKey = enemyCombatDistribution.Finish();
         if (boundary == SearchBoundaryReason.None && combat.HasPendingChoice)
             boundary = SearchBoundaryReason.PendingChoice;
-        bool dead = player.IsDead;
+        // Later effects may restore HP after native pending loss has already been committed.
+        bool dead = player.IsDead || simulator.TerminalStamp is { Outcome: CombatTerminalOutcome.Defeat };
         bool won = boundary != SearchBoundaryReason.EventDefeat
             && !dead
             && !combat.HasPendingChoice
