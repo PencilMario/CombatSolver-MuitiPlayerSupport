@@ -151,6 +151,8 @@ PotionChoiceMirrors.Register<TYourPotion>(spec, apply);
 
 ### 2.5 卡牌的玩家选择
 
+此入口随 PR #56 合入主线开发代码，已发布的 `0.31.3` 尚不包含。当前需针对主线源码构建，正式发版后再确定最低版本依赖。
+
 ```csharp
 CardChoiceMirrors.Register<TYourCard>(spec, apply);
 ```

@@ -1,5 +1,11 @@
 # CombatSolver 测试清单
 
+## 2026-09-07：PR #56 合并验证（未发布）
+
+- Release 编译 `-p:CopyModOnBuild=false` 零警告/错误；Windows 结构门禁通过，`search_files=73`。
+- `PR56-CARD-CHOICE-REGRESSION` Passed，runId `efc7007a3dc44012b65dafcb0a3e2ff3`：原版两种可选选牌的空选严格差分通过。命令：`tools/run-unattended-test.ps1 -ScenarioId PR56-CARD-CHOICE-REGRESSION -HeadlessInstance pr56 -MonsterMoveChecksPath coverage/unattended/card-on-play-batch-042-choice-zero-optional.json -EnemyCurrentHp 100 -TimeoutSeconds 120 -ExitOnComplete`。
+- 未运行第三方许愿的登记委托、三选一实际结算或原生页面部署；原版回归不等于第三方效果验收。本次仅合并源码，保持已发布 `0.31.3` 的产物与标签。
+
 ## 0.31.3 定版
 
 PR #49 直接合同在本机 RitsuLib `0.5.19` 上通过全部 10 项：当前真实回调匹配、静态正负查询、live 旁路、动态晚创建、并发、可卸载程序集与模拟后恢复。100000 次缺失类型查询的合同测量为 `18400000 -> 0` 字节，仅表示该查询，不代表整场性能。Windows 结构门禁通过。
