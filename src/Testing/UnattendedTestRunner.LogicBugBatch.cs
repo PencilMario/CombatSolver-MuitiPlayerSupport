@@ -533,6 +533,10 @@ internal sealed partial class UnattendedTestRunner
 
     private static void AssertSurroundedStateIdentity(CombatState combat)
     {
+        ConfigureMonsterMove(combat.Enemies.Single(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.Crusher),
+            new UnattendedMonsterMoveCheck { MoveId = "THRASH_MOVE" });
+        ConfigureMonsterMove(combat.Enemies.Single(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.Rocket),
+            new UnattendedMonsterMoveCheck { MoveId = "CHARGE_UP_MOVE" });
         CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
         CombatPredictionSimulator left = root.ForkSimulator();
         CombatPredictionSimulator right = root.ForkSimulator();
@@ -562,6 +566,40 @@ internal sealed partial class UnattendedTestRunner
         int rightDamage = CorePowerSupport.AdjustForecastAttack(right, rightCombat, root.Enemies[0], root.PlayerIdentity.Creature, 10);
         if (leftDamage != 10 || rightDamage != 15)
             throw new InvalidOperationException($"Surrounded forecast damage {leftDamage}/{rightDamage}, expected 10/15.");
+        CombatBeamSolver CreateDriver() => new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
+            SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+        SimulationSnapshot Evaluate(CombatBeamSolver driver, CombatPredictionSimulator source)
+            => (SimulationSnapshot)(InvokeForcedTerminalMethod(driver, "Snapshot",
+                [source.Fork(), root.StartTurnNumber, 0, 0, SearchBoundaryReason.None, new ForkableSet<uint>()])
+                ?? throw new InvalidOperationException("Facing score snapshot was not created."));
+        List<SimulationSnapshot> snapshots = [];
+        try
+        {
+            CombatBeamSolver shared = CreateDriver();
+            SimulationSnapshot sharedLeft = Evaluate(shared, left);
+            snapshots.Add(sharedLeft);
+            SimulationSnapshot sharedRight = Evaluate(shared, right);
+            snapshots.Add(sharedRight);
+            SimulationSnapshot isolatedRight = Evaluate(CreateDriver(), right);
+            snapshots.Add(isolatedRight);
+            SimulationSnapshot cachedLeft = Evaluate(shared, left);
+            snapshots.Add(cachedLeft);
+            if (sharedLeft.StateKey == sharedRight.StateKey
+                || sharedLeft.ProjectedPlayerHp <= sharedRight.ProjectedPlayerHp
+                || sharedLeft.Score <= sharedRight.Score
+                || sharedRight.StateKey != isolatedRight.StateKey
+                || sharedRight.ProjectedPlayerHp != isolatedRight.ProjectedPlayerHp
+                || sharedRight.Score != isolatedRight.Score
+                || cachedLeft.StateKey != sharedLeft.StateKey
+                || cachedLeft.ProjectedPlayerHp != sharedLeft.ProjectedPlayerHp
+                || cachedLeft.Score != sharedLeft.Score)
+                throw new InvalidOperationException("Facing-dependent threat scores changed with cache population order.");
+        }
+        finally
+        {
+            foreach (SimulationSnapshot snapshot in snapshots)
+                snapshot.ReleaseSimulator();
+        }
         Entry.Logger.Info("[CombatSolver/Test] SURROUNDED_STATE_IDENTITY_OK fingerprint=true continuation=true fork=true damage=10/15");
     }
 }
