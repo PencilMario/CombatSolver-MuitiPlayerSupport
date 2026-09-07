@@ -100,7 +100,40 @@ StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 不登记的后果：求解器按叠加层数记一点 `ScalingPotential` 兜底。对大多数 Power 够用；对
 「自己不给甲、但让后续攻击给甲」这类会被排到错误位置。
 
-### 2.3 还没有登记入口的地方
+### 2.3 药水的玩家选择
+
+```csharp
+PotionChoiceMirrors.Register<TYourPotion>(spec, apply);
+```
+
+只有当你的药水会让玩家当场做选择时才需要。不登记的后果很硬：`PotionChoiceSupport.RequiresChoice`
+对第三方类型恒为 `false`，于是求解器**根本不为它开搜索分支**——它会把这瓶药当成一个没有收益的
+动作，随手插在路线里的某个位置。药水自己的 `PotionOnUseMirrors` 镜像补不了这个：等那个钩子触发
+的时候，「要不要开分支」早就已经被否决了。
+
+两个委托：
+
+- `spec(simulator, potion)` 返回一个 `CardChoiceSpec`：候选、上下界、效果。候选**必须是玩家在
+  原生页面上真正看到的那几张，顺序也要一致**，否则部署时按卡牌令牌在页面上定位会错位。
+  下界给 0 表示「可以一张都不选」。
+- `apply(simulator, potion, choice)` 按选中的结果在模拟里施加效果，返回是否已经结算完
+  （还有嵌套选择挂起时返回 `false`，和原版同一口径）。
+
+效果用 `PlanChoiceEffect.ModDefined`。部署侧按卡牌令牌在原生页面上定位，本来就与效果无关；
+这个值只是明确表示「结算由登记方负责」，别的效果分支不会误接手。求解器自己从不产生这个值。
+
+登记之后，你的药水和原版带选择的药水走同一条通道：搜索按你的 spec 展开分支、把选中的结果记进
+计划、部署时照常应答原生页面，而效果由你的 `apply` 施加——求解器不需要认识任何第三方效果。
+
+**一个真实例子。** 观者的形态药剂让玩家在平静和愤怒之间二选一。原版实现里比的是引用相等
+（`val == calmChoice`），但两张选项牌是两个不同的类型、各只有一张，所以按类型判完全等价。
+
+不登记的代价实测过：鬼祟珊瑚群那一场，求解器第 1 回合 `max_block=14 actual_block=3`、掉 11 血；
+手打是「爆发+ 进愤怒 → 停顿 3+9=12 甲 → 如水 → 药水选平静退出愤怒」，如水在回合结束因为平静
+再给 5 甲，17 甲挡掉 14 点，0 掉血。求解器不肯进愤怒的判断在它自己的世界观里是对的——进去了
+退不出来就是挨双倍伤害；它只是不知道那瓶药能退出来。
+
+### 2.4 还没有登记入口的地方
 
 见第 6 节。目前只能 Harmony 打补丁，或者等对应的扩展点合并。
 
@@ -216,8 +249,7 @@ StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 | 位置 | 症状 | 状态 |
 |---|---|---|
 | `PredictionModHookSubscriberCapture.KnownPreRootSubscriberTypeNames` | 私有静态白名单，没有公开登记入口 | 待做 |
-| `PotionChoiceSupport.RequiresChoice` / `GetSpec` / `Apply` | 第三方药水的玩家选择永远不会被展开成搜索分支；`RequiresChoice` 对第三方类型恒为 `false` | 待做 |
-| `CardChoiceSupport` 的选牌规格 | 第三方卡牌的选牌效果同上 | 待做 |
+| `CardChoiceSupport` 的选牌规格 | 第三方**卡牌**的选牌效果不会被展开成搜索分支。药水那条已经有入口了（见 2.3），卡牌这条还没有 | 待做 |
 | `CorePowerSupport.TriggerPlayerSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、`TurnStartPowerSupport.TriggerAfterPlayerTurnStart`、`SimulatedCombatState.TriggerRelicsAfterPlayerTurnStart` | 回合边界的效果没有注册表 | 待做 |
 | `SimulatedCombatState.TryPrepareExtraPlayerTurn` / `TryPrepareLiveExtraPlayerTurn` / `ConsumeExtraTurnSources` | 额外回合的来源硬编码，只认龙涎香和帕尔之眼 | 待做 |
 | `CombatPredictionSimulator.OnPlayWrapper` | 出牌后补抽没有挂载点 | 待做 |

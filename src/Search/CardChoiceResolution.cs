@@ -99,6 +99,12 @@ internal static partial class CardChoiceSupport
                 if (!AddGeneratedSelectionToHand(simulator, playedCard.Preview, selected))
                     return false;
                 break;
+            case PlanChoiceEffect.ModDefined:
+                // 由登记方结算的选择只经过 PotionChoiceMirrors 那条通道。走到卡牌选牌结算说明
+                // 登记方把这个效果用在了它不该出现的地方，早报比静默空操作好。
+                throw new InvalidOperationException(
+                    $"卡牌 {playedCard.Preview.Id.Entry} 的选择用了 ModDefined，"
+                    + "但卡牌选牌结算没有登记方通道。");
             default:
                 throw new ArgumentOutOfRangeException(nameof(choice));
         }

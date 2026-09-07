@@ -33,6 +33,12 @@ internal enum PlanChoiceEffect
     AutoPlayRepeated,
     GenerateToHand,
     ApplyKnowledgeCurse,
+
+    /// <summary>
+    /// 结算由登记方负责的选择。求解器只负责展开分支、把选中的结果记进计划、部署时应答原生页面；
+    /// 效果由 <see cref="PotionChoiceMirrors"/> 登记的 apply 施加。求解器自己从不产生这个值。
+    /// </summary>
+    ModDefined,
 }
 
 internal enum PlanChoiceTiming
