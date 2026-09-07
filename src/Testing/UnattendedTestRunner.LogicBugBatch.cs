@@ -20,6 +20,47 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private static void AssertNarrowOrderedPileCapacity(CombatState combat, Player player)
+    {
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatBeamSolver driver = new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
+            SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null),
+            searchProfile: SolverSearchProfile.Deep);
+        List<SimulationSnapshot> snapshots = [];
+        try
+        {
+            for (int a = 0; a < 4; a++)
+            for (int b = 0; b < 4; b++)
+            for (int c = 0; c < 4; c++)
+            {
+                if (a == b || a == c || b == c)
+                    continue;
+                int d = 6 - a - b - c;
+                List<int> remaining = [0, 1, 2, 3];
+                List<PlanAction> actions = [];
+                foreach (int index in new[] { a, b, c, d })
+                {
+                    int occurrence = remaining.IndexOf(index);
+                    actions.Add(new PlanAction(PlanActionKind.PlayCard, root.StartTurnNumber,
+                        CardId: "DEFLECT", CardOccurrence: occurrence));
+                    remaining.RemoveAt(occurrence);
+                }
+                actions.Add(new PlanAction(PlanActionKind.EndTurn, root.StartTurnNumber));
+                snapshots.Add(InvokeForcedTerminalReplay(driver, actions, null, 0, null));
+            }
+            if (snapshots.Any(snapshot => snapshot.PocketwatchCardThreshold < 0)
+                || snapshots.Select(snapshot => snapshot.StateKey).Distinct().Count() < 8
+                || snapshots.Select(snapshot => snapshot.ProjectedShuffleOrderKey).Distinct().Count() < 8)
+                throw new InvalidOperationException("Narrow retention fixture did not produce eight distinct Pocketwatch pile orders.");
+            driver.VerifyNarrowOrderedPileCapacityForTesting(snapshots);
+        }
+        finally
+        {
+            foreach (SimulationSnapshot snapshot in snapshots)
+                snapshot.ReleaseSimulator();
+        }
+    }
+
     private async Task AssertGamblingChipSlyOrderAsync(CombatState combat, Player player)
     {
         Creature enemy = combat.Enemies[0];

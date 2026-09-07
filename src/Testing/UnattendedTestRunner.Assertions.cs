@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "NARROW-ORDERED-PILE-CAPACITY")
+            {
+                runner.SetStage("narrow_ordered_pile_capacity");
+                AssertNarrowOrderedPileCapacity(scenario.CombatState, scenario.Player);
+                runner._completedChecks.Add("NarrowOrderedPileCapacity");
+            }
             if (request.ScenarioId == "DISCARD-DRAW-SLY-PENDING")
             {
                 runner.SetStage("discard_draw_sly_pending");
