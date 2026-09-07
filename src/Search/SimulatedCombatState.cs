@@ -183,6 +183,7 @@ internal sealed partial class SimulatedCombatState
     private List<PredictedCard>? _registeredCombatCards;
     private IReadOnlyList<AbstractModel>? _baseHookListeners;
     private IReadOnlyList<AbstractModel>? _effectiveHookListeners;
+    private IReadOnlyList<AbstractModel>? _activeHookListeners;
     private IReadOnlyList<AbstractModel>? _effectiveRunHookListeners;
     private IReadOnlyList<PowerModel>? _effectivePowers;
     private Action? _invalidateBaseHookListenersObserver;
@@ -1445,10 +1446,10 @@ internal sealed partial class SimulatedCombatState
     }
 
     public IEnumerable<AbstractModel> IterateHookListeners()
-        => GetEffectiveHookListeners();
+        => GetActiveHookListeners();
 
     IReadOnlyList<AbstractModel> ICombatPredictionHookListenerSource.HookListeners
-        => GetEffectiveHookListeners();
+        => GetActiveHookListeners();
 
     IReadOnlyList<AbstractModel> ICombatPredictionHookListenerSource.RunHookListeners
         => GetEffectiveRunHookListeners();
@@ -1500,7 +1501,7 @@ internal sealed partial class SimulatedCombatState
     {
         if (CanReuseHookListenerCache && _effectiveRunHookListeners != null)
             return _effectiveRunHookListeners;
-        IReadOnlyList<AbstractModel> combatListeners = GetEffectiveHookListeners();
+        IReadOnlyList<AbstractModel> combatListeners = GetActiveHookListeners();
         if (_rootRunHookListeners.Length == 0)
         {
             _effectiveRunHookListeners = combatListeners;
@@ -1514,6 +1515,34 @@ internal sealed partial class SimulatedCombatState
             _rootRunHookListeners,
             combatListeners);
         return _effectiveRunHookListeners;
+    }
+
+    private IReadOnlyList<AbstractModel> GetActiveHookListeners()
+    {
+        if (CanReuseHookListenerCache && _activeHookListeners != null)
+            return _activeHookListeners;
+        IReadOnlyList<AbstractModel> listeners = GetEffectiveHookListeners();
+        List<AbstractModel>? active = null;
+        for (int index = 0; index < listeners.Count; index++)
+        {
+            AbstractModel listener = listeners[index];
+            if (listener is PowerModel power && !ContainsCreature(power.Owner))
+            {
+                // Death compensation still needs the removed owner's powers; native hooks do not.
+                if (active == null)
+                {
+                    active = new List<AbstractModel>(listeners.Count - 1);
+                    for (int previous = 0; previous < index; previous++)
+                        active.Add(listeners[previous]);
+                }
+            }
+            else
+            {
+                active?.Add(listener);
+            }
+        }
+        _activeHookListeners = active ?? listeners;
+        return _activeHookListeners;
     }
 
     private IReadOnlyList<AbstractModel> GetEffectiveHookListeners()
@@ -1620,6 +1649,7 @@ internal sealed partial class SimulatedCombatState
     private void InvalidateHookListeners()
     {
         _effectiveHookListeners = null;
+        _activeHookListeners = null;
         _effectiveRunHookListeners = null;
         _effectivePowers = null;
     }
