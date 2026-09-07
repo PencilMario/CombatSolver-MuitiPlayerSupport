@@ -13,7 +13,7 @@ namespace CombatSolver;
 /// </summary>
 /// <remarks>
 /// Mirrors read live model data, so third-party patches to canonical data (energy cost, dynamic vars, keywords,
-/// rarity) are followed automatically and are deliberately not audited. A replaced <see cref="CardModel.OnPlay"/>
+/// rarity) are followed automatically except for explicitly rejected gameplay mods. A replaced <see cref="CardModel.OnPlay"/>
 /// is different in kind: <c>CardOnPlayInferrer</c> reads the original, unpatched IL by design, and the
 /// bespoke mirrors are keyed on the vanilla card type. The engine therefore keeps executing the vanilla recipe it
 /// was written against and silently produces a route for a card the game no longer plays that way, which the
@@ -34,6 +34,7 @@ internal static class PredictionModPatchAudit
     /// </remarks>
     public static void ValidateCardOnPlay(IEnumerable<CardModel> cards)
     {
+        ValidateLoadedMods(ModManager.GetLoadedMods());
         HashSet<Type> checkedTypes = [];
         foreach (CardModel card in cards)
         {
@@ -45,6 +46,22 @@ internal static class PredictionModPatchAudit
                 foreign.ModId,
                 foreign.ModName,
                 foreign.Description,
+                "combat");
+        }
+    }
+
+    internal static void ValidateLoadedMods(IEnumerable<Mod> mods)
+    {
+        foreach (Mod mod in mods)
+        {
+            if (!string.Equals(mod.manifest?.id, "WheelchairSpire", StringComparison.OrdinalIgnoreCase)
+                && !mod.assemblies.Any(assembly => string.Equals(
+                    assembly.GetName().Name, "WheelchairSpire", StringComparison.OrdinalIgnoreCase)))
+                continue;
+            throw new IncompatibleGameplayModException(
+                mod.manifest?.id ?? string.Empty,
+                mod.manifest?.name ?? "WheelchairSpire",
+                "WheelchairSpire gameplay changes",
                 "combat");
         }
     }

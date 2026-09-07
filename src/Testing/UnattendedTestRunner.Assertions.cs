@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "KNOWN-GAMEPLAY-MOD-BOUNDARY")
+            {
+                runner.SetStage("known_gameplay_mod_boundary");
+                AssertKnownGameplayModBoundary();
+                runner._completedChecks.Add("KnownGameplayModBoundary");
+            }
             if (request.ScenarioId == "CYCLE-EXIT-REVOKED-PARENT")
             {
                 runner.SetStage("cycle_exit_revoked_parent");

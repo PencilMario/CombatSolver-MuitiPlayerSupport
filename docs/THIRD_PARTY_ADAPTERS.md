@@ -18,6 +18,8 @@
 前两条是自动的。第三条不做适配的话，装上你的 Mod 之后求解器会直接停在
 「检测到不兼容的第三方 Mod」，玩家用不了。
 
+项目明确拒绝的玩法 Mod 优先于上述通用放行条件。当前 `WheelchairSpire` 按 Mod ID 或已加载程序集名识别，在根捕获时直接报告不兼容；不依据 `affects_gameplay: false` 放行。本批问题修复不为其数值、目标类型或效果改写提供适配。
+
 ## 1. 求解器默认怎么对待未知内容
 
 ### 1.1 门禁：先让 Mod 进得来
@@ -300,7 +302,8 @@ CardChoiceMirrors.Register<TYourCard>(spec, apply);
 | 位置 | 症状 | 状态 |
 |---|---|---|
 | `PredictionModHookSubscriberCapture.KnownPreRootSubscriberTypeNames` | 私有静态白名单，没有公开登记入口 | 待做 |
-| `CorePowerSupport.TriggerPlayerSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、`TurnStartPowerSupport.TriggerAfterPlayerTurnStart`、`SimulatedCombatState.TriggerRelicsAfterPlayerTurnStart` | 回合边界的效果没有注册表 | 待做 |
+| `PredictionModPatchAudit.ValidateLoadedMods` | 明确拒绝 `WheelchairSpire`，没有外部放行入口 | 项目不兼容策略 |
+| `PlayerTurnEndLifecycle.RunPhaseTwo`、`CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、`TurnStartPowerSupport.TriggerAfterPlayerTurnStart`、`SimulatedCombatState.TriggerRelicsAfterPlayerTurnStart` | 回合边界的效果没有注册表 | 待做 |
 | `SimulatedCombatState.TryPrepareExtraPlayerTurn` / `TryPrepareLiveExtraPlayerTurn` / `ConsumeExtraTurnSources` | 额外回合的来源硬编码，只认龙涎香和帕尔之眼 | 待做 |
 | `CombatPredictionSimulator.OnPlayWrapper` | 出牌后补抽没有挂载点 | 待做 |
 | `GrowthSource` / `GrowthValues.HasTarget` 与 `SolverGrowthStrategyPanel.SourceCard` | 成长额度仅支持内置八类来源；第三方战略估值登记不会自动获得独立成长配置 | 0.32.0 已发布，尚无公开登记入口 |
