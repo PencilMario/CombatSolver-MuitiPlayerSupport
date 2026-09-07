@@ -20,6 +20,35 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertQueenInfernoMinionDeathAsync(CombatState combat, Player player)
+    {
+        Creature minion = combat.Enemies.Single(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.TorchHeadAmalgam);
+        Creature queen = combat.Enemies.Single(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.Queen);
+        await CreatureCmd.SetCurrentHp(queen, queen.MaxHp);
+        ConfigureMonsterMove(queen, new UnattendedMonsterMoveCheck
+        {
+            MoveId = "BURN_BRIGHT_FOR_ME_MOVE"
+        });
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatPredictionSimulator simulator = root.ForkSimulator();
+        SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+        PlaySimulatedCard(simulator, shadow, FindSimulatedHandCard(simulator, player, "BLOODLETTING", 0),
+            null, combat.Enemies);
+        MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, minion);
+        CombatPredictionSimulator fork = simulator.Fork();
+        AssertSnapshotEqual(expected,
+            CaptureSimulated(fork, (SimulatedCombatState)fork.State.CombatState, player, minion),
+            "QueenInfernoMinionDeath", "Fork");
+        if (!FindActualHandCard(player, "BLOODLETTING", 0).TryManualPlay(null))
+            throw new InvalidOperationException("Native Bloodletting was not playable.");
+        await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+        AssertSnapshotEqual(expected, CaptureActual(combat, player, minion),
+            "QueenInfernoMinionDeath", "NativeCard");
+        if (shadow.Enemies.Count != 1 || !ReferenceEquals(shadow.Enemies[0], queen)
+            || combat.Enemies.Count != 1 || !ReferenceEquals(combat.Enemies[0], queen))
+            throw new InvalidOperationException("Queen minion death did not remove the minion from both rosters.");
+    }
+
     private static void AssertNarrowOrderedPileCapacity(CombatState combat, Player player)
     {
         CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
