@@ -59,9 +59,9 @@ pwsh -NoProfile -File tools/run-checkpoint-batch.ps1 `
 
 ## 4. 数字记录与收口
 
-`docs/STRATEGY_OPTIMIZATION_LOG.md` 只维护两张表：
+`docs/strategy/STRATEGY_OPTIMIZATION_LOG.md` 只维护两张表：
 
 - 汇总：日期、样例、玩家备注、优化前求解器、当前求解器、人工、优化幅度、相对人工、是否更优；
 - 待处理：样例、当前数字或阻塞证据、状态。
 
-不写正文复盘，不维护 `docs/PERFORMANCE_FIXTURES.md`。搜索行为变化同步 `docs/DEVELOPMENT_NOTES.md` 与 `docs/TEST_MATRIX.md`；提交只包含本轮源码、最小 fixture 和文档。下一批从上批未处理项继续，不重跑已经取得直接证据的样例。
+不写正文复盘，不维护 `docs/performance/PERFORMANCE_FIXTURES.md`。搜索行为变化同步 `docs/DEVELOPMENT_NOTES.md` 与 `docs/TEST_MATRIX.md`；提交只包含本轮源码、最小 fixture 和文档。下一批从上批未处理项继续，不重跑已经取得直接证据的样例。

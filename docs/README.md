@@ -1,0 +1,39 @@
+# CombatSolver 文档导航
+
+玩家安装、操作与兼容性说明见 [项目 README](../README.md)。源码规则见 [AGENTS.md](../AGENTS.md)。
+
+## 当前文档
+
+| 要查什么 | 入口 |
+|---|---|
+| 组件职责、状态所有权和调用链 | [架构与职责地图](ARCHITECTURE.md) |
+| 本批未发布改动、版本演进与开发记录 | [开发笔记](DEVELOPMENT_NOTES.md) |
+| 已执行测试、复跑方式和未验证范围 | [测试矩阵](TEST_MATRIX.md) |
+| 无人测试环境与请求协议 | [无头测试](HEADLESS_TESTING.md) |
+| 玩家问题包、检查点恢复与回放 | [检查点回放](CHECKPOINT_REPLAY.md) |
+| 第三方卡牌、Power、药水等登记入口 | [第三方 Mod 适配手册](THIRD_PARTY_ADAPTERS.md) |
+| 第三方 Power 的搜索估值 | [战略估值登记](third-party-strategic-effects.md) |
+| 战斗语义适配与验证方法 | [适配验证](ADAPTATION_VERIFICATION.md) |
+| 原版 Hook 支持和覆盖证据 | [战斗 Hook 覆盖目录](COMBAT_HOOK_COVERAGE.md) |
+
+战前预测 API 的公开调用方式与最低依赖版本见 [项目 README](../README.md#战前预测-api面向-mod-开发者)。开发分支的新入口以适配手册中的发布状态为准。
+
+## 专题目录
+
+| 目录 | 内容 |
+|---|---|
+| [releases/](releases/README.md) | 按版本整理的玩家更新日志与历史草案 |
+| [pr/](pr/README.md) | PR 审查、集成修正与验证记录 |
+| [refactoring/](refactoring/README.md) | 滚动重构路线与核验记录 |
+| [issues/](issues/README.md) | 玩家问题批次、分诊与修复计划 |
+| [strategy/](strategy/README.md) | 策略需求、优化日志与搜索研究 |
+| [performance/](performance/README.md) | 性能实验、复现方法、结果数据与历史样例 |
+| [audits/](audits/README.md) | 历史仓库、架构和 UI 审计及处理记录 |
+
+## 维护约定
+
+- 当前架构和支持范围以源码、当前文档及可重跑证据为准；专题报告保留各自的基线、日期和验证限制。
+- 新改动先写入开发笔记的“下一版本（开发中）”。更新日志统一放在 `releases/<版本>-RELEASE_NOTES.md`；有日志文件不等于该版本已经发布。
+- 历史审计、建议和已撤回实验保留原结论，不作为当前任务指令或当前测试成绩。
+- 新增专题文档时更新对应索引；移动文件时同步 Markdown 链接、脚本、skill 和结构化证据中的路径。
+- `COMBAT_HOOK_COVERAGE.md` 等工具生成文档保留固定入口，内容由对应工具维护。

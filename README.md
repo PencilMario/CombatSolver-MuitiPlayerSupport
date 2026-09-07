@@ -4,7 +4,7 @@ Combat Solver 是一个面向《杀戮尖塔 2》单人模式的战斗路线求�
 
 玩家可以只查看建议，也可以让求解器执行当前回合，或连续接管整场战斗。搜索不会修改游戏 RNG，也不会在后台操作真实战斗状态。
 
-当前版本为 **0.31.3**：合并社区 PR，开放战前预测 API，并补充第三方角色适配入口。详见 [更新日志](docs/0.31.3-RELEASE_NOTES.md)。
+当前版本为 **0.31.3**：合并社区 PR，开放战前预测 API，并补充第三方角色适配入口。详见 [更新日志](docs/releases/0.31.3-RELEASE_NOTES.md)。
 
 ## 主要功能
 
@@ -144,6 +144,7 @@ Linux 构建命令：
 
 开发前建议先阅读：
 
+- [文档总目录](docs/README.md)：当前指南、版本日志和各专题索引
 - [架构与职责地图](docs/ARCHITECTURE.md)
 - [开发记录](docs/DEVELOPMENT_NOTES.md)
 - [测试矩阵](docs/TEST_MATRIX.md)

@@ -61,7 +61,7 @@ NoGC 实际建立预算为 `4,000,000,000 B`（十进制 4 GB），搜索分配�
 
 ## 重现设置与入口
 
-两个输入复用 [已有公开性能 fixture](../PERFORMANCE_FIXTURES.md)，没有导入玩家私人问题包。固定设置保存在 [gc-issue36-pilot-settings.json](../../coverage/unattended/gc-issue36-pilot-settings.json)。本轮本地完整命令保存在 `.local/gc-research/run-pilot.sh`，原始产物留在 Git 忽略目录。
+两个输入复用 [已有公开性能 fixture](PERFORMANCE_FIXTURES.md)，没有导入玩家私人问题包。固定设置保存在 [gc-issue36-pilot-settings.json](../../coverage/unattended/gc-issue36-pilot-settings.json)。本轮本地完整命令保存在 `.local/gc-research/run-pilot.sh`，原始产物留在 Git 忽略目录。
 
 先完成隔离构建和游戏目录准备：
 

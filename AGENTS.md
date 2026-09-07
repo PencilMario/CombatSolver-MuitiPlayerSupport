@@ -34,6 +34,7 @@ CombatSolver 是《杀戮尖塔 2》的单人战斗路线求解器 Mod，使用 
 
 ## 3. 当前事实来源
 
+- [文档总目录](docs/README.md)：当前指南与专题索引；玩家更新日志统一位于 `docs/releases/`，专题资料按目录维护。新增或移动文档时同步索引与引用。
 - [架构与职责地图](docs/ARCHITECTURE.md)：当前源码入口、所有权和禁止依赖的单一维护入口。
 - [滚动重构路线](docs/refactoring/refactor-roadmap.md)：已完成批次和明确不做项。
 - [核验审计](docs/refactoring/verified-audit-4117eb0.md)：本轮重构的逐阶段证据；它是历史结果，不是持续规则。

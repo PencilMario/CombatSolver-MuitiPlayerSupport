@@ -29,7 +29,7 @@
     "procedure": "仅从仓库内聚合牌表注入 396 张 Silent 手牌/抽牌堆，使用 VeryHigh、Smart、DOP8 和显式 5 秒 Short 搜索，在首个可执行结果处停止并记录搜索 phase。",
     "expected": "fixture 不依赖原问题包且不含存档、路径、日志或环境信息；搜索必须保留 VeryHigh 的 Beam 36/90、节点 10000/50000、出牌分支 30/48 与精确 16 GB No-GC，并产生可执行动作。",
     "observed": "v0.21.6 runId a2aef73ea38345a7b48418f7ff498ffc Passed；3990.4 ms / 1,466,872,064 B，2218 展开、8823 转移、3236 选牌分支、GC0/1/2=0/0/0，全部设置契约逐项通过。",
-    "evidence": "coverage/unattended/search-performance-silent-large-deck-cards.json；docs/PERFORMANCE_FIXTURES.md；上述 runId；验证日期 2026-08-30。"
+    "evidence": "coverage/unattended/search-performance-silent-large-deck-cards.json；docs/performance/PERFORMANCE_FIXTURES.md；上述 runId；验证日期 2026-08-30。"
   },
   "SEARCH-PERF-NECROBINDER-SANITIZED": {
     "status": "Passed",
@@ -37,7 +37,7 @@
     "procedure": "从仓库内白名单战前快照恢复 38 张 Necrobinder 牌、20 件遗物、2 瓶药和生命/药水槽，使用公开合成 seed 进入永世沙漏后执行 VeryHigh、RequireAtLeastOne、DOP8 和显式 5 秒 Short 搜索。",
     "expected": "fixture 不依赖原问题包且不含原 seed/RNG、地图、房间历史、平台、时间、路径或日志；搜索必须保留 VeryHigh 原预算与精确 16 GB No-GC，产生可执行且使用药水的候选。",
     "observed": "v0.21.6 runId 07427794ff05455886fc7faf2318966e Passed；5051.1 ms / 2,219,543,784 B，1949 展开、27872 转移、18919 选牌分支、使用 1 瓶药、GC0/1/2=0/0/0，全部设置契约逐项通过。",
-    "evidence": "coverage/unattended/search-performance-necrobinder-potion-heavy-run-snapshot.json；docs/PERFORMANCE_FIXTURES.md；上述 runId；验证日期 2026-08-30。"
+    "evidence": "coverage/unattended/search-performance-necrobinder-potion-heavy-run-snapshot.json；docs/performance/PERFORMANCE_FIXTURES.md；上述 runId；验证日期 2026-08-30。"
   },
   "SEARCH-PERF-FULL-DEEP-V0216": {
     "status": "Passed",
@@ -45,7 +45,7 @@
     "procedure": "使用本机忽略目录中的匿名大牌组完整状态，按 Custom、Smart、DOP8、16/120 秒、Beam 18/45、节点 2400/12000 与出牌分支 99/99 运行完整 Short+Deep 搜索。",
     "expected": "精确请求 16 GB No-GC；保持既有工作量、评分、十回合胜利、预计战损和药水使用结果，不用缩减质量预算换取性能。",
     "observed": "v0.21.6 runId 0aea27ef6b8d4474afcf2e1419b5877a Passed；53605.8 ms / 11,655,259,632 B，7018 展开、52644 转移、23196 选牌分支，评分 9998081943，第 10 回合胜利，玩家/敌人 HP 9/0，预计战损 56、卖血 11、使用 2 瓶药。",
-    "evidence": "本地忽略的完整性能输入；docs/PERFORMANCE_FIXTURES.md 的解释边界；上述 runId；验证日期 2026-08-30。"
+    "evidence": "本地忽略的完整性能输入；docs/performance/PERFORMANCE_FIXTURES.md 的解释边界；上述 runId；验证日期 2026-08-30。"
   },
   "POST0201-SCRAPE-NEGATIVE-COST": {
     "status": "Passed",
