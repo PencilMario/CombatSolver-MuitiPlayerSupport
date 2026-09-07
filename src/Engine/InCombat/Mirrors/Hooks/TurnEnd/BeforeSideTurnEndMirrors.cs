@@ -271,9 +271,8 @@ internal static class BeforeSideTurnEndMirrors
         }
         ChainsOfBindingPredictionState state = context.StateStore.Get(
             power,
-            () => new ChainsOfBindingPredictionState(power));
+            static () => new ChainsOfBindingPredictionState());
         state.BoundCardPlayed = false;
-        state.BoundCardsAfflictedThisTurn = 0;
     }
 
 }

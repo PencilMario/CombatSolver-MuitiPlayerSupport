@@ -2138,14 +2138,17 @@ internal sealed partial class SimulatedCombatState
         AddUnordered(ref fingerprint, 'T', count, first, second);
     }
 
-    private static int EncodeChainsOfBindingState(
+    private int EncodeChainsOfBindingState(
         CombatPredictionSimulator simulator,
         ChainsOfBindingPower power)
     {
         ChainsOfBindingPredictionState state = simulator.StateStore.Peek(
             power,
-            static value => new ChainsOfBindingPredictionState(value));
-        return checked(state.BoundCardsAfflictedThisTurn * 2 + (state.BoundCardPlayed ? 1 : 0));
+            static _ => new ChainsOfBindingPredictionState());
+        int count = CurrentSide == power.Owner.Side && power.Owner.Player is { } player
+            ? state.GetBoundCardsAfflictedThisTurn(GetPlayerTurnNumber(player))
+            : 0;
+        return checked(count * 2 + (state.BoundCardPlayed ? 1 : 0));
     }
 
     private void AddNemesisStates(

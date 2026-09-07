@@ -163,11 +163,14 @@ internal static class AfterCardDrawnMirrors
         {
             ChainsOfBindingPredictionState state = context.StateStore.Get(
                 power,
-                () => new ChainsOfBindingPredictionState(power));
-            if (state.BoundCardsAfflictedThisTurn < power.Amount
+                static () => new ChainsOfBindingPredictionState());
+            SimulatedCombatState combat = context.CombatState as SimulatedCombatState
+                ?? throw new InvalidOperationException("束缚抽牌计数缺少分支回合状态。");
+            int turn = combat.GetPlayerTurnNumber(player);
+            if (state.GetBoundCardsAfflictedThisTurn(turn) < power.Amount
                 && context.Simulator.Afflict<Bound>(context.Card, power.Amount) is not null)
             {
-                state.BoundCardsAfflictedThisTurn++;
+                state.RecordBoundCardAfflicted(turn);
             }
         }
     }

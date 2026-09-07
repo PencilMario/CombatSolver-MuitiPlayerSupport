@@ -49,7 +49,7 @@ internal static class ShouldPlayMirrors
     {
         return context.Card.Preview.Owner.Creature != power.Owner ||
             context.Card.Preview.Affliction is not Bound ||
-            !context.StateStore.Get(power, static value => new ChainsOfBindingPredictionState(value)).BoundCardPlayed;
+            !context.StateStore.Get(power, static _ => new ChainsOfBindingPredictionState()).BoundCardPlayed;
     }
 
     private static bool HandleSlothPower(SlothPower power, ShouldPlayMirrorContext context)

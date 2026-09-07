@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "BOUND-COUNTER-FORK")
+            {
+                runner.SetStage("bound_counter_fork");
+                AssertBoundCounterFork(scenario.CombatState);
+                runner._completedChecks.Add("BoundCounterFork");
+            }
             if (request.ScenarioId == "SURROUNDED-STATE-IDENTITY")
             {
                 runner.SetStage("surrounded_state_identity");

@@ -118,7 +118,7 @@ internal static class BeforeCardPlayedMirrors
             context.PreviewCard.Owner.Creature == power.Owner &&
             context.PreviewCard.Affliction is Bound)
         {
-            var state = context.StateStore.Get(power, () => new ChainsOfBindingPredictionState(power));
+            var state = context.StateStore.Get(power, static () => new ChainsOfBindingPredictionState());
             state.BoundCardPlayed = true;
         }
     }

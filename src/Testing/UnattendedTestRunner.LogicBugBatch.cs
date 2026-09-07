@@ -15,6 +15,40 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private static void AssertBoundCounterFork(CombatState combat)
+    {
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatPredictionSimulator parent = root.ForkSimulator();
+        SimulatedCombatState parentCombat = (SimulatedCombatState)parent.State.CombatState;
+        Player player = root.PlayerIdentity;
+        int turn = parentCombat.GetPlayerTurnNumber(player);
+        ChainsOfBindingPower parentPower = parentCombat.GetPower<ChainsOfBindingPower>(player.Creature)!;
+        ChainsOfBindingPredictionState parentState = parent.StateStore.Get(
+            parentPower, static () => new ChainsOfBindingPredictionState());
+        parentState.RecordBoundCardAfflicted(turn);
+        CombatPredictionSimulator child = parent.Fork();
+        SimulatedCombatState childCombat = (SimulatedCombatState)child.State.CombatState;
+        ChainsOfBindingPower childPower = childCombat.GetPower<ChainsOfBindingPower>(player.Creature)!;
+        ChainsOfBindingPredictionState childState = child.StateStore.Get(
+            childPower, static () => new ChainsOfBindingPredictionState());
+        childState.RecordBoundCardAfflicted(turn);
+        if (parentState.GetBoundCardsAfflictedThisTurn(turn) != 1
+            || childState.GetBoundCardsAfflictedThisTurn(turn) != 2)
+            throw new InvalidOperationException("Bound quota leaked between forks.");
+        StateFingerprintBuilder parentKey = new();
+        StateFingerprintBuilder childKey = new();
+        parentCombat.AppendFingerprint(ref parentKey, parent);
+        childCombat.AppendFingerprint(ref childKey, child);
+        if (parentKey.Finish() == childKey.Finish())
+            throw new InvalidOperationException("Bound quotas collide in the state fingerprint.");
+        if (childState.GetBoundCardsAfflictedThisTurn(turn + 1) != 0)
+            throw new InvalidOperationException("Bound quota remained spent in a new player turn.");
+        childState.RecordBoundCardAfflicted(turn + 1);
+        if (childState.GetBoundCardsAfflictedThisTurn(turn + 1) != 1
+            || parentState.GetBoundCardsAfflictedThisTurn(turn) != 1)
+            throw new InvalidOperationException("Bound quota did not advance independently to the next turn.");
+    }
+
     private async Task AssertEnergyResetPowerOrderAsync(CombatState combat, Player player)
     {
         CombatRootSnapshot emptyRoot = CombatRootSnapshot.Capture(combat);

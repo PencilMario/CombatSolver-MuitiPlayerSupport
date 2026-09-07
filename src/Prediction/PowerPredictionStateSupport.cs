@@ -41,7 +41,7 @@ internal static class PowerPredictionStateSupport
                 _ = simulator.StateStore.GetReadOnly(value, () => new JugglingPredictionState(original));
                 break;
             case (ChainsOfBindingPower value, ChainsOfBindingPower original):
-                _ = simulator.StateStore.GetReadOnly(value, () => new ChainsOfBindingPredictionState(original));
+                _ = simulator.StateStore.GetReadOnly(value, () => ChainsOfBindingPredictionState.CaptureRoot(original));
                 break;
             case (SurroundedPower value, SurroundedPower original):
                 _ = simulator.StateStore.GetReadOnly(value, () => new SurroundedPredictionState(original));
