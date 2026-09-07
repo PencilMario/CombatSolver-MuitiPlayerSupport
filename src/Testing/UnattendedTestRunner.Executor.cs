@@ -258,7 +258,8 @@ internal sealed partial class UnattendedTestRunner
                     expectedPlayerPowerObserved, InitialSearchHeld: false);
             }
 
-            if (request.ScenarioId.Equals(ForcedTurnTerminalScenarioId, StringComparison.OrdinalIgnoreCase))
+            if (request.ScenarioId.Equals(ForcedTurnTerminalScenarioId, StringComparison.OrdinalIgnoreCase)
+                || request.ScenarioId.Equals(PotionForcedTurnTerminalScenarioId, StringComparison.OrdinalIgnoreCase))
             {
                 if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
                     || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)

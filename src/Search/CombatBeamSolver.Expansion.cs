@@ -2825,6 +2825,8 @@ internal sealed partial class CombatBeamSolver
                     shufflesCrossed++;
                 }
                 simulator.CheckWinCondition(simulatedCombat.GetPlayerTurnNumber(_player));
+                boundary = ResolveRequestedPlayerTurnEnd(
+                    simulator, simulatedCombat, action, processedEnemyDeaths, ref turn, ref shufflesCrossed);
                 LogAnnotatedReplayState(simulator, action, priorActionCount + actionOffset, turn);
                 continue;
             }
@@ -2910,24 +2912,8 @@ internal sealed partial class CombatBeamSolver
             // The native action executor checks after the complete card effect, before
             // servicing a requested turn end. A lethal forced-end card never starts a round.
             simulator.CheckWinCondition(simulatedCombat.GetPlayerTurnNumber(_player));
-            bool forcedTurnEnd = simulatedCombat.ConsumePlayerTurnEndRequest();
-            if (forcedTurnEnd && simulator.IsInProgress)
-            {
-                boundary = AdvanceRound(
-                    simulator,
-                    simulatedCombat,
-                    turn - _startTurnNumber,
-                    processedEnemyDeaths,
-                    ref shufflesCrossed,
-                    action.TurnStartChoices);
-                if (boundary == SearchBoundaryReason.None
-                    && !SettleReplayActionBoundary(simulator, simulatedCombat))
-                {
-                    boundary = SearchBoundaryReason.PendingChoice;
-                }
-                _ = simulatedCombat.ConsumePlayerTurnEndRequest();
-                turn = simulatedCombat.GetPlayerTurnNumber(_player);
-            }
+            boundary = ResolveRequestedPlayerTurnEnd(
+                simulator, simulatedCombat, action, processedEnemyDeaths, ref turn, ref shufflesCrossed);
             LogAnnotatedReplayState(simulator, action, priorActionCount + actionOffset, turn);
         }
         _run.Performance.End(SearchMetricPhase.Action, actionMeasurement);
@@ -2942,6 +2928,27 @@ internal sealed partial class CombatBeamSolver
             processedEnemyDeaths);
         _run.Performance.End(SearchMetricPhase.Snapshot, snapshotMeasurement);
         return snapshot;
+    }
+
+    private SearchBoundaryReason ResolveRequestedPlayerTurnEnd(
+        CombatPredictionSimulator simulator,
+        SimulatedCombatState combat,
+        PlanAction action,
+        ForkableSet<uint> processedEnemyDeaths,
+        ref int turn,
+        ref int shufflesCrossed)
+    {
+        bool requested = combat.ConsumePlayerTurnEndRequest();
+        if (!requested || !simulator.IsInProgress)
+            return SearchBoundaryReason.None;
+        SearchBoundaryReason boundary = AdvanceRound(
+            simulator, combat, turn - _startTurnNumber, processedEnemyDeaths,
+            ref shufflesCrossed, action.TurnStartChoices);
+        if (boundary == SearchBoundaryReason.None && !SettleReplayActionBoundary(simulator, combat))
+            boundary = SearchBoundaryReason.PendingChoice;
+        _ = combat.ConsumePlayerTurnEndRequest();
+        turn = combat.GetPlayerTurnNumber(_player);
+        return boundary;
     }
 
     internal static bool SettleReplayActionBoundary(
