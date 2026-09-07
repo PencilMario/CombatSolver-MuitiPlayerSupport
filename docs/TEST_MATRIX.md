@@ -1,5 +1,11 @@
 # CombatSolver 测试清单
 
+## 不考虑局外收益开关（开发中）
+
+- Release 编译（`-p:CopyModOnBuild=false`）0 警告 0 错误，结构门禁通过。
+- `GROWTH-POLICY-FREE-FIRST` / `GROWTH-POLICY-PAID` **本轮未执行**。新增断言直接加在这两个夹具原有的 `-VerifyGrowthPolicy` 路径上，复跑命令沿用本文《2026-09-07：局外成长策略》一节记录的原命令，不需要新参数。新增覆盖：开关默认关闭、设置往返、原始额度保留而 `EffectiveGrowthBudgets` 归零、`EffectiveHasGrowthTargets` 归假并让可接受战损早停重新生效、开着开关求解仍然取胜且成长信用为零且战损不超过零额度基线、付费夹具下即使策略里还留着满额度也拒绝付血成长、侧栏开关回读与额度置灰、点击开关翻转。
+- 未做原生实机验证、未跑 248 条原版回归、未执行完整发布门禁。
+
 ## 0.33.5 受伤历史与攻击次数
 
 - `TURN-START-DAMAGE-SPITE` / `THE_OBSCURA_NORMAL`：失败基线 `6fa9c33e5aca495cad4c1c0a8b662c95`，T2 怨恨后 E1.hp 预测 86、原生 81；最终 `18a3b15c05f94038a6cfb080fe41ef9c` Passed，28 秒。覆盖回合开始 Inferno 自伤后的双次攻击、召唤阵容、完整状态和 Fork，以及伤害记录不泄漏到敌方/额外玩家回合。

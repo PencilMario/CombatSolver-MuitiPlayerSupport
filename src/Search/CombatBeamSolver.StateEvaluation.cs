@@ -180,7 +180,10 @@ internal sealed partial class CombatBeamSolver
         int realizedLongTermResourceValue = combat.LongTermResourceValue;
         int longTermResourceValue = realizedLongTermResourceValue
             - missedTheHuntRewards * CorePowerSupport.TheHuntLongTermResourceValue;
-        score += realizedLongTermResourceValue * SolverWeights.LongTermResourceBeamValue;
+        // 「不考虑局外收益」只关这一项。最终选择是字典序、长期资源排在血量之后，那个位置不动，
+        // 所以白拿的收益照样拿，只是不再在 Beam 里占分、也就不会把省血的路线挤掉。
+        if (!_ignoreLongTermRewards)
+            score += realizedLongTermResourceValue * SolverWeights.LongTermResourceBeamValue;
         int growthHpCredit = _growthBudgets.Credit(combat.GrowthRewards);
         score += (double)growthHpCredit * hpWeight;
         int angerCopiesGenerated = combat.AngerCopiesGenerated;
