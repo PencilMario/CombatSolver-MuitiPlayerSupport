@@ -2,11 +2,54 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Models.Powers;
 using CombatSolver.Engine.InCombat.Mirrors.Hooks.Card;
 using CombatSolver.Engine.InCombat.Simulation;
+using Godot;
+using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.GameActions;
+using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Runs;
 
 namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertSearchWaitsForNativeActionAsync(CombatState combat, Player player)
+    {
+        NGame host = NGame.Instance!;
+        ActionExecutor executor = RunManager.Instance.ActionExecutor;
+        bool requested = false;
+        bool capturedInsideAction = false;
+        void BeforeAction(GameAction action)
+        {
+            if (requested) return;
+            requested = true;
+            SolverController.RequestSearch(host, combat, SearchReason.Manual);
+            capturedInsideAction = SolverController.HasActiveSearchSessionForTesting;
+        }
+        executor.BeforeActionExecuted += BeforeAction;
+        try
+        {
+            if (!FindActualHandCard(player, "DEFEND_SILENT", 0).TryManualPlay(null))
+                throw new InvalidOperationException("Action barrier fixture could not play Defend.");
+            await executor.FinishedExecutingActions();
+            if (!requested || capturedInsideAction)
+                throw new InvalidOperationException("Search captured a root inside the native action queue.");
+            long deadline = System.Environment.TickCount64 + 10_000;
+            while (SolverController.LastCompletedResultForTesting == null && SolverController.LastSearchFailureForTesting == null)
+            {
+                if (System.Environment.TickCount64 >= deadline)
+                    throw new TimeoutException("Deferred search did not complete after native action.");
+                await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+            if (SolverController.LastSearchFailureForTesting is { } failure)
+                throw new InvalidOperationException("Deferred action-barrier search failed.", failure);
+        }
+        finally
+        {
+            executor.BeforeActionExecuted -= BeforeAction;
+            SolverController.CancelSearchForTesting();
+        }
+    }
+
     private static void AssertSurroundedStateIdentity(CombatState combat)
     {
         CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);

@@ -39,6 +39,14 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "ROOT-CAPTURE-ACTION-BARRIER")
+            {
+                _ = ApplySettingsOverrides();
+                runner.SetStage("root_capture_action_barrier");
+                await runner.AssertSearchWaitsForNativeActionAsync(combatState, player);
+                runner._completedChecks.Add("RootCaptureActionBarrier");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "PR15-POTION-VALUE-TIERS")
                 runner.AssertPotionValueTiers(combatState);
             if (request.ScenarioId == "PR18-FOREIGN-ONPLAY-BOUNDARY")

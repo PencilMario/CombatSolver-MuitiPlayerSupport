@@ -2,6 +2,7 @@
 
 ## 2026-09-07：汇总日志硬逻辑批次
 
+- `ROOT-CAPTURE-ACTION-BARRIER`：基线 `d01150ef49014dc8ba1931a8802992e6` Failed，真实 `BeforeActionExecuted` 期间调用搜索立即建立了搜索会话。修复后 `00f8c4d6237944dbb95061f695edc44c` Passed，队列执行期间不捕获，原生防御结算后延迟请求完成搜索。命令：`tools/run-unattended-test.ps1 -ScenarioId ROOT-CAPTURE-ACTION-BARRIER -HeadlessInstance logic0907 -CharacterId SILENT -CardId DEFEND_SILENT -ClearPlayerPiles -ForceShortSearchOnly -ShortSearchBudgetOverrideMilliseconds 1500 -TimeoutSeconds 120 -ExitOnComplete`。该最小合同没有重建原报告的全部 Mod、后台回收和帕尔军团动画时序。
 - 材料预检：`95e19fb8` 报告为 `materials_valid`。原生 `RestoreOnly` 请求 `4f52cb972f4447c5b87dcd4b1b3a9f2e` 因 `environment_mismatch:mods` 失败；本机与原报告 Mod 集合不同，保持严格拦截，未宣称原包恢复成功。
 - `SURROUNDED-STATE-IDENTITY` 基线 `bfa9cc597f6647929f193c9aac98f163` Failed：左右朝向产生相同指纹。修复后 `e25cc4a6d62841ed97bcc3b179e1361a` Passed：状态指纹与 continuation 区分朝向、Fork 修改不回写父分支、背击预测为 10/15。命令：`tools/run-unattended-test.ps1 -ScenarioId SURROUNDED-STATE-IDENTITY -HeadlessInstance logic0907 -EncounterId KAISER_CRAB_BOSS -CharacterId SILENT -StopAfterCombatRootSnapshotAssertion -TimeoutSeconds 120`。
 - `SURROUNDED-POTION-DIFFERENTIAL` Passed，`99ee091bfceb42509e49cc62b78c3d7d`：虚弱药水转向左侧的 actual/simulated 严格差分与明确朝向断言通过。命令：`tools/run-unattended-test.ps1 -ScenarioId SURROUNDED-POTION-DIFFERENTIAL -HeadlessInstance logic0907 -EncounterId KAISER_CRAB_BOSS -CharacterId SILENT -PotionCheckPath coverage/unattended/power-lifecycle-batch-051-surrounded-potion.json -TimeoutSeconds 120 -ExitOnComplete`。
