@@ -39,6 +39,13 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "GALVANIC-GENERATED-POWER")
+            {
+                runner.SetStage("galvanic_generated_power");
+                await runner.AssertGalvanicGeneratedPowerAsync(combatState, player);
+                runner._completedChecks.Add("GalvanicGeneratedPower");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId is "ENERGY-RESET-POWER-ORDER" or "ENERGY-RESET-POWER-ORDER-REVERSE"
                 or "ENERGY-RESET-POWER-ORDER-REAPPLY" or "ENERGY-RESET-POWER-ORDER-OVERFLOW")
             {

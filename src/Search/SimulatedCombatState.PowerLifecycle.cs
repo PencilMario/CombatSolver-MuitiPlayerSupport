@@ -183,8 +183,6 @@ internal sealed partial class SimulatedCombatState
                         continue;
                     if (power is GalvanicPower && card.Preview.Type == CardType.Power)
                     {
-                        if (power.Owner.Side != owner.Side)
-                            continue;
                         simulator.Afflict<Galvanized>(card, power.Amount);
                         break;
                     }

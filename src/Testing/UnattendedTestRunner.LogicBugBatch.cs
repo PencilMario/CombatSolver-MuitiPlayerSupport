@@ -3,6 +3,7 @@ using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Models.Powers;
 using CombatSolver.Engine.InCombat.Mirrors.Hooks.Card;
 using CombatSolver.Engine.InCombat.Simulation;
+using CombatSolver.Engine.Common;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions;
@@ -10,11 +11,47 @@ using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.Cards;
 
 namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertGalvanicGeneratedPowerAsync(CombatState combat, Player player)
+    {
+        Creature enemy = combat.Enemies[0];
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatPredictionSimulator simulator = root.ForkSimulator();
+        SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+        PredictedCard card = PredictedCard.Create(ModelDb.Card<Automation>(), player);
+        simulator.AddGeneratedCardToCombat(card, PileType.Hand, player,
+            resultKind: CardGenerationResultKind.Fixed);
+        shadow.NormalizeCardAfflictions(simulator);
+        MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, enemy);
+        CardModel actualCard = combat.CreateCard(ModelDb.Card<Automation>(), player);
+        CardPileAddResult added = await CardPileCmd.AddGeneratedCardToCombat(actualCard, PileType.Hand, player);
+        if (!added.success)
+            throw new InvalidOperationException("Native generated power could not enter combat.");
+        await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+        AssertSnapshotEqual(expected, CaptureActual(combat, player, enemy),
+            "GalvanicGeneratedPower", "NativeEntry");
+        CombatPredictionSimulator fork = simulator.Fork();
+        SimulatedCombatState forkState = (SimulatedCombatState)fork.State.CombatState;
+        AssertSnapshotEqual(expected, CaptureSimulated(fork, forkState, player, enemy),
+            "GalvanicGeneratedPower", "ForkEntry");
+        PlaySimulatedCard(fork, forkState, FindSimulatedHandCard(fork, player, "AUTOMATION", 0),
+            null, combat.Enemies);
+        AssertSnapshotEqual(expected, CaptureSimulated(simulator, shadow, player, enemy),
+            "GalvanicGeneratedPower", "ParentAfterForkPlay");
+        if (!actualCard.TryManualPlay(null))
+            throw new InvalidOperationException("Native generated power was not playable.");
+        await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+        AssertSnapshotEqual(CaptureSimulated(fork, forkState, player, enemy),
+            CaptureActual(combat, player, enemy), "GalvanicGeneratedPower", "NativePlay");
+    }
+
     private void AssertTurnEndPowerOrderFork(CombatState combat, Player player)
     {
         CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
