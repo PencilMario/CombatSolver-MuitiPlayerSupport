@@ -184,7 +184,70 @@ CardChoiceMirrors.Register<TYourCard>(spec, apply);
 （`GainPlayerGold` 加 `RecordLongTermResource`，`贪婪之手` 就是面值直记）。登记成三个真分支之后，
 「值不值这 3 点能量」和「三个里挑哪个」都由搜索自己比出来，不需要写任何策略规则。
 
-### 2.6 还没有登记入口的地方
+### 2.6 Power 的隐藏状态进指纹
+
+```csharp
+// 状态在普通私有字段里：只要这一条。
+PowerHiddenStateMirrors.Register<TYourPower>(
+    "TotalMantraGained",
+    (simulator, power) => power.某个私有计数);
+
+// 状态在 _internalData 里：还要这一条，否则模拟一开始读到的是初值。
+PowerHiddenStateMirrors.RegisterRootCapture<TYourPower>(
+    (simulator, clone, original) =>
+        simulator.StateStore.GetReadOnly(clone, () => new MyState(original)));
+PowerHiddenStateMirrors.Register<TYourPower>(
+    "InstanceCount",
+    (simulator, power) => simulator.StateStore.Peek(power, static p => new MyState(p)).Count);
+```
+
+状态指纹里 Power 的通用部分只收 `DynamicVars`。把语义状态放在 `_internalData` 或普通私有字段里
+的 Power 走的是另一条路：`AddTurnStartStates` 按原版类型 `switch`，从 `StateStore` 里的预测状态
+取一个计数塞进指纹（虚空形态、硬化外壳、自动机、束缚锁链……）。那个 `switch` 没有第三方入口。
+
+**后果和别的缺口不一样，要分清：**
+
+- **对续接无害。** 续接戳的 Power 段实机侧和模拟侧**共用同一个方法**，只读 `DynamicVars`，两边
+  看到的东西一样，所以隐藏状态压根不进戳，也就不会对不上。
+- **对搜索去重有害。** 只在这个状态上不同的两条分支指纹相同，会被当成同一个状态**去掉一条**。
+  你的镜像算出来的数值是对的，但搜索可能把算得对的那条丢了。
+
+所以这不是「记个 `Unmirrored` 就行」的事——红字只是显示，不会让被去重掉的分支回来。
+
+#### 别往续接戳里塞
+
+`PowerModel.DeepCloneFields` 会把 `_internalData` **重置**成 `InitInternalData()`。模拟克隆读到
+的是初值，实机实例读到的是真值。往两侧共用的续接戳里塞这种值，只会让每一回合的续接都对不上
+——正是本入口要避免的那种毛病。真要进戳得像遗物那样拆成实机版和预测版两个追加方法，本入口不做
+这件事。
+
+#### 靠 `_internalData` 的必须登记根捕获
+
+同样因为克隆会重置，这类 Power 必须用 `RegisterRootCapture` 在根捕获时把实机实例的值搬进
+`simulator.StateStore`，此后一律读预测状态，**不要再读克隆上的 `GetInternalData`**。这正是原版
+`PowerPredictionStateSupport.CaptureRootState` 在做的事，照它的形状写即可。搜索途中新施加的实例
+不走根捕获，它们的 `_internalData` 本来就是初值，预测状态首次取用时按初值起算就是对的。
+
+状态放在普通私有字段里的 Power 不受影响（`MemberwiseClone` 会带过去），只登记读取函数就够了。
+
+#### 三条约束
+
+1. **只收整数。** 原版那个隐藏计数段里全部是整数或枚举；字符串只会出现在展示用的名字上，那类
+   字段按 `SemanticStateFieldPolicy` 本来就不该进指纹。
+2. **读取函数必须是纯读取。** 它在搜索热路径上被调用很多次，不得有副作用，也不要在里面分配。
+3. **返回值只能取决于这个 Power 自己的状态**（含它在 `StateStore` 里的预测状态）。它参与状态
+   等价判断，读别处会让等价判断不自洽。
+
+登记多个状态就多调几次 `Register`，名字在同一类型内不得重复，下游按名字排序后依次进指纹。
+
+**两个真实例子，都在观者。** 光辉的伤害等于牌面值加上本场战斗累计获得的真言，累计值在
+`WatcherStatePower` 的一个普通私有 `int` 里，只需要读取函数；登记之后「先攒真言再打光辉」和
+「直接打光辉」不再被当成同一个状态。天人形态的那个 Power 用 `_internalData` 存一个实例表，每回合
+给「总和」点能量再把每个实例加一——总和就是 `Amount`，本来就在指纹里，缺的只是**实例个数**，
+也就是下一回合总和的增量；它要根捕获加读取函数两条，登记一个 `InstanceCount` 就够了，不需要把
+整张表塞进去。
+
+### 2.7 还没有登记入口的地方
 
 见第 6 节。目前只能 Harmony 打补丁，或者等对应的扩展点合并。
 
@@ -303,6 +366,8 @@ CardChoiceMirrors.Register<TYourCard>(spec, apply);
 | `CorePowerSupport.TriggerPlayerSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、`TurnStartPowerSupport.TriggerAfterPlayerTurnStart`、`SimulatedCombatState.TriggerRelicsAfterPlayerTurnStart` | 回合边界的效果没有注册表 | 待做 |
 | `SimulatedCombatState.TryPrepareExtraPlayerTurn` / `TryPrepareLiveExtraPlayerTurn` / `ConsumeExtraTurnSources` | 额外回合的来源硬编码，只认龙涎香和帕尔之眼 | 待做 |
 | `CombatPredictionSimulator.OnPlayWrapper` | 出牌后补抽没有挂载点 | 待做 |
+| `ContinuationStamp.AppendCard` 的 `private=` 段与 `CombatBeamSolver.CaptureCardStateFingerprintForTesting` 的 `switch (preview)` | **卡牌**的隐藏字段按原版类型写死（利爪、基因算法、巨锤、狂暴、镰刀、疯狂科学），第三方卡牌的私有计数进不了指纹。Power 那一侧已有 `PowerHiddenStateMirrors`，见 §2.6 | 待做 |
+| `SimulatedCombatState.AddTurnStartStates` 的 `switch (power)` | 原版 Power 隐藏计数按类型写死。第三方走 §2.6 的登记表进同一份指纹，本行只是记下原版那个 `switch` 本身仍然封闭 | 第三方已有入口 |
 | `GrowthSource` / `GrowthValues.HasTarget` 与 `SolverGrowthStrategyPanel.SourceCard` | 成长额度仅支持内置八类来源；第三方战略估值登记不会自动获得独立成长配置 | 0.32.0 已发布，尚无公开登记入口 |
 
 **这些开关新增或改动时，必须在同一个提交里更新这张表和本文档对应章节。** 见
