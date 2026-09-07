@@ -22,6 +22,50 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertMelancholyOstyDeathAsync(CombatState combat, Player player)
+    {
+        Creature osty = player.Osty ?? throw new InvalidOperationException("Melancholy fixture requires Osty.");
+        Creature enemy = combat.Enemies[0];
+        if (!osty.IsAlive)
+            throw new InvalidOperationException("Osty must be alive before the death comparison.");
+        await ClearPlayerPilesAsync(player);
+        foreach (string pile in new[] { "Hand", "Draw", "Discard", "Exhaust" })
+            await InjectCardAsync(combat, player, new UnattendedCardInjection
+            {
+                CardId = "MELANCHOLY", Pile = pile, UpgradeLevels = 1,
+                EnchantmentId = "SWIFT", EnchantmentAmount = 2,
+                AfflictionId = "BOUND", AfflictionAmount = 3
+            });
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatPredictionSimulator direct = root.ForkSimulator();
+        CombatPredictionSimulator fork = direct.Fork();
+        MoveStateSnapshot initial = CaptureSimulated(direct, (SimulatedCombatState)direct.State.CombatState, player, enemy);
+        MoveStateSnapshot? expected = null;
+        foreach (CombatPredictionSimulator simulator in new[] { fork, direct })
+        {
+            simulator.Damage([osty], osty.CurrentHp + 10,
+                MegaCrit.Sts2.Core.ValueProps.ValueProp.Unblockable | MegaCrit.Sts2.Core.ValueProps.ValueProp.Unpowered,
+                enemy, null, null);
+            MoveStateSnapshot state = CaptureSimulated(simulator, (SimulatedCombatState)simulator.State.CombatState, player, enemy);
+            if (expected == null)
+            {
+                expected = state;
+                AssertSnapshotEqual(initial, CaptureSimulated(direct, (SimulatedCombatState)direct.State.CombatState, player, enemy),
+                    "MelancholyOstyDeath", "ParentIsolation");
+            }
+            else
+                AssertSnapshotEqual(expected, state, "MelancholyOstyDeath", "DirectAndFork");
+            CombatPredictionSimulator afterDeath = simulator.Fork();
+            AssertSnapshotEqual(state, CaptureSimulated(afterDeath, (SimulatedCombatState)afterDeath.State.CombatState, player, enemy),
+                "MelancholyOstyDeath", "ForkAfterDeath");
+        }
+        await CreatureCmd.Damage(new BlockingPlayerChoiceContext(), osty, osty.CurrentHp + 10,
+            MegaCrit.Sts2.Core.ValueProps.ValueProp.Unblockable | MegaCrit.Sts2.Core.ValueProps.ValueProp.Unpowered,
+            enemy, null, null);
+        await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+        AssertSnapshotEqual(expected!, CaptureActual(combat, player, enemy), "MelancholyOstyDeath", "NativeDeath");
+    }
+
     private async Task AssertQueenInfernoMinionDeathAsync(CombatState combat, Player player)
     {
         Creature minion = combat.Enemies.Single(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.TorchHeadAmalgam);
