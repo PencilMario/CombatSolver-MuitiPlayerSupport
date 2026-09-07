@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 0.33.0 发布集成
+
+- PR #57、#58 已合入本批。`PR57-58-STATE-CONTRACT` Passed，runId `e59d8568334c490c9ad9d488288c2ba7`，22 秒。验证污染叠加保持为 4、火花数量变化后同步为 3；隐藏状态槽排序、重复登记拒绝、根捕获委托参数分派、隐藏值变化区分指纹，以及撤销测试登记后恢复原指纹。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId PR57-58-STATE-CONTRACT -HeadlessInstance logic0907 -CardId DEFEND_IRONCLAD -TimeoutSeconds 120 -ExitOnComplete`。登记测试仅临时使用原版 StrengthPower，finally 清理测试项，不新增生产注销入口。
+- PR 集成 Release 编译通过，0 警告、0 错误。旧批次沿用下节既有证据；本次未执行完整发布门禁、117 份原包完整恢复或第三方角色整场适配。隐藏状态根捕获本次验证委托分派，未声称第三方内部状态的完整捕获、Fork 或续用通过。
+- 暂停范围与后续调查见 [交接文档](issues/report-logic-bugs-20260907-handoff.md)。
+
 ## 2026-09-07：汇总日志硬逻辑批次
 
 - `RAT-SUMMON-NEXT-INTENT`：基线 `6d34dbb147f143d58baaa535d3c4c997` 新个体下一行动预测 SCRATCH / 原生 DISEASE_BITE；修复后 `370dae413cb94195b2f5143a17132ad9` Passed。正式 EndTurn 回放对照原生下一玩家回合，完整状态、阵容数量、AI 日志与 RNG、Fork 一致。命令：`./tools/run-unattended-test.ps1 -ScenarioId RAT-SUMMON-NEXT-INTENT -HeadlessInstance logic0907 -CharacterId IRONCLAD -EncounterId TWO_TAILED_RATS_NORMAL -TimeoutSeconds 120 -ExitOnComplete`。

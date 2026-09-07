@@ -188,6 +188,8 @@ CardChoiceMirrors.Register<TYourCard>(spec, apply);
 
 ### 2.6 Power 的隐藏状态进指纹
 
+随 PR #58 于 `0.33.0` 发布。登记应在 Mod 初始化、任何根捕获和后台搜索之前完成；搜索期间保持登记表不变。依赖此入口的适配 Mod 应要求 CombatSolver `0.33.0`。
+
 ```csharp
 // 状态在普通私有字段里：只要这一条。
 PowerHiddenStateMirrors.Register<TYourPower>(
@@ -209,19 +211,15 @@ PowerHiddenStateMirrors.Register<TYourPower>(
 
 **后果和别的缺口不一样，要分清：**
 
-- **对续接无害。** 续接戳的 Power 段实机侧和模拟侧**共用同一个方法**，只读 `DynamicVars`，两边
-  看到的东西一样，所以隐藏状态压根不进戳，也就不会对不上。
+- **续用核对尚未覆盖此状态。** 两侧通用 Power 字段一致不能证明隐藏状态一致；跨回合适配需要单独验证原生与预测状态。
 - **对搜索去重有害。** 只在这个状态上不同的两条分支指纹相同，会被当成同一个状态**去掉一条**。
   你的镜像算出来的数值是对的，但搜索可能把算得对的那条丢了。
 
 所以这不是「记个 `Unmirrored` 就行」的事——红字只是显示，不会让被去重掉的分支回来。
 
-#### 别往续接戳里塞
+#### 续用核对边界
 
-`PowerModel.DeepCloneFields` 会把 `_internalData` **重置**成 `InitInternalData()`。模拟克隆读到
-的是初值，实机实例读到的是真值。往两侧共用的续接戳里塞这种值，只会让每一回合的续接都对不上
-——正是本入口要避免的那种毛病。真要进戳得像遗物那样拆成实机版和预测版两个追加方法，本入口不做
-这件事。
+`PowerModel.DeepCloneFields` 会把 `_internalData` 重置成 `InitInternalData()`。续用核对若要覆盖隐藏状态，需要分别读取原生状态和已捕获的预测状态。本入口仅提供搜索指纹与根捕获登记，尚未提供这两侧的续用追加入口。
 
 #### 靠 `_internalData` 的必须登记根捕获
 

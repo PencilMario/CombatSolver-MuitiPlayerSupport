@@ -39,6 +39,13 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "PR57-58-STATE-CONTRACT")
+            {
+                AssertVitalSparkKeepsStackedTaintedAmount(combatState, player);
+                AssertPowerHiddenStateRegistration(combatState, player);
+                runner._completedChecks.Add("VitalSparkStackingAndPowerHiddenStateRegistration");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "RAT-SUMMON-NEXT-INTENT")
             {
                 runner.SetStage("rat_summon_next_intent");
