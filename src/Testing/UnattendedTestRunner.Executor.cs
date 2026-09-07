@@ -39,6 +39,13 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "CARD-ENERGY-GAIN-COMMAND")
+            {
+                runner.SetStage("card_energy_gain_command");
+                await runner.AssertCardEnergyGainCommandAsync(combatState, player);
+                runner._completedChecks.Add("CardEnergyGainCommand");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "MELANCHOLY-OSTY-DEATH")
             {
                 runner.SetStage("melancholy_osty_death");

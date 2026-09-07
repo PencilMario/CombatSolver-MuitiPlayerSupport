@@ -2,6 +2,7 @@
 
 ## 2026-09-07：汇总日志硬逻辑批次
 
+- `CARD-ENERGY-GAIN-COMMAND`：基线 `e8b64cd4c1e44bc598e618f581c7273d` ALIGNMENT 能量预测 12/原生 10；修复后 `0647bc3be5824b7691859854e975b80a` Passed，11 张增能卡逐张完整原生差分通过，含动态增能、附加 Power 与生成牌。命令：`./tools/run-unattended-test.ps1 -ScenarioId CARD-ENERGY-GAIN-COMMAND -HeadlessInstance logic0907 -CharacterId IRONCLAD -EncounterId GLOBE_HEAD_NORMAL -PowerId NO_ENERGY_GAIN_POWER -PowerAmount 1 -PowerTarget Player -TimeoutSeconds 120 -ExitOnComplete`。初始建局 `c0dd9ab626ca404e985c6d9f1ee277e1` 遗漏 ALIGNMENT 的星能，原生无法出牌，未计作语义基线。此组只验证禁止回能命令路径，不宣称原报告全场回放通过。
 - `SURROUNDED-STATE-IDENTITY` 扩展评分缓存检查 Passed，`99bb428e0c68471ba8a4c4b0d75d1234`：Crusher THRASH / Rocket CHARGE_UP，正式 Snapshot 左右朝向有不同指纹、预估 HP 与评分；同一 solver 先计算左再右，右值与独立 solver 一致，重新计算左值稳定。保留原朝向状态、续用、Fork 和 10/15 背击断言。命令沿用下方同名场景，增加 `-ExitOnComplete`。未执行 27 份蟹皇旧包的完整回放。
 - `MELANCHOLY-OSTY-DEATH` Passed，`05b52a6c87034108996792f3e47ccbd6`：四个牌堆的升级忧郁带 SWIFT 2 / BOUND 3，奥斯提死亡后的完整原生差分、直接/分叉等价、父分支隔离及再次 Fork 通过。命令：`./tools/run-unattended-test.ps1 -ScenarioId MELANCHOLY-OSTY-DEATH -HeadlessInstance logic0907 -CharacterId NECROBINDER -EncounterId GLOBE_HEAD_NORMAL -TimeoutSeconds 120 -ExitOnComplete`。仅证明直接死亡通知，不覆盖报告 `c3f8cf86` 的最终路线回放。首次请求误用了不存在的遭遇 ID（`957f8afbf5914bc08621ee843cf5eaa7`），未进入战斗，不属于语义失败基线。
 - `QUEEN-INFERNO-TERMINAL`：基线 `ace01a08d43b49ecbf358cb01fc89556` 清理前能量预测 5/原生 3；修复后 `5123f0ad07074cf9926b2c554bf8dc26` Passed，完整状态和 Fork 相等。使用与 `QUEEN-INFERNO-MINION-DEATH` 相同 CLI 参数，仅替换 ScenarioId；两个敌人均保留注入的 9 HP，通过既有原生 `EndCombatInternal` 观察者在战后回血和清理前取样并等待 CombatEnded。原先战后取样的 HP 77/80 不再作为模拟错误证据。

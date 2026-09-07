@@ -53,6 +53,12 @@
 
 ## 修复进度
 
+### 卡牌增能命令：补齐禁止回能钩子
+
+- 沿放血的既有命令遗漏检查 `CardOnPlaySupport`，另发现 11 张原版增能牌仍直接修改 `SimPlayerCombatState.Energy`。原版均调用 `PlayerCmd.GainEnergy`，因此既需要终局门，也需要 `ModifyEnergyGain`；`NoEnergyGainPower` 会把获得量改成 0。
+- `CARD-ENERGY-GAIN-COMMAND` 在 10 能量、10 星能及禁止回能状态下逐牌原生差分。基线 `e8b64cd4c1e44bc598e618f581c7273d` 首张 ALIGNMENT 预测 12 / 原生 10。改用已有 `simulator.GainEnergy` 后，`0647bc3be5824b7691859854e975b80a` 的 ALIGNMENT、BORROWED_TIME、DOUBLE_ENERGY、FORGOTTEN_RITUAL、FUEL、LUMINESCE、PRODUCTION、SUPERCRITICAL、TACTICIAN、WISP、TURBO 全部完整状态差分通过。
+- 本项为排查中发现的独立命令语义缺口，不是 `44a62cbc` 的已证实根因。该实验体报告还含较早的终局后回放失败，T3 原生动作与后台求解交错、之后发生 RESPAWN；最新根为 T9、实验体持有 NEMESIS。日志未给出失败落选路线逐动作状态，仍需定位。
+
 ### 落选分支：27 份蟹皇评分差异与 1 份实验体状态差异
 
 - 逐份读取本组 28 份报告的主要错误信号和首个搜索根：27 份均为 `KAISER_CRAB_BOSS`、玩家有 `SURROUNDED_POWER`，主要信号中的 expected/actual 指纹相同；另 1 份 `44a62cbc` 为 `TEST_SUBJECT_BOSS`，指纹本身不同，继续独立定位。

@@ -22,6 +22,30 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertCardEnergyGainCommandAsync(CombatState combat, Player player)
+    {
+        Creature enemy = combat.Enemies[0];
+        if (!player.Creature.HasPower<NoEnergyGainPower>())
+            throw new InvalidOperationException("Energy command fixture requires NoEnergyGainPower.");
+        foreach (string cardId in new[] { "ALIGNMENT", "BORROWED_TIME", "DOUBLE_ENERGY", "FORGOTTEN_RITUAL",
+                     "FUEL", "LUMINESCE", "PRODUCTION", "SUPERCRITICAL", "TACTICIAN", "WISP", "TURBO" })
+        {
+            await ClearPlayerPilesAsync(player);
+            SetEnergy(player, 10);
+            SetStars(player, 10);
+            await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = cardId, Pile = "Hand" });
+            CombatPredictionSimulator simulator = CombatRootSnapshot.Capture(combat).ForkSimulator();
+            SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+            PlaySimulatedCard(simulator, shadow, FindSimulatedHandCard(simulator, player, cardId, 0), null, combat.Enemies);
+            MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, enemy);
+            if (!FindActualHandCard(player, cardId, 0).TryManualPlay(null))
+                throw new InvalidOperationException($"Native energy fixture card {cardId} was not playable.");
+            await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+            AssertSnapshotEqual(expected, CaptureActual(combat, player, enemy), "CardEnergyGainCommand", cardId);
+            _completedChecks.Add("CardEnergyGainCommand:" + cardId);
+        }
+    }
+
     private async Task AssertMelancholyOstyDeathAsync(CombatState combat, Player player)
     {
         Creature osty = player.Osty ?? throw new InvalidOperationException("Melancholy fixture requires Osty.");
