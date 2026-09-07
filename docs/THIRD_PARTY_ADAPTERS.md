@@ -151,7 +151,7 @@ PotionChoiceMirrors.Register<TYourPotion>(spec, apply);
 
 ### 2.5 卡牌的玩家选择
 
-此入口随 PR #56 合入主线开发代码，已发布的 `0.31.3` 尚不包含。当前需针对主线源码构建，正式发版后再确定最低版本依赖。
+此入口随 PR #56 合入，并于 `0.32.0` 发布。使用此入口的适配 Mod 应将 CombatSolver 最低依赖设为 `0.32.0`。
 
 ```csharp
 CardChoiceMirrors.Register<TYourCard>(spec, apply);
@@ -303,7 +303,7 @@ CardChoiceMirrors.Register<TYourCard>(spec, apply);
 | `CorePowerSupport.TriggerPlayerSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、`TurnStartPowerSupport.TriggerAfterPlayerTurnStart`、`SimulatedCombatState.TriggerRelicsAfterPlayerTurnStart` | 回合边界的效果没有注册表 | 待做 |
 | `SimulatedCombatState.TryPrepareExtraPlayerTurn` / `TryPrepareLiveExtraPlayerTurn` / `ConsumeExtraTurnSources` | 额外回合的来源硬编码，只认龙涎香和帕尔之眼 | 待做 |
 | `CombatPredictionSimulator.OnPlayWrapper` | 出牌后补抽没有挂载点 | 待做 |
-| `GrowthSource` / `GrowthValues.HasTarget` 与 `SolverGrowthStrategyPanel.SourceCard` | 成长额度仅支持内置八类来源；第三方战略估值登记不会自动获得独立成长配置 | 开发中，尚无公开登记入口 |
+| `GrowthSource` / `GrowthValues.HasTarget` 与 `SolverGrowthStrategyPanel.SourceCard` | 成长额度仅支持内置八类来源；第三方战略估值登记不会自动获得独立成长配置 | 0.32.0 已发布，尚无公开登记入口 |
 
 **这些开关新增或改动时，必须在同一个提交里更新这张表和本文档对应章节。** 见
 [AGENTS.md](../AGENTS.md) 第 9 节。
