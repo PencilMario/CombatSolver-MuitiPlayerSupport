@@ -17,7 +17,8 @@ internal sealed record CardChoiceSpec(
     IReadOnlyList<PredictedCard> Options,
     IReadOnlyList<PredictedCard> SourceCards,
     double ReplacementValue,
-    string ContextId = "");
+    string ContextId = "",
+    int? MaxBranches = null);
 
 internal static partial class CardChoiceSupport
 {
@@ -292,6 +293,7 @@ internal static partial class CardChoiceSupport
             orderedRetained = OrderSemanticSelectionsBeforeOccurrenceSupplements(orderedRetained);
 
         return orderedRetained
+            .Take(spec.MaxBranches ?? int.MaxValue)
             .Select(selection => new PlanCardChoice(
                 spec.Effect,
                 spec.SourcePile,
@@ -905,6 +907,8 @@ internal static partial class CardChoiceSupport
         double value = cards.Sum(card => spec.Effect is PlanChoiceEffect.Transform or PlanChoiceEffect.Exhaust
             ? RemovalPriority(spec, card)
             : CardValue(card.Preview));
+        if (spec.Effect == PlanChoiceEffect.Discard && spec.SourcePile != PileType.Hand)
+            return ReorderDiscardPriority(spec, cards);
         return spec.Effect switch
         {
             PlanChoiceEffect.Transform => cards.Count * spec.ReplacementValue - value,
@@ -913,6 +917,30 @@ internal static partial class CardChoiceSupport
             PlanChoiceEffect.Exhaust => -value,
             _ => value,
         };
+    }
+
+    /// <summary>
+    /// 从手牌以外的牌堆弃牌时的分支排序键。
+    /// </summary>
+    /// <remarks>
+    /// 从手牌弃掉一张牌，这张牌本回合就用不上了，所以按"损失"计价是对的。从抽牌堆弃掉一张
+    /// 不一样：牌没有离开本场牌库，只是被推到循环的后面，换来的是下一次抽牌更靠前地拿到别的牌。
+    /// 那是一次重排，不是一次损失。预视就是这个形状。
+    ///
+    /// 所以收益按"换掉它能好多少"算：弃掉一张牌，下次抽到的是这一堆里剩下的牌，期望值取源牌堆
+    /// 的平均。低于平均的牌弃掉是正收益，高于平均的是负收益，一张都不弃恰好是零。不需要新的
+    /// 调参常数。
+    ///
+    /// 沿用原有口径的两点：仍然把 Sly 的弃牌触发收益加上；源牌堆为空时平均按零算。
+    /// </remarks>
+    private static double ReorderDiscardPriority(
+        CardChoiceSpec spec,
+        IReadOnlyList<PredictedCard> cards)
+    {
+        double replacement = spec.SourceCards.Count == 0
+            ? 0d
+            : spec.SourceCards.Average(card => CardValue(card.Preview));
+        return cards.Sum(card => replacement - CardValue(card.Preview) + DiscardTriggerValue(card));
     }
 
     private static double DiscardTriggerValue(PredictedCard card)

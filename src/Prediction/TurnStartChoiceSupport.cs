@@ -178,6 +178,73 @@ internal static class TurnStartChoiceSupport
         return true;
     }
 
+    /// <summary>
+    /// 在给定候选里挑任意张丢掉，可以一张都不挑。预视就是这个形状。
+    /// </summary>
+    /// <remarks>
+    /// 和赌博筹码的差别只有两处：候选由调用方给出，不是整只手牌；丢完不补抽。
+    /// 候选必须是调用方当时真正给玩家看的那几张，顺序也要一致，否则部署时按卡牌令牌
+    /// 在原生页面上定位会错位。
+    ///
+    /// 下界是 0，所以这条选择永远有合法答案，不会把路线变成不可执行。
+    ///
+    /// <paramref name="maxBranches" /> 给 1 时只保留排序最高的那一条分支，也就是按固定策略作答，
+    /// 不在 beam 上展开。会反复触发的来源（例如每次洗牌都预视的遗物）应当这样用：这类选择本身
+    /// 收益有限，却会在每次洗牌处把搜索宽度乘一遍，在能循环整个牌库的牌组里会彻底压过出牌决策。
+    /// 它仍然走同一条通道，所以计划里照样记录，部署照样应答原生页面。
+    /// </remarks>
+    public static bool ResolvePileDiscard(
+        CombatPredictionSimulator simulator,
+        SimulatedCombatState combat,
+        Player player,
+        TurnStartChoiceCursor? cursor,
+        string sourceId,
+        PileType sourcePile,
+        IReadOnlyList<PredictedCard> options,
+        int? maxBranches = null,
+        string contextId = "")
+    {
+        if (options.Count == 0)
+            return true;
+
+        SimPlayerCombatState state = simulator.State.GetPlayerCombatState(player);
+        IReadOnlyList<PredictedCard> sourceCards = state.GetCardPile(sourcePile)?.Cards
+            ?? throw new InvalidOperationException($"丢弃选择不支持牌堆 {sourcePile}。");
+        CardChoiceSpec spec = new(
+            PlanChoiceEffect.Discard,
+            sourcePile,
+            0,
+            options.Count,
+            options,
+            sourceCards,
+            ReplacementValue: 0d,
+            ContextId: contextId,
+            MaxBranches: maxBranches);
+        TurnStartChoiceRequest request = new(
+            sourceId,
+            PlanChoiceEffect.Discard,
+            sourcePile,
+            options.Count,
+            spec,
+            contextId,
+            combat.ActiveActionChoiceTiming);
+        if (cursor == null || !cursor.TryTake(request, out PlanCardChoice? choice))
+        {
+            combat.SetPendingTurnStartChoice(request);
+            return false;
+        }
+
+        IReadOnlyList<PredictedCard> selected = ResolveTokens(
+            choice!,
+            options,
+            minCount: 0,
+            maxCount: options.Count);
+        if (selected.Count > 0)
+            simulator.Discard(selected);
+        combat.ClearPendingTurnStartChoice();
+        return true;
+    }
+
     public static bool ResolveDiscardAndDraw(
         CombatPredictionSimulator simulator,
         SimulatedCombatState combat,
