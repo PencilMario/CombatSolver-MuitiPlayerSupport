@@ -17,7 +17,7 @@ namespace CombatSolver;
 
 internal sealed record OnlinePresencePayload(
     string SessionId, string Name, string Character, int? Floor,
-    string Encounter, int? HpLoss, string Version);
+    string Encounter, int? HpLoss, string Version, bool InCombat = false, long? BattleUpdatedAt = null);
 
 // Capture scalar values on the main thread; only the immutable payload reaches HTTP.
 internal sealed partial class OnlinePresence : Node
@@ -26,6 +26,8 @@ internal sealed partial class OnlinePresence : Node
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private HttpClient? _client;
     private string? _identity;
+    private OnlinePresencePayload? _latestBattle;
+    private SolverResult? _capturedResult;
     private double _elapsed = 30;
     private Task? _pending;
     private CancellationTokenSource? _request;
@@ -51,12 +53,19 @@ internal sealed partial class OnlinePresence : Node
     public override void _Process(double delta)
     {
         if (!SolverSettings.Current.OnlineStatisticsEnabled || SolverController.IsMultiplayerSession) return;
+        SolverResult? result = SolverController.CurrentResultForBugReport;
+        if (CombatManager.Instance.IsInProgress && result?.CombatEndedTurn.HasValue == true && result != _capturedResult)
+        {
+            _latestBattle = RetainLatestBattle(Capture("", _version), _latestBattle);
+            _capturedResult = result;
+        }
         _elapsed += delta;
         if (_elapsed < 30 || _pending is { IsCompleted: false }) return;
         _elapsed = 0;
         if (_client == null && !ConfigureClient()) return;
         _identity ??= LoadIdentity();
-        OnlinePresencePayload payload = Capture(_identity, _version);
+        OnlinePresencePayload payload = RetainLatestBattle(Capture(_identity, _version), _latestBattle);
+        if (payload.HpLoss.HasValue) _latestBattle = payload;
         _request?.Dispose();
         _request = new CancellationTokenSource();
         _pending = SendAsync(payload, _request.Token);
@@ -74,7 +83,18 @@ internal sealed partial class OnlinePresence : Node
         return new OnlinePresencePayload(identity, Clean(name,128),
             Clean(player?.Character.Title.GetFormattedText() ?? "",128), run?.TotalFloor,
             Clean(combat == null ? "" : string.Join("、",combat.Enemies.Select(enemy => enemy.Name)),512),
-            result?.CombatEndedTurn.HasValue == true ? result.ProjectedBattleHpLost : null, version);
+            result?.CombatEndedTurn.HasValue == true ? result.ProjectedBattleHpLost : null, version,
+            combat != null, result?.CombatEndedTurn.HasValue == true ? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() : null);
+    }
+
+    internal static OnlinePresencePayload RetainLatestBattle(OnlinePresencePayload current, OnlinePresencePayload? previous)
+    {
+        if (current.InCombat && current.HpLoss.HasValue && current.Character.Length > 0
+            && current.Floor.HasValue && current.Encounter.Length > 0)
+            return current;
+        if (previous?.HpLoss.HasValue == true)
+            return previous with { SessionId = current.SessionId, Name = current.Name, Version = current.Version, InCombat = current.InCombat };
+        return current with { Character = "", Floor = null, Encounter = "", HpLoss = null, BattleUpdatedAt = null };
     }
 
     private static string Clean(string value, int limit)

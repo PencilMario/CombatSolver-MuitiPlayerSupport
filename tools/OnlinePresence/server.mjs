@@ -13,7 +13,9 @@ export const PAGE_SIZE = 30;
 export function validate(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
   const fields = ['sessionId','name','character','floor','encounter','hpLoss','version'];
-  if (Object.keys(body).some(key => !fields.includes(key)) || Object.keys(body).length !== fields.length) return false;
+  if (Object.keys(body).some(key => ![...fields,'inCombat','battleUpdatedAt'].includes(key)) || fields.some(key => !(key in body))) return false;
+  if ('inCombat' in body && typeof body.inCombat !== 'boolean') return false;
+  if ('battleUpdatedAt' in body && body.battleUpdatedAt !== null && (!Number.isSafeInteger(body.battleUpdatedAt) || body.battleUpdatedAt < 0)) return false;
   if (typeof body.sessionId !== 'string' || !/^[a-f0-9]{32}$/.test(body.sessionId)) return false;
   for (const [key, max] of [['name',128],['character',128],['encounter',512],['version',32]]) {
     if (typeof body[key] !== 'string' || body[key].length > max || /[\u0000-\u001f]/.test(body[key])) return false;
@@ -93,7 +95,15 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
     const elapsed = previous ? Math.max(0, receivedAt-previous.last_seen) : 0;
     const totalMs = (previous?.total_ms ?? 0) + (elapsed < TTL ? elapsed : 0);
     durationWrite.run(body.sessionId,totalMs,receivedAt);
-    players.set(body.sessionId,{...body,totalMs,lastSeen:receivedAt});
+    const prior = players.get(body.sessionId);
+    const inCombat = body.inCombat ?? Boolean(body.encounter);
+    const complete = body.character.length > 0 && body.floor !== null && body.encounter.length > 0 && body.hpLoss !== null;
+    const battle = complete
+      ? {character:body.character,floor:body.floor,encounter:body.encounter,hpLoss:body.hpLoss,battleUpdatedAt:body.battleUpdatedAt ?? receivedAt}
+      : prior && prior.hpLoss !== null
+        ? {character:prior.character,floor:prior.floor,encounter:prior.encounter,hpLoss:prior.hpLoss,battleUpdatedAt:prior.battleUpdatedAt}
+        : {character:'',floor:null,encounter:'',hpLoss:null,battleUpdatedAt:null};
+    players.set(body.sessionId,{...body,...battle,inCombat,totalMs,lastSeen:receivedAt});
     send(res,204);
   });
   const files = new Map([
@@ -137,7 +147,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
         if (![1,24,168,720].includes(hours) || !Number.isInteger(maxPoints) || maxPoints < 32 || maxPoints > 240) return send(res,400);
         const at = now();
         const history = aggregateHistory(historyRead.all(at-hours*3600000),hours,maxPoints);
-        return send(res,200,{now:at,ttl:TTL,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.encounter).length,...history});
+        return send(res,200,{now:at,ttl:TTL,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.inCombat).length,...history});
       }
       if (req.method === 'GET' && url.pathname === '/api/players') {
         expire();

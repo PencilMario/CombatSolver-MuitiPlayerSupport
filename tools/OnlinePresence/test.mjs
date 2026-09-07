@@ -10,6 +10,9 @@ const password='fixture-password-only-0123456789';
 const payload={sessionId:'a'.repeat(32),name:'测试玩家 <script>',character:'铁甲战士',floor:12,encounter:'测试战斗',hpLoss:0,version:'test'};
 test('strict payload: rejects extra fields, invalid loss, oversized strings',()=>{
   assert.ok(validate(payload));assert.ok(validate({...payload,hpLoss:null}));
+  assert.ok(validate({...payload,inCombat:false,battleUpdatedAt:123}));
+  assert.equal(validate({...payload,inCombat:'false'}),false);
+  assert.equal(validate({...payload,battleUpdatedAt:-1}),false);
   for(const p of [{...payload,route:[]},{...payload,hpLoss:-1},{...payload,hpLoss:'0'},{...payload,floor:1.1},{...payload,name:'x'.repeat(129)},{...payload,sessionId:'invalid'}])assert.equal(validate(p),false);
 });
 test('collector privacy, login, deduplication, expiry and durable aggregate history',async()=>{
@@ -49,4 +52,42 @@ test('heartbeat per-identity throttling',async()=>{
   const app=createApp({password});const server=http.createServer(app.collector).listen(0,'127.0.0.1');await once(server,'listening');
   try{for(let i=0;i<7;i++){const r=await fetch(`http://127.0.0.1:${server.address().port}/v1/heartbeat`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});assert.equal(r.status,i<6?204:429);}}
   finally{server.closeAllConnections();await new Promise(r=>server.close(r));app.close();}
+});
+
+test('retains complete battles atomically through idle and pending results, with accurate presence',async()=>{
+  let time=1_800_000_000_000;
+  const app=createApp({password,now:()=>time});
+  const collector=http.createServer(app.collector).listen(0,'127.0.0.1');
+  const admin=http.createServer(app.admin).listen(0,'127.0.0.1');
+  await Promise.all([once(collector,'listening'),once(admin,'listening')]);
+  const c=`http://127.0.0.1:${collector.address().port}`,a=`http://127.0.0.1:${admin.address().port}`;
+  const post=(url,body,headers={})=>fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...headers},body:JSON.stringify(body)});
+  try {
+    const login=await post(a+'/api/login',{password},{Origin:a});
+    const cookie=login.headers.get('set-cookie').split(';')[0];
+    const get=path=>fetch(a+path,{headers:{Cookie:cookie}}).then(r=>r.json());
+    const send=async body=>{time+=30000;assert.equal((await post(c+'/v1/heartbeat',body)).status,204);return (await get('/api/players')).players[0];};
+    const idle={...payload,character:'',floor:null,encounter:'',hpLoss:null};
+    assert.equal((await send(idle)).hpLoss,null);
+    const first=await send(payload);
+    const cached=await send(idle);
+    for(const key of ['character','floor','encounter','hpLoss','battleUpdatedAt']) assert.equal(cached[key],first[key]);
+    assert.equal((await get('/api/overview')).fightingCount,0);
+    assert.equal(cached.onlineSeconds,60);
+    const next={...payload,character:'下一角色',floor:2,encounter:'下一战斗',hpLoss:null};
+    const pending=await send(next);
+    assert.equal(pending.encounter,payload.encounter);assert.equal(pending.hpLoss,0);
+    assert.equal((await get('/api/overview')).fightingCount,1);
+    const completed=await send({...next,hpLoss:5,inCombat:true,battleUpdatedAt:time});
+    assert.equal(completed.encounter,next.encounter);assert.equal(completed.hpLoss,5);assert.equal(completed.character,next.character);assert.equal(completed.floor,2);
+    const cachedClient=await send({...next,hpLoss:5,inCombat:false,battleUpdatedAt:completed.battleUpdatedAt});
+    assert.equal(cachedClient.battleUpdatedAt,completed.battleUpdatedAt);
+    assert.equal((await get('/api/overview')).fightingCount,0);
+    time+=TTL+1;
+    assert.equal((await get('/api/players')).total,0);
+    assert.equal((await send(idle)).hpLoss,null);
+  } finally {
+    collector.closeAllConnections();admin.closeAllConnections();
+    await Promise.all([new Promise(r=>collector.close(r)),new Promise(r=>admin.close(r))]);app.close();
+  }
 });

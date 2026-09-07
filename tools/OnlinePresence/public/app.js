@@ -69,7 +69,8 @@ function renderPlayers(data) {
   $('empty').textContent = $('search').value.trim() ? '没有匹配的玩家' : '当前没有在线玩家';
   for (const p of data.players) {
     const row = document.createElement('tr');
-    const values = [p.rank, p.name || '未命名玩家', duration(p.onlineSeconds), p.character || '主菜单', p.floor ?? '-', p.encounter || '非战斗', p.hpLoss === null ? '未知' : `${p.hpLoss} HP`, p.version, `${Math.max(0, Math.floor((data.now - p.lastSeen) / 1000))} 秒前`];
+    const values = [p.rank, p.name || '未命名玩家', duration(p.onlineSeconds), p.character || '-', p.floor ?? '-', p.encounter || '等待首次计算', p.hpLoss === null ? '-' : `${p.hpLoss} HP`, p.version, `${Math.max(0, Math.floor((data.now - p.lastSeen) / 1000))} 秒前`];
+    if (p.battleUpdatedAt !== null) row.title = `战斗数据采集于 ${new Date(p.battleUpdatedAt).toLocaleString()}`;
     for (const [index, value] of values.entries()) {
       const td = document.createElement('td');
       td.textContent = String(value);
