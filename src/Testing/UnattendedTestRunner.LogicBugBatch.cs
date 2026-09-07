@@ -22,6 +22,40 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertRatSummonNextIntentAsync(CombatState combat, Player player)
+    {
+        Creature[] originals = combat.Enemies.ToArray();
+        if (originals.Length != 3 || originals.Any(enemy => enemy.Monster is not MegaCrit.Sts2.Core.Models.Monsters.TwoTailedRat))
+            throw new InvalidOperationException("Rat summon fixture requires three original rats.");
+        foreach (Creature enemy in originals)
+            ConfigureMonsterMove(enemy, new UnattendedMonsterMoveCheck
+            {
+                MoveId = ReferenceEquals(enemy, originals[^1]) ? "CALL_FOR_BACKUP_MOVE" : "SCREECH_MOVE"
+            });
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatBeamSolver driver = new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
+            SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+        SimulationSnapshot predicted = InvokeForcedTerminalReplay(driver,
+            [new PlanAction(PlanActionKind.EndTurn, root.StartTurnNumber)], null, root.StartTurnNumber, null);
+        try
+        {
+            CombatPredictionSimulator simulator = predicted.Simulator;
+            SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+            MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, originals[0]);
+            CombatPredictionSimulator fork = simulator.Fork();
+            AssertSnapshotEqual(expected, CaptureSimulated(fork, (SimulatedCombatState)fork.State.CombatState, player, originals[0]),
+                "RatSummonNextIntent", "Fork");
+            await AdvanceMercuryActualTurnAsync(combat, player, expectVictory: false);
+            AssertSnapshotEqual(expected, CaptureActual(combat, player, originals[0]), "RatSummonNextIntent", "NativeNextTurn");
+            if (shadow.Enemies.Count != 4 || combat.Enemies.Count != 4)
+                throw new InvalidOperationException("Rat summon did not add exactly one enemy.");
+        }
+        finally
+        {
+            predicted.ReleaseSimulator();
+        }
+    }
+
     private async Task AssertFuneraryMaskBeforeDrawAsync(CombatState combat, Player player)
     {
         await InjectRelicAsync(player, new UnattendedRelicInjection { RelicId = "FUNERARY_MASK" });

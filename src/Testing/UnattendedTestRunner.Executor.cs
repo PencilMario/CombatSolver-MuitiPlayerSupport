@@ -39,6 +39,13 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "RAT-SUMMON-NEXT-INTENT")
+            {
+                runner.SetStage("rat_summon_next_intent");
+                await runner.AssertRatSummonNextIntentAsync(combatState, player);
+                runner._completedChecks.Add("RatSummonNextIntent");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "FUNERARY-MASK-BEFORE-DRAW")
             {
                 runner.SetStage("funerary_mask_before_draw");

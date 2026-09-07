@@ -95,8 +95,8 @@ internal sealed partial class SimulatedCombatState
         CombatPredictionSimulator simulator,
         IReadOnlyDictionary<Creature, MoveState> performedMoves)
     {
-        foreach ((Creature enemy, MoveState performedMove) in performedMoves)
-            PrepareMonsterMoveForNextRound(simulator, enemy, performedMove);
+        foreach (Creature enemy in Enemies)
+            PrepareMonsterMoveForNextRound(simulator, enemy, performedMoves.GetValueOrDefault(enemy));
     }
 
     public void PrepareMonsterMoveForNextRound(

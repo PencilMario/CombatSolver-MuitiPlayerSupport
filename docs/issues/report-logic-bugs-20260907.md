@@ -53,6 +53,13 @@
 
 ## 修复进度
 
+### 双尾鼠召唤：下一回合漏准备新个体行动
+
+- `e86713d6`、`cf37ab2c`、`e7836f1b` 均出现新个体预测 AI 日志为空、原生已有首次行动，且预测 monster_ai RNG 比原生少 1 次。召唤发生在敌方回合时，初次选行动应推迟至下一玩家回合准备，但仍必须执行。
+- 当前 `PrepareMonsterMovesForNextRound` 只遍历 performedMoves，漏掉本轮加入阵容但没有执行行动的新个体。原版 CombatManager 遍历当前 Enemies，按其顺序调用 PrepareForNextTurn。改为遍历当前阵容，继续传入各个体实际执行过的行动（新个体为空），复用初次 Roll、眩晕及复活规则。
+- 最小 `RAT-SUMMON-NEXT-INTENT` 让 3 只原始个体中两只 SCREECH、最后一只 CALL_FOR_BACKUP，并推进到下一玩家 Play。基线 `6d34dbb147f143d58baaa535d3c4c997` 首差异为新个体 SCRATCH / DISEASE_BITE；修复后 `370dae413cb94195b2f5143a17132ad9` 完整原生状态、阵容 4 个、AI、RNG 与 Fork 全部通过。新个体位于原始个体之前的空槽，也覆盖下一行动准备顺序。
+- 相邻复活边界 `d74dcb906e9543d8b1e336456de303dc` Passed，覆盖重新接合、再次死亡、直接/Fork/重新捕获根及清理前原生状态。未声称 `979c5109` 的具体死亡时间线已被恢复验证；尸蛞蝓报告仍另查。
+
 ### 其他首回合选择：基础流程已核对，原报告待定位
 
 - `1aec4ced`、`7899d83b`、`bebb1bed` 的原生选择来源均为 TOASTY_MITTENS，不是筹码。`1aec4ced` 明确记录从 9 张手牌自动选择 PHANTOM_BLADES 后剩 8 张，首差异为 LEG_SWEEP / DEFEND_SILENT；`7899d83b` 只有顶层 godot.log 可用，含多次跑局的同来源选择。不能套用筹码弃牌重抽的归因。
