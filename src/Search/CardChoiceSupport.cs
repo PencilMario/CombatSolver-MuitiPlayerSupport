@@ -72,6 +72,10 @@ internal static partial class CardChoiceSupport
 
     public static CardChoiceSpec? GetSpec(CombatPredictionSimulator simulator, PredictedCard playedCard)
     {
+        // 第三方登记优先。登记表为空时这里只是一次计数比较，原版一条也走不进来。
+        if (CardChoiceMirrors.TryGetSpec(simulator, playedCard, out CardChoiceSpec registered))
+            return registered;
+
         SimPlayerCombatState owner = simulator.State.GetPlayerCombatState(playedCard.Preview.Owner);
         CardModel card = playedCard.Preview;
         IEnumerable<PredictedCard> discardBeforeResolution = owner.DiscardPile.Cards

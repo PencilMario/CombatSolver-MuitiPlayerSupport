@@ -20,7 +20,13 @@ internal static partial class CardChoiceSupport
     {
         SimPlayerCombatState owner = simulator.State.GetPlayerCombatState(playedCard.Preview.Owner);
         List<PredictedCard> selected;
-        if (choice.Effect == PlanChoiceEffect.GenerateToHand)
+        if (choice.Effect == PlanChoiceEffect.ModDefined)
+        {
+            // 登记方自己按令牌认选项。选项牌不在任何模拟牌堆里，求解器没有可解析的来源，
+            // 也不需要有——结算整体交给登记方。
+            selected = [];
+        }
+        else if (choice.Effect == PlanChoiceEffect.GenerateToHand)
         {
             CombatPredictionCardGenerationOptionsEntry entry = simulator.History
                 .OfType<CombatPredictionCardGenerationOptionsEntry>()
@@ -100,11 +106,18 @@ internal static partial class CardChoiceSupport
                     return false;
                 break;
             case PlanChoiceEffect.ModDefined:
-                // 由登记方结算的选择只经过 PotionChoiceMirrors 那条通道。走到卡牌选牌结算说明
-                // 登记方把这个效果用在了它不该出现的地方，早报比静默空操作好。
-                throw new InvalidOperationException(
-                    $"卡牌 {playedCard.Preview.Id.Entry} 的选择用了 ModDefined，"
-                    + "但卡牌选牌结算没有登记方通道。");
+                if (!CardChoiceMirrors.TryApply(
+                        simulator, combat, playedCard, choice, out bool modDefinedCompleted))
+                {
+                    // 效果说"由登记方结算"，却没有登记方认这张牌。静默空操作会让路线看起来
+                    // 可信而实际缺一整张牌的效果，所以在这里就报出来。
+                    throw new InvalidOperationException(
+                        $"卡牌 {playedCard.Preview.Id.Entry} 的选择用了 ModDefined，"
+                        + "但没有登记方为它登记结算。");
+                }
+                if (!modDefinedCompleted)
+                    return false;
+                break;
             default:
                 throw new ArgumentOutOfRangeException(nameof(choice));
         }
