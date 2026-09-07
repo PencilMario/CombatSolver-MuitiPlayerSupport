@@ -247,7 +247,64 @@ PowerHiddenStateMirrors.Register<TYourPower>(
 也就是下一回合总和的增量；它要根捕获加读取函数两条，登记一个 `InstanceCount` 就够了，不需要把
 整张表塞进去。
 
-### 2.7 还没有登记入口的地方
+### 2.7 局外成长来源的独立额度
+
+尚未发布，登记入口在下一版本。登记应在 Mod 初始化、任何搜索之前完成；搜索期间保持登记表不变。
+
+```csharp
+// 加载时登记一次，把句柄存下来。
+private static GrowthSourceHandle _diligence;
+
+_diligence = GrowthSourceMirrors.Register(
+    "YourMod.Diligence",                        // 持久化键，建议带 mod 前缀
+    () => ModelDb.Card<YourDiligenceCard>(),    // 侧栏这一行的图标和标题，延迟调用
+    card => card is YourDiligenceCard && card.DeckVersion != null);
+
+// 收益真的到手时记一次。
+combat.RecordGrowthReward(_diligence);
+```
+
+成长策略解决的是这类问题：贪婪之手、巨镰、遗传算法这些牌，收益落在**这场战斗之外**——金币、
+永久升级、局外强化。求解器默认只看本场战斗的血量与胜负，于是「多挨几点伤害换一次永久升级」
+一律判成亏。侧栏让玩家给每个来源单独填一份「每次收益允许的额外战损」，搜索据此在打分里给这条
+线路记一笔 HP 信用额度。
+
+原版八个来源写死在 `GrowthSource` 枚举里，`GrowthValues` 是与之对应的八个 int 字段。局外成长类
+卡牌很多 mod 都有，它们全部落不进那个枚举：既拿不到自己的额度栏，收益也记不进
+`SimulatedCombatState.GrowthRewards`。**表现不是「少了个选项」，而是搜索必然避开这张牌**——
+付出的血看得见，换回来的东西在打分里根本不存在。
+
+登记之后你会得到四样东西：
+
+- 成长策略侧栏多一行，有自己的图标、标题和额度输入框，排在原版八行之后、按登记顺序；
+- 额度按你给的 id 存进设置文件，也进问题包的有效策略和路线缓存；
+- `GrowthValues.HasTarget` 认得你的牌，于是「打到可接受战损就提早收手」那条捷径会被关掉——
+  否则搜索会在还没摸到你这张牌之前就收手；
+- 计数进状态指纹，只在「有没有拿到这次收益」上不同的两条分支不会被当成同一个状态去重。
+
+#### 四条约束
+
+1. **id 要稳定。** 它是持久化键，改 id 等于换来源，玩家原来填的额度不再生效。为此额度按 id
+   存而不是按登记序号存：玩家临时停用你的 mod 时，那份额度会原样留在设置文件里，重新启用后
+   还在，不需要再填一遍。
+2. **`RecordGrowthReward` 只在收益真的到手时调用。** 额度是「每次成功收益」的单价，多记一次
+   就等于凭空多出一份额度，搜索会拿它去换真实的血。原版的口径可以照抄：斩杀类要求满足致命
+   条件（`WasFatalKill`），永久成长类要求那张牌有局外牌组实例（`card.DeckVersion != null`），
+   炼制药水要求成功入槽。
+3. **`hasTarget` 必须是纯判断。** 它会对玩家牌组里每张牌调用。永久成长一类记得跟原版一样要求
+   `DeckVersion != null`——战斗里临时生成的副本升级了也带不出战斗。
+4. **金币一类要两处都记。** 局外成长额度和长期资源刻度是两回事：`RecordLongTermResource` 记的是
+   「这条线路带走了多少局外价值」，`RecordGrowthReward` 记的是「为这次收益可以额外付多少血」。
+   原版贪婪之手两个都调，第三方的金币收益照做。
+
+取牌函数抛异常不会连带侧栏起不来：那一行退化成「没有图标、标题显示 id」，额度照样能填、照样
+进搜索，日志里留一条 warn。这是这个入口唯一一处「装一半」，因为它只影响显示。
+
+**两个真实例子，都在观者。** 勤学精进是永久升级，和原版遗传算法、巨镰同一类，直接登记就位。
+许愿三选一里的金币那一支和贪婪之手同一类，除了原来就有的 `RecordLongTermResource` 还要补一次
+`RecordGrowthReward`——只记长期资源的话，搜索知道这条线路带走了金币，却不知道玩家愿意为它付血。
+
+### 2.8 还没有登记入口的地方
 
 见第 6 节。目前只能 Harmony 打补丁，或者等对应的扩展点合并。
 
@@ -369,7 +426,7 @@ PowerHiddenStateMirrors.Register<TYourPower>(
 | `CombatPredictionSimulator.OnPlayWrapper` | 出牌后补抽没有挂载点 | 待做 |
 | `ContinuationStamp.AppendCard` 的 `private=` 段与 `CombatBeamSolver.CaptureCardStateFingerprintForTesting` 的 `switch (preview)` | **卡牌**的隐藏字段按原版类型写死（利爪、基因算法、巨锤、狂暴、镰刀、疯狂科学），第三方卡牌的私有计数进不了指纹。Power 那一侧已有 `PowerHiddenStateMirrors`，见 §2.6 | 待做 |
 | `SimulatedCombatState.AddTurnStartStates` 的 `switch (power)` | 原版 Power 隐藏计数按类型写死。第三方走 §2.6 的登记表进同一份指纹，本行只是记下原版那个 `switch` 本身仍然封闭 | 第三方已有入口 |
-| `GrowthSource` / `GrowthValues.HasTarget` 与 `SolverGrowthStrategyPanel.SourceCard` | 成长额度仅支持内置八类来源；第三方战略估值登记不会自动获得独立成长配置 | 0.32.0 已发布，尚无公开登记入口 |
+| `GrowthSource` 枚举与 `SolverGrowthStrategyPanel.SourceCard` 的 `switch` | 原版八类成长来源按类型写死。第三方走 §2.7 的 `GrowthSourceMirrors` 拿独立额度、侧栏行和指纹，本行只是记下原版那个枚举本身仍然封闭 | 第三方已有入口 |
 
 **这些开关新增或改动时，必须在同一个提交里更新这张表和本文档对应章节。** 见
 [AGENTS.md](../AGENTS.md) 第 9 节。

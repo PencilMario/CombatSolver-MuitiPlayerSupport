@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 第三方局外成长来源登记入口（开发中）
+
+- Release 编译（`-p:CopyModOnBuild=false`）0 警告 0 错误，未复制到游戏目录。
+- `GROWTH-POLICY-FREE-FIRST` / `GROWTH-POLICY-PAID` **本轮未执行**。新增断言 `AssertThirdPartyGrowthSources` 挂在这两个夹具原有的 `-VerifyGrowthPolicy` 路径上，复跑命令沿用本文《2026-09-07：局外成长策略》一节记录的原命令，不需要新参数。
+- 已单独验证 `GrowthValues` 的 System.Text.Json 往返机制（record struct 定位构造函数加 `init` 属性、`JsonIgnore(WhenWritingNull)`、字典键不受 `PropertyNamingPolicy` 影响）：空表不写出 `thirdParty` 字段、有条目时往返相等并保留未登记 id、缺字段与显式 `null` 都还原成空表、`with` 表达式保留第三方部分、第三方条目参与相等判断。该验证在独立控制台工程完成，不进仓库。
+- 未做原生实机验证、未跑 248 条原版回归、未执行完整发布门禁。
+
 ## 0.33.5 受伤历史与攻击次数
 
 - `TURN-START-DAMAGE-SPITE` / `THE_OBSCURA_NORMAL`：失败基线 `6fa9c33e5aca495cad4c1c0a8b662c95`，T2 怨恨后 E1.hp 预测 86、原生 81；最终 `18a3b15c05f94038a6cfb080fe41ef9c` Passed，28 秒。覆盖回合开始 Inferno 自伤后的双次攻击、召唤阵容、完整状态和 Fork，以及伤害记录不泄漏到敌方/额外玩家回合。

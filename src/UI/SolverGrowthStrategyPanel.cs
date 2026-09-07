@@ -10,6 +10,7 @@ internal sealed partial class SolverGrowthStrategyPanel : PanelContainer
 {
     internal const float PreferredWidth = 272f;
     private readonly Dictionary<GrowthSource, SpinBox> _budgets = [];
+    private readonly List<(GrowthSourceHandle Source, SpinBox Input)> _extraBudgets = [];
     private bool _refreshing;
 
     public event Action<GrowthValues>? PolicyChanged;
@@ -47,6 +48,16 @@ internal sealed partial class SolverGrowthStrategyPanel : PanelContainer
             _budgets.Add(source, input);
             input.ValueChanged += _ => Publish();
         }
+        // 第三方登记的来源排在原版八行之后，按登记顺序。
+        foreach (GrowthSourceMirrors.Entry entry in GrowthSourceMirrors.All)
+        {
+            (string title, Texture2D? portrait) = ResolveThirdPartyRow(entry);
+            SpinBox input = AddBudgetRow(rows, title, portrait, 1000);
+            input.Name = entry.Id;
+            input.TooltipText = $"{title}：每次实际获得局外收益允许的额外战损（HP）。0 仍优先获取同等战损下的收益；多次成功触发逐次累计。";
+            _extraBudgets.Add((new GrowthSourceHandle(entry.Id), input));
+            input.ValueChanged += _ => Publish();
+        }
         scroll.AddChild(rows);
         layout.AddChild(scroll);
         AddChild(layout);
@@ -65,6 +76,25 @@ internal sealed partial class SolverGrowthStrategyPanel : PanelContainer
         GrowthSource.Goopy => ModelDb.Card<DefendIronclad>(),
         _ => throw new ArgumentOutOfRangeException(nameof(source)),
     };
+
+    /// <summary>
+    /// 取第三方来源这一行的标题和图标。取牌函数是 mod 提供的，抛异常不该连带整个侧栏起不来：
+    /// 这一行退化成「没有图标、标题显示 id」，额度照样能填、照样进搜索。
+    /// </summary>
+    private static (string Title, Texture2D? Portrait) ResolveThirdPartyRow(GrowthSourceMirrors.Entry entry)
+    {
+        try
+        {
+            CardModel card = entry.Card();
+            return (entry.Title ?? card.Title, card.Portrait);
+        }
+        catch (Exception exception)
+        {
+            Entry.Logger.Warn(
+                $"[CombatSolver] 第三方成长来源 {entry.Id} 的取牌函数抛了异常，这一行退化成纯文字：{exception}");
+            return (entry.Title ?? entry.Id, null);
+        }
+    }
 
     private static SpinBox AddBudgetRow(VBoxContainer parent, string title, Texture2D? texture, int maximum)
     {
@@ -104,6 +134,12 @@ internal sealed partial class SolverGrowthStrategyPanel : PanelContainer
                 if (!input.GetLineEdit().HasFocus())
                     input.SetValueNoSignal(settings.GrowthBudgets.Get(source));
             }
+            foreach ((GrowthSourceHandle source, SpinBox input) in _extraBudgets)
+            {
+                input.Editable = !disabled;
+                if (!input.GetLineEdit().HasFocus())
+                    input.SetValueNoSignal(settings.GrowthBudgets.Get(source));
+            }
         }
         finally { _refreshing = false; }
     }
@@ -134,9 +170,16 @@ internal sealed partial class SolverGrowthStrategyPanel : PanelContainer
         GrowthValues budgets = default;
         foreach ((GrowthSource source, SpinBox input) in _budgets)
             budgets = budgets.With(source, checked((int)input.Value));
+        foreach ((GrowthSourceHandle source, SpinBox input) in _extraBudgets)
+            budgets = budgets.With(source, checked((int)input.Value));
+        // 侧栏只认得已登记的来源；玩家临时停用某个 mod 期间，设置文件里它那份额度原样留着。
+        budgets = budgets with { Extras = SolverSettings.Current.GrowthBudgets.Extras.MergeUnregistered(budgets.Extras) };
         PolicyChanged?.Invoke(budgets);
     }
 
     internal bool SettingsConfiguredForTesting
-        => _budgets.All(pair => (int)pair.Value.Value == SolverSettings.Current.GrowthBudgets.Get(pair.Key));
+        => _budgets.All(pair => (int)pair.Value.Value == SolverSettings.Current.GrowthBudgets.Get(pair.Key))
+            && _extraBudgets.All(row => (int)row.Input.Value == SolverSettings.Current.GrowthBudgets.Get(row.Source));
+
+    internal IReadOnlyList<(GrowthSourceHandle Source, SpinBox Input)> ThirdPartyRowsForTesting => _extraBudgets;
 }

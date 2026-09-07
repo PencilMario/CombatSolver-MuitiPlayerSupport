@@ -2013,14 +2013,7 @@ internal sealed partial class SimulatedCombatState
         fingerprint.Add(_battlewornDummyTimedOut);
         fingerprint.Add('g');
         fingerprint.Add(_longTermResourceValue);
-        fingerprint.Add(_growthRewards.HandOfGreed);
-        fingerprint.Add(_growthRewards.TheHunt);
-        fingerprint.Add(_growthRewards.Feed);
-        fingerprint.Add(_growthRewards.Royalties);
-        fingerprint.Add(_growthRewards.Alchemize);
-        fingerprint.Add(_growthRewards.GeneticAlgorithm);
-        fingerprint.Add(_growthRewards.TheScythe);
-        fingerprint.Add(_growthRewards.Goopy);
+        _growthRewards.AppendFingerprint(ref fingerprint);
         fingerprint.Add('A');
         fingerprint.Add(_angerCopiesGenerated);
         fingerprint.Add('L');
