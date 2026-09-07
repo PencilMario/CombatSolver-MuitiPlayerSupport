@@ -43,7 +43,7 @@ internal sealed partial class SimulatedCombatState
             _starsGainedThisTurn = _starsGainedThisTurn?.Fork(),
             _nonHandDrawsThisTurn = _nonHandDrawsThisTurn?.Fork(),
             _statusCardsDrawnThisTurn = _statusCardsDrawnThisTurn?.Fork(),
-            _cardPlaysStartedThisTurn = _cardPlaysStartedThisTurn?.Fork(),
+            _cardPlaySeriesStartedThisTurn = _cardPlaySeriesStartedThisTurn?.Fork(),
             _zeroCostAttackStartsThisTurn = _zeroCostAttackStartsThisTurn?.Fork(),
             _enemiesIntendingAttack = _enemiesIntendingAttack?.Fork(),
             _hasPredictedEnemyIntents = _hasPredictedEnemyIntents,

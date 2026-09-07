@@ -211,7 +211,7 @@ internal sealed partial class SimulatedCombatState
     private ForkableDictionary<Player, int>? _starsGainedThisTurn;
     private ForkableDictionary<Player, int>? _nonHandDrawsThisTurn;
     private ForkableDictionary<Player, int>? _statusCardsDrawnThisTurn;
-    private ForkableDictionary<Creature, int>? _cardPlaysStartedThisTurn;
+    private ForkableDictionary<Creature, int>? _cardPlaySeriesStartedThisTurn;
     private ForkableDictionary<Creature, int>? _zeroCostAttackStartsThisTurn;
     private ForkableSet<Creature>? _enemiesIntendingAttack;
     private bool _hasPredictedEnemyIntents;
@@ -1123,7 +1123,7 @@ internal sealed partial class SimulatedCombatState
         (_cardsExhaustedThisTurn ??= [])[owner] = 0;
         (_cardsDiscardedThisTurn ??= [])[owner] = 0;
         (_creatureAttacksThisTurn ??= [])[owner] = 0;
-        (_cardPlaysStartedThisTurn ??= [])[owner] = 0;
+        (_cardPlaySeriesStartedThisTurn ??= [])[owner] = 0;
         (_zeroCostAttackStartsThisTurn ??= [])[owner] = 0;
         if (owner.Player is { } ownerPlayer)
         {
@@ -1776,7 +1776,7 @@ internal sealed partial class SimulatedCombatState
             _ = GetCardsExhaustedThisTurn(creature);
             _ = GetSkillCardsPlayedThisTurn(creature);
             _ = GetCardsPlayedThisTurn(creature);
-            _ = GetCardPlaysStartedThisTurn(creature);
+            _ = GetCardPlaySeriesStartedThisTurn(creature);
             _ = GetZeroCostAttackStartsThisTurn(creature);
             _ = GetAttacksPlayedThisTurn(creature);
             _ = GetShivsPlayedThisTurn(creature);
@@ -1913,7 +1913,7 @@ internal sealed partial class SimulatedCombatState
         AddPlayerIntMap(ref fingerprint, 'z', _starsGainedThisTurn);
         AddPlayerIntMap(ref fingerprint, 'n', _nonHandDrawsThisTurn);
         AddPlayerIntMap(ref fingerprint, 's', _statusCardsDrawnThisTurn);
-        AddCreatureIntMap(ref fingerprint, 'Q', _cardPlaysStartedThisTurn);
+        AddCreatureIntMap(ref fingerprint, 'Q', _cardPlaySeriesStartedThisTurn);
         AddCreatureIntMap(ref fingerprint, 'q', _zeroCostAttackStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'k', _knowledgeDemonCurseCounters);
         AddCreatureSet(ref fingerprint, 'i', _enemiesIntendingAttack);

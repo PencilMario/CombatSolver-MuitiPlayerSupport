@@ -90,7 +90,7 @@ internal static class ModifyCardPlayCountMirrors
         }
 
         int count = context.CombatState is SimulatedCombatState combat
-            ? combat.GetCardPlaysStartedThisTurn(power.Owner)
+            ? combat.GetCardPlaySeriesStartedThisTurn(power.Owner)
             : CombatManager.Instance.History.CardPlaysStarted.Count(entry =>
                 entry.Actor == power.Owner &&
                 entry.CardPlay.IsFirstInSeries &&

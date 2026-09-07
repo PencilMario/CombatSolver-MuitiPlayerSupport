@@ -39,6 +39,13 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId is "REPLAY-START-HISTORY" or "REPLAY-START-HISTORY-ECHO")
+            {
+                runner.SetStage("replay_start_history");
+                await runner.AssertReplayStartHistoryAsync(combatState, player);
+                runner._completedChecks.Add("ReplayStartHistory");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "DEATH-EFFECTS-ONCE")
             {
                 runner.SetStage("death_effects_once");

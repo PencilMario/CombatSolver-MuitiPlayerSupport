@@ -69,7 +69,7 @@ internal static class ShouldPlayMirrors
 
         SimulatedCombatState combat = context.CombatState as SimulatedCombatState
             ?? throw new InvalidOperationException("昏眩出牌限制缺少分支出牌历史。");
-        return combat.GetCardPlaysStartedThisTurn(power.Owner) == 0;
+        return combat.GetCardPlaySeriesStartedThisTurn(power.Owner) == 0;
     }
 
     private static bool HandleVelvetChoker(VelvetChoker relic, ShouldPlayMirrorContext context)

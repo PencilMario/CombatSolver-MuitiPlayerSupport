@@ -14,6 +14,50 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertReplayStartHistoryAsync(CombatState combat, Player player)
+    {
+        Creature enemy = combat.Enemies[0];
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatBeamSolver driver = new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
+            SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+        PlanAction action = new(PlanActionKind.PlayCard, player.PlayerCombatState!.TurnNumber,
+            CardId: "SLICE", TargetCombatId: enemy.CombatId);
+        bool echo = _request.ScenarioId == "REPLAY-START-HISTORY-ECHO";
+        SimulationSnapshot[] predictions = echo
+            ? [InvokeForcedTerminalReplay(driver, [action], null, 0, null),
+               InvokeForcedTerminalReplay(driver, [action, action], null, 0, null)]
+            : [InvokeForcedTerminalReplay(driver, [action], null, 0, null)];
+        try
+        {
+            for (int index = 0; index < predictions.Length; index++)
+            {
+                CombatPredictionSimulator simulator = predictions[index].Simulator;
+                SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+                MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, enemy);
+                CombatPredictionSimulator fork = simulator.Fork();
+                if (!FindActualHandCard(player, "SLICE", 0).TryManualPlay(enemy))
+                    throw new InvalidOperationException("Native repeated Slice was not playable.");
+                await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+                AssertSnapshotEqual(expected, CaptureActual(combat, player, enemy), "ReplayStartHistory", $"NativeSlice{index}");
+                CombatPredictionSimulator recaptured = CombatRootSnapshot.Capture(combat).ForkSimulator();
+                foreach (CombatPredictionSimulator branch in new[] { simulator, fork, recaptured })
+                {
+                    SimulatedCombatState branchState = (SimulatedCombatState)branch.State.CombatState;
+                    int expectedStarts = echo ? 3 + 2 * index : 2;
+                    if (branchState.GetCardPlaySeriesStartedThisTurn(player.Creature) != index + 1
+                        || branchState.GetZeroCostAttackStartsThisTurn(player.Creature) != expectedStarts
+                        || branchState.GetManualCardsPlayedThisTurn(player.Creature) != index + 1)
+                        throw new InvalidOperationException("Card history must distinguish repeated plays from card series and manual actions.");
+                }
+            }
+        }
+        finally
+        {
+            foreach (SimulationSnapshot prediction in predictions)
+                prediction.ReleaseSimulator();
+        }
+    }
+
     private async Task AssertDeathEffectsOnceAsync(CombatState combat, Player player)
     {
         Creature killed = combat.Enemies[0];
