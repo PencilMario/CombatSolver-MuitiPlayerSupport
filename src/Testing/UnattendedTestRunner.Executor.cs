@@ -39,6 +39,13 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "FEED-THORNS-TERMINAL-DIFFERENTIAL")
+            {
+                runner.SetStage("feed_thorns_terminal_differential");
+                await runner.AssertFeedThornsTerminalAsync(combatState, player);
+                runner._completedChecks.Add("FeedThornsTerminalDifferential");
+                return Observation(combatEnded: true);
+            }
             if (request.ScenarioId == "ROOT-CAPTURE-ACTION-BARRIER")
             {
                 _ = ApplySettingsOverrides();

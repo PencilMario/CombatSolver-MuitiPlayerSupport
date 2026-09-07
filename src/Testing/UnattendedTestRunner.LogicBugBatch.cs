@@ -7,11 +7,51 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Runs;
+using MegaCrit.Sts2.Core.Rooms;
+using MegaCrit.Sts2.Core.Entities.Creatures;
 
 namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertFeedThornsTerminalAsync(CombatState combat, Player player)
+    {
+        Creature enemy = combat.Enemies[0];
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        CombatBeamSolver driver = new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
+            SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+        PlanAction action = new(PlanActionKind.PlayCard, player.PlayerCombatState!.TurnNumber,
+            CardId: "FEED", TargetCombatId: enemy.CombatId);
+        SimulationSnapshot prediction = InvokeForcedTerminalReplay(driver, [action], null, 0, null);
+        MoveStateSnapshot? actual = null;
+        void OnEnded(CombatRoom room) => actual = CaptureActual(combat, player, enemy);
+        try
+        {
+            if (!prediction.PlayerDead || prediction.AllEnemiesDead || prediction.PlayerHp <= 0
+                || prediction.TerminalStamp is not { Outcome: CombatTerminalOutcome.Defeat })
+                throw new InvalidOperationException("Feed after fatal thorns must retain defeat despite positive HP.");
+            MoveStateSnapshot expected = CaptureSimulated(prediction.Simulator,
+                (SimulatedCombatState)prediction.Simulator.State.CombatState, player, enemy);
+            CombatManager.Instance.CombatEnded += OnEnded;
+            if (!FindActualHandCard(player, "FEED", 0).TryManualPlay(enemy))
+                throw new InvalidOperationException("Native Feed was not playable.");
+            await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+            while (actual == null)
+            {
+                EnsureWithinDeadline();
+                await NextFrameAsync();
+            }
+            AssertSnapshotEqual(expected, actual, "FeedThornsTerminal", "NativePendingLoss");
+            if (CombatManager.Instance.IsInProgress || player.Creature.CurrentHp <= 0)
+                throw new InvalidOperationException("Native combat must end even though Feed restored HP.");
+        }
+        finally
+        {
+            CombatManager.Instance.CombatEnded -= OnEnded;
+            prediction.ReleaseSimulator();
+        }
+    }
+
     private async Task AssertSearchWaitsForNativeActionAsync(CombatState combat, Player player)
     {
         NGame host = NGame.Instance!;
