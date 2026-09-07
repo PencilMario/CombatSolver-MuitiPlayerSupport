@@ -280,6 +280,12 @@ internal sealed partial class CombatPredictionSimulator
                 return false;
             }
         }
+        // 原版在杀死的那一刻就把死亡效果同步结算完了，求解器把它推迟到 ApplyEnemyDeathPowers
+        // 的清扫，而个体在死亡当时就被移出了 State.Enemies。于是中间有一个「场上没有活着的主要
+        // 敌人、但马上会有」的窗口。在那个窗口里宣布胜利会把胜利戳永久锁死，之后补货生成出来
+        // 也不会再复查。
+        if (semantics?.HasUnresolvedSpawningDeath() == true)
+            return false;
         return !Hook.ShouldStopCombatFromEnding(State.CombatState);
     }
 }
