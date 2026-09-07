@@ -53,6 +53,12 @@
 
 ## 修复进度
 
+### 其他首回合选择：基础流程已核对，原报告待定位
+
+- `1aec4ced`、`7899d83b`、`bebb1bed` 的原生选择来源均为 TOASTY_MITTENS，不是筹码。`1aec4ced` 明确记录从 9 张手牌自动选择 PHANTOM_BLADES 后剩 8 张，首差异为 LEG_SWEEP / DEFEND_SILENT；`7899d83b` 只有顶层 godot.log 可用，含多次跑局的同来源选择。不能套用筹码弃牌重抽的归因。
+- 当前 `TOASTY-MITTENS-NINE-CARD-SETUP` 使用 SILENT 初始牌组、BAG_OF_PREPARATION 与 TOASTY_MITTENS，实际开局选牌及精确状态激活通过，run `8cdd213e82be4468aee65b200ffa9fe9`。它验证基本“起始扩充手牌、消耗一张”流程，不覆盖原包全部牌组/遗物组合；本项没有生产代码改动。
+- `06b250ca` 是 SimpleGrid 从 5 个候选中选择 1 张，实际生成 SERPENT_FORM、预测 ACCURACY。保留日志没有自动接管/Selected 记录，来源字段也为空；可能涉及玩家自行选择，证据不足，暂不标记模拟缺陷或已解决。
+
 ### FUNERARY_MASK：首回合随机插入灵魂遗漏
 
 - `cb0b0936` 携带筹码与 FUNERARY_MASK，已记录的选择是 CLUMSY、FOLLY、DEFY，没有狡猾牌，也没有重算覆盖交错。手牌首差异为预测 ENFEEBLING_TOUCH / 原生 SOUL；真实状态在初始 28 张牌之外多出 3 张灵魂。检查发现 `PrepareRelicsBeforeHandDraw` 缺少 FUNERARY_MASK，而原版在玩家第 1 回合的 BeforeHandDraw 逐张随机插入灵魂。
