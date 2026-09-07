@@ -114,6 +114,9 @@ internal sealed partial class SimulatedCombatState
             (_monsterAiStates ??= [])[enemy] = BranchMonsterAi.RollInitial(current, simulator, this);
             return;
         }
+        // Newly summoned creatures retain an already selected first move until they act.
+        if (performedMove == null)
+            return;
         if (current.Current.Id == "STUNNED" && WillSkipNextMove(enemy))
             return;
         if (current.Current.MustPerformOnceBeforeTransitioning

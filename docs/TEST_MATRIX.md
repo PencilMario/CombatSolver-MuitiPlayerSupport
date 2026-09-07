@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 0.33.2 新召唤敌人行动
+
+- `LIVING-FOG-SUMMON-INTENT`：失败基线 `9c5be94ee8ae48aeac82d4ef1b42a5d4` 精确复现 EXPLODE_MOVE 无后继异常；最终 `d54fff51d884479bb39176b0fa38d02f` Passed，34 秒。T1 BLOAT_MOVE 召唤至 T2，再推进自爆至 T3，两处完整原生状态、阵容、牌堆、AI、RNG 与 Fork 一致。中间运行的召唤数量断言修正见问题记录。
+- 相邻 `RAT-SUMMON-NEXT-INTENT`，`58495b308c9448e3812284678f3cfdab` Passed，31 秒，确认需要首次 Roll 的新召唤双尾鼠仍正常生成意图。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId LIVING-FOG-SUMMON-INTENT -EncounterId LIVING_FOG_NORMAL -HeadlessInstance fogfix -TimeoutSeconds 120 -ExitOnComplete`；相邻用例替换 ScenarioId 为 `RAT-SUMMON-NEXT-INTENT`、EncounterId 为 `TWO_TAILED_RATS_NORMAL`。
+- 原问题包只执行 Preflight，未作完整恢复结论。本次不扩展完整发布门禁；在线统计沿用下节同源行为证据。
+
 ## 0.33.1 在线统计
 
 - `ONLINE-PRESENCE-CONTRACT` Passed，runId `76c3b303aee842b687562655577b551b`，23 秒。验证默认开启、关闭值序列化持久化、当前角色/楼层/战斗/未知战损标量快照、真实 .NET HTTPS 校验及错误证书指纹拒绝。网络检查发送无个人字段的空对象，预期 400；没有向正式统计写入测试玩家。

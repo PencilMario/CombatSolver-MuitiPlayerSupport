@@ -39,6 +39,12 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "LIVING-FOG-SUMMON-INTENT")
+            {
+                await runner.AssertLivingFogSummonIntentAsync(combatState, player);
+                runner._completedChecks.Add("LivingFogSummonIntentAndExplosionNativeFork");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "ONLINE-PRESENCE-CONTRACT")
             {
                 if (!OnlinePresence.IsHeadless()) throw new InvalidOperationException("Presence fixture requires headless isolation.");

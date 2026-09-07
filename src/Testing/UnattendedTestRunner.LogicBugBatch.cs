@@ -22,6 +22,36 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertLivingFogSummonIntentAsync(CombatState combat, Player player)
+    {
+        Creature source = combat.Enemies.Single(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.LivingFog);
+        int spawnedCount = MonsterValueReader.ReadInt(source.Monster!, "BloatAmount");
+        ConfigureMonsterMove(source, new UnattendedMonsterMoveCheck { MoveId = "BLOAT_MOVE" });
+        for (int round = 0; round < 2; round++)
+        {
+            CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+            CombatBeamSolver driver = new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
+                SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+            SimulationSnapshot predicted = InvokeForcedTerminalReplay(driver,
+                [new PlanAction(PlanActionKind.EndTurn, root.StartTurnNumber)], null, root.StartTurnNumber, null);
+            try
+            {
+                CombatPredictionSimulator simulator = predicted.Simulator;
+                SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+                MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, source);
+                CombatPredictionSimulator fork = simulator.Fork();
+                AssertSnapshotEqual(expected, CaptureSimulated(fork, (SimulatedCombatState)fork.State.CombatState, player, source),
+                    "LivingFogSummonIntent", "Fork");
+                await AdvanceMercuryActualTurnAsync(combat, player, expectVictory: false);
+                AssertSnapshotEqual(expected, CaptureActual(combat, player, source), "LivingFogSummonIntent", "NativeNextTurn");
+                int bombs = shadow.Enemies.Count(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.GasBomb);
+                if (bombs != (round == 0 ? spawnedCount : 0))
+                    throw new InvalidOperationException($"Gas bomb lifecycle has {bombs} active bombs after round {round}.");
+            }
+            finally { predicted.ReleaseSimulator(); }
+        }
+    }
+
     private async Task AssertRatSummonNextIntentAsync(CombatState combat, Player player)
     {
         Creature[] originals = combat.Enemies.ToArray();
