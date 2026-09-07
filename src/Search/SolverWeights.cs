@@ -44,6 +44,11 @@ internal static class SolverWeights
     // Permanent card growth and post-combat rewards get their own Beam value. Final selection is
     // lexicographic, so this value only keeps low-immediate-impact growth routes searchable.
     public const double LongTermResourceBeamValue = 25_000d;
+    /// <summary>
+    /// 一个回合层至少分到这么多展开节点，作用和回合层时间预算里那个 250 毫秒下限一样：
+    /// 保留层数多、剩余节点少的时候，不至于把某一层挤到几乎搜不动。
+    /// </summary>
+    public const int MinimumTurnLayerExpandedNodes = 500;
     public const double AngerCopyBeamPenalty = -15_000d;
     public const int RetainedAttackGrowthBeamCap = 16;
     public const double RetainedAttackGrowthBeamValue = 20_000d;

@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 节点预算按回合层分配（开发中）
+
+- Release 编译（`-p:CopyModOnBuild=false`）0 警告 0 错误，结构门禁通过。
+- 玩家实机复现材料：`CONSTRUCT_MENAGERIE_NORMAL-20260907-170814`（回合层停在 2、`play_depth` 173→248、`ended` 99845、`repeatable_no_progress_pruned=0`、无任何 `RESULT`）与 `CONSTRUCT_MENAGERIE_NORMAL-20260907-173454`（手动降到 `deepMaxExpandedNodes=12000` 后正常收敛，3 回合、战损 6、`boundary=NodeLimit`）。
+- **无人测试未跑**：`tools/run-watcher-matrix.ps1` 与观者相关夹具开头会 `Stop-Process SlayTheSpire2`，用户正在实机测试，不能执行。本项由用户实机验证：看 `TURN_LAYER_BUDGET reason=nodes` 是否出现、搜索是否收敛。
+- 未做 248 条原版回归、未执行完整发布门禁。
+
 ## 0.33.5 受伤历史与攻击次数
 
 - `TURN-START-DAMAGE-SPITE` / `THE_OBSCURA_NORMAL`：失败基线 `6fa9c33e5aca495cad4c1c0a8b662c95`，T2 怨恨后 E1.hp 预测 86、原生 81；最终 `18a3b15c05f94038a6cfb080fe41ef9c` Passed，28 秒。覆盖回合开始 Inferno 自伤后的双次攻击、召唤阵容、完整状态和 Fork，以及伤害记录不泄漏到敌方/额外玩家回合。
