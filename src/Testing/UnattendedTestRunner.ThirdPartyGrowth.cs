@@ -40,7 +40,7 @@ internal sealed partial class UnattendedTestRunner
             ThirdPartyGrowthTestId,
             () => standIn,
             card => card is MegaCrit.Sts2.Core.Models.Cards.DefendIronclad,
-            "测试用第三方成长来源");
+            static _ => "测试用第三方成长来源");
         GrowthSourceHandle unloaded = new(ThirdPartyGrowthUnloadedId);
         try
         {

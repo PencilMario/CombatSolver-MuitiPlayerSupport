@@ -260,6 +260,14 @@ _diligence = GrowthSourceMirrors.Register(
     () => ModelDb.Card<YourDiligenceCard>(),    // 侧栏这一行的图标和标题，延迟调用
     card => card is YourDiligenceCard && card.DeckVersion != null);
 
+// 第四个参数是标题覆盖，也是延迟调用，参数就是上面那个函数取回来的牌。
+// 只在「牌名说明不了这个来源」时才填，比如原版把黏稠强化那一行显示成「防御 + 强化名」。
+_wishGold = GrowthSourceMirrors.Register(
+    "YourMod.WishGold",
+    () => ModelDb.Card<YourGoldWishOption>(),
+    card => card is YourWishCard,
+    card => ModelDb.Card<YourWishCard>().Title + "·" + card.Title);
+
 // 收益真的到手时记一次。
 combat.RecordGrowthReward(_diligence);
 ```
@@ -297,8 +305,8 @@ combat.RecordGrowthReward(_diligence);
    「这条线路带走了多少局外价值」，`RecordGrowthReward` 记的是「为这次收益可以额外付多少血」。
    原版贪婪之手两个都调，第三方的金币收益照做。
 
-取牌函数抛异常不会连带侧栏起不来：那一行退化成「没有图标、标题显示 id」，额度照样能填、照样
-进搜索，日志里留一条 warn。这是这个入口唯一一处「装一半」，因为它只影响显示。
+取牌或取标题函数抛异常不会连带侧栏起不来：那一行退化成「没有图标、标题显示 id」，额度照样能
+填、照样进搜索，日志里留一条 warn。这是这个入口唯一一处「装一半」，因为它只影响显示。
 
 **两个真实例子，都在观者。** 勤学精进是永久升级，和原版遗传算法、巨镰同一类，直接登记就位。
 许愿三选一里的金币那一支和贪婪之手同一类，除了原来就有的 `RecordLongTermResource` 还要补一次

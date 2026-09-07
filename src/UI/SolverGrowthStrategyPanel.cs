@@ -86,13 +86,14 @@ internal sealed partial class SolverGrowthStrategyPanel : PanelContainer
         try
         {
             CardModel card = entry.Card();
-            return (entry.Title ?? card.Title, card.Portrait);
+            return (entry.Title?.Invoke(card) ?? card.Title, card.Portrait);
         }
         catch (Exception exception)
         {
             Entry.Logger.Warn(
-                $"[CombatSolver] 第三方成长来源 {entry.Id} 的取牌函数抛了异常，这一行退化成纯文字：{exception}");
-            return (entry.Title ?? entry.Id, null);
+                $"[CombatSolver] 第三方成长来源 {entry.Id} 的取牌或取标题函数抛了异常，"
+                + $"这一行退化成纯文字：{exception}");
+            return (entry.Id, null);
         }
     }
 

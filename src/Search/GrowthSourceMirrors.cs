@@ -4,7 +4,7 @@ namespace CombatSolver;
 
 /// <summary>
 /// 一个第三方成长来源的句柄。只能从
-/// <see cref="GrowthSourceMirrors.Register(string, Func{CardModel}, Func{CardModel, bool}, string?)"/>
+/// <see cref="GrowthSourceMirrors.Register(string, Func{CardModel}, Func{CardModel, bool}, Func{CardModel, string})"/>
 /// 取得，别自己拼——拼出来的 id 没有登记，额度永远是 0，侧栏里也不会出现。
 /// </summary>
 internal readonly record struct GrowthSourceHandle(string Id)
@@ -30,7 +30,7 @@ internal readonly record struct GrowthSourceHandle(string Id)
 /// 登记之后，这个来源会：
 /// <list type="bullet">
 /// <item>在成长策略侧栏里多一行，有自己的图标、标题和额度输入框；</item>
-/// <item>额度按 <paramref name="id"/> 存进设置文件，也进问题包的有效策略；</item>
+/// <item>额度按登记时给的 id 存进设置文件，也进问题包的有效策略；</item>
 /// <item>让 <c>HasGrowthTargets</c> 认得这张牌，从而关掉"打到可接受战损就提早收手"那条捷径；</item>
 /// <item>可以用 <c>combat.RecordGrowthReward(handle)</c> 记一次实际到手的收益，进搜索的状态指纹。</item>
 /// </list>
@@ -51,7 +51,7 @@ internal static class GrowthSourceMirrors
         string Id,
         Func<CardModel> Card,
         Func<CardModel, bool> HasTarget,
-        string? Title);
+        Func<CardModel, string>? Title);
 
     private static readonly List<Entry> Entries = [];
 
@@ -81,14 +81,16 @@ internal static class GrowthSourceMirrors
     /// <c>card.DeckVersion != null</c>——战斗里临时生成的副本升级了也带不出战斗。
     /// </param>
     /// <param name="title">
-    /// 侧栏标题。留空用牌自己的名字；只有"牌名说明不了这个来源"的时候才填，
+    /// 侧栏标题，参数是 <paramref name="card"/> 取回来的那张牌。
+    /// 和 <paramref name="card"/> 一起延迟调用，所以里面可以放别的 <c>ModelDb</c> 查询。
+    /// 留空用牌自己的名字；只有"牌名说明不了这个来源"的时候才填，
     /// 比如原版把黏稠强化那一行显示成"防御 + 强化名"。
     /// </param>
     public static GrowthSourceHandle Register(
         string id,
         Func<CardModel> card,
         Func<CardModel, bool> hasTarget,
-        string? title = null)
+        Func<CardModel, string>? title = null)
     {
         ArgumentException.ThrowIfNullOrEmpty(id);
         ArgumentNullException.ThrowIfNull(card);
