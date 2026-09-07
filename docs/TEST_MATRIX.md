@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 0.33.3 召唤与死亡监听顺序
+
+- `SUMMON-DEATH-POWER-ORDER` / `FOGMOG_NORMAL` 失败基线 `b61c2d6e82ce4b7cb9585e1e18e0315a`：T2 完整状态 P[0] 预测 Strength、原生 Illusion，精确复现问题包同根顺序差异。
+- 修复后 `749e6fb069d6499da1e00861c2e0fcfa` Passed，34 秒；T1 至 T3 召唤、击杀与复活，每轮完整原生状态和 Fork 对账一致。
+- `OVICOPTER_NORMAL`，`beff275eb28c4e52b9c0e88ebd93a615` Passed，38 秒；召唤后击杀一个蛋并推进到 T3，完整原生状态和 Fork 一致。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId SUMMON-DEATH-POWER-ORDER -EncounterId FOGMOG_NORMAL -HeadlessInstance summonorder -TimeoutSeconds 120 -ExitOnComplete`；另一场替换 EncounterId 为 `OVICOPTER_NORMAL`。
+- 中间一次请求因构建尚未结束导致冻结 DLL 失败；另一次 `2ff74b0932904eebb65dc1abf745c0a1` 在原生资源预加载期间退出（0xc0000005），尚未进入目标战斗；相同构建重试通过。原问题包仅材料预检有效，未做整场路线恢复或完整发布门禁。
+
 ## 2026-09-07 图表聚合与悬停
 
 - 后台 7 项测试通过；新增 1440 个高频交替采样合并为 144 个均值点、保留原始峰值，30 天/窄窗口降低采样密度，断档拆桶、零值和空数据。

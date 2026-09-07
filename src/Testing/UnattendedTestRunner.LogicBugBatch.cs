@@ -22,6 +22,49 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertSummonDeathPowerOrderAsync(CombatState combat, Player player)
+    {
+        Creature source = combat.Enemies.Single();
+        await PowerCmd.Apply<StrengthPower>(new ThrowingPlayerChoiceContext(), source, 1, source, null);
+        for (int round = 0; round < 2; round++)
+        {
+            Creature? victim = null;
+            if (round == 1)
+            {
+                victim = combat.Enemies.First(enemy => enemy != source);
+                await CreatureCmd.SetCurrentHp(victim, 1);
+                await ClearPlayerPilesAsync(player);
+                await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = "STRIKE_IRONCLAD", Pile = "Hand" });
+            }
+            CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+            CombatBeamSolver driver = new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
+                SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+            List<PlanAction> actions = [];
+            if (victim != null) actions.Add(new PlanAction(PlanActionKind.PlayCard, root.StartTurnNumber,
+                CardId: "STRIKE_IRONCLAD", TargetCombatId: victim.CombatId));
+            actions.Add(new PlanAction(PlanActionKind.EndTurn, root.StartTurnNumber));
+            SimulationSnapshot predicted = InvokeForcedTerminalReplay(driver, actions, null, root.StartTurnNumber, null);
+            try
+            {
+                CombatPredictionSimulator simulator = predicted.Simulator;
+                SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+                MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, source);
+                CombatPredictionSimulator fork = simulator.Fork();
+                AssertSnapshotEqual(expected, CaptureSimulated(fork, (SimulatedCombatState)fork.State.CombatState, player, source),
+                    "SummonDeathPowerOrder", "Fork");
+                if (victim != null)
+                {
+                    if (!FindActualHandCard(player, "STRIKE_IRONCLAD", 0).TryManualPlay(victim))
+                        throw new InvalidOperationException("Native summon fixture Strike was not playable.");
+                    await RunManager.Instance.ActionExecutor.FinishedExecutingActions();
+                }
+                await AdvanceMercuryActualTurnAsync(combat, player, expectVictory: false);
+                AssertSnapshotEqual(expected, CaptureActual(combat, player, source), "SummonDeathPowerOrder", "NativeNextTurn");
+            }
+            finally { predicted.ReleaseSimulator(); }
+        }
+    }
+
     private async Task AssertLivingFogSummonIntentAsync(CombatState combat, Player player)
     {
         Creature source = combat.Enemies.Single(enemy => enemy.Monster is MegaCrit.Sts2.Core.Models.Monsters.LivingFog);

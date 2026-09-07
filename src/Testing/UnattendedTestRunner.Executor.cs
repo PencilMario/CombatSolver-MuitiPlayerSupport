@@ -39,6 +39,12 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "SUMMON-DEATH-POWER-ORDER")
+            {
+                await runner.AssertSummonDeathPowerOrderAsync(combatState, player);
+                runner._completedChecks.Add("SummonDeathPowerOrderNativeFork");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "LIVING-FOG-SUMMON-INTENT")
             {
                 await runner.AssertLivingFogSummonIntentAsync(combatState, player);

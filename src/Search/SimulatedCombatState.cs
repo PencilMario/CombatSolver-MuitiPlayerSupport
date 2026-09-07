@@ -1668,6 +1668,8 @@ internal sealed partial class SimulatedCombatState
             + (_registeredCombatCards?.Count ?? 0)
             + 16;
         List<AbstractModel> listeners = new(initialCapacity);
+        Dictionary<Creature, List<AbstractModel>> enemyListeners = [];
+        int enemyInsertionIndex = -1;
         foreach (AbstractModel listener in _rootHookListeners)
         {
             if (listener switch
@@ -1678,7 +1680,21 @@ internal sealed partial class SimulatedCombatState
                 _ => true,
             })
             {
-                listeners.Add(listener);
+                Creature? enemyOwner = listener switch
+                {
+                    PowerModel power when power.Owner.Side == CombatSide.Enemy => power.Owner,
+                    MonsterModel monster when monster.Creature.Side == CombatSide.Enemy => monster.Creature,
+                    _ => null,
+                };
+                if (enemyOwner == null)
+                    listeners.Add(listener);
+                else
+                {
+                    if (enemyInsertionIndex < 0) enemyInsertionIndex = listeners.Count;
+                    if (!enemyListeners.TryGetValue(enemyOwner, out List<AbstractModel>? owned))
+                        enemyListeners.Add(enemyOwner, owned = []);
+                    owned.Add(listener);
+                }
             }
         }
         // 下面几处原来用接口类型 foreach / LINQ Where 走 Players、Creatures 与已注册卡表，
@@ -1700,10 +1716,26 @@ internal sealed partial class SimulatedCombatState
             Creature creature = creatures[creatureIndex];
             if (_rootCreatures.Contains(creature))
                 continue;
-            listeners.AddRange(creature.Powers);
+            List<AbstractModel> target = listeners;
+            if (creature.Side == CombatSide.Enemy)
+            {
+                if (!enemyListeners.TryGetValue(creature, out target!))
+                    enemyListeners.Add(creature, target = []);
+            }
+            target.AddRange(creature.Powers);
             if (creature.Monster != null)
-                listeners.Add(creature.Monster);
+                target.Add(creature.Monster);
         }
+        // Native hooks follow the current slot-ordered roster, including newly inserted enemies.
+        List<AbstractModel> orderedEnemyListeners = [];
+        foreach (Creature enemy in Enemies)
+            if (enemyListeners.Remove(enemy, out List<AbstractModel>? owned))
+                orderedEnemyListeners.AddRange(owned);
+        // Known departed powers remain available to death compensation; active hooks filter them.
+        foreach (Creature enemy in KnownEnemies)
+            if (enemyListeners.Remove(enemy, out List<AbstractModel>? owned))
+                orderedEnemyListeners.AddRange(owned);
+        listeners.InsertRange(enemyInsertionIndex < 0 ? listeners.Count : enemyInsertionIndex, orderedEnemyListeners);
         CombatPredictionState predictionState = _predictionState
             ?? throw new InvalidOperationException("Combat prediction state is not attached.");
         for (int playerIndex = 0; playerIndex < players.Count; playerIndex++)
@@ -2559,6 +2591,7 @@ internal sealed partial class SimulatedCombatState
             .ToArray();
         for (int index = 0; index < ordered.Length; index++)
             _enemies[index] = ordered[index];
+        InvalidateBaseHookListeners();
     }
     private static int GetSlotIndex(IReadOnlyList<string> slots, string? slot)
     {
