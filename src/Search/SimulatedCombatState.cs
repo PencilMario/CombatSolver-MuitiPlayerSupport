@@ -177,6 +177,7 @@ internal sealed partial class SimulatedCombatState
 
     private Dictionary<(Creature Owner, Type Type), PowerModel>? _powers;
     private List<(Creature Owner, Type Type)>? _powerListenerOrder;
+    private ForkableSet<(Creature Owner, Type Type)>? _retiredRootPowerSlots;
     private Dictionary<PowerModel, PowerModel>? _rootMultiInstancePowerClones;
     private List<PredictedCard>? _generatedCombatCards;
     private List<PredictedCard>? _registeredCombatCards;
@@ -892,7 +893,11 @@ internal sealed partial class SimulatedCombatState
             return;
         }
         if (previousAmount != 0 && currentAmount == 0)
+        {
             _powerListenerOrder?.Remove(key);
+            if (_rootPowerAmounts.ContainsKey(key))
+                (_retiredRootPowerSlots ??= []).Add(key);
+        }
     }
 
     public void AddEnergyNextTurn(Player player, int amount)
@@ -1534,6 +1539,11 @@ internal sealed partial class SimulatedCombatState
                 continue;
             }
 
+            // A removed root power's replacement belongs at its new acquisition position.
+            if (_retiredRootPowerSlots?.Contains((power.Owner, power.GetType())) == true
+                && !_rootMultiInstancePowers.Contains(power))
+                continue;
+
             PowerModel effective = _rootMultiInstancePowerClones?.GetValueOrDefault(power)
                 ?? _powers?.GetValueOrDefault((power.Owner, power.GetType()))
                 ?? power;
@@ -1890,6 +1900,7 @@ internal sealed partial class SimulatedCombatState
             powerCount++;
         }
         AddUnordered(ref fingerprint, 'P', powerCount, powersFirst, powersSecond);
+        AddCreatureTypeSet(ref fingerprint, 'r', _retiredRootPowerSlots);
 
         fingerprint.Add("energy_reset_order");
         int energyResetPowerCount = 0;

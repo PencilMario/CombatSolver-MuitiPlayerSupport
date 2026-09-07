@@ -18,6 +18,7 @@ internal sealed partial class SimulatedCombatState
             _escapedCreatures.Fork())
         {
             _drawNextTurn = _drawNextTurn?.Fork(),
+            _retiredRootPowerSlots = _retiredRootPowerSlots?.Fork(),
             _skipNextDurationTick = _skipNextDurationTick?.Fork(),
             _skipNextMove = _skipNextMove?.Fork(),
             _pressureGunBonus = _pressureGunBonus?.Fork(),

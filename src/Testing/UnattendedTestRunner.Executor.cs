@@ -39,7 +39,8 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
-            if (request.ScenarioId is "ENERGY-RESET-POWER-ORDER" or "ENERGY-RESET-POWER-ORDER-REVERSE")
+            if (request.ScenarioId is "ENERGY-RESET-POWER-ORDER" or "ENERGY-RESET-POWER-ORDER-REVERSE"
+                or "ENERGY-RESET-POWER-ORDER-REAPPLY" or "ENERGY-RESET-POWER-ORDER-OVERFLOW")
             {
                 runner.SetStage("energy_reset_power_order");
                 await runner.AssertEnergyResetPowerOrderAsync(combatState, player);

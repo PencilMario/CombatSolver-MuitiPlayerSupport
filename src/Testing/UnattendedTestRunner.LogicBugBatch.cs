@@ -1,4 +1,5 @@
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Models.Powers;
 using CombatSolver.Engine.InCombat.Mirrors.Hooks.Card;
 using CombatSolver.Engine.InCombat.Simulation;
@@ -34,14 +35,16 @@ internal sealed partial class UnattendedTestRunner
         if (CaptureSimulated(left, leftState, player, combat.Enemies[0]).ExactContinuationState
             == CaptureSimulated(right, rightState, player, combat.Enemies[0]).ExactContinuationState)
             throw new InvalidOperationException("Energy-reset power order collides in continuation state.");
-        bool reverse = _request.ScenarioId.EndsWith("-REVERSE", StringComparison.Ordinal);
+        bool reapply = _request.ScenarioId.EndsWith("-REAPPLY", StringComparison.Ordinal);
+        bool overflow = _request.ScenarioId.EndsWith("-OVERFLOW", StringComparison.Ordinal);
+        bool reverse = reapply || _request.ScenarioId.EndsWith("-REVERSE", StringComparison.Ordinal);
         string[] powerIds = reverse
             ? ["LIGHTNING_ROD_POWER", "SPINNER_POWER"]
             : ["SPINNER_POWER", "LIGHTNING_ROD_POWER"];
         foreach (string id in powerIds)
             await InjectPowerAsync(combat, player, new UnattendedPowerInjection
             {
-                PowerId = id, Target = "Player", Amount = 1
+                PowerId = id, Target = "Player", Amount = overflow && id == "SPINNER_POWER" ? 3 : 1
             });
         foreach (string id in new[] { "GENESIS_POWER", "STAR_NEXT_TURN_POWER", "RADIANCE_POWER" })
             await InjectPowerAsync(combat, player, new UnattendedPowerInjection
@@ -50,8 +53,19 @@ internal sealed partial class UnattendedTestRunner
             });
         CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
         CombatPredictionSimulator simulator = root.ForkSimulator();
-        CombatPredictionSimulator fork = simulator.Fork();
         SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+        if (reapply)
+        {
+            shadow.SetAmount<LightningRodPower>(player.Creature, 0);
+            shadow.Apply<LightningRodPower>(player.Creature, 1);
+            PowerLifecycleSupport.ResolvePowerAmountChanges(simulator, shadow);
+            await PowerCmd.Remove(player.Creature.GetPower<LightningRodPower>()!);
+            await InjectPowerAsync(combat, player, new UnattendedPowerInjection
+            {
+                PowerId = "LIGHTNING_ROD_POWER", Target = "Player", Amount = 1
+            });
+        }
+        CombatPredictionSimulator fork = simulator.Fork();
         if (!PersistentPowerSupport.TriggerAfterEnergyReset(simulator, shadow, player))
             throw new InvalidOperationException("Energy-reset fixture encountered a choice.");
         MoveStateSnapshot expected = CaptureSimulated(simulator, shadow, player, combat.Enemies[0]);
