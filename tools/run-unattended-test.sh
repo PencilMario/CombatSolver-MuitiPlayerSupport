@@ -117,7 +117,7 @@ add_option expected-finished-turn-at-most 0 int positive_int
 add_option expected-finished-player-hp-at-least -1 int nonnegative_int
 for name in \
     clear-player-hand clear-player-piles clear-run-deck clear-all-powers \
-    verify-prediction-failure-boundaries verify-search-policy-snapshot \
+    verify-prediction-failure-boundaries verify-search-policy-snapshot verify-growth-policy \
     verify-controller-session-lifecycle verify-fork-boundaries \
     verify-combat-root-snapshot verify-pre-combat-forecast-api verify-base-lib-card-modifier-boundary \
     stop-after-combat-root-snapshot-assertion verify-incremental-search \
@@ -172,6 +172,7 @@ for name in \
     expected-initial-projected-battle-hp-lost \
     expected-initial-projected-battle-hp-lost-at-most \
     expected-initial-long-term-resource-value-at-least \
+    expected-initial-growth-reward-count \
     expected-initial-final-max-hp expected-initial-max-block-at-least \
     expected-initial-actual-block-at-least expected-initial-action-replay-count; do
     add_option "$name" -1 int nonnegative_int

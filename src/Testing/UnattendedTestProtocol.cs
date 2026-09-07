@@ -83,6 +83,7 @@ internal sealed class UnattendedTestRequest
     public bool ClearAllPowers { get; init; }
     public bool VerifyPredictionFailureBoundaries { get; init; }
     public bool VerifySearchPolicySnapshot { get; init; }
+    public bool VerifyGrowthPolicy { get; init; }
     public bool VerifyControllerSessionLifecycle { get; init; }
     public bool VerifyForkBoundaries { get; init; }
     public bool VerifyCombatRootSnapshot { get; init; }
@@ -142,6 +143,7 @@ internal sealed class UnattendedTestRequest
     public int? ExpectedInitialProjectedBattleHpLost { get; init; }
     public int? ExpectedInitialProjectedBattleHpLostAtMost { get; init; }
     public int? ExpectedInitialLongTermResourceValueAtLeast { get; init; }
+    public int? ExpectedInitialGrowthRewardCount { get; init; }
     public int? ExpectedInitialFinalMaxHp { get; init; }
     public int? ExpectedInitialMaxBlockAtLeast { get; init; }
     public int? ExpectedInitialActualBlockAtLeast { get; init; }

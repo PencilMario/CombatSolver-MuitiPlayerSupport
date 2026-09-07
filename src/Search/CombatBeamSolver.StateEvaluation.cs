@@ -180,6 +180,8 @@ internal sealed partial class CombatBeamSolver
         int longTermResourceValue = realizedLongTermResourceValue
             - missedTheHuntRewards * CorePowerSupport.TheHuntLongTermResourceValue;
         score += realizedLongTermResourceValue * SolverWeights.LongTermResourceBeamValue;
+        int growthHpCredit = _growthBudgets.Credit(combat.GrowthRewards);
+        score += (double)growthHpCredit * hpWeight;
         int angerCopiesGenerated = combat.AngerCopiesGenerated;
         score += angerCopiesGenerated * SolverWeights.AngerCopyBeamPenalty;
         if (won && !uncertainVictory)
@@ -457,7 +459,11 @@ internal sealed partial class CombatBeamSolver
             boundary,
             predictionGaps,
             simulator,
-            simulator.TerminalStamp);
+            simulator.TerminalStamp)
+        {
+            GrowthHpCredit = growthHpCredit,
+            GrowthRewards = combat.GrowthRewards,
+        };
     }
 
     private static StateFingerprint BuildCycleShapeKey(

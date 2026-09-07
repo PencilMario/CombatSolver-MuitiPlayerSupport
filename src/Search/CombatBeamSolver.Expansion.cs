@@ -4035,6 +4035,8 @@ internal sealed partial class CombatBeamSolver
             && left.MaxHp >= right.MaxHp
             && left.CumulativeHpLost <= right.CumulativeHpLost
             && left.LongTermResourceValue >= right.LongTermResourceValue
+            && left.Node.Snapshot.GrowthHpCredit >= right.Node.Snapshot.GrowthHpCredit
+            && left.Node.Snapshot.GrowthRewards.Total >= right.Node.Snapshot.GrowthRewards.Total
             && left.AngerCopiesGenerated <= right.AngerCopiesGenerated;
         bool strictlyBetter = left.Damage > right.Damage
             || left.Block > right.Block

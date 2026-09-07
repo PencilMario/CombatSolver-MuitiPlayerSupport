@@ -5,6 +5,12 @@ internal sealed partial class SimulatedCombatState
     private int _longTermResourceValue;
     private int _angerCopiesGenerated;
     private int _deathSaveRelicHpRestored;
+    private GrowthValues _growthRewards;
+
+    public GrowthValues GrowthRewards => _growthRewards;
+
+    public void RecordGrowthReward(GrowthSource source)
+        => _growthRewards = _growthRewards.With(source, checked(_growthRewards.Get(source) + 1));
 
     public int LongTermResourceValue => _longTermResourceValue;
     public int AngerCopiesGenerated => _angerCopiesGenerated;

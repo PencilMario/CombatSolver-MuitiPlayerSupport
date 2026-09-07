@@ -100,6 +100,7 @@ param(
     [switch]$ClearAllPowers,
     [switch]$VerifyPredictionFailureBoundaries,
     [switch]$VerifySearchPolicySnapshot,
+    [switch]$VerifyGrowthPolicy,
     [switch]$VerifyControllerSessionLifecycle,
     [switch]$VerifyForkBoundaries,
     [switch]$VerifyCombatRootSnapshot,
@@ -165,6 +166,7 @@ param(
     [int]$ExpectedInitialProjectedBattleHpLost = -1,
     [int]$ExpectedInitialProjectedBattleHpLostAtMost = -1,
     [int]$ExpectedInitialLongTermResourceValueAtLeast = -1,
+    [int]$ExpectedInitialGrowthRewardCount = -1,
     [int]$ExpectedInitialFinalMaxHp = -1,
     [int]$ExpectedInitialMaxBlockAtLeast = -1,
     [int]$ExpectedInitialActualBlockAtLeast = -1,
@@ -775,6 +777,7 @@ $request = [ordered]@{
     clearAllPowers = $ClearAllPowers.IsPresent
     verifyPredictionFailureBoundaries = $VerifyPredictionFailureBoundaries.IsPresent
     verifySearchPolicySnapshot = $VerifySearchPolicySnapshot.IsPresent
+    verifyGrowthPolicy = $VerifyGrowthPolicy.IsPresent
     verifyControllerSessionLifecycle = $VerifyControllerSessionLifecycle.IsPresent
     verifyForkBoundaries = $VerifyForkBoundaries.IsPresent
     verifyCombatRootSnapshot = $VerifyCombatRootSnapshot.IsPresent
@@ -834,6 +837,7 @@ $request = [ordered]@{
     expectedInitialProjectedBattleHpLost = if ($ExpectedInitialProjectedBattleHpLost -ge 0) { $ExpectedInitialProjectedBattleHpLost } else { $null }
     expectedInitialProjectedBattleHpLostAtMost = if ($ExpectedInitialProjectedBattleHpLostAtMost -ge 0) { $ExpectedInitialProjectedBattleHpLostAtMost } else { $null }
     expectedInitialLongTermResourceValueAtLeast = if ($ExpectedInitialLongTermResourceValueAtLeast -ge 0) { $ExpectedInitialLongTermResourceValueAtLeast } else { $null }
+    expectedInitialGrowthRewardCount = if ($ExpectedInitialGrowthRewardCount -ge 0) { $ExpectedInitialGrowthRewardCount } else { $null }
     expectedInitialFinalMaxHp = if ($ExpectedInitialFinalMaxHp -ge 0) { $ExpectedInitialFinalMaxHp } else { $null }
     expectedInitialMaxBlockAtLeast = if ($ExpectedInitialMaxBlockAtLeast -ge 0) { $ExpectedInitialMaxBlockAtLeast } else { $null }
     expectedInitialActualBlockAtLeast = if ($ExpectedInitialActualBlockAtLeast -ge 0) { $ExpectedInitialActualBlockAtLeast } else { $null }

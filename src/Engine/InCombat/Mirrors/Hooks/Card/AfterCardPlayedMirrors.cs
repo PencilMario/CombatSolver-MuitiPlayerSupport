@@ -851,6 +851,7 @@ internal static class AfterCardPlayedMirrors
                 && context.State.CombatState is SimulatedCombatState combat)
             {
                 combat.RecordLongTermResource(1);
+                combat.RecordGrowthReward(GrowthSource.Goopy);
             }
         }
     }

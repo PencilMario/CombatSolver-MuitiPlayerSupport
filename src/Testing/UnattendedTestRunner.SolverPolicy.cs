@@ -118,6 +118,7 @@ internal sealed partial class UnattendedTestRunner
             || _request.ExpectedInitialProjectedBattleHpLost.HasValue
             || _request.ExpectedInitialProjectedBattleHpLostAtMost.HasValue
             || _request.ExpectedInitialLongTermResourceValueAtLeast.HasValue
+            || _request.ExpectedInitialGrowthRewardCount.HasValue
             || _request.ExpectedInitialFinalMaxHp.HasValue
             || _request.ExpectedInitialMaxBlockAtLeast.HasValue
             || _request.ExpectedInitialActualBlockAtLeast.HasValue
@@ -392,6 +393,12 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidOperationException(
                 $"首轮路线长期资源价值为 {result.Snapshot.LongTermResourceValue}，" +
                 $"低于预期 {minimumLongTermResource}。");
+        }
+        if (_request.ExpectedInitialGrowthRewardCount is { } expectedGrowthCount
+            && result.Snapshot.GrowthRewards.Total != expectedGrowthCount)
+        {
+            throw new InvalidOperationException(
+                $"Growth reward count {result.Snapshot.GrowthRewards.Total}, expected {expectedGrowthCount}: {result.Snapshot.GrowthRewards}");
         }
         if (_request.ExpectedInitialFinalMaxHp is { } expectedFinalMaxHp
             && result.Snapshot.PlayerMaxHp != expectedFinalMaxHp)

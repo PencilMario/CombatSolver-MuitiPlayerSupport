@@ -494,6 +494,9 @@ internal static class SolverController
             new SearchMemoryPressureSignal())
         {
             Interaction = interaction,
+            GrowthBudgets = settings.GrowthBudgets,
+            HasGrowthTargets = settings.GrowthBudgets.IsEnabled
+                || state.Players.SelectMany(player => player.PlayerCombatState!.AllCards).Any(GrowthValues.HasTarget),
         };
         CombatBugReportExporter.RecordSearchPolicy(state, policy);
         return policy;
@@ -1661,6 +1664,22 @@ internal static class SolverController
         int slot,
         string potionId)
         => SolverSettings.ResolvePotionDirective(slot, potionId);
+
+    internal static void SetGrowthPolicy(NGame host, CombatState state, GrowthValues budgets, int acceptableHpLoss)
+    {
+        AssertMainThread();
+        if (_deployment != null)
+            return;
+        SolverSettingsData current = SolverSettings.Current;
+        if (current.GrowthBudgets == budgets && current.AcceptableBattleHpLoss == acceptableHpLoss)
+            return;
+        SolverSettings.Update(current with { GrowthBudgets = budgets, AcceptableBattleHpLoss = acceptableHpLoss });
+        _combat.ContinuationSource = null;
+        _combat.PendingCompleteProjectionBaseline = null;
+        SolverOverlay.RefreshControls();
+        if (!_combat.AutomaticSearchPaused && AutomaticCalculationEnabled)
+            RequestSearch(host, state, SearchReason.Manual);
+    }
 
     internal static void SetPotionDirective(
         NGame host,

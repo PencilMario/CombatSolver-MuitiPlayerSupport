@@ -142,7 +142,11 @@ internal sealed record SolverInterimResult(
     int ProjectedBattlePotionCount,
     int EnemyHp,
     double Score,
-    int? CombatEndedTurn = null);
+    int? CombatEndedTurn = null)
+{
+    public int GrowthHpCredit { get; init; }
+    public int GrowthRewardCount { get; init; }
+}
 
 internal sealed record SolverFrontierTurn(
     int Turn,

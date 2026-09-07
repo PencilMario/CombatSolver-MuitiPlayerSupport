@@ -1256,6 +1256,8 @@ internal sealed class SimulationSnapshot(
     public int DeathSaveRelicHpRestored { get; } = deathSaveRelicHpRestored;
 
     public int LongTermResourceValue { get; } = longTermResourceValue;
+    public int GrowthHpCredit { get; init; }
+    public GrowthValues GrowthRewards { get; init; }
     public int AngerCopiesGenerated { get; } = angerCopiesGenerated;
     public int ProjectedPlayerHp { get; } = projectedPlayerHp;
     public int PlayerBlock { get; } = playerBlock;
@@ -1371,7 +1373,11 @@ internal sealed record SolverSnapshot(
     int Turn,
     int ShufflesCrossed,
     SearchBoundaryReason BoundaryReason,
-    IReadOnlyList<PredictionGap> PredictionGaps);
+    IReadOnlyList<PredictionGap> PredictionGaps)
+{
+    public int GrowthHpCredit { get; init; }
+    public GrowthValues GrowthRewards { get; init; }
+}
 
 internal sealed record CachedContinuation(
     ContinuationStamp ExpectedState,

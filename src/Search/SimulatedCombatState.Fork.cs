@@ -75,6 +75,7 @@ internal sealed partial class SimulatedCombatState
             _outstandingStolenGold = _outstandingStolenGold,
             _outstandingStolenCards = _outstandingStolenCards,
             _longTermResourceValue = _longTermResourceValue,
+            _growthRewards = _growthRewards,
             _angerCopiesGenerated = _angerCopiesGenerated,
             _deathSaveRelicHpRestored = _deathSaveRelicHpRestored,
         };

@@ -15,8 +15,8 @@ internal static class SolverInterimResultOrdering
     /// <summary>
     /// Compares the result-quality prefix shared by in-session selection, final candidate
     /// retention, and cross-session audits. A negative value means <paramref name="candidate"/>
-    /// is better. Policy/resource preferences are deliberately excluded: callers may use them
-    /// only after complete victory, strategic battle loss, and combat duration are equal.
+    /// is better. Callers pass strategic HP loss after earned growth credit; realized growth
+    /// breaks ties before combat duration, including when every growth budget is zero.
     /// </summary>
     public static int ComparePrimaryQuality(
         bool candidateCompleteVictory,
@@ -24,12 +24,22 @@ internal static class SolverInterimResultOrdering
         int? candidateCombatEndedTurn,
         bool currentCompleteVictory,
         int currentStrategicHpDeficit,
-        int? currentCombatEndedTurn)
+        int? currentCombatEndedTurn,
+        int candidateGrowthHpCredit = 0,
+        int currentGrowthHpCredit = 0,
+        int candidateGrowthRewardCount = 0,
+        int currentGrowthRewardCount = 0)
     {
         int comparison = currentCompleteVictory.CompareTo(candidateCompleteVictory);
         if (comparison != 0)
             return comparison;
         comparison = candidateStrategicHpDeficit.CompareTo(currentStrategicHpDeficit);
+        if (comparison != 0)
+            return comparison;
+        comparison = currentGrowthHpCredit.CompareTo(candidateGrowthHpCredit);
+        if (comparison != 0)
+            return comparison;
+        comparison = currentGrowthRewardCount.CompareTo(candidateGrowthRewardCount);
         if (comparison != 0)
             return comparison;
         return (candidateCombatEndedTurn ?? int.MaxValue)
@@ -47,6 +57,10 @@ internal static class SolverInterimResultOrdering
             return true;
         if (IsResourceTradeImprovement(current, candidate))
             return false;
+        if (candidate.GrowthHpCredit != current.GrowthHpCredit)
+            return candidate.GrowthHpCredit > current.GrowthHpCredit;
+        if (candidate.GrowthRewardCount != current.GrowthRewardCount)
+            return candidate.GrowthRewardCount > current.GrowthRewardCount;
         comparison = (candidate.CombatEndedTurn ?? int.MaxValue)
             .CompareTo(current.CombatEndedTurn ?? int.MaxValue);
         if (comparison != 0)
@@ -63,7 +77,8 @@ internal static class SolverInterimResultOrdering
         SolverInterimResult current)
         => (!candidate.Won
                 || !current.Won
-                || candidate.ProjectedBattleHpLost <= current.ProjectedBattleHpLost)
+                || candidate.ProjectedBattleHpLost - candidate.GrowthHpCredit
+                    <= current.ProjectedBattleHpLost - current.GrowthHpCredit)
             && IsBetter(candidate, current);
 
     internal static bool IsResourceTradeImprovement(

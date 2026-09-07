@@ -21,6 +21,8 @@ internal sealed record SearchPolicySnapshot(
     SearchFramePressureSignal FramePressureSignal,
     SearchMemoryPressureSignal MemoryPressureSignal)
 {
+    public GrowthValues GrowthBudgets { get; init; }
+    public bool HasGrowthTargets { get; init; }
     public SearchRequestWorkTotals? RequestWorkTotals { get; init; }
     public SearchInteractionState? Interaction { get; init; }
 }

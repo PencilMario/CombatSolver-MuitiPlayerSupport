@@ -479,6 +479,8 @@ while IFS=$'\t' read -r file_name text; do
     require_fixed "$search_root/$file_name" "$text" 'missing CombatBeamSolver stage member'
 done <<'EOF'
 CombatBeamSolver.cs	internal sealed partial class CombatBeamSolver(
+GrowthPolicy.cs	internal readonly record struct GrowthValues(
+SearchPolicySnapshot.cs	public GrowthValues GrowthBudgets { get; init; }
 CombatBeamSolver.cs	private readonly SearchRunContext _run = new(
 CombatBeamSolver.cs	private BeamRetentionPolicy Retention =>
 CombatBeamSolver.cs	private FinalPlanOrdering FinalOrdering =>

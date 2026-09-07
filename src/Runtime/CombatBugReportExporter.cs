@@ -1194,6 +1194,7 @@ internal static class CombatBugReportExporter
             settings.ActTransitionBossHpStrategy,
             settings.FinalBossHpStrategy,
             settings.AcceptableBattleHpLoss,
+            settings.GrowthBudgets,
             searchMaxDegreeOfParallelism = UnattendedTestRunner.SearchMaxDegreeOfParallelismOverride ?? settings.SearchMaxDegreeOfParallelism,
             shortProfile = settings.ShortProfile with { SoftTimeBudgetMilliseconds = UnattendedTestRunner.ShortSearchBudgetOverrideMilliseconds
                 ?? settings.ShortProfile.SoftTimeBudgetMilliseconds },
@@ -1289,7 +1290,7 @@ internal static class CombatBugReportExporter
         {
             "solverDisabled", "automaticCalculationEnabled", "stopFullAutoOnCombatEnd", "stopFullAutoOnDeathTurn",
             "stopFullAutoOnWorseRecalculation", "enableDetailedDiagnosticLogs", "potionDirectives",
-            "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "performancePreset",
+            "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "growthBudgets", "performancePreset",
             "searchMaxDegreeOfParallelism", "shortTimeLimitSeconds", "deepTimeLimitSeconds", "enableNoGcRegion",
             "noGcRegionBudgetGigabytes", "shortBeamWidth", "deepBeamWidth", "shortMaxExpandedNodes", "deepMaxExpandedNodes",
             "shortMaxCardBranchesPerNode", "deepMaxCardBranchesPerNode", "shortMaxPileChoiceBranchesPerAction",

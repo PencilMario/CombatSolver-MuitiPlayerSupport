@@ -1543,7 +1543,11 @@ internal static partial class CombatSearchCoordinator
             ProjectedBattlePotionCount: result.ProjectedBattlePotionCount,
             CombatEndedTurn: result.CombatEndedTurn,
             EnemyHp: result.Snapshot.EnemyHp,
-            Score: result.BestNode.Score);
+            Score: result.BestNode.Score)
+        {
+            GrowthHpCredit = result.Snapshot.GrowthHpCredit,
+            GrowthRewardCount = result.Snapshot.GrowthRewards.Total,
+        };
 
 
     private static bool IsBetterCompletedResult(
@@ -1581,7 +1585,11 @@ internal static partial class CombatSearchCoordinator
             candidate.CombatEndedTurn,
             current.Won,
             current.StrategicHpDeficit,
-            current.CombatEndedTurn);
+            current.CombatEndedTurn,
+            candidate.GrowthHpCredit,
+            current.GrowthHpCredit,
+            candidate.GrowthRewardCount,
+            current.GrowthRewardCount);
         if (primaryQuality != 0)
             return primaryQuality < 0;
         if (theftPolicy == SolverTheftPolicy.PreserveResources
@@ -1608,7 +1616,11 @@ internal static partial class CombatSearchCoordinator
             candidate.CombatEndedTurn,
             IsCompleteVictory(current),
             StrategicHpDeficit(root, policy, current),
-            current.CombatEndedTurn);
+            current.CombatEndedTurn,
+            candidate.Snapshot.GrowthHpCredit,
+            current.Snapshot.GrowthHpCredit,
+            candidate.Snapshot.GrowthRewards.Total,
+            current.Snapshot.GrowthRewards.Total);
 
     private static bool IsCompleteVictory(SolverResult result)
         => SolverInterimResultOrdering.IsCompleteVictory(
@@ -1620,7 +1632,7 @@ internal static partial class CombatSearchCoordinator
     internal static bool HasReachedAcceptableBattleHpLoss(
         SearchPolicySnapshot policy,
         SolverResult result)
-        => HasReachedAcceptableBattleHpLoss(
+        => !policy.HasGrowthTargets && HasReachedAcceptableBattleHpLoss(
             IsCompleteVictory(result),
             result.ProjectedBattleHpLost,
             policy.AcceptableBattleHpLoss);
@@ -1635,7 +1647,7 @@ internal static partial class CombatSearchCoordinator
         CombatRootSnapshot root,
         SearchPolicySnapshot policy,
         SolverResult result)
-        => HasReachedProvablePrimaryQualityLowerBound(
+        => !policy.HasGrowthTargets && HasReachedProvablePrimaryQualityLowerBound(
             IsCompleteVictory(result),
             StrategicHpDeficit(root, policy, result),
             result.CombatEndedTurn,
@@ -1665,7 +1677,7 @@ internal static partial class CombatSearchCoordinator
         SearchPolicySnapshot policy,
         SolverResult result)
     {
-        if (!IsCompleteVictory(result) || result.CombatEndedTurn is not { } combatEndedTurn)
+        if (policy.HasGrowthTargets || !IsCompleteVictory(result) || result.CombatEndedTurn is not { } combatEndedTurn)
             return null;
         return new PrimarySearchIncumbent(
             StrategicHpDeficit(root, policy, result),
@@ -1723,7 +1735,7 @@ internal static partial class CombatSearchCoordinator
                     result.Snapshot.PlayerHp,
                     result.Snapshot.PlayerMaxHp),
             StrategicBossHpRelief(root, policy),
-            result.Snapshot.DeathSaveRelicHpRestored);
+            result.Snapshot.DeathSaveRelicHpRestored) - result.Snapshot.GrowthHpCredit;
 
     /// <summary>
     /// Best strategic HP result any route could still reach from this root.

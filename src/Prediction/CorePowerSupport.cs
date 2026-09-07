@@ -140,6 +140,7 @@ internal static class CorePowerSupport
                 SimCreatureState ownerState = simulator.State.GetCreature(owner);
                 ownerState.SetMaxHp(ownerState.MaxHp + maxHpGain);
                 simulator.Heal(owner, maxHpGain);
+                combat.RecordGrowthReward(GrowthSource.Feed);
                 break;
             }
             case HandOfGreed when target != null && WasFatalKill(
@@ -152,6 +153,7 @@ internal static class CorePowerSupport
                 int gold = card.DynamicVars["Gold"].IntValue;
                 combat.GainPlayerGold(card.Owner, gold);
                 combat.RecordLongTermResource(gold);
+                combat.RecordGrowthReward(GrowthSource.HandOfGreed);
                 break;
             }
             case KnockoutBlow when target != null && WasCardKill(simulator, playedCard, target, historyEntryStart):
@@ -171,6 +173,7 @@ internal static class CorePowerSupport
                 {
                     combat.Apply<TheHuntPower>(owner, 1, owner);
                     combat.RecordLongTermResource(TheHuntLongTermResourceValue);
+                    combat.RecordGrowthReward(GrowthSource.TheHunt);
                 }
                 break;
             }

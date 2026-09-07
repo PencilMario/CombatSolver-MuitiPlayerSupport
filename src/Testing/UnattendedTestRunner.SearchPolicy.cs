@@ -2219,6 +2219,8 @@ internal sealed partial class UnattendedTestRunner
         AddMismatch(mismatches, "snapshot.player_max_hp", expected.Snapshot.PlayerMaxHp, actual.Snapshot.PlayerMaxHp);
         AddMismatch(mismatches, "snapshot.hp_lost", expected.Snapshot.CumulativePlayerHpLost, actual.Snapshot.CumulativePlayerHpLost);
         AddMismatch(mismatches, "snapshot.long_term", expected.Snapshot.LongTermResourceValue, actual.Snapshot.LongTermResourceValue);
+        AddMismatch(mismatches, "snapshot.growth_credit", expected.Snapshot.GrowthHpCredit, actual.Snapshot.GrowthHpCredit);
+        AddMismatch(mismatches, "snapshot.growth_rewards", expected.Snapshot.GrowthRewards, actual.Snapshot.GrowthRewards);
         AddMismatch(mismatches, "snapshot.anger", expected.Snapshot.AngerCopiesGenerated, actual.Snapshot.AngerCopiesGenerated);
         AddMismatch(mismatches, "snapshot.projected_hp", expected.Snapshot.ProjectedPlayerHp, actual.Snapshot.ProjectedPlayerHp);
         AddMismatch(mismatches, "snapshot.block", expected.Snapshot.PlayerBlock, actual.Snapshot.PlayerBlock);

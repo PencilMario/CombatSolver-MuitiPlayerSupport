@@ -471,6 +471,8 @@ if (($actualBeamFiles -join "|") -ne (($expectedBeamFiles | Sort-Object) -join "
         "expected=$(($expectedBeamFiles | Sort-Object) -join ',')")
 }
 $beamStructureChecks = @(
+    @{ File = "GrowthPolicy.cs"; Text = "internal readonly record struct GrowthValues(" },
+    @{ File = "SearchPolicySnapshot.cs"; Text = "public GrowthValues GrowthBudgets { get; init; }" },
     @{ File = "CombatBeamSolver.cs"; Text = "internal sealed partial class CombatBeamSolver(" },
     @{ File = "CombatBeamSolver.cs"; Text = "private readonly SearchRunContext _run = new(" },
     @{ File = "CombatBeamSolver.cs"; Text = "private BeamRetentionPolicy Retention =>" },

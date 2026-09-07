@@ -73,6 +73,7 @@ internal sealed record SolverSettingsData
     [JsonIgnore]
     public SolverPotionPolicy PotionPolicy { get; init; } = SolverPotionPolicy.Smart;
     public PersistedPotionDirective[] PotionDirectives { get; init; } = [];
+    public GrowthValues GrowthBudgets { get; init; }
     public BossHpStrategy ActTransitionBossHpStrategy { get; init; } = BossHpStrategy.ProgressionFirst;
     public BossHpStrategy FinalBossHpStrategy { get; init; } = BossHpStrategy.ProgressionFirst;
     public int AcceptableBattleHpLoss { get; init; }
@@ -125,7 +126,10 @@ internal sealed record SolverSettingsSnapshot(
     bool EnableNoGcRegion,
     long NoGcRegionBudgetBytes,
     SolverDeploymentFastMode DeploymentFastMode,
-    double DeploymentInterActionDelaySeconds);
+    double DeploymentInterActionDelaySeconds)
+{
+    public GrowthValues GrowthBudgets { get; init; }
+}
 
 internal static class SolverSettings
 {
@@ -288,7 +292,10 @@ internal static class SolverSettings
             data.EnableNoGcRegion,
             noGcBytes,
             data.DeploymentFastMode,
-            data.DeploymentInterActionDelaySeconds ?? 0d);
+            data.DeploymentInterActionDelaySeconds ?? 0d)
+        {
+            GrowthBudgets = data.GrowthBudgets,
+        };
     }
 
     public static SolverPerformancePreset ResolvePerformancePreset(SolverSettingsData data)
@@ -539,6 +546,7 @@ internal static class SolverSettings
             throw new InvalidDataException(
                 $"{nameof(data.AcceptableBattleHpLoss)} must be between 0 and {MaximumAcceptableBattleHpLoss}.");
         }
+        data.GrowthBudgets.ValidateBudgets();
         HashSet<(int Slot, string PotionId)> potionDirectiveKeys = [];
         foreach (PersistedPotionDirective directive in data.PotionDirectives)
         {

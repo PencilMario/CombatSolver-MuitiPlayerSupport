@@ -1,5 +1,31 @@
 # CombatSolver 测试清单
 
+## 2026-09-07：局外成长策略（未发布）
+
+Release 编译 `-p:CopyModOnBuild=false` 零警告/错误；Windows 结构门禁通过（`search_files=74`），两份修改过的 Bash 入口语法检查通过。所有请求使用隔离的 `growth` headless 实例，超时 120 秒，短搜预算 1500ms；搜索测试开启增量回放，时间数据不代表生产性能。
+
+| 场景 | 结果 |
+|---|---|
+| `GROWTH-POLICY-FREE-FIRST` | Passed，`4545ca8b2d464137a35f567f77ccccd9`。零额度下遗传算法优先于更快的零损击杀；跨回合路线保留成长。八类配置默认值、序列化往返、不可变捕获、侧栏重载/开关/边界/互斥、分支计数隔离与累计额度检查通过。 |
+| `GROWTH-POLICY-PAID` | Passed，`047d44398b1341019670ec6f18b0d756`。去掉初始格挡，零额度拒绝付血成长；额度 100 时取得成长且实际比零额度多损血，额外战损未超过额度。比较合同另检验额度边界及超额拒绝，胜利优先于成长。 |
+| `GROWTH-REPLAY-COUNT` | Passed，`5075d66cd698428b8bf1fea9137102e0`。遗传算法附魔重放，两次成功成长计数为 2；先成长再击杀，T1 零损；5 节点/12 转移。 |
+| `GROWTH-FATAL-PRIORITY` | Passed，`a23b3500f1a548af9564dec9f0e9162c`。贪婪之手与打击都可零损击杀时选择前者，收益次数 1；4 节点/12 转移。 |
+| `GROWTH-NO-TARGET-POTION-SENTINEL` | Passed，`3d2008f608604f3785d41f8aead373cd`。无成长目标时仍按强制药水政策使用火焰药水，T1 零损、1 瓶、收益次数 0、未镜像项 0；1 节点/2 转移。 |
+
+复跑入口：
+
+```powershell
+./tools/run-unattended-test.ps1 -ScenarioId GROWTH-POLICY-FREE-FIRST -HeadlessInstance growth -CharacterId DEFECT -ClearRunDeck -ClearPlayerPiles -CardsJson '[{"cardId":"GENETIC_ALGORITHM","pile":"Hand","treatAsDeckCard":true},{"cardId":"STRIKE_DEFECT","pile":"Hand","treatAsDeckCard":true}]' -EnemyCurrentHp 6 -InitialPlayerEnergy 1 -InitialPlayerBlock 99 -VerifyGrowthPolicy -StopAfterCombatRootSnapshotAssertion -TimeoutSeconds 120
+# 付费场景使用同一参数，改 ScenarioId 为 GROWTH-POLICY-PAID，InitialPlayerBlock 为 0。
+./tools/run-unattended-test.ps1 -ScenarioId GROWTH-REPLAY-COUNT -HeadlessInstance growth -CharacterId DEFECT -ClearRunDeck -ClearPlayerPiles -CardsJson '[{"cardId":"GENETIC_ALGORITHM","pile":"Hand","treatAsDeckCard":true,"enchantmentId":"GLAM"},{"cardId":"STRIKE_DEFECT","pile":"Hand"}]' -EnemyCurrentHp 6 -InitialPlayerEnergy 2 -ForceShortSearchOnly -ShortSearchBudgetOverrideMilliseconds 1500 -VerifyIncrementalSearch -ExpectedInitialGrowthRewardCount 2 -ExpectedInitialFirstActionCardId GENETIC_ALGORITHM -ExpectedInitialProjectedBattleHpLost 0 -StopAfterInitialSolverResultAssertion -TimeoutSeconds 120
+./tools/run-unattended-test.ps1 -ScenarioId GROWTH-FATAL-PRIORITY -HeadlessInstance growth -CharacterId IRONCLAD -ClearRunDeck -ClearPlayerPiles -CardsJson '[{"cardId":"HAND_OF_GREED","pile":"Hand"},{"cardId":"STRIKE_IRONCLAD","pile":"Hand"}]' -EnemyCurrentHp 6 -InitialPlayerEnergy 2 -ForceShortSearchOnly -ShortSearchBudgetOverrideMilliseconds 1500 -VerifyIncrementalSearch -ExpectedInitialGrowthRewardCount 1 -ExpectedInitialFirstActionCardId HAND_OF_GREED -ExpectedInitialProjectedBattleHpLost 0 -StopAfterInitialSolverResultAssertion -TimeoutSeconds 120
+./tools/run-unattended-test.ps1 -ScenarioId GROWTH-NO-TARGET-POTION-SENTINEL -HeadlessInstance growth -CardId DEFEND_IRONCLAD -ClearRunDeck -ClearPlayerPiles -InitialPlayerEnergy 0 -EnemyCurrentHp 20 -PotionId FIRE_POTION -PotionPolicyForTest RequireAtLeastOne -ForceShortSearchOnly -ShortSearchBudgetOverrideMilliseconds 1500 -VerifyIncrementalSearch -ExpectedInitialFirstActionPotionId FIRE_POTION -ExpectedInitialPotionCount 1 -ExpectedInitialGrowthRewardCount 0 -ExpectedInitialFinalEnemyHpAtMost 0 -ExpectedInitialUnmirroredCount 0 -StopAfterInitialSolverResultAssertion -TimeoutSeconds 120 -ExitOnComplete
+```
+
+迭代中曾命中原有零损早停；已在成长目标存在时关闭。无格挡且额度 2 的初始夹具未选成长，不能作为免费收益验证，后改为注入格挡和独立付费场景。`7f4963d71e11400aa1f9aaf8ab10beec` 因选择了等待正式搜索结果的停止参数而超时，改为根断言后停止；`e34830eb59864bc280802f82bbd7465c` 因 UI 测试未创建 overlay 失败，测试入口现先创建 overlay。编译期修复了类型名遮蔽、空值注解与测试 runner 实例调用；首次 Bash 路径错误后定位实际安装位置通过。
+
+未做八类卡牌逐一原生部署或本轮 actual/simulated 全量差分；计数合同与增量回放不替代原生结算验收。未做可见 Steam UI 检查、重启游戏后的人工设置回读或性能基准，headless 只证明结构状态与设置序列化。本批未复制开发 DLL 到正常游戏目录，未发包或上传。
+
 ## 2026-09-07：文档目录整理
 
 L0 文档检查：64 份资料归类移动，增加 8 份导航；整理后共 103 个文档与数据文件，258 个本地文件链接均可解析，全部文件可从文档总入口到达。源码、编译配置和运行行为未变，本轮未构建或启动游戏。

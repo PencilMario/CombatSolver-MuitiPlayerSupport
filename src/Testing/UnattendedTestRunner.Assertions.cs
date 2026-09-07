@@ -30,6 +30,12 @@ internal sealed partial class UnattendedTestRunner
                 await AssertSearchPolicySnapshotAsync(scenario.CombatState);
                 runner._completedChecks.Add("SearchPolicySnapshot");
             }
+            if (request.VerifyGrowthPolicy)
+            {
+                runner.SetStage("growth_policy");
+                await runner.AssertGrowthPolicyAsync(scenario.CombatState);
+                runner._completedChecks.Add("GrowthPolicy");
+            }
             if (request.VerifyControllerSessionLifecycle)
             {
                 runner.SetStage("controller_session_lifecycle");

@@ -310,7 +310,8 @@ internal sealed partial class CombatBeamSolver
 
     private List<SearchNode> ApplyPrimaryIncumbentBound(List<SearchNode> retained)
     {
-        if (_primaryIncumbent is not { } incumbent)
+        // Per-event growth can repeat; the HP-only floor is not a bound on this objective.
+        if (_hasGrowthTargets || _primaryIncumbent is not { } incumbent)
             return retained;
 
         List<SearchNode> bounded = ApplyPrimaryIncumbentBound(
@@ -443,6 +444,8 @@ internal sealed partial class CombatBeamSolver
         IReadOnlyList<SearchNode> retained,
         int completedTurnLayers)
     {
+        if (_hasGrowthTargets)
+            return false;
         bool canEstablishPotionFreeIncumbent = _minimumPotionUses == 0
             && _potionPolicy is SolverPotionPolicy.Disabled or SolverPotionPolicy.Smart;
         // The strict-primary escape in FinalPlanOrdering is guaranteed to make an
@@ -1189,7 +1192,7 @@ internal sealed partial class CombatBeamSolver
         foreach (bool investmentBand in new[] { false, true })
         {
             bool InBand(SearchNode node)
-                => (node.FutureSoldHp > availableFutureSoldHp
+                => (node.FutureSoldHp > availableFutureSoldHp + node.Snapshot.GrowthHpCredit
                         || CycleHealthRisk(node, bestMaxHp) > minimumHealthRisk)
                     == investmentBand;
 

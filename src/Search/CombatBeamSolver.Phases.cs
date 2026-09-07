@@ -201,7 +201,7 @@ internal sealed partial class CombatBeamSolver
                         + ActEndingBossPolicy.RankedPostCombatRelicHeal(
                             root.PostCombatRelicHeal, won, node.Snapshot.PlayerHp, node.Snapshot.PlayerMaxHp),
                     _strategicBossHpRelief,
-                    node.Snapshot.DeathSaveRelicHpRestored),
+                    node.Snapshot.DeathSaveRelicHpRestored) - node.Snapshot.GrowthHpCredit,
                 PotionStrategicCost: PotionUsePolicy.EffectiveStrategicHpCost(
                     node.PotionStrategicCost,
                     ambergrisCount,
@@ -209,7 +209,11 @@ internal sealed partial class CombatBeamSolver
                 ProjectedBattlePotionCount: battleDamage.PotionsUsedSoFar + node.PotionCount,
                 EnemyHp: node.Snapshot.EnemyHp,
                 Score: node.Score,
-                CombatEndedTurn: won ? node.Snapshot.CombatEndedTurn : null);
+                CombatEndedTurn: won ? node.Snapshot.CombatEndedTurn : null)
+            {
+                GrowthHpCredit = node.Snapshot.GrowthHpCredit,
+                GrowthRewardCount = node.Snapshot.GrowthRewards.Total,
+            };
         }
 
 
@@ -295,7 +299,7 @@ internal sealed partial class CombatBeamSolver
             }
 
             SolverInterimResult candidate = SummarizeCandidate(node, won: true);
-            if (candidate.ProjectedBattleHpLost <= _acceptableBattleHpLoss)
+            if (!_hasGrowthTargets && candidate.ProjectedBattleHpLost <= _acceptableBattleHpLoss)
             {
                 acceptableBattleHpLossReached = true;
                 policy.Diagnostics.Info(
@@ -546,7 +550,11 @@ internal sealed partial class CombatBeamSolver
                 finalSnapshot.Turn,
                 finalSnapshot.ShufflesCrossed,
                 finalSnapshot.BoundaryReason,
-                finalSnapshot.PredictionGaps.ToArray());
+                finalSnapshot.PredictionGaps.ToArray())
+            {
+                GrowthHpCredit = finalSnapshot.GrowthHpCredit,
+                GrowthRewards = finalSnapshot.GrowthRewards,
+            };
             ValidateOrderedMutationAdmissionLedger(_run);
             SolverResult result = new()
             {
@@ -1789,7 +1797,7 @@ internal sealed partial class CombatBeamSolver
                 frontier = [];
                 break;
             }
-            if (completed.Any(node =>
+            if (!_hasGrowthTargets && completed.Any(node =>
                     node.Snapshot.AllEnemiesDead
                     && ExplicitPotionUseCount(node) == 0
                     && node.FutureSoldHp == 0
