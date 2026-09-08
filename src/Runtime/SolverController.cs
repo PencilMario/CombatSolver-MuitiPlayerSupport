@@ -495,9 +495,12 @@ internal static class SolverController
             new SearchMemoryPressureSignal())
         {
             Interaction = interaction,
+            // 这里记的是玩家填的原始值；「不考虑局外收益」的折算交给快照上的 Effective* 一处做，
+            // 免得两边各判一次而走岔。问题包里两样都在，方便看出当时是填了额度还是开了开关。
             GrowthBudgets = settings.GrowthBudgets,
             HasGrowthTargets = settings.GrowthBudgets.IsEnabled
                 || state.Players.SelectMany(player => player.PlayerCombatState!.AllCards).Any(GrowthValues.HasTarget),
+            IgnoreLongTermRewards = settings.IgnoreLongTermRewards,
         };
         CombatBugReportExporter.RecordSearchPolicy(state, policy);
         return policy;
@@ -1687,6 +1690,22 @@ internal static class SolverController
         if (current.GrowthBudgets == budgets)
             return;
         SolverSettings.Update(current with { GrowthBudgets = budgets });
+        _combat.ContinuationSource = null;
+        _combat.PendingCompleteProjectionBaseline = null;
+        SolverOverlay.RefreshControls();
+        if (!_combat.AutomaticSearchPaused && AutomaticCalculationEnabled)
+            RequestSearch(host, state, SearchReason.Manual);
+    }
+
+    internal static void SetIgnoreLongTermRewards(NGame host, CombatState state, bool ignore)
+    {
+        AssertMainThread();
+        if (_deployment != null)
+            return;
+        SolverSettingsData current = SolverSettings.Current;
+        if (current.IgnoreLongTermRewards == ignore)
+            return;
+        SolverSettings.Update(current with { IgnoreLongTermRewards = ignore });
         _combat.ContinuationSource = null;
         _combat.PendingCompleteProjectionBaseline = null;
         SolverOverlay.RefreshControls();

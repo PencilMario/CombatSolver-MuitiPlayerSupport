@@ -9,6 +9,10 @@
 - Release 编译（`-p:CopyModOnBuild=false`）0 警告 0 错误，未复制到游戏目录。
 - `GROWTH-POLICY-FREE-FIRST` / `GROWTH-POLICY-PAID` **本轮未执行**。新增断言 `AssertThirdPartyGrowthSources` 挂在这两个夹具原有的 `-VerifyGrowthPolicy` 路径上，复跑命令沿用本文《2026-09-07：局外成长策略》一节记录的原命令，不需要新参数。
 - 已单独验证 `GrowthValues` 的 System.Text.Json 往返机制（record struct 定位构造函数加 `init` 属性、`JsonIgnore(WhenWritingNull)`、字典键不受 `PropertyNamingPolicy` 影响）：空表不写出 `thirdParty` 字段、有条目时往返相等并保留未登记 id、缺字段与显式 `null` 都还原成空表、`with` 表达式保留第三方部分、第三方条目参与相等判断。该验证在独立控制台工程完成，不进仓库。
+## 不考虑局外收益开关（开发中）
+
+- Release 编译（`-p:CopyModOnBuild=false`）0 警告 0 错误，结构门禁通过。
+- `GROWTH-POLICY-FREE-FIRST` / `GROWTH-POLICY-PAID` **本轮未执行**。新增断言直接加在这两个夹具原有的 `-VerifyGrowthPolicy` 路径上，复跑命令沿用本文《2026-09-07：局外成长策略》一节记录的原命令，不需要新参数。新增覆盖：开关默认关闭、设置往返、原始额度保留而 `EffectiveGrowthBudgets` 归零、`EffectiveHasGrowthTargets` 归假并让可接受战损早停重新生效、开着开关求解仍然取胜、成长信用为零而快照其余两项保持如实（偏好开关不是状态开关）、战损不超过零额度基线、付费夹具下战损严格小于满额度那次、侧栏开关回读与额度置灰、点击开关翻转。
 - 未做原生实机验证、未跑 248 条原版回归、未执行完整发布门禁。
 
 ## 0.33.5 受伤历史与攻击次数

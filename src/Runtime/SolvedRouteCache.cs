@@ -59,6 +59,7 @@ internal sealed class SolvedRouteCache(string path)
             policy.PotionStrategy.Directives,
             policy.GrowthBudgets,
             policy.HasGrowthTargets,
+            policy.IgnoreLongTermRewards,
             policy.IncludeTurnSetup,
             policy.TheftPolicy,
             policy.ActTransitionBossHpStrategy,

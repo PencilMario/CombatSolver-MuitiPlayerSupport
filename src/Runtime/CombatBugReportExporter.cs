@@ -1195,6 +1195,7 @@ internal static class CombatBugReportExporter
             settings.FinalBossHpStrategy,
             settings.AcceptableBattleHpLoss,
             settings.GrowthBudgets,
+            settings.IgnoreLongTermRewards,
             searchMaxDegreeOfParallelism = UnattendedTestRunner.SearchMaxDegreeOfParallelismOverride ?? settings.SearchMaxDegreeOfParallelism,
             shortProfile = settings.ShortProfile with { SoftTimeBudgetMilliseconds = UnattendedTestRunner.ShortSearchBudgetOverrideMilliseconds
                 ?? settings.ShortProfile.SoftTimeBudgetMilliseconds },

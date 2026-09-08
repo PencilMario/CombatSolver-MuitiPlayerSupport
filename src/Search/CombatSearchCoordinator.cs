@@ -1632,7 +1632,7 @@ internal static partial class CombatSearchCoordinator
     internal static bool HasReachedAcceptableBattleHpLoss(
         SearchPolicySnapshot policy,
         SolverResult result)
-        => !policy.HasGrowthTargets && HasReachedAcceptableBattleHpLoss(
+        => !policy.EffectiveHasGrowthTargets && HasReachedAcceptableBattleHpLoss(
             IsCompleteVictory(result),
             result.ProjectedBattleHpLost,
             policy.AcceptableBattleHpLoss);
@@ -1647,7 +1647,7 @@ internal static partial class CombatSearchCoordinator
         CombatRootSnapshot root,
         SearchPolicySnapshot policy,
         SolverResult result)
-        => !policy.HasGrowthTargets && HasReachedProvablePrimaryQualityLowerBound(
+        => !policy.EffectiveHasGrowthTargets && HasReachedProvablePrimaryQualityLowerBound(
             IsCompleteVictory(result),
             StrategicHpDeficit(root, policy, result),
             result.CombatEndedTurn,
@@ -1677,7 +1677,7 @@ internal static partial class CombatSearchCoordinator
         SearchPolicySnapshot policy,
         SolverResult result)
     {
-        if (policy.HasGrowthTargets || !IsCompleteVictory(result) || result.CombatEndedTurn is not { } combatEndedTurn)
+        if (policy.EffectiveHasGrowthTargets || !IsCompleteVictory(result) || result.CombatEndedTurn is not { } combatEndedTurn)
             return null;
         return new PrimarySearchIncumbent(
             StrategicHpDeficit(root, policy, result),

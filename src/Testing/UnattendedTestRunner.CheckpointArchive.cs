@@ -93,6 +93,9 @@ internal sealed partial class UnattendedTestRunner
         // Archives recorded before growth policy existed used zero willingness for this feature.
         settings["growthBudgets"] = recorded["growthBudgets"]?.DeepClone()
             ?? JsonSerializer.SerializeToNode(default(GrowthValues), UnattendedTestFiles.JsonOptions);
+        // Archives recorded before the ignore switch existed considered long-term rewards.
+        settings["ignoreLongTermRewards"] = recorded["ignoreLongTermRewards"]?.DeepClone()
+            ?? JsonSerializer.SerializeToNode(false, UnattendedTestFiles.JsonOptions);
         foreach (string name in new[] { "potionDirectives", "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism" })
             settings[name] = recorded[name]?.DeepClone() ?? throw new InvalidDataException($"missing_policy:{name}");
         SolverSearchProfile shortProfile = recorded["shortProfile"]!.Deserialize<SolverSearchProfile>(UnattendedTestFiles.JsonOptions)!;

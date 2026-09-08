@@ -1349,6 +1349,7 @@ internal static class SolverOverlay
         _potionStrategyPanel = new SolverPotionStrategyPanel();
         _growthStrategyPanel = new SolverGrowthStrategyPanel();
         _growthStrategyPanel.PolicyChanged += OnGrowthPolicyChanged;
+        _growthStrategyPanel.IgnoreLongTermRewardsChanged += OnIgnoreLongTermRewardsChanged;
         _potionStrategyPanel.DirectiveChanged += OnPotionDirectiveChanged;
 
         _body = new VBoxContainer
@@ -2731,6 +2732,14 @@ internal static class SolverOverlay
         CombatState? state = CombatManager.Instance.DebugOnlyGetState();
         if (host != null && state != null && CombatManager.Instance.IsInProgress)
             SolverController.SetGrowthPolicy(host, state, budgets);
+    }
+
+    private static void OnIgnoreLongTermRewardsChanged(bool ignore)
+    {
+        NGame? host = NGame.Instance;
+        CombatState? state = CombatManager.Instance.DebugOnlyGetState();
+        if (host != null && state != null && CombatManager.Instance.IsInProgress)
+            SolverController.SetIgnoreLongTermRewards(host, state, ignore);
     }
 
     private static void OnPotionDirectiveChanged(

@@ -169,7 +169,8 @@ internal sealed partial class SolverSettingsPanel
         return label;
     }
 
-    private static CheckButton CreateToggle()
+    /// <summary>成长侧栏也用这个开关，保持两处外观一致。</summary>
+    internal static CheckButton CreateToggle()
     {
         CheckButton toggle = new()
         {
