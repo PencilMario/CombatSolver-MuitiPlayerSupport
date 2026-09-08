@@ -6,7 +6,7 @@
 
 ## 原因与等价性
 
-压力场景的 25 秒采样中，`AddRoutingContext` 内线性 `Any` 查重占搜索 CPU 样本约 7.33%。每次加入都扫描此前全部上下文，形成平方级工作，并为查重分配闭包/枚举对象。
+压力场景的 25 秒采样中，`AddRoutingContext` 内线性 `Any` 查重占旧reader保留的EventPipe线程样本约7.33%（当时误称CPU样本；[后续口径纠正](backend-cpu-hotspots-20260908.md)，不是实际CPU占比）。每次加入都扫描此前全部上下文，形成平方级工作，并为查重分配闭包/枚举对象。
 
 上游 `nodesByRoutingChoice` 已按完整路由签名去重。后续 family 分组和 option 分块排序都是对这些唯一项的划分及排列；各 family 的 Effect 一致。唯一重复来源是：先发出持久效果的前 8 个上下文，再从所有 family 的第 0 项开始轮询。
 

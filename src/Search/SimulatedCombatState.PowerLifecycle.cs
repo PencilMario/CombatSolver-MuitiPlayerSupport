@@ -234,20 +234,29 @@ internal sealed partial class SimulatedCombatState
 
     private void NormalizeSwordSageReplays(CombatPredictionSimulator simulator)
     {
-        _swordSageReplayBonuses ??= [];
         IReadOnlyList<Player> players = Players;
         for (int playerIndex = 0; playerIndex < players.Count; playerIndex++)
         {
             Player player = players[playerIndex];
             int desired = GetAmount<SwordSagePower>(player.Creature);
-            int liveAmount = player.Creature.GetPower<SwordSagePower>()?.Amount ?? 0;
+            // Existing blades already include the captured root bonus. Later generated
+            // blades start at zero; neither case may read a moving live Power in a worker.
+            int rootAmount = _swordSageCardsInitialized
+                ? 0
+                : _rootPowerAmounts.GetValueOrDefault((player.Creature, typeof(SwordSagePower)));
+            // With no current/root bonus and no previously applied bonus, every blade
+            // already has the correct replay count. A later Power gain still scans all
+            // cards with a zero baseline; removal must visit any recorded bonuses.
+            if (desired == 0 && rootAmount == 0 && _swordSageReplayBonuses is not { Count: > 0 })
+                continue;
             foreach (PredictedCard card in simulator.State.GetPlayerCombatState(player).AllCards)
             {
                 if (card.Preview is not SovereignBlade || card.Preview.IsClone)
                     continue;
+                _swordSageReplayBonuses ??= [];
                 if (!_swordSageReplayBonuses.TryGetValue(card, out int applied))
                 {
-                    applied = _swordSageCardsInitialized ? 0 : liveAmount;
+                    applied = rootAmount;
                     _swordSageReplayBonuses.Add(card, applied);
                 }
                 int delta = desired - applied;
