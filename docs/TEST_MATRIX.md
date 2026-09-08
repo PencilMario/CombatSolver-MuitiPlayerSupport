@@ -199,6 +199,13 @@ PR #49 直接合同在本机 RitsuLib `0.5.19` 上通过全部 10 项：当前�
 ## 0.31.2 定版
 
 收录 PR #15、#18、#43。本次仅修改版本与发布资料，沿用下列已完成的定向验证，执行最终 Release 构建；未追加完整发布门禁或可见 Steam 双 Mod 联动验收。
+## 2026-09-08：SeedOracle 规划快照 API v6
+
+伴生 SeedOracle 的 `smoke/run-planning-smoke.ps1` 调用真实独立 worker。`PLANCOMBAT01` 普通战斗、`PLANCOMBAT02 -SimulationCase unknown` 问号点战斗、`PLANCOMBAT03 -SimulationCase event -SimulationEvent DenseVegetation` 多页事件回血后战斗，均 3/3 完成且严格恢复检查通过；样本结果可写回规划，主进程状态/RNG/地图指纹不变。单样本短搜 2000ms、整体 30000ms，批次上限 120 秒。
+
+报告保存在伴生仓库 `docs/validation/planning-combat-2026-09-08.md`。没有逐个端到端验证所有事件或作可见 Steam 性能结论；失败或未完成的样本不作为规划参照。
+
+补测 `PLANCOMBAT04` 木偶事件战斗后原生 Resume、奖励重放与 `PLANCOMBAT05` 普通战斗各 3/3 完成；累计 15 个样本。伴生面板 Debug 自检通过。完整 AutoSlay 在 120 秒内未完成，未计为完整跑局通过；无头正常退出仍报告 Godot 资源释放告警。
 
 ## 2026-09-06：PR #43 集成
 
