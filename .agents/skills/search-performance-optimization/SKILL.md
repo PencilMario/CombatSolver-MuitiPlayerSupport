@@ -69,6 +69,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 
 ## 4. 性能所有权
 
+- `BeamRetentionPolicy.RoutingChoiceScratch` 只复用空字典桶；每次 `RankBest` 的 `RoutingChoiceNodes` 独占候选列表和五项代表，按原比较规则聚合，归还时清空引用，不跨调用缓存组。合并重复查表不能顺便缓存父链/排名查询；额外缓存必须单独证明有效期及完整非时序指标一致。
 - `SearchRunContext` 是单次运行可变指标、转置和缓存的所有者；不要把这些字段退回 solver 入口或静态全局。
 - 并行 worker 只能拥有 lane-local 模拟、缓存、节流和原始候选；transposition、dominance、fallback、预算与最终接收顺序仍由 coordinator 独占。固定 lane 应在一次 `Solve` 内复用，禁止回到每父节点 `Task.Run` / 新建 solver。
 - 外层父节点队列最多预约 `2×DOP`，同时模拟最多 DOP；coordinator 消费完成队列、归并 worker 指标后才能复用该 lane，只提交已接收位图的连续输入前缀。额外父节点 lane 也参与缓存清理与 Dispose，单父节点 action/choice replay 不嵌套外层并发。异常停止派发、补齐未派发计数并排空全部 lane；parent 内 aggregate 仍可能保留多组 raw snapshots。提高 DOP 时检查高目标/高选择场景的峰值 live graph，不能只看总分配或平均 bytes/transition。

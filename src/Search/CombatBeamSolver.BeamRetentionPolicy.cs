@@ -729,26 +729,21 @@ internal sealed partial class CombatBeamSolver
                 preserveDefensiveRoute: true);
         }
 
-        // RankBest 每次调用都要重建的六张路由选择表。桶数组按 policy 实例复用；
-        // 键与内容每次都从空表开始重新填，所以聚合结果与每次新建完全一致。
+        // One signature lookup reaches both the ordered candidates and their five extrema.
+        // Keep this as a List so the existing family/option ordering consumes the same sequence.
+        private sealed class RoutingChoiceNodes(SearchNode first) : List<SearchNode>
+        {
+            public SearchNode BestScore = first;
+            public SearchNode BestOffense = first;
+            public SearchNode BestDefense = first;
+            public SearchNode BestSetup = first;
+            public SearchNode BestPileOrder = first;
+        }
+
         private sealed class RoutingChoiceScratch
         {
-            public Dictionary<RoutingChoiceSignature, SearchNode> BestScore { get; } = [];
-            public Dictionary<RoutingChoiceSignature, SearchNode> BestOffense { get; } = [];
-            public Dictionary<RoutingChoiceSignature, SearchNode> BestDefense { get; } = [];
-            public Dictionary<RoutingChoiceSignature, SearchNode> BestSetup { get; } = [];
-            public Dictionary<RoutingChoiceSignature, SearchNode> BestPileOrder { get; } = [];
             public Dictionary<RoutingChoiceSignature, List<SearchNode>> NodesByChoice { get; } = [];
-
-            public void Clear()
-            {
-                BestScore.Clear();
-                BestOffense.Clear();
-                BestDefense.Clear();
-                BestSetup.Clear();
-                BestPileOrder.Clear();
-                NodesByChoice.Clear();
-            }
+            public void Clear() => NodesByChoice.Clear();
         }
 
         private RoutingChoiceScratch? _routingChoiceScratch;
@@ -2576,11 +2571,6 @@ internal sealed partial class CombatBeamSolver
                     }
                 }
                 RoutingChoiceScratch scratch = RentRoutingChoiceScratch();
-                Dictionary<RoutingChoiceSignature, SearchNode> bestScoreByRoutingChoice = scratch.BestScore;
-                Dictionary<RoutingChoiceSignature, SearchNode> bestOffenseByRoutingChoice = scratch.BestOffense;
-                Dictionary<RoutingChoiceSignature, SearchNode> bestDefenseByRoutingChoice = scratch.BestDefense;
-                Dictionary<RoutingChoiceSignature, SearchNode> bestSetupByRoutingChoice = scratch.BestSetup;
-                Dictionary<RoutingChoiceSignature, SearchNode> bestPileOrderByRoutingChoice = scratch.BestPileOrder;
                 Dictionary<RoutingChoiceSignature, List<SearchNode>> nodesByRoutingChoice = scratch.NodesByChoice;
                 foreach (SearchNode node in ranked)
                 {
@@ -2591,33 +2581,26 @@ internal sealed partial class CombatBeamSolver
                         observedRoutingSignatures[node] = signature.Value;
                     if (!nodesByRoutingChoice.TryGetValue(signature.Value, out List<SearchNode>? routingNodes))
                     {
-                        routingNodes = [];
+                        routingNodes = new RoutingChoiceNodes(node);
                         nodesByRoutingChoice.Add(signature.Value, routingNodes);
                     }
+                    else
+                    {
+                        RoutingChoiceNodes group = (RoutingChoiceNodes)routingNodes;
+                        if (IsBetterSearchNode(node, group.BestScore))
+                            group.BestScore = node;
+                        if (IsBetterOffensive(node, group.BestOffense))
+                            group.BestOffense = node;
+                        if (IsBetterDefensive(node, group.BestDefense))
+                            group.BestDefense = node;
+                        if (IsBetterSetup(node, group.BestSetup))
+                            group.BestSetup = node;
+                        if (node.Snapshot.ProjectedShuffleOrderValue > group.BestPileOrder.Snapshot.ProjectedShuffleOrderValue
+                            || node.Snapshot.ProjectedShuffleOrderValue == group.BestPileOrder.Snapshot.ProjectedShuffleOrderValue
+                                && IsBetterSearchNode(node, group.BestPileOrder))
+                            group.BestPileOrder = node;
+                    }
                     routingNodes.Add(node);
-                    if (!bestScoreByRoutingChoice.TryGetValue(signature.Value, out SearchNode? current)
-                        || IsBetterSearchNode(node, current))
-                    {
-                        bestScoreByRoutingChoice[signature.Value] = node;
-                    }
-                    bestOffenseByRoutingChoice.TryGetValue(signature.Value, out SearchNode? currentOffense);
-                    if (IsBetterOffensive(node, currentOffense))
-                        bestOffenseByRoutingChoice[signature.Value] = node;
-                    bestDefenseByRoutingChoice.TryGetValue(signature.Value, out SearchNode? currentDefense);
-                    if (IsBetterDefensive(node, currentDefense))
-                        bestDefenseByRoutingChoice[signature.Value] = node;
-                    bestSetupByRoutingChoice.TryGetValue(signature.Value, out SearchNode? currentSetup);
-                    if (IsBetterSetup(node, currentSetup))
-                        bestSetupByRoutingChoice[signature.Value] = node;
-                    if (!bestPileOrderByRoutingChoice.TryGetValue(signature.Value, out SearchNode? currentPileOrder)
-                        || node.Snapshot.ProjectedShuffleOrderValue
-                            > currentPileOrder.Snapshot.ProjectedShuffleOrderValue
-                        || node.Snapshot.ProjectedShuffleOrderValue
-                            == currentPileOrder.Snapshot.ProjectedShuffleOrderValue
-                            && IsBetterSearchNode(node, currentPileOrder))
-                    {
-                        bestPileOrderByRoutingChoice[signature.Value] = node;
-                    }
                 }
                 List<IReadOnlyList<SearchNode>> paretoByRoutingChoice = [];
                 List<IReadOnlyList<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>>> routingFamilies =
@@ -2659,6 +2642,7 @@ internal sealed partial class CombatBeamSolver
                 }
                 foreach ((RoutingChoiceSignature signature, List<SearchNode> routingNodes) in orderedRoutingContexts)
                 {
+                    RoutingChoiceNodes group = (RoutingChoiceNodes)routingNodes;
                     SearchNode? bestDeckCuration = FindBestDeckCuration(routingNodes);
                     SearchNode? bestTargetPressure = PreferMostVulnerableTargetVariant(
                         routingNodes,
@@ -2666,21 +2650,21 @@ internal sealed partial class CombatBeamSolver
                     List<SearchNode> candidates = [];
                     if (routingNodes.Min(ActionsSinceRetainedRoutingChoice) <= 1)
                     {
-                        AddRoutingCandidate(candidates, bestSetupByRoutingChoice[signature]);
+                        AddRoutingCandidate(candidates, group.BestSetup);
                         AddRoutingCandidate(candidates, bestTargetPressure);
                     }
                     else
                     {
                         AddRoutingCandidate(candidates, bestTargetPressure);
                         AddRoutingCandidate(candidates, bestDeckCuration);
-                        AddRoutingCandidate(candidates, bestSetupByRoutingChoice[signature]);
+                        AddRoutingCandidate(candidates, group.BestSetup);
                     }
                     foreach (SearchNode node in routingNodes.Take(16))
                         AddRoutingCandidate(candidates, node);
-                    AddRoutingCandidate(candidates, bestScoreByRoutingChoice[signature]);
-                    AddRoutingCandidate(candidates, bestOffenseByRoutingChoice[signature]);
-                    AddRoutingCandidate(candidates, bestDefenseByRoutingChoice[signature]);
-                    AddRoutingCandidate(candidates, bestPileOrderByRoutingChoice[signature]);
+                    AddRoutingCandidate(candidates, group.BestScore);
+                    AddRoutingCandidate(candidates, group.BestOffense);
+                    AddRoutingCandidate(candidates, group.BestDefense);
+                    AddRoutingCandidate(candidates, group.BestPileOrder);
                     List<SearchNode> pareto = candidates
                         .Where(candidate => !candidates.Any(other =>
                             !ReferenceEquals(candidate, other)

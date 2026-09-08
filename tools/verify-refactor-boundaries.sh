@@ -500,6 +500,10 @@ CombatBeamSolver.cs	private BeamRetentionPolicy Retention =>
 CombatBeamSolver.cs	private FinalPlanOrdering FinalOrdering =>
 CombatBeamSolver.BeamRetentionPolicy.cs	private sealed class BeamRetentionPolicy(
 CombatBeamSolver.BeamRetentionPolicy.cs	public List<SearchNode> RankBest(
+CombatBeamSolver.BeamRetentionPolicy.cs	private sealed class RoutingChoiceNodes(SearchNode first) : List<SearchNode>
+CombatBeamSolver.BeamRetentionPolicy.cs	public void Clear() => NodesByChoice.Clear();
+CombatBeamSolver.BeamRetentionPolicy.cs	routingNodes = new RoutingChoiceNodes(node);
+CombatBeamSolver.BeamRetentionPolicy.cs	ReturnRoutingChoiceScratch(scratch);
 CombatBeamSolver.Models.cs	private readonly record struct TranspositionLabel(
 CombatBeamSolver.Models.cs	private sealed class SearchRunContext(
 CombatBeamSolver.Models.cs	private readonly record struct SearchFeatures(
