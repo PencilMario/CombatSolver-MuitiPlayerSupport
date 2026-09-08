@@ -45,7 +45,8 @@ internal static partial class CardChoiceSupport
     /// <c>9.6</c>。升级过的那张仍然更靠后移除。
     ///
     /// 只覆盖原版这十张具体的起手牌。其他来源的打击、防御——包括 mod 角色的——继续走通用估值，
-    /// 因为它们的强弱取决于各自的机制，这里没有依据替它们排序。
+    /// 因为它们的强弱取决于各自的机制，这里没有依据替它们排序。Mod 作者自己有这个依据，
+    /// 可以用 <see cref="CardRemovalValueMirrors"/> 给一个相对通用估值的偏置。
     /// </remarks>
     private const double BasicStrikeRemovalWeight = 2d / 3d;
 
@@ -906,6 +907,10 @@ internal static partial class CardChoiceSupport
                 $"候选={string.Join(',', cards.Select(ChoiceCardKey))}。");
     }
 
+    /// <summary>移除排序键，只给无人测试用。</summary>
+    internal static double RemovalPriorityForTesting(CardChoiceSpec spec, PredictedCard card)
+        => RemovalPriority(spec, card);
+
     private static double ChoicePriority(CardChoiceSpec spec, IReadOnlyList<PredictedCard> cards)
     {
         double value = cards.Sum(card => spec.Effect is PlanChoiceEffect.Transform or PlanChoiceEffect.Exhaust
@@ -994,8 +999,23 @@ internal static partial class CardChoiceSupport
                 => DynamicVarBaseValue(card.DynamicVars, "Damage") * BasicStrikeRemovalWeight,
             DefendIronclad or DefendSilent or DefendDefect or DefendNecrobinder or DefendRegent
                 => DynamicVarBaseValue(card.DynamicVars, "Block") * BasicDefendRemovalWeight,
-            _ => null,
+            _ => ThirdPartyBasicCardRemovalValue(card),
         };
+
+    /// <summary>
+    /// 第三方登记过的牌：通用估值加上它给的偏置；没登记过的照旧返回 <c>null</c> 走通用估值。
+    /// </summary>
+    /// <remarks>
+    /// 上面那张表只列原版十张，理由是求解器没有依据替 Mod 的牌排序。那个判断对求解器成立，
+    /// 对 Mod 作者不成立——他知道自己那张牌在自己这套体系里值多少。所以由他给一个偏置，
+    /// 见 <see cref="CardRemovalValueMirrors"/>。偏置取到负值时这张牌会让「烧它」这条分支排在
+    /// 「一张都不选」之前，也就是从「少亏一点」变成「值得烧」。登记表为空时这里立刻返回
+    /// <c>null</c>。
+    /// </remarks>
+    private static double? ThirdPartyBasicCardRemovalValue(CardModel card)
+        => CardRemovalValueMirrors.Offset(card) is { } offset
+            ? CardValue(card) + offset
+            : null;
 
     /// <summary>这张牌会不会不花移除资源就自己离场。</summary>
     /// <remarks>

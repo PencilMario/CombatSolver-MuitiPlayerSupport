@@ -311,8 +311,57 @@ combat.RecordGrowthReward(_diligence);
 **两个真实例子，都在观者。** 勤学精进是永久升级，和原版遗传算法、巨镰同一类，直接登记就位。
 许愿三选一里的金币那一支和贪婪之手同一类，除了原来就有的 `RecordLongTermResource` 还要补一次
 `RecordGrowthReward`——只记长期资源的话，搜索知道这条线路带走了金币，却不知道玩家愿意为它付血。
+### 2.8 移除估值的偏置
 
-### 2.8 还没有登记入口的地方
+尚未发布，登记入口在下一版本。加载时登记一次即可。
+
+```csharp
+CardRemovalValueMirrors.Register<YourStrike>(-10d);
+CardRemovalValueMirrors.Register<YourDefend>(-10d);
+```
+
+净化、洗炼这类**移除**选择按 `CardChoiceSupport.RemovalPriority` 从低到高排序，估值低的先被
+移除。通用估值把伤害记满、格挡打八折，于是一张 6 伤害的起手打击得 `6.0`，比一张 5 格挡的起手
+防御（`4.0`）还高——按通用估值排，先被烧掉的会是防御。原版五个角色的实战优先级正相反，所以
+`BasicCardRemovalValue` 用一张按类型写死的表把这十张起手牌压回正确的相对位置。
+
+那张表**只列原版十张**。它的注释里写明了理由：其他来源的打击、防御「强弱取决于各自的机制，
+这里没有依据替它们排序」。这个判断对求解器成立，**对你不成立**——你知道自己那张牌是不是起手牌。
+所以这里开一个登记点，让你自己声明。
+
+**登记的是偏置，不是绝对值。** 最终估值 = 通用估值 + 你给的偏置，所以牌自身的梯度保住了：
+升级过的起手打击伤害更高，加同一个偏置之后仍然比未升级的那张更靠后被烧。
+
+**负偏置是这个入口的重点。** `ChoicePriority` 对消耗返回 `-Σ RemovalPriority` 并按降序取分支，
+所有估值都是正数时，「一张都不选」（0）永远排第一——消耗在选择排序里从来只有「少亏一点」，
+没有正收益。把一张真正的废牌压到负值，「烧它」这条分支才会排到「不烧」前面。
+
+**为什么不是让你声明「这是起手打击」。** 原版那张表把起手防御排在起手打击之后（格挡 × 1.2、
+伤害 × 2/3），因为原版五个角色留防御更划算。这个相对顺序**不通用**：观者靠姿态和心灵堡垒起甲，
+一张普通防御比一张打击更该烧。类别抽象会把原版的假设强加给你，偏置不会——通用估值本来就把格挡
+打了八折，同样偏置下防御自然排在打击前面。
+
+**这个入口不怕被滥用。** 把自己的牌估低等于让求解器优先烧掉它，估高等于让它留在牌库里堵手，
+两个方向的代价都由你自己承担。绝对值上限 `100`，够表达「这张牌白占位置」，又不至于一次手滑让
+求解器烧光牌库。
+
+**不登记的后果是静默的。** 你的起手打击按通用估值算成一张有伤害的好攻击牌，于是净化永远不会
+先烧它——它不报错、不打红字，只是求解器再也不会替你压牌库。实测一场女王：玩家手打消耗掉三张
+观者打击、把全知与内心宁静留在牌库里；求解器反过来消耗了全知、内心宁静、痛击，把四张打击留着。
+两边同样有疾风连击 4，只有前者的牌库能持续转起来。
+
+**负偏置还有第二个作用：那张牌按牌库杂质计。** 状态牌和诅咒本来就进 `liveDeckClutter`，只要还
+占着牌堆就扣分，所以消耗掉它们是正收益。别的牌不进那一项——于是消耗一张非状态非诅咒的牌在打分
+里的收益**正好是零**（`retainedAttackValue` 有上限，攻击牌多的时候早就顶满，少一张也不掉），
+「打出净化消耗两张废牌」严格劣于「不打净化」，省下那点能量总是更划算。排序偏置排不出一个本来就
+不存在的收益，所以负偏置同时表示「这张牌占着牌堆就是负担」。
+
+原版那张写死的表优先：已经列进去的类型不会被登记表改写。登记表为空时下游一行都不多走。
+
+**这个入口解决的是「别烧错、该烧的要烧」，不解决「为了压出无限而主动烧牌」。** 后者要的是对
+「移除之后牌库能不能自持」的判断，那是求解器的估值主干，见第 6 节。
+
+### 2.9 还没有登记入口的地方
 
 见第 6 节。目前只能 Harmony 打补丁，或者等对应的扩展点合并。
 
@@ -432,6 +481,7 @@ combat.RecordGrowthReward(_diligence);
 | `PlayerTurnEndLifecycle.RunPhaseTwo`、`CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、`TurnStartPowerSupport.TriggerAfterPlayerTurnStart`、`SimulatedCombatState.TriggerRelicsAfterPlayerTurnStart` | 回合边界的效果没有注册表 | 待做 |
 | `SimulatedCombatState.TryPrepareExtraPlayerTurn` / `TryPrepareLiveExtraPlayerTurn` / `ConsumeExtraTurnSources` | 额外回合的来源硬编码，只认龙涎香和帕尔之眼 | 待做 |
 | `CombatPredictionSimulator.OnPlayWrapper` | 出牌后补抽没有挂载点 | 待做 |
+| `CardChoiceSupport.RemovalPriority` 的排序口径 | 移除类选择按**单卡**估值排，不看牌库其余部分；弃牌那一侧已经是「源牌堆平均值减本牌估值」的相对口径，消耗与转变没有。表现为求解器不会为了压出无限而主动烧牌。起手牌那一层已由 §2.7 打开，相对口径这一层仍然封闭 | 待做 |
 | `ContinuationStamp.AppendCard` 的 `private=` 段与 `CombatBeamSolver.CaptureCardStateFingerprintForTesting` 的 `switch (preview)` | **卡牌**的隐藏字段按原版类型写死（利爪、基因算法、巨锤、狂暴、镰刀、疯狂科学），第三方卡牌的私有计数进不了指纹。Power 那一侧已有 `PowerHiddenStateMirrors`，见 §2.6 | 待做 |
 | `SimulatedCombatState.AddTurnStartStates` 的 `switch (power)` | 原版 Power 隐藏计数按类型写死。第三方走 §2.6 的登记表进同一份指纹，本行只是记下原版那个 `switch` 本身仍然封闭 | 第三方已有入口 |
 | `GrowthSource` 枚举与 `SolverGrowthStrategyPanel.SourceCard` 的 `switch` | 原版八类成长来源按类型写死。第三方走 §2.7 的 `GrowthSourceMirrors` 拿独立额度、侧栏行和指纹，本行只是记下原版那个枚举本身仍然封闭 | 第三方已有入口 |

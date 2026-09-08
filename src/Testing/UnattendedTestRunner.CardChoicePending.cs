@@ -15,6 +15,8 @@ internal sealed partial class UnattendedTestRunner
         CombatState combat,
         Player player)
     {
+        AssertThirdPartyBasicCardRemoval(player);
+
         SimulatedCombatState parentCombat = new(combat);
         CombatPredictionSimulator parent = new(parentCombat);
         SimPlayerCombatState parentPlayer = parent.State.GetPlayerCombatState(player);

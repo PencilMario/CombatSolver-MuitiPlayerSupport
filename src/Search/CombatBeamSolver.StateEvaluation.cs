@@ -201,8 +201,15 @@ internal sealed partial class CombatBeamSolver
         if (won && !uncertainVictory)
             score += SolverWeights.VictoryBonus;
         score += enemyHp * SolverWeights.EnemyHp;
+        // 负偏置登记过的牌和状态牌、诅咒同样按牌库杂质计。
+        //
+        // 少了这一条，消耗一张非状态非诅咒的牌在打分里的收益**正好是零**：牌库里少一张不进任何
+        // 项（retainedAttackValue 有上限，攻击牌多的时候早就顶满，少一张也不掉），于是「打出净化
+        // 消耗两张废牌」严格劣于「不打净化」——省下那点能量总是更划算。移除估值的偏置只排选择
+        // 分支的先后，排不出一个本来就没有的收益。这就是玩家实测里净化根本不被打出的原因。
         int liveDeckClutter = liveCards.Count(card =>
-            card.Preview.Type is CardType.Status or CardType.Curse
+            (card.Preview.Type is CardType.Status or CardType.Curse
+                || CardRemovalValueMirrors.Offset(card.Preview) < 0d)
             && !LeavesHandAtTurnEnd(simulator, playerState, card));
         score += liveDeckClutter * SolverWeights.LiveDeckClutterPenalty;
         int outstandingStolenResource = TheftEncounterStrategy.OutstandingStolenResource(simulator, combat);
