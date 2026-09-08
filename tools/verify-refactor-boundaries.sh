@@ -505,6 +505,11 @@ CombatBeamSolver.Models.cs	private sealed class SearchRunContext(
 CombatBeamSolver.Models.cs	private readonly record struct SearchFeatures(
 CombatBeamSolver.ParallelExpansion.cs	private sealed class ParallelExpansionExecutor : IDisposable
 CombatBeamSolver.ParallelExpansion.cs	public ExpansionWorkerOutcome[] Evaluate(
+CombatBeamSolver.ParallelExpansion.cs	public int MaximumQueuedParents => checked(DegreeOfParallelism * 2);
+CombatBeamSolver.ParallelExpansion.cs	private ExpansionWorkerOutcome[] EvaluateQueuedParents(
+CombatBeamSolver.ParallelExpansion.cs	bool[] receivedOutcomes = new bool[nodes.Count];
+CombatBeamSolver.ParallelExpansion.cs	public int WaitForNextOutcome()
+CombatBeamSolver.ParallelExpansion.cs	_extraParentLane?.ResetRebuildableCaches();
 CombatBeamSolver.ParallelExpansion.cs	private void CommitExpansionBatch(
 CombatBeamSolver.Phases.cs	public SolverResult Solve()
 CombatBeamSolver.Expansion.cs	private IEnumerable<SearchNode> Expand(SearchNode node)

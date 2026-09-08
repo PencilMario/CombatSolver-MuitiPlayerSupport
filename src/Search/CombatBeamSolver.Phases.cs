@@ -1439,9 +1439,11 @@ internal sealed partial class CombatBeamSolver
                 }
 
                 int activeIndex = 0;
+                int maximumQueuedParents = parallelExpansionExecutor?.MaximumQueuedParents
+                    ?? expansionParallelism;
                 int parallelWaveCapacity = policy.MemoryPressureSignal.ConservativeParallelismRequired
                     ? Math.Min(2, expansionParallelism)
-                    : expansionParallelism;
+                    : maximumQueuedParents;
 
                 long ParallelWaveAllocationReserve(int parentCount)
                     => SearchWaveMemoryPolicy.Reserve(parentAllocatedHighWater, parentCount);
@@ -1649,7 +1651,7 @@ internal sealed partial class CombatBeamSolver
                             // back to two lanes after a single heavy wave left most of the user's
                             // requested lanes idle for the following waves.
                             parallelWaveCapacity = waveStayedWithinReserve
-                                ? Math.Min(expansionParallelism, parallelWaveCapacity * 2)
+                                ? Math.Min(maximumQueuedParents, parallelWaveCapacity * 2)
                                 : Math.Max(
                                     Math.Min(2, expansionParallelism),
                                     parallelWaveCapacity / 2);

@@ -111,8 +111,9 @@ internal sealed partial class CombatBeamSolver
         long OutcomeAllocatedBytes);
 
     /// <summary>
-    /// 一次 Solve 复用固定数量的后台 lane；coordinator 自己执行 lane 0，避免为每个父节点
-    /// 创建 Task 和 worker。候选只在各 lane 内物化，transposition/dominance 仍由 coordinator
+    /// 一次 Solve 复用固定数量的后台 lane；多父节点由后台 lane 消费有界队列，
+    /// coordinator 独占按序提交。自然单父节点仍在 coordinator 执行并借用空闲 lane。
+    /// 候选只在各 lane 内物化，transposition/dominance 仍由 coordinator
     /// 按父节点原顺序提交，因此 DOP 不改变搜索结果。
     /// </summary>
     private sealed class ParallelExpansionExecutor : IDisposable
@@ -122,6 +123,7 @@ internal sealed partial class CombatBeamSolver
         private readonly CombatBeamSolver _coordinator;
         private readonly object _actionReplayForkGate = new();
         private ExpansionLane[]? _backgroundLanes;
+        private ExpansionLane? _extraParentLane;
         private long _actionReplayAllocatedHighWater;
         private bool _actionReplayAllocationObserved;
         private int _activeWorkers;
@@ -139,6 +141,8 @@ internal sealed partial class CombatBeamSolver
 
         public int DegreeOfParallelism { get; }
 
+        public int MaximumQueuedParents => checked(DegreeOfParallelism * 2);
+
         public ExpansionWorkerOutcome[] Evaluate(
             IReadOnlyList<SearchNode> nodes,
             bool enableSingleParentActionReplay,
@@ -147,93 +151,118 @@ internal sealed partial class CombatBeamSolver
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (nodes.Count == 0)
                 return [];
-            if (nodes.Count > DegreeOfParallelism)
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(nodes),
-                    $"并行展开 wave={nodes.Count} 超过 lane={DegreeOfParallelism}。");
-            }
+            if (nodes.Count > MaximumQueuedParents)
+                throw new ArgumentOutOfRangeException(nameof(nodes));
+            if (nodes.Count > 1)
+                return EvaluateQueuedParents(nodes, commitOrdered);
 
-            ExpansionLane[] backgroundLanes = EnsureBackgroundLanes();
-            using ExpansionWave wave = new(nodes.Count);
-            int dispatched = 0;
-            try
-            {
-                for (int index = 1; index < nodes.Count; index++)
-                {
-                    backgroundLanes[index - 1].Dispatch(
-                        new ExpansionWorkItem(nodes[index], wave, index));
-                    dispatched++;
-                }
-            }
-            catch
-            {
-                int undispatched = nodes.Count - 1 - dispatched;
-                if (undispatched > 0)
-                    wave.BackgroundCompleted.Signal(undispatched);
-                wave.BackgroundCompleted.Wait();
-                for (int index = 1; index <= dispatched; index++)
-                {
-                    ExpansionWorkerOutcome outcome = wave.Outcomes[index];
-                    _coordinator.MergeExpansionWorker(outcome);
-                    outcome.Batch?.Dispose();
-                }
-                throw;
-            }
-
+            using ExpansionWave wave = new(1);
             Execute(
                 _coordinator,
                 nodes[0],
                 wave,
                 outcomeIndex: 0,
                 includeWorkerMetrics: false,
-                actionReplayExecutor: enableSingleParentActionReplay && nodes.Count == 1
-                    ? this
-                    : null);
-            ExceptionDispatchInfo? firstError = null;
+                actionReplayExecutor: enableSingleParentActionReplay ? this : null);
+            ExpansionWorkerOutcome outcome = wave.WaitForOutcome(0);
             try
             {
-                for (int index = 0; index < nodes.Count; index++)
+                outcome.Error?.Throw();
+                commitOrdered(0, outcome.Batch
+                    ?? throw new InvalidOperationException("并行展开没有返回候选批次。"));
+            }
+            catch
+            {
+                outcome.Batch?.Dispose();
+                throw;
+            }
+            return wave.Outcomes;
+        }
+
+        private ExpansionWorkerOutcome[] EvaluateQueuedParents(
+            IReadOnlyList<SearchNode> nodes,
+            Action<int, ExpansionBatch> commitOrdered)
+        {
+            // Keep at most two parents per requested lane admitted. A completed lane may
+            // start another admitted parent while the coordinator waits for an earlier one;
+            // only the contiguous input prefix can mutate retention/transposition state.
+            ExpansionLane[] lanes = EnsureBackgroundLanes();
+            _extraParentLane ??= new ExpansionLane(
+                this, _coordinator.CreateExpansionWorker(), DegreeOfParallelism);
+            using ExpansionWave wave = new(nodes.Count, allBackground: true);
+            int[] laneByOutcome = new int[nodes.Count];
+            bool[] receivedOutcomes = new bool[nodes.Count];
+            int dispatched = 0;
+            int received = 0;
+            int committed = 0;
+            bool completed = false;
+            ExceptionDispatchInfo? firstError = null;
+
+            void Dispatch(int laneIndex)
+            {
+                int index = dispatched;
+                laneByOutcome[index] = laneIndex;
+                ExpansionLane lane = laneIndex < lanes.Length
+                    ? lanes[laneIndex]
+                    : _extraParentLane;
+                lane.Dispatch(new ExpansionWorkItem(nodes[index], wave, index));
+                dispatched++;
+            }
+
+            try
+            {
+                int initial = Math.Min(DegreeOfParallelism, nodes.Count);
+                for (int laneIndex = 0; laneIndex < initial; laneIndex++)
+                    Dispatch(laneIndex);
+
+                while (received < dispatched)
                 {
-                    // Completed prefixes can be committed while later lanes are still simulating.
-                    // Exactly one coordinator owns retention/transposition and input order.
-                    ExpansionWorkerOutcome outcome = wave.WaitForOutcome(index);
+                    int index = wave.WaitForNextOutcome();
+                    received++;
+                    ExpansionWorkerOutcome outcome = wave.Outcomes[index];
+                    // Drain metrics before this worker can receive another job. Published
+                    // batches have independent leases; their pool supports concurrent return.
                     _coordinator.MergeExpansionWorker(outcome);
+                    wave.Outcomes[index] = outcome with { Worker = null };
+                    receivedOutcomes[index] = true;
                     firstError ??= outcome.Error;
                     if (firstError != null)
                         continue;
-                    try
+
+                    if (dispatched < nodes.Count)
+                        Dispatch(laneByOutcome[index]);
+                    while (committed < nodes.Count && receivedOutcomes[committed])
                     {
-                        commitOrdered(index, outcome.Batch
+                        ExpansionWorkerOutcome ready = wave.Outcomes[committed];
+                        commitOrdered(committed, ready.Batch
                             ?? throw new InvalidOperationException("并行展开没有返回候选批次。"));
-                    }
-                    catch (System.Exception error)
-                    {
-                        // Drain every dispatched lane before throwing or releasing its batch.
-                        // A failed wave never continues the search or publishes a final result.
-                        firstError = ExceptionDispatchInfo.Capture(error);
+                        committed++;
                     }
                 }
+                firstError?.Throw();
+                if (committed != nodes.Count)
+                    throw new InvalidOperationException("并行父节点队列未完整按序提交。");
+                completed = true;
             }
             finally
             {
+                int undispatched = nodes.Count - dispatched;
+                if (undispatched > 0)
+                    wave.BackgroundCompleted.Signal(undispatched);
+                // No batch, lane or root can be released until all dispatched jobs finish,
+                // including when cancellation, dispatch, simulation or commit fails.
                 wave.BackgroundCompleted.Wait();
-                if (firstError != null)
+                if (!completed)
                 {
-                    foreach (ExpansionWorkerOutcome outcome in wave.Outcomes)
-                        outcome.Batch?.Dispose();
+                    foreach (ExpansionWorkerOutcome? outcome in wave.Outcomes)
+                        outcome?.Batch?.Dispose();
                 }
             }
-
-            if (nodes.Count > 1)
-            {
-                _coordinator._run.ParallelExpansionWaves++;
-                _coordinator._run.ParallelExpansionWorkItems += nodes.Count;
-                _coordinator._run.MaxParallelExpansionConcurrency = Math.Max(
-                    _coordinator._run.MaxParallelExpansionConcurrency,
-                    Volatile.Read(ref _maximumActiveWorkers));
-            }
-            firstError?.Throw();
+            _coordinator._run.ParallelExpansionWaves++;
+            _coordinator._run.ParallelExpansionWorkItems += nodes.Count;
+            _coordinator._run.MaxParallelExpansionConcurrency = Math.Max(
+                _coordinator._run.MaxParallelExpansionConcurrency,
+                Volatile.Read(ref _maximumActiveWorkers));
             return wave.Outcomes;
         }
 
@@ -242,6 +271,7 @@ internal sealed partial class CombatBeamSolver
             if (_disposed)
                 return;
             _disposed = true;
+            _extraParentLane?.Dispose();
             if (_backgroundLanes != null)
             {
                 foreach (ExpansionLane lane in _backgroundLanes)
@@ -251,6 +281,7 @@ internal sealed partial class CombatBeamSolver
 
         public void ResetRebuildableCaches()
         {
+            _extraParentLane?.ResetRebuildableCaches();
             if (_backgroundLanes == null)
                 return;
             foreach (ExpansionLane lane in _backgroundLanes)
@@ -704,18 +735,33 @@ internal sealed partial class CombatBeamSolver
             }
         }
 
-        private sealed class ExpansionWave(int workItemCount) : IDisposable
+        private sealed class ExpansionWave(int workItemCount, bool allBackground = false) : IDisposable
         {
             private readonly object _completionGate = new();
+            private readonly Queue<int>? _completedOrder = allBackground ? new(workItemCount) : null;
             public ExpansionWorkerOutcome[] Outcomes { get; } = new ExpansionWorkerOutcome[workItemCount];
-            public CountdownEvent BackgroundCompleted { get; } = new(Math.Max(0, workItemCount - 1));
+            public CountdownEvent BackgroundCompleted { get; } = new(
+                allBackground ? workItemCount : Math.Max(0, workItemCount - 1));
 
             public void Publish(int index, ExpansionWorkerOutcome outcome)
             {
                 lock (_completionGate)
                 {
                     Outcomes[index] = outcome;
+                    _completedOrder?.Enqueue(index);
                     Monitor.PulseAll(_completionGate);
+                }
+            }
+
+            public int WaitForNextOutcome()
+            {
+                Queue<int> completed = _completedOrder
+                    ?? throw new InvalidOperationException("该 wave 未启用完成队列。");
+                lock (_completionGate)
+                {
+                    while (completed.Count == 0)
+                        Monitor.Wait(_completionGate);
+                    return completed.Dequeue();
                 }
             }
 
