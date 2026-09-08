@@ -2,73 +2,74 @@ using MegaCrit.Sts2.Core.Models;
 
 namespace CombatSolver;
 
-/// <summary>第三方牌在移除类选择里按哪一类起手牌估值。</summary>
-internal enum BasicCardRemovalKind
-{
-    /// <summary>起手打击这一类：数值按伤害算，权重与原版起手打击相同。</summary>
-    Strike,
-
-    /// <summary>起手防御这一类：数值按格挡算，权重与原版起手防御相同。</summary>
-    Defend,
-}
-
 /// <summary>
-/// 第三方起手牌的移除估值登记表。
+/// 第三方牌的移除估值偏置登记表。
 /// </summary>
 /// <remarks>
 /// <para>
-/// 消耗、转变这类**移除**选择按 <c>CardChoiceSupport.RemovalPriority</c> 从低到高排序，估值低的
-/// 先被移除。通用估值把伤害记满、格挡打八折，于是一张 6 伤害的起手打击得 6.0，比一张 5 格挡的
-/// 起手防御（4.0）还高——按通用估值排，先移除的会是防御。原版五个角色的实战优先级相反，所以
-/// <c>BasicCardRemovalValue</c> 用一张按类型写死的表把这十张起手牌压回正确的相对位置。
+/// 消耗、转变这类<b>移除</b>选择按 <c>CardChoiceSupport.RemovalPriority</c> 从低到高排序，估值低的
+/// 先被移除；<c>ChoicePriority</c> 对消耗返回 <c>-Σ RemovalPriority</c> 并按降序取分支，所以估值
+/// <b>为负</b>的牌会让「选它」这条分支排在「一张都不选」之前——也就是从「少亏一点」变成「值得烧」。
 /// </para>
 /// <para>
-/// 那张表只列原版十张，注释里写明了理由：其他来源的打击、防御「强弱取决于各自的机制，这里没有
-/// 依据替它们排序」。这个判断对求解器成立——但对 Mod 作者不成立，<b>他知道自己那张牌是不是起手
-/// 牌</b>。所以这里开一个登记点，让他自己声明，而不是让求解器去猜。
+/// 通用估值 <c>CardValue</c> 只读 <c>Damage</c>、<c>Block</c>、<c>Cards</c> 三个变量加一个 Power
+/// 加成。价值落在「它让你能做什么」上的牌，牌面上这三个变量往往是空的，于是估值为 <c>0</c>，
+/// 排在最前面先被烧；而一张 6 伤害的起手打击是 <c>6.0</c>，反而留了下来。原版靠
+/// <c>BasicCardRemovalValue</c> 里一张按类型写死的表把十张起手牌压回正确位置，那张表只列原版，
+/// 注释里写明理由是「其他来源的打击、防御强弱取决于各自的机制，这里没有依据替它们排序」。
 /// </para>
 /// <para>
-/// 登记的是<b>类别</b>，不是数值：权重仍然是求解器这一侧的 <c>BasicStrikeRemovalWeight</c> 与
-/// <c>BasicDefendRemovalWeight</c>，第三方只说「这是我的起手打击」。这样升级差别照样保留
-/// （6 伤害与 9 伤害排序不同），也不会有人往里塞一个凭空编出来的移除价值。
+/// 这个判断对求解器成立，对 Mod 作者不成立——<b>他知道自己那张牌在自己这套体系里值多少</b>。所以
+/// 这里开一个登记点，让他给一个<b>相对通用估值的偏置</b>：
+/// </para>
+/// <code>
+/// CardRemovalValueMirrors.Register&lt;YourStrike&gt;(-10d);
+/// CardRemovalValueMirrors.Register&lt;YourDefend&gt;(-10d);
+/// </code>
+/// <para>
+/// 登记的是偏置而不是绝对值，是为了保住牌自身的梯度：升级过的起手打击伤害更高，加同一个偏置之后
+/// 仍然比未升级的那张更靠后被烧。角色之间的相对顺序也由此自然落下来——通用估值把格挡打了八折，
+/// 所以同样偏置下防御排在打击前面被烧；原版五个角色相反，那是那张写死的表在起作用，与本入口无关。
 /// </para>
 /// <para>
-/// 不登记的后果是<b>静默的</b>：Mod 角色的起手打击按通用估值算成一张有伤害的好攻击牌，于是净化、
-/// 洗炼这类牌永远不会先烧它。实测一场女王：玩家手打消耗掉三张观者打击、把全知与内心宁静留在
-/// 牌库里，求解器反过来消耗了全知、内心宁静、痛击，把四张打击留着——两边同样有疾风连击 4，
-/// 而只有前者的牌库能持续转起来。
+/// <b>这个入口不怕被滥用。</b>把自己的牌估低等于让求解器优先烧掉它，估高等于让它留在牌库里堵手，
+/// 两个方向的代价都由登记方自己承担，没有可以占的便宜。
 /// </para>
 /// <para>
-/// 登记表为空时 <c>BasicCardRemovalValue</c> 一行都不多走，排序与开这个口子之前逐位相同。
-/// 登记在初始化期间完成，任何搜索开始后保持登记表不变。
+/// 原版那张写死的表优先：已经列进去的类型不会被登记表改写。登记表为空时下游一行都不多走，排序与
+/// 开这个口子之前逐位相同。登记在初始化期间完成，任何搜索开始后保持登记表不变。
 /// </para>
 /// </remarks>
 internal static class CardRemovalValueMirrors
 {
-    private static readonly Dictionary<Type, BasicCardRemovalKind> Registry = [];
+    /// <summary>偏置的绝对值上限。够表达「这张牌白占位置」，又不至于一次手滑让求解器烧光牌库。</summary>
+    private const double MaximumOffsetMagnitude = 100d;
+
+    private static readonly Dictionary<Type, double> Registry = [];
 
     /// <summary>登记表是否为空。空表时下游可以整段跳过。</summary>
     public static bool IsEmpty => Registry.Count == 0;
 
     /// <summary>
-    /// 声明一张第三方牌属于哪一类起手牌。
+    /// 给一张牌登记移除估值偏置。最终估值是<b>通用估值加这个偏置</b>。
     /// </summary>
-    /// <typeparam name="TCard">
-    /// 你的起手牌类型。按<b>精确运行时类型</b>匹配，所以升级版与未升级版如果是同一个类型就一起
-    /// 生效；升级差别由牌自己的 <c>Damage</c> / <c>Block</c> 基础值体现，不需要分别登记。
-    /// </typeparam>
-    /// <param name="kind">按打击还是按防御估值，见 <see cref="BasicCardRemovalKind"/>。</param>
-    /// <remarks>
-    /// 只登记<b>起手牌</b>。这个入口的语义是「这张牌和原版起手打击/防御在牌库里的地位相同」，
-    /// 不是「给这张牌调一个移除价值」。给一张真正有用的牌登记，等于让求解器优先把它烧掉。
-    /// </remarks>
-    public static void Register<TCard>(BasicCardRemovalKind kind)
+    /// <param name="removalValueOffset">
+    /// 负数表示「比通用估值更该先烧」，取到负值之后这张牌会让「烧它」这条分支排在「一张都不选」
+    /// 之前。正数表示「更该留」。绝对值不得超过 <c>100</c>。
+    /// </param>
+    public static void Register<TCard>(double removalValueOffset)
         where TCard : CardModel
     {
-        if (!Enum.IsDefined(kind))
-            throw new ArgumentOutOfRangeException(nameof(kind), kind, "未知的起手牌类别。");
+        if (!double.IsFinite(removalValueOffset)
+            || Math.Abs(removalValueOffset) > MaximumOffsetMagnitude)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(removalValueOffset),
+                removalValueOffset,
+                $"移除估值偏置必须是绝对值不超过 {MaximumOffsetMagnitude} 的有限数。");
+        }
         // 和别的镜像登记表同一口径：重复登记是错误，不静默覆盖。
-        Registry.Add(typeof(TCard), kind);
+        Registry.Add(typeof(TCard), removalValueOffset);
     }
 
     /// <summary>
@@ -79,11 +80,11 @@ internal static class CardRemovalValueMirrors
         where TCard : CardModel
         => Registry.Remove(typeof(TCard));
 
-    /// <summary>取这张牌登记的类别；没登记过时返回 <c>null</c>。</summary>
-    public static BasicCardRemovalKind? Kind(CardModel card)
+    /// <summary>取这张牌登记的偏置；没登记过时返回 <c>null</c>。</summary>
+    public static double? Offset(CardModel card)
         => Registry.Count == 0
             ? null
-            : Registry.TryGetValue(card.GetType(), out BasicCardRemovalKind kind)
-                ? kind
+            : Registry.TryGetValue(card.GetType(), out double offset)
+                ? offset
                 : null;
 }

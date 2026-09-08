@@ -38,26 +38,29 @@ internal sealed partial class UnattendedTestRunner
         Check(unregistered > vanilla,
             $"an unregistered card outranks the vanilla basic strike: {unregistered} vs {vanilla}");
 
-        CardRemovalValueMirrors.Register<PommelStrike>(BasicCardRemovalKind.Strike);
+        const double offset = -10d;
+        CardRemovalValueMirrors.Register<PommelStrike>(offset);
         try
         {
             Check(!CardRemovalValueMirrors.IsEmpty
-                && CardRemovalValueMirrors.Kind(standIn.Preview) == BasicCardRemovalKind.Strike,
+                && CardRemovalValueMirrors.Offset(standIn.Preview) == offset,
                 "registration is visible");
             double registered = CardChoiceSupport.RemovalPriorityForTesting(spec, standIn);
-            // 登记之后按同一组权重估值，排序键必须真的降下来——这就是「先烧起手牌」那件事。
-            Check(registered < unregistered,
-                $"registering as a basic strike lowers the removal key: {registered} vs {unregistered}");
+            Check(Math.Abs(registered - (unregistered + offset)) < 1e-9,
+                $"the offset lands on top of the generic value: {registered} vs {unregistered} + {offset}");
+            // 负偏置要能把排序键压到零以下——这才是「烧它」这条分支排在「一张都不选」之前的前提，
+            // 因为 ChoicePriority 对消耗返回 -Σ RemovalPriority 并按降序取分支。
+            Check(registered < 0d, $"a negative offset makes exhausting worth doing: {registered}");
             try
             {
-                CardRemovalValueMirrors.Register<PommelStrike>(BasicCardRemovalKind.Defend);
+                CardRemovalValueMirrors.Register<PommelStrike>(offset);
                 Check(false, "duplicate registration must throw");
             }
             catch (ArgumentException) { }
             try
             {
-                CardRemovalValueMirrors.Register<StrikeSilent>((BasicCardRemovalKind)99);
-                Check(false, "an undefined kind must throw");
+                CardRemovalValueMirrors.Register<StrikeSilent>(-1000d);
+                Check(false, "an out-of-range offset must throw");
             }
             catch (ArgumentOutOfRangeException) { }
             // 原版那张表优先：已经写死的类型不会被登记表改写。
