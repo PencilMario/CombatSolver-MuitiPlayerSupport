@@ -18,6 +18,11 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "MIRRORED-HOOK-FILTER")
+            {
+                runner.SetStage("mirrored_hook_filter");
+                runner.AssertMirroredHookFilter(scenario.CombatState, scenario.Player);
+            }
             if (request.ScenarioId == "HAND-POTENTIAL-COSTS")
             {
                 runner.SetStage("hand_potential_costs");
@@ -89,6 +94,11 @@ internal sealed partial class UnattendedTestRunner
                 runner.SetStage("growth_policy");
                 await runner.AssertGrowthPolicyAsync(scenario.CombatState);
                 runner._completedChecks.Add("GrowthPolicy");
+            }
+            if (request.ScenarioId == "DEFAULT-SEARCH-PARALLELISM")
+            {
+                AssertDefaultSearchParallelism();
+                runner._completedChecks.Add("DefaultSearchParallelism");
             }
             if (request.VerifyControllerSessionLifecycle)
             {

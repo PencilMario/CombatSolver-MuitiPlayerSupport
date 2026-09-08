@@ -17,6 +17,8 @@ internal sealed partial class SimulatedCombatState
             _knownEnemies.Fork(),
             _escapedCreatures.Fork())
         {
+            _mirroredHookLayout = _mirroredHookLayout,
+            _mirroredRunHookLayout = _mirroredRunHookLayout,
             _drawNextTurn = _drawNextTurn?.Fork(),
             _retiredRootPowerSlots = _retiredRootPowerSlots?.Fork(),
             _skipNextDurationTick = _skipNextDurationTick?.Fork(),

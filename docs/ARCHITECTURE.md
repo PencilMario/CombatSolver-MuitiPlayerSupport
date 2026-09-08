@@ -130,7 +130,7 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 有序操作在无序结果相同但操作顺序不同时形成 `OrderedMutation` 租约。派生通道沿用碰撞根和初始通道身份：全 solver 最多 `2,048` 次有序保护准入、每层共享最多 `48`、每根基础 `128`、每初始通道基础 `64`、每派生租约 `16`；已有通道取得严格进展后，根和初始通道可分别使用一次 `64` 与 `32` 的有限尾部额度。不同碰撞根不再共享一个固定的“根个数”门槛，仍受实际保留工作总额约束。冷启动的两种顺序必须成对提交，失败不留下单边扣账；普通排名选中不等于已支付有序保护，自然入选的继承租约与额外候选进入同一个 `48` 额度服务队列，不能提前耗尽整层或提前到期。已有付费准入的同节点别名不重复占用服务；原有通用请求 `32`、成组服务 `16` 的保障份额和各原因预算不变，空余份额仍可按原规则借用。预算到期只取消调度特权，普通路线仍可参与后续保留。独立通道先选定，再结算有序操作，最后由区域事务按最终存活候选提交预算；被后续裁决淘汰的候选不能赚取进展或占用已提交额度。
 
-普通搜索按进程可用逻辑处理器数量选择初始展开 lane：至少 4 个时默认 DOP4，2–3 个时默认 DOP2，只有 1 个时使用 DOP1；用户显式设置始终优先。设置中的“关闭（单线程）”映射 DOP1，数值项为 `2..16`，实际值还会按进程可用逻辑处理器钳制。coordinator 自己执行 lane 0，其余低优先级后台 lane 在一次 `Solve` 内复用 solver、缓存和 `SearchWorkPacer`。worker 不写全局 transposition、dominance 或 fallback：它们只物化原始候选，coordinator 仍按父节点输入顺序提交，因此固定节点预算下 DOP 不改变搜索语义。详细诊断和增量严格回放强制 DOP1。
+普通搜索按进程可用逻辑处理器数量选择初始展开 lane：至少 16 个时默认 DOP8，4–15 个时默认 DOP4，2–3 个时默认 DOP2，只有 1 个时使用 DOP1；用户显式设置始终优先。设置中的“关闭（单线程）”映射 DOP1，数值项为 `2..16`，实际值还会按进程可用逻辑处理器钳制。coordinator 自己执行 lane 0，其余低优先级后台 lane 在一次 `Solve` 内复用 solver、缓存和 `SearchWorkPacer`。worker 不写全局 transposition、dominance 或 fallback：它们只物化原始候选，coordinator 仍按父节点输入顺序提交，因此固定节点预算下 DOP 不改变搜索语义。详细诊断和增量严格回放强制 DOP1。
 
 父节点外层 wave 不按手牌数强制拆成 singleton。系统余量受限时从最多 2 个父节点开始，其他情况从配置 DOP 开始；已完成的 multi-parent wave 未超出预约时容量倍增，超出预约时容量减半，在 `2..DOP` 内动态调整，singleton 不会替尚未观测的宽 wave 提前放大容量。Runtime 把玩家配置视为区域上限，并按 CLR 高内存阈值的 `95%` 安全线动态缩小实际 NoGC 申请；安全准入同时使用本轮分配余量和“区域建立时系统内存负载 + 本轮分配”的预测余量。全搜索已观测的最坏父节点分配量另加 `1.5×` 余量，并为 wave 中每个并发父节点完整预约。`SearchWaveMemoryPolicy` 先按实际剩余容量缩小 wave（包括 3、1 个父节点）；只有单个 parent 也不能预约时，才在已提交边界释放可重建缓存并回收。出牌深度结束先完成剪枝，清空被剪节点容器且仍有下一次准入时再检查回收；连单个父节点都无法放入预约时退回纯串行，不借 inner replay 冒险。CLR 仅因区域尺寸不受支持而拒绝 NoGC 时，Runtime 逐次减半申请，最低尝试 `512 MB`；平台不支持或区域尺寸仍无法建立时回退常规 GC，并继续按用户配置的 DOP 搜索。只有系统余量不足时才启用最多两个 lane 的保守并发限制。用户主动关闭 NoGC 时同样不施加该限制。自然只剩一个且预约可容纳的并行父节点时，才借用同一组空闲 lane 并发执行该父节点的 card action/target 初始 probe，不与外层并发嵌套。
 
@@ -171,6 +171,8 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 `src/Engine/InCombat/Simulation/` 负责通用战斗命令时序、伤害、牌堆、历史、RNG、球和 Fork。它不包含单张卡、单个 Power 或具体怪物的搜索策略。历史卡牌 Started/Finished 与 DamageReceived 的卡牌来源使用不可变卡牌快照；当前动作是否开始以精确 trace-frame 身份判定，保留原生 `CardPlay` 身份，不以 Original 卡牌身份合并兄弟分支。`CombatPredictionHistory` 以不可变 prefix segment + 分支本地 mutable tail 保存事件；动作后缀消费者必须使用冻结上界的 `EntriesFrom/EntriesBetween`，不能先遍历完整 prefix 再 `Skip`，否则长线会把一次局部查询放大为随深度增长的重复工作。
 
 `src/Engine/Common/` 提供 `PredictedCard`、`PredictionForkContext`、`PredictionStateStore` 和通用模型克隆。StateStore 直接持有可 Fork 的 state，空字典按需创建；仍在同一 context 中按原跨类型顺序 eager Fork，不能对调用者已借出的可变引用使用通用延迟 COW。一次 Fork 内的所有结构必须共享同一个 context；分支可变对象必须显式重映射。`BaseLibCloneConcurrency` 是原版与预测克隆共用的外部扩展并发边界，只包围模型深克隆阶段。
+
+`MirroredHookListenerFilter` 仅为 `HookMirrors` 分发提供静态回调位图；原生/领域监听序列完整保留。根捕获重新检查相关 AbstractModel 基方法的 Harmony 补丁，有补丁时整项旁路；第三方/动态类型全部保留，BaseLib 不透明 CardModifier 根也旁路。`SimulatedCombatState` 缓存当前分支的轻量监听视图，沿既有监听失效边界清空；不可变类型布局不持有 Model，Fork 可共享，类型顺序变化时重建。它是派生分发元数据，不进入状态键或 ContinuationStamp。两端结构门禁要求新增 Hook 同步其位图，合同逐一检查原版模型覆盖、顺序/重复项、根间补丁刷新与 Fork。
 
 `CombatPredictionSimulator.TerminalStamp` 在与原版对应的完整动作/阶段安全检查点首次锁定胜负及影子玩家回合号，按值 Fork；`IsEnding` 仍是无副作用查询，不在单个 Hook 监听器之间提前终止正在结算的序列。`SimulationSnapshot` 独立保留此值，释放模拟器后，终局标注、临时结果、最终排序和已知胜利上界仍读取同一时点。`PlanAction.Turn` 只表示发起动作的回合，不能代表该动作跨回合结算后的终局回合。
 

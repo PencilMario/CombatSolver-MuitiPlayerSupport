@@ -95,6 +95,8 @@ XxxMirrors.Registry.Register<TYourType>(handler);
 
 同一张表里 `Register` 用的是 `Dictionary.Add`，**重复登记会抛异常**，不会静默覆盖。
 
+Hook 分发会省略当前原版类型继承的默认空回调，但保留第三方/动态类型的完整回调顺序和既有登记流程。原生与领域监听表仍保留全部成员；每次根捕获重新检查 `AbstractModel` 基方法的 Harmony 补丁，有补丁或不透明 BaseLib CardModifier 时旁路这项优化。类型布局只存元数据，不保留父分支的 Model。该优化没有增加原本不支持的补丁或 subscriber 适配。
+
 ### 2.2 战略估值：会改变出牌顺序的 Power
 
 ```csharp

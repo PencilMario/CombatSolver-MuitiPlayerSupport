@@ -1050,6 +1050,25 @@ foreach ($rule in @('ConditionalWeakTable<Assembly, Resolution>', 'SimulationNot
     }
 }
 
+# Keep the no-op dispatch metadata complete when callbacks are added to the facade.
+$mirroredFilterText = Get-Content -LiteralPath (Join-Path $repositoryRoot "src/Engine/Common/MirroredHookListenerFilter.cs") -Raw
+$mirroredHookNames = [System.Collections.Generic.HashSet[string]]::new()
+foreach ($sourceFile in Get-ChildItem -LiteralPath (Join-Path $repositoryRoot "src/Engine/InCombat/Mirrors") -Filter '*.cs' -Recurse) {
+    $sourceText = Get-Content -LiteralPath $sourceFile.FullName -Raw
+    foreach ($match in [regex]::Matches($sourceText, 'nameof\(AbstractModel\.([A-Za-z][A-Za-z0-9]*)\)')) {
+        [void]$mirroredHookNames.Add($match.Groups[1].Value)
+    }
+}
+$hookFacadeText = Get-Content -LiteralPath (Join-Path $repositoryRoot "src/Engine/InCombat/Mirrors/HookMirrors.cs") -Raw
+foreach ($match in [regex]::Matches($hookFacadeText, '(?:listener|modifier)\.([A-Za-z][A-Za-z0-9]*)\(')) {
+    [void]$mirroredHookNames.Add($match.Groups[1].Value)
+}
+foreach ($hookName in $mirroredHookNames) {
+    if (-not $mirroredFilterText.Contains("nameof(AbstractModel.$hookName)")) {
+        $violations.Add("Missing mirrored hook participation metadata: $hookName")
+    }
+}
+
 if ($violations.Count -gt 0) {
     $violations | ForEach-Object { Write-Error $_ }
     throw "Refactor boundary verification failed with $($violations.Count) violation(s)."

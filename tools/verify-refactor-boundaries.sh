@@ -853,6 +853,17 @@ for rule in 'ConditionalWeakTable<Assembly, Resolution>' 'SimulationNotification
     require_fixed "$repository_root/src/Runtime/RitsuBaseLibTargetTypeLookupPatch.cs" "$rule" 'missing metadata cache boundary'
 done
 
+# A new facade/default-hook callback must join the dispatch layout before it can be skipped.
+mirrored_filter_path="$repository_root/src/Engine/Common/MirroredHookListenerFilter.cs"
+while IFS= read -r mirrored_hook_name; do
+    require_fixed "$mirrored_filter_path" "nameof(AbstractModel.$mirrored_hook_name)" 'missing mirrored hook participation metadata'
+done < <(
+    {
+        rg --no-filename -o 'nameof\(AbstractModel\.[A-Za-z][A-Za-z0-9]*\)' "$repository_root/src/Engine/InCombat/Mirrors" | sed -E 's/nameof\(AbstractModel\.([A-Za-z0-9]+)\)/\1/'
+        rg --no-filename -o '(listener|modifier)\.[A-Za-z][A-Za-z0-9]*\(' "$repository_root/src/Engine/InCombat/Mirrors/HookMirrors.cs" | sed -E 's/(listener|modifier)\.([A-Za-z0-9]+)\(/\2/'
+    } | sort -u
+)
+
 if ((${#violations[@]} > 0)); then
     printf '%s\n' "${violations[@]}" >&2
     printf 'Refactor boundary verification failed with %d violation(s).\n' "${#violations[@]}" >&2

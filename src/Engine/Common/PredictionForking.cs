@@ -14,6 +14,10 @@ internal interface ICombatPredictionHookListenerSource
     IReadOnlyList<MegaCrit.Sts2.Core.Models.AbstractModel> HookListeners { get; }
 
     IReadOnlyList<MegaCrit.Sts2.Core.Models.AbstractModel> RunHookListeners { get; }
+
+    IReadOnlyList<MegaCrit.Sts2.Core.Models.AbstractModel> MirroredHookListeners => HookListeners;
+
+    IReadOnlyList<MegaCrit.Sts2.Core.Models.AbstractModel> MirroredRunHookListeners => RunHookListeners;
 }
 
 /// <summary>

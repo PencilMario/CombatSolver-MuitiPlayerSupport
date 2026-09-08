@@ -1520,6 +1520,34 @@ internal sealed partial class SimulatedCombatState
     CombatPredictionRngSet ICombatPredictionRunSnapshot.CreatePredictionRngSet()
         => CombatPredictionRngSet.From(RunRngSet.FromSave(_runRngSnapshot));
 
+    private MirroredHookListenerLayout? _mirroredHookLayout;
+    private MirroredHookListenerLayout? _mirroredRunHookLayout;
+    private IReadOnlyList<AbstractModel>? _mirroredHookListeners;
+    private IReadOnlyList<AbstractModel>? _mirroredRunHookListeners;
+
+    IReadOnlyList<AbstractModel> ICombatPredictionHookListenerSource.MirroredHookListeners
+        => GetMirroredHookListeners(run: false);
+
+    IReadOnlyList<AbstractModel> ICombatPredictionHookListenerSource.MirroredRunHookListeners
+        => GetMirroredHookListeners(run: true);
+
+    private IReadOnlyList<AbstractModel> GetMirroredHookListeners(bool run)
+    {
+        IReadOnlyList<AbstractModel>? cached = run ? _mirroredRunHookListeners : _mirroredHookListeners;
+        if (CanReuseHookListenerCache && cached is not null)
+            return cached;
+        IReadOnlyList<AbstractModel> source = run ? GetEffectiveRunHookListeners() : GetActiveHookListeners();
+        if (!CanReuseHookListenerCache)
+            return source;
+        ref MirroredHookListenerLayout? layout = ref (run ? ref _mirroredRunHookLayout : ref _mirroredHookLayout);
+        IReadOnlyList<AbstractModel> filtered = _modHookSubscribers.MirroredHookFilter.Filter(source, ref layout);
+        if (run)
+            _mirroredRunHookListeners = filtered;
+        else
+            _mirroredHookListeners = filtered;
+        return filtered;
+    }
+
     private IReadOnlyList<AbstractModel> GetEffectiveRunHookListeners()
     {
         if (CanReuseHookListenerCache && _effectiveRunHookListeners != null)
@@ -1662,6 +1690,8 @@ internal sealed partial class SimulatedCombatState
 
     private void InvalidateHookListeners()
     {
+        _mirroredHookListeners = null;
+        _mirroredRunHookListeners = null;
         _effectiveHookListeners = null;
         _activeHookListeners = null;
         _effectiveRunHookListeners = null;
@@ -1679,8 +1709,7 @@ internal sealed partial class SimulatedCombatState
         if (CanReuseHookListenerCache && _baseHookListeners != null)
             return _baseHookListeners;
         int initialCapacity = _rootHookListeners.Length
-            + (_registeredCombatCards?.Count ?? 0)
-            + 16;
+            + (_registeredCombatCards?.Count ?? 0);
         List<AbstractModel> listeners = new(initialCapacity);
         Dictionary<Creature, List<AbstractModel>> enemyListeners = [];
         int enemyInsertionIndex = -1;
