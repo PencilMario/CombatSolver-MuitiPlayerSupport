@@ -86,6 +86,13 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("PresenceDefaultOptOutSnapshotTlsAndInvalidPinRejection");
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "PR60-65-CONTRACT")
+            {
+                AssertVictoryWaitsForStockRespawn(combatState, player);
+                AssertThirdPartyBasicCardRemoval(player);
+                runner._completedChecks.Add("StockRespawnVictoryAndThirdPartyRemoval");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "PR57-58-STATE-CONTRACT")
             {
                 AssertVitalSparkKeepsStackedTaintedAmount(combatState, player);

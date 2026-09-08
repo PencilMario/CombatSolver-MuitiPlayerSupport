@@ -38,7 +38,7 @@ internal sealed partial class UnattendedTestRunner
         Check(unregistered > vanilla,
             $"an unregistered card outranks the vanilla basic strike: {unregistered} vs {vanilla}");
 
-        const double offset = -10d;
+        const double offset = -20d;
         CardRemovalValueMirrors.Register<PommelStrike>(offset);
         try
         {

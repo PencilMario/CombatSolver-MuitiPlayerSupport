@@ -1,5 +1,15 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：PR #59–65 整合验证（0.33.6 开发中）
+
+- 合并 #59、#60、#61、#62、#64、#65；#63 是 Issue。本节记录本轮直接证据，下方各 PR 原始记录保留其提交时的验证范围。
+- Release 构建通过，0 警告、0 错误；结构检查通过，`REFACTOR_BOUNDARIES_OK search_files=77`。
+- `GROWTH-POLICY-FREE-FIRST`，`4da884fe105d41a7865ff403988f392b` Passed，22 秒。覆盖第三方成长来源登记、额度/设置往返、Fork、侧栏总开关及免费收益搜索；整合后第三方额度与原版额度共同置灰。
+- `PR60-65-CONTRACT`，`348d44e4a0b24db39cbd712f3570e5a0` Passed，22 秒。直接运行死亡补货胜利判定与第三方移除偏置合同，不扩跑整个 Fork 批次。
+- 中间运行 `20f2a7b0333444609de93c417ffdf311` 的补货检查已通过，移除测试失败：替身牌通用估值 12 加 -10 为 2，原断言要求负值。测试偏置改为 -20 后通过，生产估值逻辑不变。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId PR60-65-CONTRACT -HeadlessInstance pr5965 -EnemyCurrentHp 100 -TimeoutSeconds 120 -ExitOnComplete`；成长夹具沿用下方 FREE-FIRST 命令并加 `-ExitOnComplete`。
+- 本轮未重跑 API v6 的隔离 worker 样本，未跑节点预算的长循环性能基准、付费成长夹具或完整发布门禁；不能将作者历史证据视为本轮通过。未创建标签、发布包或上传工坊。
+
 ## 0.33.6 跑局统计
 
 - 服务端 8 项测试通过，增加非战斗但 inRun=true 计入、inRun=false 排除、旧客户端缺失状态及非法字段拒绝。
