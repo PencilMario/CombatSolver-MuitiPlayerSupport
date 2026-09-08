@@ -427,12 +427,24 @@ internal static class PreCombatForecastWorker
         return GetStatus();
     }
 
-    public static async Task ConfigureIdleTimeoutAsync(int? idleTimeoutMilliseconds)
+    public static Task ConfigureIdleTimeoutAsync(int? idleTimeoutMilliseconds) =>
+        ApplyCachedRequestLifetimeAsync(false, idleTimeoutMilliseconds, CancellationToken.None);
+
+    // A cache hit owns no running request: wait for the reusable barrier rather than
+    // using StopSessionAsync, which would cancel another caller's active search.
+    internal static async Task ApplyCachedRequestLifetimeAsync(
+        bool closeWorker, int? idleTimeoutMilliseconds, CancellationToken cancellationToken)
     {
-        await Gate.WaitAsync().ConfigureAwait(false);
+        await Gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             SetIdleWorkerLifetime(idleTimeoutMilliseconds);
+            if (closeWorker)
+            {
+                CancelIdleShutdown();
+                StopCurrentSession();
+                return;
+            }
             WorkerSession? session = Volatile.Read(ref _session);
             if (session is not null && !session.Process.HasExited)
                 ScheduleIdleShutdown(session);

@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：战前预测请求选项（开发中）
+
+- 独立回归入口：`dotnet run --project tools/PreCombatRequestChecks/PreCombatRequestChecks.csproj -c Release`，Windows / Linux 相同。直接链接实际 `PreCombatForecastApi` 与 contract 源码，替换游戏/进程边界，不启动游戏。
+- 覆盖强制重算绕过运行中/已完成结果、同选项去重、不同关闭/空闲要求分开请求、缓存命中应用关闭/有限或无限空闲期限、脱离式取消、独占取消等待清理、已取消缓存命中不改变设置以及 live 状态过期。
+- 上述 10 项独立检查通过，Linux 结构门禁返回 `REFACTOR_BOUNDARIES_OK search_files=78`。同一测试链接修复前 API 时，强制重算用例因没有第二个 worker 请求而超时，缓存生命周期用例因未调用生命周期入口而失败。
+- 完整 Mod 构建尝试返回 32 个 `CS0246` 缺失游戏类型错误（包含 `CombatTurnState`、`CardLocation`）；Windows worker 进程回收未验证：本机游戏为 `0.107.1`，仓库要求 `0.111.0`。独立 API 检查不代表游戏模拟或进程生命周期验收。
+
 ## 2026-09-08：凡庸与自动打牌（0.34.4）
 
 - 原报告 `12f213c23ccd4a00abaf7a80c796273e` 的第 6 回合在发现、彼岸咆哮后打出倾泻，Normality 仍在手；原版结束回合复核为 25 HP，计划为 0 HP。日志定位后直接构造最小夹具，没有运行原包恢复。
