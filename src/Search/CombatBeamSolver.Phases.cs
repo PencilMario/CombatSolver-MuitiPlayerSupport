@@ -1198,6 +1198,23 @@ internal sealed partial class CombatBeamSolver
                 1,
                 _profile.SoftTimeBudgetMilliseconds - turnLayerStartedMs);
             long turnLayerBudgetMs = Math.Max(250, remainingSearchMs / remainingReservedLayers);
+            // 节点预算按回合层分配，口径和上面的时间预算一样。
+            //
+            // 以前只有时间按层分，节点是全局的，于是一个回合层可以合法地把整份节点预算吃光：
+            // 手牌 0 费一类的引擎（干瘪之手、真言转神格、抽牌循环）在同一个回合里能一直出牌，
+            // 每一步都真的产出一点资源，所以「无进展」那套判据永远不触发。实测一个包里回合层
+            // 停在 2、play_depth 从 173 涨到 248、ended 逼近 10 万，整份节点预算烧完也没推进到
+            // 下一回合；期间分配到 16 GB，机器换页，主线程再没恢复过来。
+            //
+            // 时间那一侧之所以没兜住：deep 软预算 180 秒、保留 4 层，一层能分到 90 秒，而节点
+            // 上限早在那之前就到了，for 循环直接退出、走不到下面这个切层分支。
+            int turnLayerStartedExpanded = _run.Expanded;
+            int remainingExpandedNodes = Math.Max(
+                1,
+                _profile.MaxExpandedNodes - turnLayerStartedExpanded);
+            int turnLayerNodeBudget = Math.Max(
+                SolverWeights.MinimumTurnLayerExpandedNodes,
+                remainingExpandedNodes / remainingReservedLayers);
             PublishProgress(active.Min(node => node.Turn), searchedTurnLayers, 0, active.Count, 0,
                 "展开回合", force: true);
             for (int playDepth = 0;
@@ -1280,11 +1297,15 @@ internal sealed partial class CombatBeamSolver
                     timeBudgetReached = true;
                     break;
                 }
+                long turnLayerElapsedMs = stopwatch.ElapsedMilliseconds - turnLayerStartedMs;
+                int turnLayerExpanded = _run.Expanded - turnLayerStartedExpanded;
+                bool turnLayerTimeSpent = turnLayerElapsedMs >= turnLayerBudgetMs;
+                bool turnLayerNodesSpent = turnLayerExpanded >= turnLayerNodeBudget;
                 if (!policy.VerifyIncrementalSearch
                     && searchedTurnLayers < reservedTurnLayers - 1
                     && playDepth > 0
                     && ended.Count > 0
-                    && stopwatch.ElapsedMilliseconds - turnLayerStartedMs >= turnLayerBudgetMs)
+                    && (turnLayerTimeSpent || turnLayerNodesSpent))
                 {
                     int forcedEndTurnCandidates = 0;
                     foreach (SearchNode node in active)
@@ -1298,9 +1319,11 @@ internal sealed partial class CombatBeamSolver
                     }
                     policy.Diagnostics.Info(
                         $"[CombatSolver/Test] TURN_LAYER_BUDGET " +
+                        $"reason={(turnLayerTimeSpent ? "time" : "nodes")} " +
                         $"completed_turns={searchedTurnLayers} play_depth={playDepth} " +
-                        $"elapsed_ms={stopwatch.ElapsedMilliseconds - turnLayerStartedMs} " +
-                        $"budget_ms={turnLayerBudgetMs} forced_end_turn={forcedEndTurnCandidates}");
+                        $"elapsed_ms={turnLayerElapsedMs} budget_ms={turnLayerBudgetMs} " +
+                        $"expanded={turnLayerExpanded} node_budget={turnLayerNodeBudget} " +
+                        $"forced_end_turn={forcedEndTurnCandidates}");
                     active = [];
                     break;
                 }

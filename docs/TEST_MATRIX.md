@@ -14,6 +14,12 @@
 - Release 编译（`-p:CopyModOnBuild=false`）0 警告 0 错误，结构门禁通过。
 - `GROWTH-POLICY-FREE-FIRST` / `GROWTH-POLICY-PAID` **本轮未执行**。新增断言直接加在这两个夹具原有的 `-VerifyGrowthPolicy` 路径上，复跑命令沿用本文《2026-09-07：局外成长策略》一节记录的原命令，不需要新参数。新增覆盖：开关默认关闭、设置往返、原始额度保留而 `EffectiveGrowthBudgets` 归零、`EffectiveHasGrowthTargets` 归假并让可接受战损早停重新生效、开着开关求解仍然取胜、成长信用为零而快照其余两项保持如实（偏好开关不是状态开关）、战损不超过零额度基线、付费夹具下战损严格小于满额度那次、侧栏开关回读与额度置灰、点击开关翻转。
 - 未做原生实机验证、未跑 248 条原版回归、未执行完整发布门禁。
+## 节点预算按回合层分配（开发中）
+
+- Release 编译（`-p:CopyModOnBuild=false`）0 警告 0 错误，结构门禁通过。
+- 玩家实机复现材料：`CONSTRUCT_MENAGERIE_NORMAL-20260907-170814`（回合层停在 2、`play_depth` 173→248、`ended` 99845、`repeatable_no_progress_pruned=0`、无任何 `RESULT`）与 `CONSTRUCT_MENAGERIE_NORMAL-20260907-173454`（手动降到 `deepMaxExpandedNodes=12000` 后正常收敛，3 回合、战损 6、`boundary=NodeLimit`）。
+- **无人测试未跑**：`tools/run-watcher-matrix.ps1` 与观者相关夹具开头会 `Stop-Process SlayTheSpire2`，用户正在实机测试，不能执行。本项由用户实机验证：看 `TURN_LAYER_BUDGET reason=nodes` 是否出现、搜索是否收敛。
+- 未做 248 条原版回归、未执行完整发布门禁。
 
 ## 0.33.5 受伤历史与攻击次数
 
