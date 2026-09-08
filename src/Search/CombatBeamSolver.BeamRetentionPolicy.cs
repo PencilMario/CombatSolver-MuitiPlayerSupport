@@ -2630,14 +2630,17 @@ internal sealed partial class CombatBeamSolver
                         .Select(family => (IReadOnlyList<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>>)
                             OrderRoutingChoiceEventContexts(family))
                         .ToList();
-                List<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>> orderedRoutingContexts = [];
+                // Each context comes from a unique dictionary key and belongs to exactly one
+                // family. The only repeat is the persistent prefix emitted in the first pass.
+                List<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>> orderedRoutingContexts =
+                    new(nodesByRoutingChoice.Count);
                 for (int round = 0; round < PersistentRoutingContextRounds; round++)
                 {
                     foreach (IReadOnlyList<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>> family in
                         routingFamilies.Where(family => IsPersistentRoutingEffect(family[0].Key.Effect)))
                     {
                         if (round < family.Count)
-                            AddRoutingContext(orderedRoutingContexts, family[round]);
+                            orderedRoutingContexts.Add(family[round]);
                     }
                 }
                 int routingContextRound = 0;
@@ -2645,8 +2648,12 @@ internal sealed partial class CombatBeamSolver
                 {
                     foreach (IReadOnlyList<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>> family in routingFamilies)
                     {
-                        if (routingContextRound < family.Count)
-                            AddRoutingContext(orderedRoutingContexts, family[routingContextRound]);
+                        if (routingContextRound < family.Count
+                            && (routingContextRound >= PersistentRoutingContextRounds
+                                || !IsPersistentRoutingEffect(family[0].Key.Effect)))
+                        {
+                            orderedRoutingContexts.Add(family[routingContextRound]);
+                        }
                     }
                     routingContextRound++;
                 }
@@ -6154,14 +6161,6 @@ internal sealed partial class CombatBeamSolver
             {
                 selected.Add(candidate);
             }
-        }
-
-        private static void AddRoutingContext(
-            List<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>> selected,
-            KeyValuePair<RoutingChoiceSignature, List<SearchNode>> candidate)
-        {
-            if (!selected.Any(pair => pair.Key == candidate.Key))
-                selected.Add(candidate);
         }
 
         private static bool IsPersistentRoutingEffect(PlanChoiceEffect effect)
