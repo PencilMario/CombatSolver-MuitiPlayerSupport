@@ -6,6 +6,8 @@
 
 ## 专题
 
+- [较大范围的后端性能实验](bold-backend-experiments-20260908.md)：延迟快照估值、RNG 值槽、两种紧凑 COW 字典和牌堆缓存均未显示明确提速，全部撤回。
+
 - [按真实CPU热点优化路由聚合](backend-hotspot-optimization-20260908.md)：六张重复查表合为一张，短搜/正常配置单样本耗时减少2.96%/1.26%；完整指标与路线一致，其他原型撤回。
 
 - [后端真实CPU热点与局部修复](backend-cpu-hotspots-20260908.md)：用Linux perf纠正线程采样口径，互斥区分回放/快照/Fork，修复SwordSage根基线；尚无明显新提速。
