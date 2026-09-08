@@ -1596,8 +1596,6 @@ internal sealed partial class CombatBeamSolver
                         {
                             outcomes = parallelExpansionExecutor!.Evaluate(
                                 workerNodes,
-                                enableSingleParentActionReplay:
-                                    workerNodes.Count == 1,
                                 commitOrdered: (workerIndex, batch) =>
                                 {
                                     rawCandidateCount += batch.Cards.Count + batch.Potions.Count + batch.EndTurns.Count;

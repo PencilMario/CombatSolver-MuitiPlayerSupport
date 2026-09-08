@@ -1125,7 +1125,7 @@ internal sealed partial class CombatBeamSolver
         TurnSetupChoiceLayer? TurnSetupLayer);
 
     /// <summary>
-    /// A hierarchical lease over one coordinator-owned whole-action budget. Child leases cap how
+    /// A hierarchical lease over one exclusively owned whole-action budget. Child leases cap how
     /// much an earlier stable branch may consume while reserving one unit for every later sibling;
     /// actual consumption is also charged to every ancestor. Unused quota is therefore never
     /// stranded in an invalid or shallow branch, while traversal stays deterministic.
@@ -1255,7 +1255,7 @@ internal sealed partial class CombatBeamSolver
     /// this coordinator instead of pre-assigning its two slots to outer branches: a later stable
     /// semantic branch can therefore still expose the first actual identity-sensitive frontier.
     /// Supplements are replayed only after the semantic pass, so they can never replace a distinct
-    /// semantic decision. The collector is action-local and coordinator-owned; workers never race
+    /// semantic decision. The collector is action-local and has one ordered consumer; workers never race
     /// on a shared counter.
     /// </summary>
     private sealed class ChoiceOccurrenceCollector<TCandidate>(
@@ -1382,16 +1382,17 @@ internal sealed partial class CombatBeamSolver
     private IEnumerable<(PlanAction Action, SimulationSnapshot Snapshot)> ResolvePrimaryCardChoiceLayer(
         SearchNode node,
         PlanAction action,
-        SimulationSnapshot probeSnapshot,
-        PrimaryCardChoiceLayer layer)
+        SimulationSnapshot? probeSnapshot,
+        PrimaryCardChoiceLayer layer,
+        PrimaryChoiceReplayFrontier? replayedChoices = null)
     {
         bool retainsProbeSnapshot = layer.Choices.Contains(null);
         if (!retainsProbeSnapshot)
-            probeSnapshot.ReleaseSimulator();
+            probeSnapshot?.ReleaseSimulator();
         if (layer.UnregisteredPendingChoice)
         {
             if (retainsProbeSnapshot)
-                probeSnapshot.ReleaseSimulator();
+                probeSnapshot?.ReleaseSimulator();
             throw new InvalidOperationException(
                 $"卡牌 {action.CardId} 产生了未登记的分支选择，不能静默回退到原生重扫。");
         }
@@ -1429,17 +1430,21 @@ internal sealed partial class CombatBeamSolver
                 break;
             }
             PlanCardChoice? choice = layer.Choices[choiceIndex];
-            PlanAction resolvedAction = action with { Choice = choice };
+            PlanAction resolvedAction = replayedChoices?.Actions[choiceIndex]
+                ?? action with { Choice = choice };
             SimulationSnapshot childSnapshot;
             if (choice == null)
             {
-                childSnapshot = probeSnapshot;
+                childSnapshot = probeSnapshot
+                    ?? throw new InvalidOperationException("无选牌动作缺少 probe 快照。");
             }
             else
             {
-                if (!TrySpendChoiceReplayAttempt(branchBudget))
+                if (replayedChoices == null && !TrySpendChoiceReplayAttempt(branchBudget))
                     yield break;
-                SimulationSnapshot? replayedChoice = ReplayPlannedChoiceBranch(node, resolvedAction);
+                SimulationSnapshot? replayedChoice = replayedChoices == null
+                    ? ReplayPlannedChoiceBranch(node, resolvedAction)
+                    : replayedChoices.Take(choiceIndex, branchBudget);
                 if (replayedChoice == null)
                     continue;
                 childSnapshot = replayedChoice;
@@ -1470,15 +1475,18 @@ internal sealed partial class CombatBeamSolver
             PlanAction baseAction,
             SimulationSnapshot? probeSnapshot,
             IReadOnlyList<PlanCardChoice?> choices,
-            CardChoiceSpec? choiceSpec)
+            CardChoiceSpec? choiceSpec,
+            PrimaryChoiceReplayFrontier? replayedChoices = null)
     {
-        bool identityChangingLayer = choiceSpec != null
-            && CardChoiceSupport.IsIdentityChangingPersistentChoiceEffect(choiceSpec.Effect);
-        int semanticBranchCount = identityChangingLayer
+        bool identityChangingLayer = replayedChoices?.Layer.IdentityChangingLayer
+            ?? (choiceSpec != null
+                && CardChoiceSupport.IsIdentityChangingPersistentChoiceEffect(choiceSpec.Effect));
+        int semanticBranchCount = replayedChoices?.Layer.SemanticBranchCount ?? (identityChangingLayer
             ? CardChoiceSupport.CountSemanticChoices(
                 choices.Where(choice => choice != null).Cast<PlanCardChoice>().ToList())
-            : choices.Count;
-        WholeActionChoiceBudget wholeActionBudget = CreateWholeActionChoiceBudget(
+            : choices.Count);
+        WholeActionChoiceBudget wholeActionBudget = replayedChoices?.Layer.WholeActionBudget
+            ?? CreateWholeActionChoiceBudget(
             choiceSpec,
             semanticBranchCount);
         ChoiceOccurrenceCollector<DeferredOccurrenceChoiceBranch> occurrenceCollector = new(
@@ -1511,7 +1519,7 @@ internal sealed partial class CombatBeamSolver
                 break;
             }
             PlanCardChoice? choice = choices[index];
-            PlanAction action = baseAction with { Choice = choice };
+            PlanAction action = replayedChoices?.Actions[index] ?? baseAction with { Choice = choice };
             SimulationSnapshot childSnapshot;
             if (choice == null)
             {
@@ -1520,9 +1528,11 @@ internal sealed partial class CombatBeamSolver
             }
             else
             {
-                if (!TrySpendChoiceReplayAttempt(branchBudget))
+                if (replayedChoices == null && !TrySpendChoiceReplayAttempt(branchBudget))
                     continue;
-                SimulationSnapshot? replayedChoice = ReplayPlannedChoiceBranch(node, action);
+                SimulationSnapshot? replayedChoice = replayedChoices == null
+                    ? ReplayPlannedChoiceBranch(node, action)
+                    : replayedChoices.Take(index, branchBudget);
                 if (replayedChoice == null)
                     continue;
                 childSnapshot = replayedChoice;
@@ -1667,6 +1677,7 @@ internal sealed partial class CombatBeamSolver
 
     internal static void VerifyChoiceReplayBranchBudgetPolicyForTesting()
     {
+        VerifyPrimaryReplayReservation();
         if (ResolveFiniteChoiceReplayAttemptLimit(200) != 512)
             throw new InvalidOperationException("选择 replay 工作预算没有保持 512 次硬上限。");
 
@@ -1816,6 +1827,43 @@ internal sealed partial class CombatBeamSolver
                     $"+{wholeAction.OccurrenceFinalReserve}，" +
                     $"attempt={wholeAction.SemanticSearchBudget.ReplayAttemptQuota}" +
                     $"+{wholeAction.OccurrenceReplayAttemptQuota}。");
+            }
+        }
+    }
+
+    private static void VerifyPrimaryReplayReservation()
+    {
+        if (CanReservePrimaryReplayPrefix(600, 600, 512)
+            || CanReservePrimaryReplayPrefix(2, 1, 8)
+            || CanReservePrimaryReplayPrefix(1, 1, 8))
+        {
+            throw new InvalidOperationException("首层并行回放没有保留不足配额/单分支的串行边界。");
+        }
+        foreach (int width in new[] { 2, 3, 7, 31, 127, 511, 512 })
+        foreach (int finals in new[] { width, width + 1, width * 2 })
+        foreach (int attempts in new[] { width, Math.Min(512, width + 3), 512 })
+        foreach (int pattern in new[] { 0, 1, 2 })
+        {
+            if (!CanReservePrimaryReplayPrefix(width, finals, attempts))
+                throw new InvalidOperationException("可保证准入的首层回放被错误拒绝。");
+            ChoiceSearchBudget budget = new(finals, 0, attempts);
+            for (int index = 0; index < width; index++)
+            {
+                ChoiceSearchBudget? child = CreateChoiceBranchBudgetCore(budget, width - index - 1);
+                if (child == null || !child.TrySpendReplayAttempt())
+                    throw new InvalidOperationException("前置分支消费额度后，后置首层回放失去了准入保证。");
+                // Fully exhausted nested chains, invalid prefixes, and alternating shallow/deep
+                // siblings cover both independent maxima and actual unused-quota return.
+                if (pattern == 0 || pattern == 2 && index % 2 == 0)
+                {
+                    while (child.TrySpendReplayAttempt()) { }
+                    while (child.TryConsumeFinal()) { }
+                }
+                else if (pattern == 2)
+                {
+                    if (!child.TryConsumeFinal())
+                        throw new InvalidOperationException("首层浅分支没有获得最终结果额度。");
+                }
             }
         }
     }

@@ -12,7 +12,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 读取 `docs/ARCHITECTURE.md` 的 Search 章节。当前搜索职责已拆开：
 
 - `Expansion` 产生候选；
-- `ParallelExpansion` 用固定 lane 并发物化不同父节点的原始候选，并按输入顺序串行提交；
+- `ParallelExpansion` 准备并物化原始候选；`AdmittedExpansion` 用固定 lane 调度已准入父节点内的动作/选择/药水作业，`PrimaryChoiceReplay` 保存原预算必经的首层回放，再按输入顺序提交；
 - `StateEvaluation` 计算快照、威胁和评分特征；
 - `BeamRetentionPolicy` 决定中间候选保留；
 - `FinalPlanOrdering` 决定终局路线；
@@ -72,8 +72,9 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - `BeamRetentionPolicy.RoutingChoiceScratch` 只复用空字典桶；每次 `RankBest` 的 `RoutingChoiceNodes` 独占候选列表和五项代表，按原比较规则聚合，归还时清空引用，不跨调用缓存组。合并重复查表不能顺便缓存父链/排名查询；额外缓存必须单独证明有效期及完整非时序指标一致。
 - `SearchRunContext` 是单次运行可变指标、转置和缓存的所有者；不要把这些字段退回 solver 入口或静态全局。
 - 并行 worker 只能拥有 lane-local 模拟、缓存、节流和原始候选；transposition、dominance、fallback、预算与最终接收顺序仍由 coordinator 独占。固定 lane 应在一次 `Solve` 内复用，禁止回到每父节点 `Task.Run` / 新建 solver。
-- 外层父节点队列最多预约 `2×DOP`，同时模拟最多 DOP；coordinator 消费完成队列、归并 worker 指标后才能复用该 lane，只提交已接收位图的连续输入前缀。额外父节点 lane 也参与缓存清理与 Dispose，单父节点 action/choice replay 不嵌套外层并发。异常停止派发、补齐未派发计数并排空全部 lane；parent 内 aggregate 仍可能保留多组 raw snapshots。提高 DOP 时检查高目标/高选择场景的峰值 live graph，不能只看总分配或平均 bytes/transition。
+- 外层最多预约 `2×DOP` 父节点，已准入作业内同时模拟最多 DOP；自然 singleton 也使用同一调度器。准备动作表后，每父节点独立 Fork gate 串行生成 seed，lane 在 gate 外独占模拟。动态选择预算及 occurrence collector 属于一条完整动作链，不并发消费同一个预算。药水/目标是独立作业，全部卡牌/选择/药水完成后才执行 EndTurn 并发布父节点 stand-pat 基线。coordinator 归并 worker 指标后才能复用 lane，按动作/药水原序聚合，只提交完成父节点的连续前缀。内部不能新准入父节点或做 GC checkpoint；原父节点高水位预约覆盖所有在途结果，数量界不当作硬字节界。异常停止派发、排空全部 lane 后才释放 probe/batch/root；高分支场景必须同时看峰值图和分配。
 - 只有容器进入 `SearchRunContext` 的有界空闲池；每个发布批次必须持有独立 lease，归还前清空引用，旧 Dispose 不得触碰后来租户。不得池化 simulator/model。
+- 首层回放并行必须先证明原动态预算必定覆盖这些物理回放：N≥2 且语义最终额度和回放额度都≥N、选择非空时，原 ceil 租约递推保证每个兄弟的第一次回放必经。frontier 只暂存这 N 次结果，原序续接消费逻辑额度；嵌套选择与实例补充不并发。不能把各兄弟预先固定为平均总配额，也不能在预算不足时猜测准入；合同覆盖饱和、无效、混合消耗与512上限。
 - Snapshot 临时牌列表只由当前 `_run` / lane 租用，维持 Discard → Draw → Hand 拼接顺序和原稳定洗牌。归还清空引用，只留一个容量不超过 4096 的列表；租用代次防止复制的旧 lease 清空新租户，禁止把列表存入返回快照或策略上下文。
 - GC 生命周期计数由 Runtime 在准入 Gate 内冻结。普通 GC 的共享进程窗口不得称为独占请求归因；总暂停、observed max 与 trace max 必须区分。Smart 预测只决定可选层间回收，不能改层预算或候选策略。
 - Ritsu BaseLib 目标桥的优化仅缓存静态程序集的精确元数据查询。保持模拟隔离域、动态程序集/live旁路及 ConditionalWeakTable 弱所有权；不得升级为框架全局负缓存、跳过自定义目标谓词或修改枚举顺序。新程序集与动态晚创建须由直接生产回调合同覆盖，采样与微基准不能代替固定工作量及可见性能。

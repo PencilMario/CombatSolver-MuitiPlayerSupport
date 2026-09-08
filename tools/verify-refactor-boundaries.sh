@@ -459,6 +459,7 @@ done
 
 expected_beam_files=(
     CombatBeamSolver.cs
+    CombatBeamSolver.AdmittedExpansion.cs
     CombatBeamSolver.BeamRetentionPolicy.cs
     CombatBeamSolver.CrossTurnPlanning.cs
     CombatBeamSolver.CyclePlanning.cs
@@ -471,6 +472,7 @@ expected_beam_files=(
     CombatBeamSolver.ParallelExpansion.cs
     CombatBeamSolver.PathDiagnostics.cs
     CombatBeamSolver.Phases.cs
+    CombatBeamSolver.PrimaryChoiceReplay.cs
     CombatBeamSolver.Retention.cs
     CombatBeamSolver.StateEvaluation.cs
     CombatBeamSolver.Terminal.cs
@@ -507,13 +509,24 @@ CombatBeamSolver.BeamRetentionPolicy.cs	ReturnRoutingChoiceScratch(scratch);
 CombatBeamSolver.Models.cs	private readonly record struct TranspositionLabel(
 CombatBeamSolver.Models.cs	private sealed class SearchRunContext(
 CombatBeamSolver.Models.cs	private readonly record struct SearchFeatures(
-CombatBeamSolver.ParallelExpansion.cs	private sealed class ParallelExpansionExecutor : IDisposable
+CombatBeamSolver.ParallelExpansion.cs	private sealed partial class ParallelExpansionExecutor : IDisposable
 CombatBeamSolver.ParallelExpansion.cs	public ExpansionWorkerOutcome[] Evaluate(
 CombatBeamSolver.ParallelExpansion.cs	public int MaximumQueuedParents => checked(DegreeOfParallelism * 2);
-CombatBeamSolver.ParallelExpansion.cs	private ExpansionWorkerOutcome[] EvaluateQueuedParents(
-CombatBeamSolver.ParallelExpansion.cs	bool[] receivedOutcomes = new bool[nodes.Count];
-CombatBeamSolver.ParallelExpansion.cs	public int WaitForNextOutcome()
-CombatBeamSolver.ParallelExpansion.cs	_extraParentLane?.ResetRebuildableCaches();
+CombatBeamSolver.ParallelExpansion.cs	List<ExpansionLane> lanes = new(DegreeOfParallelism);
+CombatBeamSolver.AdmittedExpansion.cs	private ExpansionWorkerOutcome[] EvaluateQueuedParents(
+CombatBeamSolver.AdmittedExpansion.cs	private sealed class AdmittedParent(
+CombatBeamSolver.AdmittedExpansion.cs	public object ForkGate { get; } = new();
+CombatBeamSolver.AdmittedExpansion.cs	_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);
+CombatBeamSolver.AdmittedExpansion.cs	wave.BackgroundCompleted.Wait();
+CombatBeamSolver.AdmittedExpansion.cs	while (committed < parents.Length && parents[committed]!.TailCompleted)
+CombatBeamSolver.AdmittedExpansion.cs	_completedActions == Actions.Count && _completedPotions == Potions.Count
+CombatBeamSolver.AdmittedExpansion.cs	ready.TransferPotionTo(Aggregate!, candidate);
+CombatBeamSolver.PrimaryChoiceReplay.cs	private sealed class PrimaryChoiceReplayFrontier : IDisposable
+CombatBeamSolver.PrimaryChoiceReplay.cs	=> branches >= 2 && finals >= branches && attempts >= branches;
+CombatBeamSolver.PrimaryChoiceReplay.cs	public bool CanDispatchContinuation => CompletedReplays == Actions.Length
+CombatBeamSolver.PrimaryChoiceReplay.cs	if (!budget.TrySpendReplayAttempt())
+CombatBeamSolver.PrimaryChoiceReplay.cs	frontier.AssertConsumed();
+CombatBeamSolver.PrimaryChoiceReplay.cs	if (index != NextReplay || count < 1 || count > 4 || index + count > Actions.Length)
 CombatBeamSolver.ParallelExpansion.cs	private void CommitExpansionBatch(
 CombatBeamSolver.Phases.cs	public SolverResult Solve()
 CombatBeamSolver.Expansion.cs	private IEnumerable<SearchNode> Expand(SearchNode node)

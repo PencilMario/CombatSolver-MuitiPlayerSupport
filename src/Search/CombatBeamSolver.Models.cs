@@ -236,8 +236,7 @@ internal sealed partial class CombatBeamSolver
         public int DeferredRoundChoiceFiniteQuotaFallbacks;
         public int DeferredRoundChoiceFinitePrimaryLayers;
         public int DeferredRoundChoiceFinitePendingFallbacks;
-        // Retained as zero-valued compatibility telemetry after nested choice replay moved to the
-        // deterministic coordinator-owned two-phase collector.
+        // Choice preparation/replay/continuation jobs on the same fixed expansion lanes.
         public int ParallelRoundChoiceReplayWaves = 0;
         public int ParallelRoundChoiceReplayWorkItems = 0;
         public int MaxParallelRoundChoiceReplayConcurrency = 0;

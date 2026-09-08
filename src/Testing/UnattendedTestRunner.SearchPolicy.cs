@@ -75,6 +75,11 @@ internal sealed partial class UnattendedTestRunner
             displayNames,
             battleDamage,
             capturedPolicy);
+        await AssertParallelExpansionFailureDrainAsync(
+            rootSnapshot,
+            displayNames,
+            battleDamage,
+            capturedPolicy);
 
         SearchPolicySnapshot serialPolicy = capturedPolicy with { MaxDegreeOfParallelism = 1 };
         SearchPolicySnapshot parallelPolicy = capturedPolicy with { MaxDegreeOfParallelism = 2 };
