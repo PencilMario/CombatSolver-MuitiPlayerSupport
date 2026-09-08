@@ -12,6 +12,8 @@ test('strict payload: rejects extra fields, invalid loss, oversized strings',()=
   assert.ok(validate(payload));assert.ok(validate({...payload,hpLoss:null}));
   assert.ok(validate({...payload,inCombat:false,battleUpdatedAt:123}));
   assert.equal(validate({...payload,inCombat:'false'}),false);
+  assert.equal(validate({...payload,inRun:'true'}),false);
+  assert.ok(validate({...payload,inRun:true}));
   assert.equal(validate({...payload,battleUpdatedAt:-1}),false);
   for(const p of [{...payload,route:[]},{...payload,hpLoss:-1},{...payload,hpLoss:'0'},{...payload,floor:1.1},{...payload,name:'x'.repeat(129)},{...payload,sessionId:'invalid'}])assert.equal(validate(p),false);
 });
@@ -83,6 +85,13 @@ test('retains complete battles atomically through idle and pending results, with
     const cachedClient=await send({...next,hpLoss:5,inCombat:false,battleUpdatedAt:completed.battleUpdatedAt});
     assert.equal(cachedClient.battleUpdatedAt,completed.battleUpdatedAt);
     assert.equal((await get('/api/overview')).fightingCount,0);
+    time+=TTL+1;
+    await send({...next,hpLoss:5,inCombat:false,inRun:true});
+    assert.equal((await get('/api/overview')).inRunCount,1);
+    await send({...next,hpLoss:5,inCombat:false,inRun:false});
+    assert.equal((await get('/api/overview')).inRunCount,0);
+    await send({...next,hpLoss:5,inCombat:false});
+    assert.equal((await get('/api/overview')).runStatusUnknownCount,1);
     time+=TTL+1;
     assert.equal((await get('/api/players')).total,0);
     assert.equal((await send(idle)).hpLoss,null);

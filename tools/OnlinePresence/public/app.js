@@ -94,7 +94,8 @@ function renderOverview(data) {
   $('connection').textContent = '已连接';
   $('error').hidden = true;
   $('online').textContent = String(data.onlineCount);
-  $('fighting').textContent = String(data.fightingCount);
+  $('fighting').textContent = String(data.inRunCount);
+  $('fighting').title = `旧版客户端未提供跑局状态：${data.runStatusUnknownCount} 人`;
   $('peak').textContent = String(Math.max(data.onlineCount, data.historyPeak));
   $('updated').textContent = new Date(data.now).toLocaleTimeString('zh-CN');
   const points = [];

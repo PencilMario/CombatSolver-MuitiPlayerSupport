@@ -1,5 +1,10 @@
 # CombatSolver 测试清单
 
+## 0.33.6 跑局统计
+
+- 服务端 8 项测试通过，增加非战斗但 inRun=true 计入、inRun=false 排除、旧客户端缺失状态及非法字段拒绝。
+- ONLINE-PRESENCE-CONTRACT：`5e4e6e2222d94e578103f46821fc3e58` Passed，22 秒；验证原生跑局标志与缓存时保留当前状态、TLS 与关闭持久化。未逐一自动进入地图/商店/事件界面。
+
 ## 0.33.5 受伤历史与攻击次数
 
 - `TURN-START-DAMAGE-SPITE` / `THE_OBSCURA_NORMAL`：失败基线 `6fa9c33e5aca495cad4c1c0a8b662c95`，T2 怨恨后 E1.hp 预测 86、原生 81；最终 `18a3b15c05f94038a6cfb080fe41ef9c` Passed，28 秒。覆盖回合开始 Inferno 自伤后的双次攻击、召唤阵容、完整状态和 Fork，以及伤害记录不泄漏到敌方/额外玩家回合。

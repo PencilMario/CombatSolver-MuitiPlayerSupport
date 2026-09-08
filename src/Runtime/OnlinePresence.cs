@@ -17,7 +17,7 @@ namespace CombatSolver;
 
 internal sealed record OnlinePresencePayload(
     string SessionId, string Name, string Character, int? Floor,
-    string Encounter, int? HpLoss, string Version, bool InCombat = false, long? BattleUpdatedAt = null);
+    string Encounter, int? HpLoss, string Version, bool InCombat = false, long? BattleUpdatedAt = null, bool InRun = false);
 
 // Capture scalar values on the main thread; only the immutable payload reaches HTTP.
 internal sealed partial class OnlinePresence : Node
@@ -84,7 +84,8 @@ internal sealed partial class OnlinePresence : Node
             Clean(player?.Character.Title.GetFormattedText() ?? "",128), run?.TotalFloor,
             Clean(combat == null ? "" : string.Join("、",combat.Enemies.Select(enemy => enemy.Name)),512),
             result?.CombatEndedTurn.HasValue == true ? result.ProjectedBattleHpLost : null, version,
-            combat != null, result?.CombatEndedTurn.HasValue == true ? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() : null);
+            combat != null, result?.CombatEndedTurn.HasValue == true ? DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() : null,
+            RunManager.Instance.IsInProgress);
     }
 
     internal static OnlinePresencePayload RetainLatestBattle(OnlinePresencePayload current, OnlinePresencePayload? previous)
@@ -93,7 +94,7 @@ internal sealed partial class OnlinePresence : Node
             && current.Floor.HasValue && current.Encounter.Length > 0)
             return current;
         if (previous?.HpLoss.HasValue == true)
-            return previous with { SessionId = current.SessionId, Name = current.Name, Version = current.Version, InCombat = current.InCombat };
+            return previous with { SessionId = current.SessionId, Name = current.Name, Version = current.Version, InCombat = current.InCombat, InRun = current.InRun };
         return current with { Character = "", Floor = null, Encounter = "", HpLoss = null, BattleUpdatedAt = null };
     }
 

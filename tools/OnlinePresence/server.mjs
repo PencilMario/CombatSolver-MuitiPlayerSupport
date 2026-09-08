@@ -13,7 +13,8 @@ export const PAGE_SIZE = 30;
 export function validate(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
   const fields = ['sessionId','name','character','floor','encounter','hpLoss','version'];
-  if (Object.keys(body).some(key => ![...fields,'inCombat','battleUpdatedAt'].includes(key)) || fields.some(key => !(key in body))) return false;
+  if (Object.keys(body).some(key => ![...fields,'inCombat','battleUpdatedAt','inRun'].includes(key)) || fields.some(key => !(key in body))) return false;
+  if ('inRun' in body && typeof body.inRun !== 'boolean') return false;
   if ('inCombat' in body && typeof body.inCombat !== 'boolean') return false;
   if ('battleUpdatedAt' in body && body.battleUpdatedAt !== null && (!Number.isSafeInteger(body.battleUpdatedAt) || body.battleUpdatedAt < 0)) return false;
   if (typeof body.sessionId !== 'string' || !/^[a-f0-9]{32}$/.test(body.sessionId)) return false;
@@ -103,7 +104,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
       : prior && prior.hpLoss !== null
         ? {character:prior.character,floor:prior.floor,encounter:prior.encounter,hpLoss:prior.hpLoss,battleUpdatedAt:prior.battleUpdatedAt}
         : {character:'',floor:null,encounter:'',hpLoss:null,battleUpdatedAt:null};
-    players.set(body.sessionId,{...body,...battle,inCombat,totalMs,lastSeen:receivedAt});
+    players.set(body.sessionId,{...body,...battle,inCombat,inRun:body.inRun ?? null,totalMs,lastSeen:receivedAt});
     send(res,204);
   });
   const files = new Map([
@@ -147,7 +148,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
         if (![1,24,168,720].includes(hours) || !Number.isInteger(maxPoints) || maxPoints < 32 || maxPoints > 240) return send(res,400);
         const at = now();
         const history = aggregateHistory(historyRead.all(at-hours*3600000),hours,maxPoints);
-        return send(res,200,{now:at,ttl:TTL,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.inCombat).length,...history});
+        return send(res,200,{now:at,ttl:TTL,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.inCombat).length,inRunCount:[...players.values()].filter(player=>player.inRun === true).length,runStatusUnknownCount:[...players.values()].filter(player=>player.inRun === null).length,...history});
       }
       if (req.method === 'GET' && url.pathname === '/api/players') {
         expire();

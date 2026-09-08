@@ -73,12 +73,12 @@ internal sealed partial class UnattendedTestRunner
                 if (payload.Floor != combatState.RunState.TotalFloor || payload.Character.Length == 0 || payload.Encounter.Length == 0 || payload.HpLoss != null)
                     throw new InvalidOperationException("Presence scalar snapshot differs from the current combat.");
                 OnlinePresencePayload complete = payload with { HpLoss = 0, BattleUpdatedAt = 123 };
-                OnlinePresencePayload idle = payload with { Character = "", Floor = null, Encounter = "", InCombat = false };
+                OnlinePresencePayload idle = payload with { Character = "", Floor = null, Encounter = "", InCombat = false, InRun = false };
                 OnlinePresencePayload cached = OnlinePresence.RetainLatestBattle(idle, complete);
-                if (cached.HpLoss != 0 || cached.Encounter != complete.Encounter || cached.Floor != complete.Floor || cached.InCombat || cached.BattleUpdatedAt != 123)
+                if (!payload.InRun || cached.InRun || cached.HpLoss != 0 || cached.Encounter != complete.Encounter || cached.Floor != complete.Floor || cached.InCombat || cached.BattleUpdatedAt != 123)
                     throw new InvalidOperationException("Presence lost the completed battle while idle.");
                 OnlinePresencePayload next = payload with { Character = "next", Floor = payload.Floor + 1, Encounter = "next" };
-                if (OnlinePresence.RetainLatestBattle(next, cached) != cached with { InCombat = true }
+                if (OnlinePresence.RetainLatestBattle(next, cached) != cached with { InCombat = true, InRun = true }
                     || OnlinePresence.RetainLatestBattle(next with { HpLoss = 3 }, cached) != next with { HpLoss = 3 }
                     || OnlinePresence.RetainLatestBattle(next, null).Encounter.Length != 0)
                     throw new InvalidOperationException("Presence mixed battles or fabricated an initial result.");
