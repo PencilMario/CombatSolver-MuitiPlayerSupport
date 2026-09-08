@@ -788,6 +788,9 @@ $bug_report_exporter_path	private static readonly BlockingCollection<Action> Bac
 $bug_report_exporter_path	QueueCheckpointWrite(session, capture);
 $bug_report_exporter_path	Task<ForensicArchiveBundle> forensicsTask = QueueBackground(
 $bug_report_exporter_path	ForensicArchiveBundle forensics = await forensicsTask.ConfigureAwait(false);
+$bug_report_exporter_path	CombatBugReportMetadata.CaptureCombat
+$bug_report_uploader_path	ReadMetadata(zipPath, submissionId, description)
+$bug_report_uploader_path	AllowAutoRedirect = false
 $bug_report_uploader_path	IProgress<CombatBugReportUploadProgress>
 $bug_report_uploader_path	HttpCompletionOption.ResponseHeadersRead
 $bug_report_uploader_path	CancellationToken requestCancellationToken

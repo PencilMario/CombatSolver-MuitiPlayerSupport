@@ -158,7 +158,7 @@ internal sealed partial class UnattendedTestRunner
                 string archivePath = await CombatBugReportExporter.ExportCurrentAsync(directory);
                 using ZipArchive archive = ZipFile.OpenRead(archivePath);
                 AssertBugReportArchive(archive, "recent", _request.ExpectedBugReportControlMode);
-                using Stream combatStateStream = archive.GetEntry("combat-solver/combat-state.json")!.Open();
+                using Stream combatStateStream = archive.GetEntry("diagnostics/combat-state.json")!.Open();
                 using JsonDocument combatStateDocument = JsonDocument.Parse(combatStateStream);
                 if (combatStateDocument.RootElement.GetProperty("combatActive").GetBoolean())
                     throw new InvalidDataException("战后问题包错误标记为活动战斗。");
@@ -237,19 +237,20 @@ internal sealed partial class UnattendedTestRunner
     {
         string[] requiredEntries =
         [
-            "combat-solver/combat-state.json",
-            "combat-solver/current-route.txt",
-            "combat-solver/replan-audit.txt",
-            "combat-solver/settings.json",
-            "combat-solver/export-context.json",
-            "combat-solver/environment.json",
-            "combat-solver/forensics/manifest.json",
-            "combat-solver/checkpoint.json",
-            $"combat-solver/forensics/{forensicSlot}/session.json",
-            $"combat-solver/forensics/{forensicSlot}/pre-combat/in-memory-current_run.save",
-            $"combat-solver/forensics/{forensicSlot}/last-route.txt",
-            $"combat-solver/forensics/{forensicSlot}/replan-audit.txt",
-            "combat-solver/README.txt",
+            "diagnostics/combat-state.json",
+            "diagnostics/current-route.txt",
+            "diagnostics/replan-audit.txt",
+            "diagnostics/settings.json",
+            "diagnostics/export-context.json",
+            "diagnostics/environment.json",
+            "replay/manifest.json",
+            "replay/checkpoint.json",
+            $"replay/{forensicSlot}/session.json",
+            $"replay/{forensicSlot}/pre-combat/in-memory-current_run.save",
+            $"replay/{forensicSlot}/last-route.txt",
+            $"replay/{forensicSlot}/replan-audit.txt",
+            "README.txt",
+            "report.json",
         ];
         foreach (string entry in requiredEntries)
         {
@@ -265,7 +266,7 @@ internal sealed partial class UnattendedTestRunner
         }
         string otherForensicSlot = forensicSlot == "current" ? "recent" : "current";
         if (archive.Entries.Any(entry =>
-                entry.FullName.StartsWith($"combat-solver/forensics/{otherForensicSlot}/", StringComparison.Ordinal)))
+                entry.FullName.StartsWith($"replay/{otherForensicSlot}/", StringComparison.Ordinal)))
             throw new InvalidDataException("问题包同时包含当前战斗和此前战斗。");
         if (archive.GetEntry("screenshot.png") != null
             || archive.Entries.Any(entry => entry.FullName.StartsWith("saves/", StringComparison.Ordinal)))
@@ -273,22 +274,22 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidDataException("精简问题包仍包含截图或整批磁盘存档。");
         }
         if (archive.Entries.Count(entry =>
-                entry.FullName.StartsWith($"combat-solver/forensics/{forensicSlot}/checkpoints/", StringComparison.Ordinal)) > 6)
+                entry.FullName.StartsWith($"replay/{forensicSlot}/checkpoints/", StringComparison.Ordinal)) > 6)
         {
             throw new InvalidDataException("精简问题包归档了超过 6 个战斗检查点。");
         }
         ZipArchiveEntry[] generalLogs = archive.Entries
-            .Where(entry => entry.FullName.StartsWith("logs/", StringComparison.Ordinal))
+            .Where(entry => entry.FullName.StartsWith("diagnostics/logs/", StringComparison.Ordinal))
             .ToArray();
         if (generalLogs.Length > 1 || generalLogs.Any(entry => entry.Length > 2L * 1024 * 1024))
             throw new InvalidDataException("精简问题包的常规日志数量或大小超过上限。");
 
-        using Stream settingsStream = archive.GetEntry("combat-solver/settings.json")!.Open();
+        using Stream settingsStream = archive.GetEntry("diagnostics/settings.json")!.Open();
         using JsonDocument settingsDocument = JsonDocument.Parse(settingsStream);
         if (settingsDocument.RootElement.TryGetProperty("reporterContactQq", out _))
             throw new InvalidDataException("问题包设置仍包含反馈联系QQ。");
 
-        using Stream environmentStream = archive.GetEntry("combat-solver/environment.json")!.Open();
+        using Stream environmentStream = archive.GetEntry("diagnostics/environment.json")!.Open();
         using JsonDocument environmentDocument = JsonDocument.Parse(environmentStream);
         JsonElement environment = environmentDocument.RootElement;
         if (Path.IsPathRooted(environment.GetProperty("gameExecutable").GetString())
@@ -299,7 +300,7 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidDataException("问题包环境信息仍包含本机绝对路径。");
         }
 
-        using Stream checkpointIndexStream = archive.GetEntry("combat-solver/checkpoint.json")!.Open();
+        using Stream checkpointIndexStream = archive.GetEntry("replay/checkpoint.json")!.Open();
         using JsonDocument checkpointIndexDocument = JsonDocument.Parse(checkpointIndexStream);
         JsonElement checkpointIndex = checkpointIndexDocument.RootElement;
         if (checkpointIndex.GetProperty("schemaVersion").GetInt32() != 2
@@ -391,7 +392,7 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidDataException("问题包的即时跑局存档没有完整 Run RNG 流。");
         }
 
-        string rootPrefix = $"combat-solver/forensics/{forensicSlot}";
+        string rootPrefix = $"replay/{forensicSlot}";
         using Stream sessionStream = archive.GetEntry($"{rootPrefix}/session.json")!.Open();
         using JsonDocument sessionDocument = JsonDocument.Parse(sessionStream);
         JsonElement sessionRoot = sessionDocument.RootElement;
@@ -401,7 +402,7 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidDataException("问题包战斗会话没有记录求解器/手操接管状态。");
         }
 
-        using Stream exportContextStream = archive.GetEntry("combat-solver/export-context.json")!.Open();
+        using Stream exportContextStream = archive.GetEntry("diagnostics/export-context.json")!.Open();
         using JsonDocument exportContextDocument = JsonDocument.Parse(exportContextStream);
         string controlModeProperty = forensicSlot == "current"
             ? "currentControlMode"

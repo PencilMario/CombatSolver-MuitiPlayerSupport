@@ -36,6 +36,7 @@ description: 重构 CombatSolver 的 Search、Runtime 会话、UI snapshot、无
 - 跨 SL 路线记录由 Runtime 的 `SolvedRouteCache` 持有磁盘协议；在普通根捕获和回合开始选择根捕获后按状态与策略匹配。结果中的 Forecast 从新根重新绑定，磁盘和跨会话所有者均不得保留旧 Creature/MoveState。Search 不读取路线文件。
 - UI renderer 只消费 `SolverOverlay*Snapshot`；结果到 snapshot 的复制发生在主线程边界。
 - 设置页自身驱动的后台任务使用控件所有者的完成邮箱收口；问题包上传的成功、失败和取消由 `SolverSettingsPanel._Process` 消费，不借用搜索生命周期的 `SolverDispatcher`。
+- 问题包 `CombatBugReportMetadata` 在主线程冻结战斗/角色/怪物与比较标量；Uploader 读取归档中的同一份 report.json，发送前核对身份和玩家描述。新包按 report.json、diagnostics/、replay/ 组织，CheckpointArchive 兼容旧包路径，禁止后台重新采样 live 元数据。
 - unattended 的协议、建局、执行、断言和结果写入分别属于 ProtocolHost、ScenarioBuilder、Executor、Assertions、Writer。
 - `src/Replay` 只依赖标准库：包校验、顺序事件临时文件；Runtime 冻结原生输入，Testing 重放和对账，CheckpointTool 负责批量调度与结果口径。跨平台脚本只承担本平台启动与进程所有权。
 - headless 实例目录、完整游戏/Mod 内容快照和主机资源预约属于 `tools/headless-runtime.ps1/.sh`；启动器保留请求协议、精确 PID/出生身份终止、结果与静稳 ACK。不得把测试协调放入游戏 Search/Runtime，或只删全局进程检查而继续共享 DLL/协议。并行只作正确性/吞吐验证，性能对照使用独占模式。

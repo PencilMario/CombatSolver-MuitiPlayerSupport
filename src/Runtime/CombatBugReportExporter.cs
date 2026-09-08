@@ -189,6 +189,7 @@ internal static class CombatBugReportExporter
         public long NextCheckpointSequence { get; set; }
         public CombatReplayRecording? Recording { get; init; }
         public required CombatReplayOutcome Outcome { get; set; }
+        public BugReportCombat? ReportCombat { get; set; }
         public string? SearchRootId { get; set; }
         public string? LastCompletedSearchRootId { get; set; }
         public string? ComparisonReferenceRootId { get; set; }
@@ -312,7 +313,7 @@ internal static class CombatBugReportExporter
         return completion;
     }
 
-    public static Task<string> ExportCurrentAsync(string? outputDirectory = null, string? playerDescription = null)
+    public static Task<string> ExportCurrentAsync(string? outputDirectory = null, string? playerDescription = null, string? submissionId = null)
     {
         if (!NGame.IsMainThread())
             throw new InvalidOperationException("问题包只能从游戏主线程导出。");
@@ -330,14 +331,11 @@ internal static class CombatBugReportExporter
         string combatJson = CaptureCombatState(state, profiles);
         string routeText = DescribeRoute(result);
         string exportContextJson = CaptureExportContext(state);
-        string reportJson = JsonSerializer.Serialize(new
-        {
-            schemaVersion = 1,
-            playerDescription,
-            classification = SolverController.CaptureBugReportClassificationForExport(),
-            comparisonKind = SolverController.ManualProjectionComparisonForExport == null ? null : "projected_comparison",
-            manualProjectionComparison = SolverController.ManualProjectionComparisonForExport,
-        }, JsonOptions);
+        string reportId = submissionId ?? Guid.NewGuid().ToString("N");
+        string reportJson = CombatBugReportMetadata.Serialize(reportId, playerDescription,
+            (_currentSession ?? _lastSession)?.ReportCombat,
+            SolverController.CaptureBugReportClassificationForExport(),
+            SolverController.ManualProjectionComparisonForExport);
         string environmentJson = JsonSerializer.Serialize(new
         {
             schemaVersion = 2,
@@ -373,7 +371,7 @@ internal static class CombatBugReportExporter
             ?? "no-combat");
         string path = Path.Combine(
             exportDirectory,
-            $"CombatSolver-{encounter}-{DateTime.Now:yyyyMMdd-HHmmss-fff}.zip");
+            $"CombatSolver-{CombatBugReportDescription.CurrentModVersion}-{encounter}-{reportId}.zip");
         string userDataDirectory = OS.GetUserDataDir();
         string executableDirectory = Path.GetDirectoryName(OS.GetExecutablePath())
             ?? throw new DirectoryNotFoundException("无法定位游戏目录。");
@@ -422,30 +420,31 @@ internal static class CombatBugReportExporter
                 AddFileTail(
                     archive,
                     log,
-                    $"logs/{logIndex++:D2}-{SanitizeFileName(Path.GetFileName(log))}",
+                    $"diagnostics/logs/{logIndex++:D2}-{SanitizeFileName(Path.GetFileName(log))}",
                     MaximumLogBytes);
             }
         }
 
         string releaseInfo = Path.Combine(executableDirectory, "release_info.json");
         if (File.Exists(releaseInfo))
-            AddFile(archive, releaseInfo, "release_info.json");
+            AddFile(archive, releaseInfo, "diagnostics/release_info.json");
 
-        AddText(archive, "combat-solver/combat-state.json", combatJson);
-        AddText(archive, "combat-solver/current-route.txt", routeText);
-        AddText(archive, "combat-solver/replan-audit.txt", replanAudit);
-        AddText(archive, "combat-solver/settings.json", settingsJson);
-        AddText(archive, "combat-solver/export-context.json", exportContextJson);
-        AddText(archive, "combat-solver/report.json", reportJson);
-        AddText(archive, "combat-solver/environment.json", environmentJson);
-        AddText(archive, "combat-solver/forensics/manifest.json", forensics.ManifestJson);
-        AddText(archive, "combat-solver/checkpoint.json", forensics.CheckpointJson);
+        AddText(archive, "diagnostics/combat-state.json", combatJson);
+        AddText(archive, "diagnostics/current-route.txt", routeText);
+        AddText(archive, "diagnostics/replan-audit.txt", replanAudit);
+        AddText(archive, "diagnostics/settings.json", settingsJson);
+        AddText(archive, "diagnostics/export-context.json", exportContextJson);
+        AddText(archive, CombatBugReportMetadata.EntryPath, reportJson);
+        AddText(archive, "diagnostics/environment.json", environmentJson);
+        AddText(archive, "replay/manifest.json", forensics.ManifestJson);
+        AddText(archive, "replay/checkpoint.json", forensics.CheckpointJson);
         WriteForensicSession(archive, "current", forensics.Current);
         WriteForensicSession(archive, "recent", forensics.Recent);
         AddText(
             archive,
-            "combat-solver/README.txt",
+            "README.txt",
             "此问题包由 CombatSolver 设置页导出。\n" +
+            "report.json 是问题包身份与筛选元数据；diagnostics 保存环境与文字诊断；replay 保存检查点索引、战斗录制与恢复材料。\n" +
             "问题包只保存当前战斗；离开战斗后提交时则只保存最近结束的一场，不会重复附带更早楼层。归档保留最近关键的 6 个检查点。\n" +
             "新包通过 recording 中的真实战前存档与原生动作、选择事件恢复；replay-state 和 native-state 用于独立对账。反射诊断字段存在显式截断时不能作为完整恢复材料。\n" +
             "checkpoint.json v2 列出稳定检查点身份、事件位置、实际搜索政策与材料路径。默认选择最近可搜索检查点；材料检查、恢复、录制回放、搜索和实际部署是不同验证阶段。\n" +
@@ -463,7 +462,7 @@ internal static class CombatBugReportExporter
     {
         if (session == null)
             return;
-        string root = $"combat-solver/forensics/{slot}";
+        string root = $"replay/{slot}";
         AddText(archive, $"{root}/session.json", session.SessionJson);
         foreach (ForensicArchiveCheckpoint checkpoint in session.Checkpoints)
         {
@@ -569,6 +568,7 @@ internal static class CombatBugReportExporter
     {
         ForensicSession session = _currentSession
             ?? throw new InvalidOperationException("记录战斗取证检查点时没有活动会话。");
+        session.ReportCombat = CombatBugReportMetadata.CaptureCombat(state, session.SessionId, session.ReportCombat);
         long sequence = session.NextCheckpointSequence++;
         if (label == "combat_start" || label.StartsWith("search_request_", StringComparison.Ordinal))
             session.SearchRootId = $"{session.SessionId}:{sequence}";
@@ -983,7 +983,7 @@ internal static class CombatBugReportExporter
             checkpointLimitPerCombat = MaximumCheckpoints,
             archivedCheckpointLimit = MaximumArchivedCheckpoints,
             checkpointArtifacts = new[] { "metadata", "replay-state", "native-state", "run-state" },
-            checkpointIndexPath = "combat-solver/checkpoint.json",
+            checkpointIndexPath = "replay/checkpoint.json",
             replayStateSchemaVersion = 1,
             nativeStateFormat = "MegaCrit.Sts2.Core.Entities.Multiplayer.NetFullCombatState",
             currentCombatAvailable = current != null,
@@ -1027,9 +1027,9 @@ internal static class CombatBugReportExporter
                 inputOrigins = selected.Recording.InputOrigins,
                 collection = new { selected.Recording.CaptureMilliseconds, selected.Recording.MaximumCaptureMilliseconds,
                     selected.Recording.Events.PeakPendingBytes, selected.Recording.Events.WrittenBytes },
-                originPath = $"combat-solver/forensics/{selectedSlot}/recording/origin.json",
-                runSavePath = $"combat-solver/forensics/{selectedSlot}/recording/origin.save",
-                eventsPath = $"combat-solver/forensics/{selectedSlot}/recording/events.jsonl",
+                originPath = $"replay/{selectedSlot}/recording/origin.json",
+                runSavePath = $"replay/{selectedSlot}/recording/origin.save",
+                eventsPath = $"replay/{selectedSlot}/recording/events.jsonl",
             },
             build = new
             {
@@ -1052,10 +1052,10 @@ internal static class CombatBugReportExporter
                 restorationVerified = false,
                 restoreMethod = selected.Recording == null ? "legacy_checkpoint"
                     : selected.Recording.IncompleteReason == null && backgroundErrors.Count == 0 ? "native_events" : "diagnostic_only",
-                metadataPath = $"combat-solver/forensics/{selectedSlot}/checkpoints/{item.Name}",
-                replayStatePath = $"combat-solver/forensics/{selectedSlot}/replay-state/{item.Name}",
-                nativeStatePath = $"combat-solver/forensics/{selectedSlot}/native-state/{Path.GetFileNameWithoutExtension(item.Name)}.bin",
-                runStatePath = $"combat-solver/forensics/{selectedSlot}/run-state/{Path.GetFileNameWithoutExtension(item.Name)}.save",
+                metadataPath = $"replay/{selectedSlot}/checkpoints/{item.Name}",
+                replayStatePath = $"replay/{selectedSlot}/replay-state/{item.Name}",
+                nativeStatePath = $"replay/{selectedSlot}/native-state/{Path.GetFileNameWithoutExtension(item.Name)}.bin",
+                runStatePath = $"replay/{selectedSlot}/run-state/{Path.GetFileNameWithoutExtension(item.Name)}.save",
             }).ToArray(),
         }, JsonOptions);
         return new ForensicArchiveBundle(manifest, checkpointJson, current, recent);

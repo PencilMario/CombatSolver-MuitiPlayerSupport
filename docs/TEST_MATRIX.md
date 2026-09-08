@@ -1,5 +1,14 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：问题包 v2 与 miaovps（0.33.8）
+
+- `REPORT-V2-CONTRACT` 最终 `932296db26ac4e4ebb7b1432e823fddd` Passed，23 秒。覆盖真实 ZIP 导出、新目录与检查点材料、主线程战斗/角色/怪物元数据、未知和正/零/负战损下降值、multipart 字段、响应与取消边界、正式 HTTPS 证书校验上传及回执。命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId REPORT-V2-CONTRACT -HeadlessInstance report-v2 -TimeoutSeconds 120 -PreserveNativeCombatStateForTest -ForceShortSearchOnly`。
+- 前一轮 `2a434cb1ea244452993488ee635f89b8` 上传合同通过；状态注入包预检明确返回 diagnostic_only:test_fixture_state_injection，不算恢复有效。改用保留原生状态后，新包 `bc43f15bc9234456a1d82ddf52eaa8d8` 的 preflight 为 materials_valid / restorationVerified=false。
+- `CheckpointTool self-test` 29 项通过，覆盖旧目录、无索引、材料配对、路径拒绝和批量去重；新实际包路径由上述 preflight 验证。没有执行整场恢复或可见游戏交互。
+- 独立后端 `python -m unittest -v test_reports_v2` 6 组通过：单次及并发去重、身份冲突、元数据与 ZIP 一致性、非法包清理、旧上传与管理鉴权、组合筛选及批量清单/删除一致性、未知/零/负差值和范围校验。
+- 公网后台按真实 Mod 包元数据组合筛选及鉴权下载字节一致通过，测试报告删除。后端用户服务已更新；结构门禁 `REFACTOR_BOUNDARIES_OK search_files=77`，行为源码 Release 编译 0 警告 / 0 错误。
+- 列表按后续要求移除接收时间、联系、大小、已解决和备注列，改为横向元数据列、全宽页面与两行描述。新增列结构测试，并重跑受影响的组合筛选/批量和旧包鉴权测试，共 3 项通过；公网 HTML 已确认更新。未执行浏览器交互或像素验收。
+
 ## 2026-09-08：高频计划外重算（0.33.7）
 
 | 场景 | 失败基线 runId / 差异 | 最终 runId / 结果 |

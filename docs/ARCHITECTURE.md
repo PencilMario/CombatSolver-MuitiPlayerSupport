@@ -45,7 +45,8 @@ Entry / turn hooks
 | `src/Runtime/PlayerTurnSetupPatches.cs` | 首回合原生页面出现后的 Start 根搜索；后续回合观察上一轮 `EndTurn.TurnStartChoices` 的原生页面，全自动直接可见重放，单步默认交还玩家并允许执行/全自动入口接管既有选择；进入 Play 后交给 continuation 核对；跨 Reset 的 Setup/部署延迟由 lifecycle token 取消 | 普通 Play 阶段搜索与动作部署 |
 | `src/Runtime/NativeChoiceRuntime.cs` | 观测原版战斗选择请求，按卡牌语义状态匹配计划实例，并锁定、驱动真实页面控件 | 选择分支枚举和战斗结算 |
 | `src/Runtime/CombatBugReportExporter.cs` | 主线程冻结当前/最近战斗的实机取证状态；单消费者后台 FIFO 按检查点顺序整理并一次序列化为 UTF-8 字节，导出任务作为队列屏障等待此前记录完成 | 后台读取 live 战斗、通用 replay/native-state 导入 |
-| `src/Runtime/CombatBugReportDescription.cs` | 汇总本场结构化异常、重算和战损信号，并把自动分类附到玩家问题描述后 | 后端字段、问题包内容和搜索决策 |
+| `src/Runtime/CombatBugReportDescription.cs` | 汇总本场结构化异常、重算和战损信号，提供诊断文字与标签 | 网络字段拼装、搜索决策 |
+| `src/Runtime/CombatBugReportMetadata.cs` | 主线程冻结战斗、角色及已观察怪物的稳定 ID 和显示名称；序列化 report.json v2 的身份、分类及预测战损比较 | 网络请求、搜索策略、后台读取 live 状态 |
 | `src/Runtime/CombatBugReportUploader.cs` | 通过不继承游戏进程代理的专用客户端直连接收服务；校验问题包与文本上限，以 multipart 流式上传并传播取消，限制服务端响应，并以反馈编号和实收字节数确认完整接收 | 问题包内容生成、隐私脱敏、UI 单实例与确认流程 |
 | `src/Runtime/SearchCompletionNotifier.cs` | 搜索成功、失败、停止或过期后按设置决定是否通知；Windows 使用原生通知和系统提示音，先核对前台进程并在非 Windows/headless 环境停止 | 搜索生命周期、跨平台伪通知和自定义声音播放 |
 
@@ -231,6 +232,8 @@ renderer 不得重新读取 `SolverResult`、`PlanAction`、`PlanCardChoice` 或
 `PhysicalMemoryUsage` 从操作系统采样实时物理内存，`SolverMemoryUsageBar` 在底栏把系统及其他程序占用显示为灰色、当前游戏进程工作集显示为彩色，剩余部分表示可用余量；文字只显示游戏进程的“当前内存占用 / 动态上限”，动态上限等于 CLR 安全总量减去系统占用。Smart 用药梯度之间释放上一层搜索图，按同窗分配预测决定是否同步回收；最终梯度或普通搜索正常结束后保留战斗级 NoGC 区域，战斗结束时等待引用释放并延时 `3–5 秒` 清理。异常耗尽、搜索内检查点和手动回收继续在各自安全边界处理。
 
 `SolverSettingsPanel.BugReports` 持有问题包导出/上传的单实例 UI 生命周期、取消令牌、进度条和线程安全完成邮箱，并把文件发送和服务端确认显示为两个阶段。后台任务只向完成邮箱发布一次 `Succeeded / Canceled / Failed`；面板自己的 `_Process` 每帧先消费终态，再处理字节进度或取消等待，并在同一次终态消费中释放令牌、收起进度条、替换状态消息和恢复按钮。上传生命周期不依赖搜索使用的 `SolverDispatcher`。`CombatBugReportUploader` 不持有 Godot 控件，后台传输只通过 `IProgress<CombatBugReportUploadProgress>` 发布字节计数。进度到达文件总字节数只代表请求正文已经写出，只有服务端回执同时确认反馈编号和实收字节数才算上传成功。
+
+问题包 v2 将 report.json、diagnostics/、replay/ 分开。导出时生成的 reportId 与上传 submissionId 一致；Uploader 从归档读取同一份元数据并核对编号和玩家描述，不在后台重新采样游戏。HTTPS 直连 miaovps，固定证书、名称和有效期校验，禁用重定向。离线读取器兼容旧 combat-solver/ 索引和新 replay/checkpoint.json，恢复材料路径由索引声明，详见 [报告协议](BUG_REPORT_PROTOCOL.md)。
 
 ## 7. Unattended 测试
 

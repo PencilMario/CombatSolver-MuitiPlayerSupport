@@ -12,6 +12,7 @@
 | 无人测试环境与请求协议 | [无头测试](HEADLESS_TESTING.md) |
 | 在线状态、隐私设置与管理后台 | [在线统计](ONLINE_STATISTICS.md) |
 | 玩家问题包、检查点恢复与回放 | [检查点回放](CHECKPOINT_REPLAY.md) |
+| 问题包目录、提交元数据和后台筛选口径 | [报告协议](BUG_REPORT_PROTOCOL.md) |
 | 188 份计划外重算报告的分类与高频修复 | [2026-09-08 重算分诊](issues/report-replans-20260908.md) |
 | 0.33.0 修复批次的剩余问题与交接 | [2026-09-07 修复交接](issues/report-logic-bugs-20260907-handoff.md) |
 | 第三方卡牌、Power、药水等登记入口 | [第三方 Mod 适配手册](THIRD_PARTY_ADAPTERS.md) |

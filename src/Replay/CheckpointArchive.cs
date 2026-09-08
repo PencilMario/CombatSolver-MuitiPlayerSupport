@@ -8,7 +8,8 @@ namespace CombatSolver.Replay;
 // This layer understands archive contracts, never live game objects.
 internal static class CheckpointArchive
 {
-    public const string IndexPath = "combat-solver/checkpoint.json";
+    public const string IndexPath = "replay/checkpoint.json";
+    public const string LegacyIndexPath = "combat-solver/checkpoint.json";
     public const long MaximumArchiveBytes = 128L * 1024 * 1024;
     private const long MaximumExpandedBytes = 512L * 1024 * 1024;
     private const long MaximumEntryBytes = 128L * 1024 * 1024;
@@ -23,8 +24,9 @@ internal static class CheckpointArchive
     public static JsonObject Inspect(string archivePath, string selector = "latest")
     {
         using ZipArchive archive = OpenValidated(archivePath);
-        JsonObject index = archive.GetEntry(IndexPath) == null
-            ? BuildLegacyIndex(archive) : ReadObject(archive, IndexPath);
+        JsonObject index = archive.GetEntry(IndexPath) != null ? ReadObject(archive, IndexPath)
+            : archive.GetEntry(LegacyIndexPath) != null ? ReadObject(archive, LegacyIndexPath)
+            : BuildLegacyIndex(archive);
         int version = RequiredInt(index, "schemaVersion");
         if (version == 1 && archive.Entries.Any(entry => entry.FullName.StartsWith("combat-solver/forensics/", StringComparison.Ordinal)))
         {
@@ -157,7 +159,8 @@ internal static class CheckpointArchive
             ["legacySettings"] = metadata["settings"]?.DeepClone(),
             ["legacySearchProfiles"] = replay["searchProfiles"]?.DeepClone(),
             ["sourceOutcome"] = metadata["outcome"]?.DeepClone(),
-            ["report"] = archive.GetEntry("combat-solver/report.json") != null
+            ["report"] = archive.GetEntry("report.json") != null ? ReadObject(archive, "report.json")
+                : archive.GetEntry("combat-solver/report.json") != null
                 ? ReadObject(archive, "combat-solver/report.json") : null,
             ["restorationVerified"] = false,
         };

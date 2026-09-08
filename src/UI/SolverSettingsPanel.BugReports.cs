@@ -289,11 +289,7 @@ internal sealed partial class SolverSettingsPanel
         string? path = null;
         try
         {
-            string descriptionWithClassification = SolverController.BuildBugReportDescription(description);
-            string uploadDescription = CombatBugReportDescription.AppendSubmissionId(
-                descriptionWithClassification,
-                submissionId);
-            path = await CombatBugReportExporter.ExportCurrentAsync(playerDescription: description);
+            path = await CombatBugReportExporter.ExportCurrentAsync(playerDescription: description, submissionId: submissionId);
             cancellationToken.ThrowIfCancellationRequested();
             FileInfo archive = new(path);
             Interlocked.Exchange(ref _uploadBytesSent, 0);
@@ -308,7 +304,7 @@ internal sealed partial class SolverSettingsPanel
             });
             CombatBugReportUploadReceipt receipt = await CombatBugReportUploader.UploadAsync(
                 path,
-                uploadDescription,
+                description,
                 contactQq,
                 submissionId,
                 progress,
