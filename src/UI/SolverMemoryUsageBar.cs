@@ -42,11 +42,11 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
         CustomMinimumSize = new Vector2(0f, SolverUiTokens.Size.ButtonHeight);
         MouseFilter = MouseFilterEnum.Pass;
         TooltipText =
-            "求解器内存与性能监视\n" +
-            "- 灰色：系统和其他程序当前占用的内存。\n" +
-            "- 彩色：游戏进程当前占用的内存，包含求解器与其他已加载 Mod。\n" +
-            "- 当前占用 / 上限：游戏进程占用 / 安全总量扣除系统占用后的动态上限。\n" +
-            "- 系统内存变化时，上限和进度条会自动调整；正在整理或后台清理属于正常释放阶段。";
+            SolverText.Get("求解器内存与性能监视\n") +
+            SolverText.Get("- 灰色：系统和其他程序当前占用的内存。\n") +
+            SolverText.Get("- 彩色：游戏进程当前占用的内存，包含求解器与其他已加载 Mod。\n") +
+            SolverText.Get("- 当前占用 / 上限：游戏进程占用 / 安全总量扣除系统占用后的动态上限。\n") +
+            SolverText.Get("- 系统内存变化时，上限和进度条会自动调整；正在整理或后台清理属于正常释放阶段。");
         AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(
             SolverUiTokens.Palette.SurfaceRaised,
             SolverUiTokens.Palette.Border,
@@ -62,7 +62,7 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
         AddChild(content);
 
         _label = SolverUiTokens.CreateLabel(
-            "当前内存 --",
+            SolverText.Get("当前内存 --"),
             SolverUiTokens.Type.Caption,
             SolverUiTokens.Palette.TextSecondary,
             FontType.Bold);
@@ -223,15 +223,15 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
     private static MemoryBarDisplay BuildDisplay(SearchMemoryUsageSnapshot snapshot)
     {
         string summary =
-            "当前内存占用 " + FormatGigabytes(snapshot.ProcessWorkingSetBytes) + " GB" +
-            " / 搜索总可用 " + FormatGigabytes(snapshot.ProcessMemoryLimitBytes) + " GB";
+            SolverText.Get("当前内存占用 ") + FormatGigabytes(snapshot.ProcessWorkingSetBytes) + " GB" +
+            SolverText.Get(" / 搜索总可用 ") + FormatGigabytes(snapshot.ProcessMemoryLimitBytes) + " GB";
         double pressureRatio = snapshot.ProcessMemoryPressureRatio;
         double systemRatio = snapshot.SystemSegmentRatio;
         double processRatio = snapshot.ProcessSegmentRatio;
         if (snapshot.Reclaiming)
         {
             return new MemoryBarDisplay(
-                summary + "  ·  正在整理…",
+                summary + SolverText.Get("  ·  正在整理…"),
                 systemRatio,
                 processRatio,
                 pressureRatio,
@@ -241,7 +241,7 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
         if (snapshot.BackgroundReclaiming)
         {
             return new MemoryBarDisplay(
-                summary + "  ·  后台清理中",
+                summary + SolverText.Get("  ·  后台清理中"),
                 systemRatio,
                 processRatio,
                 pressureRatio,
@@ -261,7 +261,7 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
         if (!snapshot.HasGcWall)
         {
             return new MemoryBarDisplay(
-                summary + "  ·  自动管理",
+                summary + SolverText.Get("  ·  自动管理"),
                 systemRatio,
                 processRatio,
                 pressureRatio,
@@ -270,7 +270,7 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
         }
 
         return new MemoryBarDisplay(
-            summary + (pressureRatio >= 0.9d ? "  ·  即将整理" : string.Empty),
+            summary + (pressureRatio >= 0.9d ? SolverText.Get("  ·  即将整理") : string.Empty),
             systemRatio,
             processRatio,
             pressureRatio,

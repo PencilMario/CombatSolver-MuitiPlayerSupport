@@ -215,6 +215,8 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 `src/UI/SolverOverlaySnapshot.cs` 是结果或只读候选路线到显示数据的唯一转换边界。它在主线程复制状态、概览、详情、回合、动作标题、选牌文本、遗物标注、击杀、逐回合对敌伤害、tooltip 和视觉类别。
 
+`src/UI/SolverText.cs` 与内嵌 `English.json` 负责中英显示文案：按游戏语言选取完整模板，再格式化插值，避免翻译玩家输入、模型名称或诊断内容。字典只加载一次；游戏名称仍在主线程从原版显示元数据获取。Search 禁止引用 SolverText，不接触语言或资源加载。简化版切换游戏语言后通过重启统一重建既有控件和路线快照。
+
 以下 renderer 只接受不可变 snapshot：
 
 - `SolverOverlay.ShowResult(Node, SolverOverlaySnapshot)`；

@@ -1252,7 +1252,7 @@ internal static class SolverController
 
     internal static string FormatSearchSetupFailure(Exception exception)
     {
-        string title = $"[color={SolverUiTokens.Palette.DangerHex}][b]搜索初始化失败[/b][/color]";
+        string title = $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("搜索初始化失败")}[/b][/color]";
         if (exception is not IncompatibleGameplayModException incompatible)
         {
             return $"{title}\n[color={SolverUiTokens.Palette.DangerHex}]{EscapeRichText(exception.Message)}[/color]" +
@@ -1260,8 +1260,8 @@ internal static class SolverController
         }
 
         string modName = EscapeRichText(incompatible.PlayerFacingModName);
-        return $"{title}\n[color={SolverUiTokens.Palette.DangerHex}]检测到不兼容的第三方 Mod：{modName}。" +
-               $"建议卸载该 Mod 并重启游戏后再使用求解器。[/color]\n" +
+        return $"{title}\n[color={SolverUiTokens.Palette.DangerHex}]" +
+               SolverText.Format($"检测到不兼容的第三方 Mod：{modName}。建议卸载该 Mod 并重启游戏后再使用求解器。") + "[/color]\n" +
                SolverUiTokens.BugReportUploadInstructionRichText;
     }
 
@@ -3138,19 +3138,19 @@ internal static class SolverController
     private static string FormatSearchFailure(
         Exception exception,
         bool parallelSearchWasEnabled)
-        => $"[color={SolverUiTokens.Palette.DangerHex}][b]计算失败[/b]\n" +
+        => $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("计算失败")}[/b]\n" +
            $"{EscapeRichText(exception.Message)}[/color]\n" +
            SolverUiTokens.SearchFailureInstructionRichText(parallelSearchWasEnabled);
 
     private static string FormatDeploymentFailure(Exception exception)
-        => $"[color={SolverUiTokens.Palette.DangerHex}][b]自动执行中止[/b]\n" +
+        => $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("自动执行中止")}[/b]\n" +
            $"{EscapeRichText(exception.Message)}[/color]\n" +
            SolverUiTokens.BugReportUploadInstructionRichText;
 
     private static string FormatTurnSetupFailure(
         Exception exception,
         bool parallelSearchWasEnabled)
-        => $"[color={SolverUiTokens.Palette.DangerHex}][b]回合准备选牌失败[/b]\n" +
+        => $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("回合准备选牌失败")}[/b]\n" +
            $"{EscapeRichText(exception.GetBaseException().Message)}[/color]\n" +
            SolverUiTokens.SearchFailureInstructionRichText(parallelSearchWasEnabled);
 

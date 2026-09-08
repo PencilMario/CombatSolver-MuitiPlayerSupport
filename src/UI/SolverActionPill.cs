@@ -51,7 +51,7 @@ internal static class SolverActionPill
         if (action.ReplayCount > 0)
         {
             content.AddChild(SolverUiTokens.CreateLabel(
-                $"重放×{action.ReplayCount}",
+                SolverText.Format($"重放×{action.ReplayCount}"),
                 SolverUiTokens.Type.Caption,
                 SolverUiTokens.Palette.Warning,
                 FontType.Bold));
@@ -93,7 +93,7 @@ internal static class SolverActionPill
         if (killed)
         {
             content.AddChild(SolverUiTokens.CreateLabel(
-                $"击杀：{string.Join("、", action.Kills)}",
+                SolverText.Format($"击杀：{string.Join("、", action.Kills)}"),
                 SolverUiTokens.Type.Caption,
                 SolverUiTokens.Palette.Success,
                 FontType.Bold));

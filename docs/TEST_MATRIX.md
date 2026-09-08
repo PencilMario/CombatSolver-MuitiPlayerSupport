@@ -1,5 +1,11 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：简化中英双语 UI（0.34.1）
+
+- `UI-LOCALIZATION`：`5c12f39867df4f75beb28db5a593e840` Passed，23.72 秒。覆盖 319 条资源的占位符/数字格式、嵌入文本保持原样、eng/zhs/zht 语言选择、英文设置和上传弹窗控件/全部下拉选项无中文、设置切页、上传完成/取消状态、动态路线标题和失败引导。没有发送公网上传请求。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId UI-LOCALIZATION -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance i18n -TimeoutSeconds 120 -ExitOnComplete`。Linux 使用对应 `.sh` 与 `--scenario-id UI-LOCALIZATION --encounter-id BYGONE_EFFIGY_ELITE --headless-instance i18n --timeout-seconds 120 --exit-on-complete`。
+- 行为构建 0 警告 / 0 错误，Windows 结构门禁通过，双平台门禁同步禁止 Search 引用 SolverText；之后仅同步版本、文档和结构门禁。没有执行可见布局/交互验收、帧率测量或整场搜索，headless 合同不代表这些项目通过。
+
 ## 2026-09-08：战斗独立日志（0.34.0）
 
 - `dotnet run --project tools/DiagnosticLogTests/DiagnosticLogTests.csproj -c Release` 通过：冻结提交前缀、跨战斗摘要化、旧 worker 会话隔离、跑局摘要隔离、积压上限与显式不完整状态。1 万次入队调用约 6.91 ms、93.4 B/次，峰值待写计费 2,817,000 B；仅进程内微基准，不代表实机帧率。
