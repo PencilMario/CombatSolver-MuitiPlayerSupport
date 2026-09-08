@@ -193,7 +193,9 @@ internal sealed partial class CombatBeamSolver
             : realizedLongTermResourceValue
                 - missedTheHuntRewards * CorePowerSupport.TheHuntLongTermResourceValue;
         GrowthValues growthRewards = _ignoreLongTermRewards ? default : combat.GrowthRewards;
-        score += realizedLongTermResourceValue * SolverWeights.LongTermResourceBeamValue;
+        score += Math.Min(
+            realizedLongTermResourceValue * SolverWeights.LongTermResourceBeamValue,
+            SolverWeights.LongTermResourceBeamCap);
         int growthHpCredit = _growthBudgets.Credit(growthRewards);
         score += (double)growthHpCredit * hpWeight;
         int angerCopiesGenerated = combat.AngerCopiesGenerated;

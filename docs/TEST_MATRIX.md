@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：Issue #63 局外收益评分上限（0.33.6 开发中）
+
+- `LONG-TERM-RESOURCE-BEAM-CAP` 失败基线 `08689d31bcec4f6ea3bb90ac40cd94d1`：25 点资源加分 625,000，额外自伤 1 HP 后仍高于父状态 565,000 分。
+- 最终 `1dc49c905e36411781d7bf0f1ea66b74` Passed，22 秒。直接调用正式 Snapshot，对 1/25/1000 点资源分别比较无伤与自伤分支，验证总加分小于单项 HP 权重、真实资源值保留且未生成成长额度。
+- `GROWTH-POLICY-FREE-FIRST`，`e373a06013e24124a17d1f1f3caa375e` Passed，21 秒；`GROWTH-POLICY-PAID`，`d9aca404d377479aa52d334e2f1ed10e` Passed，21 秒。覆盖免费成长优先、零额度拒绝额外战损、允许额度内付费成长、忽略收益开关、第三方额度合同与增量回放。时间来自测试模式，不用于性能结论。
+- 新合同命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId LONG-TERM-RESOURCE-BEAM-CAP -HeadlessInstance issue63 -EnemyCurrentHp 100 -TimeoutSeconds 120 -ExitOnComplete`。两项成长用例沿用本文已有命令并加 `-ExitOnComplete`。
+- Release 编译通过。Issue 附件仅 Preflight materials_valid，未完整恢复观者 Mod 跑局、未证明该包原先 21 HP 差距已消除；未跑全角色/全量性能基准，不声称有限搜索绝不漏解。0.33.6 保持未发布。
+
 ## 2026-09-08：PR #59–65 整合验证（0.33.6 开发中）
 
 - 合并 #59、#60、#61、#62、#64、#65；#63 是 Issue。本节记录本轮直接证据，下方各 PR 原始记录保留其提交时的验证范围。

@@ -93,6 +93,12 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("StockRespawnVictoryAndThirdPartyRemoval");
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "LONG-TERM-RESOURCE-BEAM-CAP")
+            {
+                AssertLongTermResourceBeamCap(combatState, player);
+                runner._completedChecks.Add("LongTermResourceBeamCap");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "PR57-58-STATE-CONTRACT")
             {
                 AssertVitalSparkKeepsStackedTaintedAmount(combatState, player);
