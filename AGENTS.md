@@ -28,6 +28,7 @@ CombatSolver 是《杀戮尖塔 2》的单人战斗路线求解器 Mod，使用 
 - 卡牌、Power、遗物、药水、球、怪物、死亡/召唤、选牌、RNG、Fork 或跨回合语义：`.agents/skills/combat-semantic-change/SKILL.md`。
 - Beam、评分、剪枝、Pareto、转置、预算、分配、GC 或实机卡顿：`.agents/skills/search-performance-optimization/SKILL.md`。
 - Search/Runtime/UI/Testing/registry 的职责迁移、结构拆分和依赖边界：`.agents/skills/architecture-boundary-refactor/SKILL.md`。
+- 玩家可见 UI 文案、胶囊附加信息和中英本地化：`.agents/skills/ui-localization/SKILL.md`；新增文案同时维护中文与英文。
 - 版本提升、发布 ZIP、版本标签、创意工坊上传、GitHub 同步、干净安装或“可发布”结论：`.agents/skills/release-gate/SKILL.md`。
 
 同一任务可以依次使用多个 skill。先确定语义是否正确，再处理搜索或结构，最后只在用户要求时发布。
