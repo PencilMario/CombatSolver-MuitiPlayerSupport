@@ -1,5 +1,11 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：在线监控登录持久化
+
+- `node --test tools/OnlinePresence/test.mjs tools/OnlinePresence/pagination.test.mjs tools/OnlinePresence/history.test.mjs tools/OnlinePresence/session.test.mjs`：10 项通过。
+- 会话接口验证同 IP 日志 Cookie 共存、重启后复用、14 天过期、退出撤销、修改密码失效；前端 VM 事件验证首次等待鉴权、成功直达后台、401 显示登录、网络失败重试。
+- 未做交互级验收，未启动游戏；独立服务更新不需要 Mod 构建。
+
 ## 2026-09-08：旧日雕像缓慢跨回合分叉（0.33.9）
 
 - `SLOW-TURN-RESET-FORK` 失败基线 `21070eeed4b84c628ae7ac7f6ebe1cdf`：敌方回合开始后 Fork 抛出 `SlowPower has no fork mapping`；最终 `2602bde5ac1c45f7af0344dc7cd6153a` Passed，24 秒。

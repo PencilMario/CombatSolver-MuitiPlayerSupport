@@ -28,6 +28,7 @@ const verticalGuide = {
 };
 
 function loggedOut() {
+  $('session-loading').hidden = true;
   clearTimeout(timer);
   clearTimeout(searchTimer);
   overviewRequest?.abort();
@@ -88,6 +89,7 @@ function renderPlayers(data) {
 }
 
 function renderOverview(data) {
+  $('session-loading').hidden = true;
   $('login').hidden = true;
   $('dashboard').hidden = false;
   $('logout').hidden = false;
@@ -146,7 +148,14 @@ async function refreshOverview() {
     const data = await api(`/api/overview?hours=${$('range').value}&maxPoints=${maxPoints}`, {signal: request.signal});
     if (!request.signal.aborted) renderOverview(data);
   } catch (error) {
-    if (request.signal.aborted || $('dashboard').hidden) return;
+    if (request.signal.aborted) return;
+    if (!$('session-loading').hidden) {
+      $('connection').textContent = '连接中断';
+      $('session-message').textContent = `${error.message}，请重试恢复登录。`;
+      $('session-retry').hidden = false;
+      return;
+    }
+    if ($('dashboard').hidden) return;
     $('connection').textContent = '连接中断';
     $('error').hidden = false;
     $('error').textContent = `${error.message}，当前显示上次收到的数据。`;
@@ -209,5 +218,10 @@ $('search').addEventListener('input', () => {
   searchTimer = setTimeout(() => refreshPlayers(1, true), 250);
 });
 $('previous-page').addEventListener('click', () => { currentPage -= 1; refreshPlayers(currentPage, true); });
+$('session-retry').addEventListener('click', () => {
+  $('session-retry').hidden = true;
+  $('session-message').textContent = '正在恢复登录…';
+  refresh();
+});
 $('next-page').addEventListener('click', () => { currentPage += 1; refreshPlayers(currentPage, true); });
 refresh();

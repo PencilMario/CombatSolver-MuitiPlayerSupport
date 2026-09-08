@@ -1,9 +1,10 @@
 <!doctype html>
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Combat Solver · 在线监控</title><link rel="stylesheet" href="/style.css"><script defer src="/chart.js"></script><script defer src="/app.js"></script></head>
 <body>
-<header><div class="brand"><span class="mark" aria-hidden="true">CS</span><div><strong>Combat Solver</strong><span class="subtitle">在线监控</span></div></div><div class="header-right"><span id="connection">未登录</span><button id="logout" hidden>退出登录</button></div></header>
+<header><div class="brand"><span class="mark" aria-hidden="true">CS</span><div><strong>Combat Solver</strong><span class="subtitle">在线监控</span></div></div><div class="header-right"><span id="connection">正在恢复登录…</span><button id="logout" hidden>退出登录</button></div></header>
 <main>
-<section id="login"><h1>管理后台</h1><form id="login-form"><label for="password">管理密码</label><input id="password" type="password" autocomplete="current-password" required maxlength="256"><button type="submit" class="primary">登录</button><p id="login-error" role="alert"></p></form></section>
+<section id="session-loading" role="status"><p id="session-message">正在恢复登录…</p><button id="session-retry" hidden>重试</button></section>
+<section id="login" hidden><h1>管理后台</h1><form id="login-form"><label for="password">管理密码</label><input id="password" type="password" autocomplete="current-password" required maxlength="256"><button type="submit" class="primary">登录</button><p id="login-error" role="alert"></p></form></section>
 <div id="dashboard" hidden>
 <section class="summary"><div><span class="label">当前在线</span><strong id="online">0</strong></div><div><span class="label">跑局中</span><strong id="fighting">0</strong></div><div><span class="label">区间峰值</span><strong id="peak">0</strong></div><div class="updated"><span class="label">最后更新</span><span id="updated">-</span></div></section>
 <section class="history"><div class="section-bar"><h1>在线人数</h1><select id="range" aria-label="统计时间范围"><option value="1">最近 1 小时</option><option value="24" selected>最近 24 小时</option><option value="168">最近 7 天</option><option value="720">最近 30 天</option></select></div><div class="chart"><canvas id="chart" role="img" aria-label="历史在线人数折线图"></canvas></div><p id="history-empty" hidden>暂无历史记录</p></section>
