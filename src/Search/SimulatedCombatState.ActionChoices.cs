@@ -84,12 +84,32 @@ internal sealed partial class SimulatedCombatState :
             sourcePile);
     }
 
+    bool ICombatPredictionChoiceSink.ResolvePileDiscardChoice(
+        CombatPredictionSimulator simulator,
+        string sourceId,
+        Player player,
+        PileType sourcePile,
+        IReadOnlyList<PredictedCard> options,
+        int? maxBranches)
+    {
+        return TurnStartChoiceSupport.ResolvePileDiscard(
+            simulator,
+            this,
+            player,
+            _activeActionChoices,
+            sourceId,
+            sourcePile,
+            options,
+            maxBranches);
+    }
+
     private bool ResolveActionCardChoice(
         CombatPredictionSimulator simulator,
         PredictedCard playedCard,
         string sourceId,
         CardChoiceSpec spec,
-        ISet<uint> processedEnemyDeaths)
+        ISet<uint> processedEnemyDeaths,
+        string? contextIdOverride = null)
     {
         TurnStartChoiceCursor choices = _activeActionChoices
             ?? throw new InvalidOperationException($"{sourceId} 在动作选择作用域外请求卡牌选择。");
@@ -99,15 +119,19 @@ internal sealed partial class SimulatedCombatState :
             spec.SourcePile,
             spec.MinCount,
             spec,
-            spec.ContextId,
+            contextIdOverride ?? spec.ContextId,
             Timing: _activeActionChoiceTiming);
         if (!choices.TryTake(request, out PlanCardChoice? choice))
         {
-            SetPendingTurnStartChoice(request);
+            if (!HasPendingChoice)
+                SetPendingTurnStartChoice(request);
             return false;
         }
         CardChoiceSupport.Apply(simulator, this, playedCard, choice!, processedEnemyDeaths);
-        return true;
+        // Applying an outer choice can auto-play another card which opens its own selector.
+        // Propagate that suspension so the outer card remains inside its OnPlay transaction;
+        // its result pile and AfterCardPlayed hooks must wait for the nested request.
+        return !HasPendingChoice;
     }
 
     bool ICombatPredictionManualCardChoiceSink.ResolveManualCardChoice(
@@ -130,7 +154,7 @@ internal sealed partial class SimulatedCombatState :
         if (requiredEmptyChoice == null)
         {
             CardChoiceSupport.ApplyNoChoiceEffects(simulator, this, card);
-            return true;
+            return !HasPendingChoice;
         }
 
         TurnStartChoiceCursor choices = _activeActionChoices
@@ -153,7 +177,8 @@ internal sealed partial class SimulatedCombatState :
             Timing: _activeActionChoiceTiming);
         if (!choices.TryTake(request, out PlanCardChoice? plannedChoice))
         {
-            SetPendingTurnStartChoice(request);
+            if (!HasPendingChoice)
+                SetPendingTurnStartChoice(request);
             return false;
         }
 
@@ -163,13 +188,14 @@ internal sealed partial class SimulatedCombatState :
             card,
             plannedChoice!,
             processedEnemyDeaths);
-        return true;
+        return !HasPendingChoice;
     }
 
     bool ICombatPredictionNestedChoiceSink.ResolveNestedCardChoice(
         CombatPredictionSimulator simulator,
         PredictedCard card,
-        string sourceId)
+        string sourceId,
+        string? contextId)
     {
         ISet<uint> processedEnemyDeaths = _activeCardExecutionDeaths ?? new HashSet<uint>();
         CardChoiceSpec? spec = CardChoiceSupport.GetSpec(simulator, card);
@@ -180,13 +206,14 @@ internal sealed partial class SimulatedCombatState :
                 card,
                 sourceId,
                 spec,
-                processedEnemyDeaths);
+                processedEnemyDeaths,
+                contextId);
         }
 
         if (CardChoiceSupport.BuildRequiredEmptyChoice(card.Preview) is { } emptyChoice)
             CardChoiceSupport.Apply(simulator, this, card, emptyChoice, processedEnemyDeaths);
         else
             CardChoiceSupport.ApplyNoChoiceEffects(simulator, this, card);
-        return true;
+        return !HasPendingChoice;
     }
 }

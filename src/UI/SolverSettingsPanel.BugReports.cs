@@ -30,7 +30,7 @@ internal sealed partial class SolverSettingsPanel
            && !_uploadProgress.ShowPercentage
            && MapUploadProgressBarValue(100) == 95
            && FormatUploadProgressStatus(1024, 1024, 100).Contains(
-               "等待服务器确认",
+               SolverText.IsEnglish ? "waiting for server confirmation" : "等待服务器确认",
                StringComparison.Ordinal)
            && _uploadBugReport.Text == "在线上传已禁用";
 
@@ -89,13 +89,13 @@ internal sealed partial class SolverSettingsPanel
             "测试上传成功",
             1024));
         bool successRemainsActiveUntilConsumed = _uploadInProgress
-                                                 && _uploadBugReport.Text == "取消上传";
+                                                 && _uploadBugReport.Text == SolverText.Get("取消上传");
         bool successApplied = TryApplyUploadCompletion();
         bool successReturnedToIdle = successApplied
                                      && !_uploadInProgress
                                      && _uploadCancellation == null
                                      && !_uploadProgress.Visible
-                                     && _uploadBugReport.Text == "上传问题包";
+                                     && _uploadBugReport.Text == SolverText.Get("上传问题包");
 
         CancellationTokenSource canceledCancellation = new();
         _uploadInProgress = true;
@@ -110,13 +110,13 @@ internal sealed partial class SolverSettingsPanel
             0));
         bool cancellationRemainsActiveUntilConsumed = _uploadInProgress
                                                       && _uploadBugReport.Disabled
-                                                      && _uploadBugReport.Text == "正在取消…";
+                                                      && _uploadBugReport.Text == SolverText.Get("正在取消…");
         bool cancellationApplied = TryApplyUploadCompletion();
         bool cancellationReturnedToIdle = cancellationApplied
                                           && !_uploadInProgress
                                           && _uploadCancellation == null
                                           && !_uploadProgress.Visible
-                                          && _uploadBugReport.Text == "上传问题包";
+                                          && _uploadBugReport.Text == SolverText.Get("上传问题包");
         return successRemainsActiveUntilConsumed
                && successReturnedToIdle
                && cancellationRemainsActiveUntilConsumed
@@ -126,18 +126,18 @@ internal sealed partial class SolverSettingsPanel
     private Control CreateBugReportsPage()
     {
         VBoxContainer content = CreatePageContent("BugReportSettingsPage");
-        content.AddChild(CreateSectionHeading("问题反馈"));
+        content.AddChild(CreateSectionHeading(SolverText.Get("问题反馈")));
         GridContainer feedbackGrid = CreateSettingsGrid();
         _detailedDiagnosticLogs = CreateToggle();
         _detailedDiagnosticLogs.Toggled += OnDetailedDiagnosticLogsToggled;
         AddBasicRow(
             feedbackGrid,
-            "详细诊断日志",
+            SolverText.Get("搜索分支调试日志"),
             _detailedDiagnosticLogs,
-            "记录更多搜索与回放信息，便于定位复杂问题；会增加日志体积，并让并行搜索自动切换为单线程。");
+            SolverText.Get("每场战斗默认记录操作、选中路线与错误证据。此开关额外记录搜索候选细节，会增加开销并将并行搜索切为单线程，仅排查时开启。"));
         AddBasicRow(
             feedbackGrid,
-            "反馈联系QQ（选填）",
+            SolverText.Get("反馈联系QQ（选填）"),
             CreateContactQqInput(),
             "记录在问题包中，方便开发者回访；本分支在线上传已禁用，请使用“导出问题包”。");
         content.AddChild(feedbackGrid);
@@ -148,12 +148,12 @@ internal sealed partial class SolverSettingsPanel
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         actions.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
-        _uploadBugReport = SolverUiTokens.CreateButton("上传问题包", SolverButtonStyle.Primary);
+        _uploadBugReport = SolverUiTokens.CreateButton(SolverText.Get("上传问题包"), SolverButtonStyle.Primary);
         _uploadBugReport.CustomMinimumSize = new Vector2(150, SolverUiTokens.Size.ButtonHeight);
         _uploadBugReport.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         _uploadBugReport.Pressed += OnUploadBugReportPressed;
         actions.AddChild(_uploadBugReport);
-        _exportBugReport = SolverUiTokens.CreateButton("导出问题包", SolverButtonStyle.Secondary);
+        _exportBugReport = SolverUiTokens.CreateButton(SolverText.Get("导出问题包"), SolverButtonStyle.Secondary);
         _exportBugReport.CustomMinimumSize = new Vector2(150, SolverUiTokens.Size.ButtonHeight);
         _exportBugReport.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         _exportBugReport.Pressed += OnExportBugReportPressed;
@@ -180,14 +180,14 @@ internal sealed partial class SolverSettingsPanel
 
     private LineEdit CreateContactQqInput()
     {
-        LineEdit input = CreateInput("未设置");
+        LineEdit input = CreateInput(SolverText.Get("未设置"));
         _reloadInputs.Add(data => input.Text = data.ReporterContactQq ?? string.Empty);
         bool Commit()
         {
             string text = input.Text.Trim();
             if (text.Length > 64)
             {
-                ShowInvalid(input, "联系QQ最长 64 个字符");
+                ShowInvalid(input, SolverText.Get("联系QQ最长 64 个字符"));
                 return false;
             }
             return SaveSetting(
@@ -196,7 +196,7 @@ internal sealed partial class SolverSettingsPanel
                 {
                     ReporterContactQq = text.Length == 0 ? null : text,
                 },
-                "反馈联系方式已保存");
+                SolverText.Get("反馈联系方式已保存"));
         }
         input.FocusExited += () => Commit();
         input.TextSubmitted += _ => Commit();
@@ -209,7 +209,7 @@ internal sealed partial class SolverSettingsPanel
         if (_loading)
             return;
         SolverSettings.Update(SolverSettings.Current with { EnableDetailedDiagnosticLogs = enabled });
-        SetStatus("已保存，下次搜索生效", SolverUiTokens.Palette.Success);
+        SetStatus(SolverText.Get("已保存，下次搜索生效"), SolverUiTokens.Palette.Success);
     }
 
     private void OnExportBugReportPressed()
@@ -218,7 +218,7 @@ internal sealed partial class SolverSettingsPanel
             return;
         _exportInProgress = true;
         RefreshBugReportControls();
-        SetStatus("正在打包日志和当前战斗…", SolverUiTokens.Palette.TextSecondary);
+        SetStatus(SolverText.Get("正在打包日志和当前战斗…"), SolverUiTokens.Palette.TextSecondary);
         TaskHelper.RunSafely(ExportBugReportAsync());
     }
 
@@ -230,14 +230,14 @@ internal sealed partial class SolverSettingsPanel
             PostUi(() =>
             {
                 OS.ShellShowInFileManager(path);
-                SetStatus($"已导出到桌面：{Path.GetFileName(path)}", SolverUiTokens.Palette.Success);
+                SetStatus(SolverText.Format($"已导出到桌面：{Path.GetFileName(path)}"), SolverUiTokens.Palette.Success);
             });
         }
         catch (Exception ex)
         {
             Entry.Logger.Error($"[CombatSolver/Test] BUG_REPORT_EXPORT_FAILED exception={ex}");
             PostUi(() => SetStatus(
-                $"导出失败：{DescribeUiFailure(ex)}",
+                SolverText.Format($"导出失败：{DescribeUiFailure(ex)}"),
                 SolverUiTokens.Palette.Danger));
         }
         finally
@@ -261,7 +261,7 @@ internal sealed partial class SolverSettingsPanel
             _uploadCancellation?.Cancel();
             Entry.Logger.Info(
                 $"[CombatSolver/Test] BUG_REPORT_UPLOAD_CANCEL_REQUESTED submission_id={_uploadSubmissionId ?? "unknown"}");
-            SetStatus("正在取消上传…", SolverUiTokens.Palette.Warning);
+            SetStatus(SolverText.Get("正在取消上传…"), SolverUiTokens.Palette.Warning);
             RefreshBugReportControls();
             return;
         }
@@ -297,7 +297,7 @@ internal sealed partial class SolverSettingsPanel
         _uploadProgress.Visible = true;
         SetProcess(true);
         RefreshBugReportControls();
-        SetStatus("正在打包问题包…", SolverUiTokens.Palette.TextSecondary);
+        SetStatus(SolverText.Get("正在打包问题包…"), SolverUiTokens.Palette.TextSecondary);
         string submissionId = Guid.NewGuid().ToString("N");
         _uploadSubmissionId = submissionId;
         TaskHelper.RunSafely(UploadBugReportAsync(
@@ -314,11 +314,7 @@ internal sealed partial class SolverSettingsPanel
         string? path = null;
         try
         {
-            string descriptionWithClassification = SolverController.BuildBugReportDescription(description);
-            string uploadDescription = CombatBugReportDescription.AppendSubmissionId(
-                descriptionWithClassification,
-                submissionId);
-            path = await CombatBugReportExporter.ExportCurrentAsync();
+            path = await CombatBugReportExporter.ExportCurrentAsync(playerDescription: description, submissionId: submissionId);
             cancellationToken.ThrowIfCancellationRequested();
             FileInfo archive = new(path);
             Interlocked.Exchange(ref _uploadBytesSent, 0);
@@ -333,7 +329,7 @@ internal sealed partial class SolverSettingsPanel
             });
             CombatBugReportUploadReceipt receipt = await CombatBugReportUploader.UploadAsync(
                 path,
-                uploadDescription,
+                description,
                 contactQq,
                 submissionId,
                 progress,
@@ -344,8 +340,8 @@ internal sealed partial class SolverSettingsPanel
             PublishUploadCompletion(new UploadCompletion(
                 UploadCompletionKind.Succeeded,
                 cleanupWarning == null
-                    ? $"已上传 {FormatByteCount(receipt.SizeBytes)}，反馈编号：{receipt.ReportId}"
-                    : $"已上传 {FormatByteCount(receipt.SizeBytes)}，反馈编号：{receipt.ReportId}；{cleanupWarning}",
+                    ? SolverText.Format($"已上传 {FormatByteCount(receipt.SizeBytes)}，反馈编号：{receipt.ReportId}")
+                    : SolverText.Format($"已上传 {FormatByteCount(receipt.SizeBytes)}，反馈编号：{receipt.ReportId}；{cleanupWarning}"),
                 receipt.SizeBytes));
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -354,8 +350,8 @@ internal sealed partial class SolverSettingsPanel
             PublishUploadCompletion(new UploadCompletion(
                 UploadCompletionKind.Canceled,
                 path == null
-                    ? "上传已取消"
-                    : "上传已取消；未收到服务器确认，问题包已保留",
+                    ? SolverText.Get("上传已取消")
+                    : SolverText.Get("上传已取消；未收到服务器确认，问题包已保留"),
                 0));
         }
         catch (TaskCanceledException ex)
@@ -364,7 +360,7 @@ internal sealed partial class SolverSettingsPanel
                 $"[CombatSolver/Test] BUG_REPORT_UPLOAD_UNCONFIRMED submission_id={submissionId} exception={ex}");
             PublishUploadCompletion(new UploadCompletion(
                 UploadCompletionKind.Failed,
-                "上传结果未确认；问题包已保留，请勿立即重复提交",
+                SolverText.Get("上传结果未确认；问题包已保留，请勿立即重复提交"),
                 0));
         }
         catch (Exception ex)
@@ -374,8 +370,8 @@ internal sealed partial class SolverSettingsPanel
             PublishUploadCompletion(new UploadCompletion(
                 UploadCompletionKind.Failed,
                 path == null
-                    ? $"打包失败：{DescribeUiFailure(ex)}"
-                    : $"上传未完成：{DescribeUiFailure(ex)}（问题包已保留）",
+                    ? SolverText.Format($"打包失败：{DescribeUiFailure(ex)}")
+                    : SolverText.Format($"上传未完成：{DescribeUiFailure(ex)}（问题包已保留）"),
                 0));
         }
     }
@@ -438,12 +434,12 @@ internal sealed partial class SolverSettingsPanel
         if (_uploadInProgress)
         {
             _uploadBugReport.Disabled = _uploadCancelRequested;
-            _uploadBugReport.Text = _uploadCancelRequested ? "正在取消…" : "取消上传";
+            _uploadBugReport.Text = _uploadCancelRequested ? SolverText.Get("正在取消…") : SolverText.Get("取消上传");
             SolverUiTokens.ApplyButtonStyle(_uploadBugReport, SolverButtonStyle.Danger);
             return;
         }
         _uploadBugReport.Disabled = _exportInProgress || dialogOpen;
-        _uploadBugReport.Text = "上传问题包";
+        _uploadBugReport.Text = SolverText.Get("上传问题包");
         SolverUiTokens.ApplyButtonStyle(_uploadBugReport, SolverButtonStyle.Primary);
     }
 
@@ -470,7 +466,7 @@ internal sealed partial class SolverSettingsPanel
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Entry.Logger.Warn($"[CombatSolver/Test] BUG_REPORT_UPLOAD_CLEANUP_FAILED path={path} exception={ex}");
-            return "本地问题包未能删除";
+            return SolverText.Get("本地问题包未能删除");
         }
     }
 
@@ -496,8 +492,8 @@ internal sealed partial class SolverSettingsPanel
 
     private static string FormatUploadProgressStatus(long sent, long total, int percentage)
         => sent >= total
-            ? $"已发送 {FormatByteCount(total)}，正在等待服务器确认…"
-            : $"正在上传… {FormatByteCount(sent)} / {FormatByteCount(total)}（{percentage}%）";
+            ? SolverText.Format($"已发送 {FormatByteCount(total)}，正在等待服务器确认…")
+            : SolverText.Format($"正在上传… {FormatByteCount(sent)} / {FormatByteCount(total)}（{percentage}%）");
 
     private sealed class DirectProgress<T>(Action<T> report) : IProgress<T>
     {

@@ -60,6 +60,7 @@ internal sealed record SolverSettingsData
 {
     public bool SolverDisabled { get; init; }
     public bool AutomaticCalculationEnabled { get; init; } = true;
+    public bool OnlineStatisticsEnabled { get; init; } = true;
     public bool StopFullAutoOnCombatEnd { get; init; }
     public bool StopFullAutoOnDeathTurn { get; init; } = true;
     public bool StopFullAutoOnWorseRecalculation { get; init; } = true;
@@ -73,6 +74,12 @@ internal sealed record SolverSettingsData
     [JsonIgnore]
     public SolverPotionPolicy PotionPolicy { get; init; } = SolverPotionPolicy.Smart;
     public PersistedPotionDirective[] PotionDirectives { get; init; } = [];
+    public GrowthValues GrowthBudgets { get; init; }
+    /// <summary>
+    /// 不考虑局外收益。打开后搜索既不为金币、永久升级这类战斗外收益付出任何血量，也不再用它们
+    /// 在 Beam 里保留路线；最终选择里的字典序位置不变，所以白拿的收益照样拿。
+    /// </summary>
+    public bool IgnoreLongTermRewards { get; init; }
     public BossHpStrategy ActTransitionBossHpStrategy { get; init; } = BossHpStrategy.ProgressionFirst;
     public BossHpStrategy FinalBossHpStrategy { get; init; } = BossHpStrategy.ProgressionFirst;
     public int AcceptableBattleHpLoss { get; init; }
@@ -129,7 +136,11 @@ internal sealed record SolverSettingsSnapshot(
     bool EnableNoGcRegion,
     long NoGcRegionBudgetBytes,
     SolverDeploymentFastMode DeploymentFastMode,
-    double DeploymentInterActionDelaySeconds);
+    double DeploymentInterActionDelaySeconds)
+{
+    public GrowthValues GrowthBudgets { get; init; }
+    public bool IgnoreLongTermRewards { get; init; }
+}
 
 internal static class SolverSettings
 {
@@ -215,6 +226,12 @@ internal static class SolverSettings
         }
     }
 
+    internal static byte[] CaptureSerializedSettings()
+    {
+        lock (Sync)
+            return JsonSerializer.SerializeToUtf8Bytes(_current, JsonOptions);
+    }
+
     public static void Load()
     {
         string path = ProjectSettings.GlobalizePath(SettingsUri);
@@ -292,7 +309,11 @@ internal static class SolverSettings
             data.EnableNoGcRegion,
             noGcBytes,
             data.DeploymentFastMode,
-            data.DeploymentInterActionDelaySeconds ?? 0d);
+            data.DeploymentInterActionDelaySeconds ?? 0d)
+        {
+            GrowthBudgets = data.GrowthBudgets,
+            IgnoreLongTermRewards = data.IgnoreLongTermRewards,
+        };
     }
 
     public static SolverPerformancePreset ResolvePerformancePreset(SolverSettingsData data)
@@ -550,6 +571,7 @@ internal static class SolverSettings
                 $"{nameof(data.MultiplayerSearchTurnLimit)} must be between " +
                 $"{MinimumMultiplayerSearchTurnLimit} and {MaximumMultiplayerSearchTurnLimit}.");
         }
+        data.GrowthBudgets.ValidateBudgets();
         HashSet<(int Slot, string PotionId)> potionDirectiveKeys = [];
         foreach (PersistedPotionDirective directive in data.PotionDirectives)
         {

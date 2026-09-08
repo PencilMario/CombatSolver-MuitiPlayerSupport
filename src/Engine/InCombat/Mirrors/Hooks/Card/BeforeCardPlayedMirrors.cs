@@ -118,7 +118,7 @@ internal static class BeforeCardPlayedMirrors
             context.PreviewCard.Owner.Creature == power.Owner &&
             context.PreviewCard.Affliction is Bound)
         {
-            var state = context.StateStore.Get(power, () => new ChainsOfBindingPredictionState(power));
+            var state = context.StateStore.Get(power, static () => new ChainsOfBindingPredictionState());
             state.BoundCardPlayed = true;
         }
     }
@@ -164,6 +164,8 @@ internal static class BeforeCardPlayedMirrors
                 PileType.Hand,
                 power.Owner.Player,
                 resultKind: CardGenerationResultKind.Contextual);
+            if (context.Simulator.HasPendingChoice)
+                return;
         }
     }
 

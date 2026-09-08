@@ -44,6 +44,14 @@ internal static class SolverWeights
     // Permanent card growth and post-combat rewards get their own Beam value. Final selection is
     // lexicographic, so this value only keeps low-immediate-impact growth routes searchable.
     public const double LongTermResourceBeamValue = 25_000d;
+    // Bound the entire resource bonus below one HP weight. Real resource amounts remain
+    // available to retention and final ordering; player-authorized growth credit is separate.
+    public const double LongTermResourceBeamCap = 25_000d;
+    /// <summary>
+    /// 一个回合层至少分到这么多展开节点，作用和回合层时间预算里那个 250 毫秒下限一样：
+    /// 保留层数多、剩余节点少的时候，不至于把某一层挤到几乎搜不动。
+    /// </summary>
+    public const int MinimumTurnLayerExpandedNodes = 500;
     public const double AngerCopyBeamPenalty = -15_000d;
     public const int RetainedAttackGrowthBeamCap = 16;
     public const double RetainedAttackGrowthBeamValue = 20_000d;
@@ -69,6 +77,20 @@ internal static class SolverWeights
     public const int EliteSoldHpThreshold = 10;
     public const int BossSoldHpThreshold = 15;
     public const int PotionMinimumHpSaved = 9;
+
+    // 一次性保命遗物（蜥蜴尾巴）用掉就没了。除了不把复活回的血当成路线赚到的血，还要按复活血量的
+    // 若干倍再收一次「把它花掉」的代价。
+    //
+    // 倍数要够大。Beam 里和它抢分的不只是血：敌方总血量按 EnemyHp = -10_000 计价，一场双 Boss 战
+    // 光这一项就值一百多点血，所以按一比一收费时，靠复活换来的输出节奏仍然划算——实测就是这样，
+    // 路线照样把尾巴烧掉。收到十倍之后，任何一条能活着打赢的路线都比烧尾巴强，而这个数量级仍然
+    // 远低于 VictoryBonus 和 DeathPenalty：没有别的活路时，尾巴照用不误。
+    public const int DeathSaveRelicPremiumPercent = 900;
+    /// <summary>Potions whose effect is worth roughly twice a baseline potion.</summary>
+    public const int PotionHighValueHpSaved = PotionMinimumHpSaved * 2;
+
+    /// <summary>Potions worth roughly one and a half times a baseline potion. Rounded up from 13.5.</summary>
+    public const int PotionElevatedValueHpSaved = (PotionMinimumHpSaved * 3 + 1) / 2;
     // This is the minimum cross-turn no-progress horizon and the UI projection horizon. It is not a
     // total turn cap: every new historical combat improvement restarts the no-progress window.
     public const int SetupValueHorizonTurns = 16;

@@ -10,6 +10,9 @@ Options:
   --search-max-degree-of-parallelism 1..16
   --verify-base-lib-card-modifier-boundary
   --verify-baselib-card-modifier-boundary  Deprecated compatibility alias
+  --logging-fixture  Run the short native logging/export fixture (at most 120 seconds)
+  --evidence-directory DIRECTORY
+  --checkpoint-archive-path ZIP --checkpoint-selector latest --replay-mode RestoreOnly
   --steam-root DIRECTORY
   --steam-command FILE
   --game-root DIRECTORY
@@ -37,6 +40,11 @@ repository_root="$(realpath -e -- "$script_dir/..")"
 timeout_seconds=360
 search_max_degree_of_parallelism=2
 verify_baselib_card_modifier_boundary=false
+logging_fixture=false
+evidence_directory=""
+checkpoint_archive=""
+checkpoint_selector="latest"
+replay_mode="RestoreOnly"
 steam_root_arg=""
 steam_command_arg=""
 game_root_arg=""
@@ -44,6 +52,13 @@ data_dir_arg=""
 
 while (($# > 0)); do
     case "$1" in
+        --checkpoint-archive-path) require_option_value "$1" "${2-}"; checkpoint_archive="$(realpath -e -- "$2")"; shift 2 ;;
+        --checkpoint-selector) require_option_value "$1" "${2-}"; checkpoint_selector="$2"; shift 2 ;;
+        --replay-mode) require_option_value "$1" "${2-}"; replay_mode="$2"; shift 2 ;;
+        --logging-fixture) logging_fixture=true; shift ;;
+        --evidence-directory)
+            require_option_value "$1" "${2-}"
+            evidence_directory="$(realpath -m -- "$2")"; shift 2 ;;
         --timeout-seconds)
             require_option_value "$1" "${2-}"
             timeout_seconds="$2"
@@ -117,6 +132,8 @@ done
     && ((search_max_degree_of_parallelism >= 1 && search_max_degree_of_parallelism <= 16)) || \
     die "--search-max-degree-of-parallelism must be between 1 and 16"
 command -v jq >/dev/null 2>&1 || die "jq is required"
+if [[ "$logging_fixture" == true ]] && ((timeout_seconds > 120)); then timeout_seconds=120; fi
+if [[ -n "$checkpoint_archive" ]] && ((timeout_seconds > 120)); then timeout_seconds=120; fi
 
 if [[ -n "$steam_root_arg" ]]; then
     steam_root="$steam_root_arg"
@@ -366,6 +383,21 @@ jq -n \
         expectedUsedPotionId: null,
         exitOnComplete: true
     }' >"$request_temp_path"
+if [[ "$logging_fixture" == true ]]; then
+    jq --arg runId "$run_id" --argjson timeout "$timeout_seconds" \
+        '. + {runId: $runId, timeoutSeconds: $timeout}' \
+        "$repository_root/coverage/unattended/logging-short-combat.json" >"$request_temp_path"
+fi
+if [[ -n "$evidence_directory" ]]; then
+    jq --arg path "$evidence_directory" '. + {evidenceDirectory: $path}' "$request_temp_path" >"$request_temp_path.evidence"
+    mv -f -- "$request_temp_path.evidence" "$request_temp_path"
+fi
+if [[ -n "$checkpoint_archive" ]]; then
+    jq -n --arg runId "$run_id" --arg archive "$checkpoint_archive" --arg selector "$checkpoint_selector" \
+        --arg mode "$replay_mode" --arg evidence "$evidence_directory" --argjson timeout "$timeout_seconds" \
+        '{schemaVersion: 1, runId: $runId, scenarioId: "VISIBLE-CHECKPOINT-REPLAY", checkpointArchivePath: $archive,
+          checkpointSelector: $selector, replayMode: $mode, evidenceDirectory: $evidence, timeoutSeconds: $timeout, exitOnComplete: true}' >"$request_temp_path"
+fi
 mv -f -- "$request_temp_path" "$request_path"
 
 if ! pgrep -x steam >/dev/null 2>&1; then

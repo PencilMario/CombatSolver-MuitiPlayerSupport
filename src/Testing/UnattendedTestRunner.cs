@@ -43,11 +43,13 @@ internal sealed partial class UnattendedTestRunner
         Passed,
         InitialSearchHeld,
         Failed,
+        FailedReusable,
     }
 
     private static readonly ProtocolHost Host = new();
 
     public static bool IsActive => Host.IsActive;
+    internal static bool IsReplayingRecordedInputs => CombatReplayRecording.TestObserver != null;
     public static bool AutomaticTurnSearchEnabled => Host.AutomaticTurnSearchEnabled;
     public static bool VerifyIncrementalSearch => Host.VerifyIncrementalSearch;
     public static bool ForceShortSearchOnly => Host.ForceShortSearchOnly;
@@ -57,7 +59,7 @@ internal sealed partial class UnattendedTestRunner
     public static int? SearchMaxDegreeOfParallelismOverride => Host.SearchMaxDegreeOfParallelismOverride;
 
     private readonly NGame _host;
-    private readonly UnattendedTestRequest _request;
+    private UnattendedTestRequest _request;
     private readonly ProtocolHost _protocolHost;
     private readonly DateTimeOffset _startedAtUtc = DateTimeOffset.UtcNow;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
@@ -77,7 +79,7 @@ internal sealed partial class UnattendedTestRunner
         _request = request;
         _protocolHost = protocolHost;
         _writer = new Writer(
-            request,
+            () => _request,
             _stopwatch,
             _completedChecks,
             _startedAtUtc,
@@ -85,6 +87,11 @@ internal sealed partial class UnattendedTestRunner
         _scenarioBuilder = new ScenarioBuilder(this);
         _assertions = new Assertions(this);
         _executor = new Executor(this);
+        CombatReplayRecording.TestSearchResultObserver = result =>
+        {
+            if (!_writer.HasSolverMetrics)
+                _writer.CaptureSolverResult(result);
+        };
     }
 
     public static void TryStart(NGame? host) => Host.TryStart(host);
@@ -127,6 +134,16 @@ internal sealed partial class UnattendedTestRunner
                 return RunCompletion.InitialSearchHeld;
             }
             _assertions.AssertAfterExecution(scenario, outcome);
+            if (_writer.ReplayVerification != null && outcome.CombatEnded)
+            {
+                _writer.ReplayVerification["actualOutcome"] = JsonSerializer.SerializeToNode(
+                    CombatBugReportExporter.CaptureOutcome(combatState), UnattendedTestFiles.JsonOptions);
+                CombatBugReportClassificationSnapshot classification = SolverController.CaptureBugReportClassificationForExport();
+                _writer.ReplayVerification["unexpectedReplans"] = classification.StateMismatchReplans
+                    + classification.DeploymentDriftReplans + classification.ContinuationMissingReplans + classification.PlanExhaustedReplans;
+                if (_request.ReplayMode == "DeploySolver")
+                    _writer.ReplayVerification["status"] = "deployment_completed";
+            }
             // SolverResult test observations are required through the post-combat assertions,
             // but must not survive into ReturnToMainMenu and the protocol's reuse Gen2.
             SolverController.ReleaseUnattendedResultReferencesForTesting();
@@ -141,7 +158,7 @@ internal sealed partial class UnattendedTestRunner
                 string archivePath = await CombatBugReportExporter.ExportCurrentAsync(directory);
                 using ZipArchive archive = ZipFile.OpenRead(archivePath);
                 AssertBugReportArchive(archive, "recent", _request.ExpectedBugReportControlMode);
-                using Stream combatStateStream = archive.GetEntry("combat-solver/combat-state.json")!.Open();
+                using Stream combatStateStream = archive.GetEntry("diagnostics/combat-state.json")!.Open();
                 using JsonDocument combatStateDocument = JsonDocument.Parse(combatStateStream);
                 if (combatStateDocument.RootElement.GetProperty("combatActive").GetBoolean())
                     throw new InvalidDataException("战后问题包错误标记为活动战斗。");
@@ -163,6 +180,21 @@ internal sealed partial class UnattendedTestRunner
         }
         catch (Exception ex)
         {
+            bool reusableInputFailure = _stage == "archive_preflight" && !RunManager.Instance.IsInProgress;
+            _writer.ProcessReusable = reusableInputFailure;
+            if (_writer.ReplayVerification != null)
+            {
+                string reason = ex.Message;
+                _writer.ReplayVerification["status"] = ex is TimeoutException ? "timeout"
+                    : reason.Contains("environment_mismatch", StringComparison.Ordinal) ? "environment_mismatch"
+                    : _stage == "archive_preflight" ? "materials_missing"
+                    : _writer.ReplayVerification["status"]?.GetValue<string>() is "recorded_action_mismatch" or "recorded_input_stalled"
+                        ? "recorded_action_mismatch"
+                        : _writer.ReplayVerification["restorationVerified"]?.GetValue<bool>() == true ? "execution_failed" : "restore_mismatch";
+                _writer.ReplayVerification["reason"] = reason;
+                if (ex.Data["firstDifference"] is System.Text.Json.Nodes.JsonObject difference)
+                    _writer.ReplayVerification["firstDifference"] = difference;
+            }
             _protocolHost.EnableAutomaticTurnSearch();
             combatState ??= _scenarioBuilder.CombatState;
             if (startedTurn == 0)
@@ -188,12 +220,13 @@ internal sealed partial class UnattendedTestRunner
             {
                 await ExitIfRequestedAsync(1);
             }
-            return RunCompletion.Failed;
+            return reusableInputFailure ? RunCompletion.FailedReusable : RunCompletion.Failed;
         }
         finally
         {
             _executor.RestoreSettings();
             RestoreHeadlessFastModeOverride();
+            ReleaseCheckpointImport();
         }
     }
 
@@ -204,19 +237,22 @@ internal sealed partial class UnattendedTestRunner
     {
         string[] requiredEntries =
         [
-            "combat-solver/combat-state.json",
-            "combat-solver/current-route.txt",
-            "combat-solver/replan-audit.txt",
-            "combat-solver/settings.json",
-            "combat-solver/export-context.json",
-            "combat-solver/environment.json",
-            "combat-solver/forensics/manifest.json",
-            "combat-solver/checkpoint.json",
-            $"combat-solver/forensics/{forensicSlot}/session.json",
-            $"combat-solver/forensics/{forensicSlot}/pre-combat/in-memory-current_run.save",
-            $"combat-solver/forensics/{forensicSlot}/last-route.txt",
-            $"combat-solver/forensics/{forensicSlot}/replan-audit.txt",
-            "combat-solver/README.txt",
+            "diagnostics/combat-state.json",
+            "diagnostics/current-route.txt",
+            "diagnostics/replan-audit.txt",
+            "diagnostics/settings.json",
+            "diagnostics/export-context.json",
+            "diagnostics/environment.json",
+            "diagnostics/logs/index.json",
+            "diagnostics/logs/history.json",
+            "replay/manifest.json",
+            "replay/checkpoint.json",
+            $"replay/{forensicSlot}/session.json",
+            $"replay/{forensicSlot}/pre-combat/in-memory-current_run.save",
+            $"replay/{forensicSlot}/last-route.txt",
+            $"replay/{forensicSlot}/replan-audit.txt",
+            "README.txt",
+            "report.json",
         ];
         foreach (string entry in requiredEntries)
         {
@@ -232,7 +268,7 @@ internal sealed partial class UnattendedTestRunner
         }
         string otherForensicSlot = forensicSlot == "current" ? "recent" : "current";
         if (archive.Entries.Any(entry =>
-                entry.FullName.StartsWith($"combat-solver/forensics/{otherForensicSlot}/", StringComparison.Ordinal)))
+                entry.FullName.StartsWith($"replay/{otherForensicSlot}/", StringComparison.Ordinal)))
             throw new InvalidDataException("问题包同时包含当前战斗和此前战斗。");
         if (archive.GetEntry("screenshot.png") != null
             || archive.Entries.Any(entry => entry.FullName.StartsWith("saves/", StringComparison.Ordinal)))
@@ -240,22 +276,24 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidDataException("精简问题包仍包含截图或整批磁盘存档。");
         }
         if (archive.Entries.Count(entry =>
-                entry.FullName.StartsWith($"combat-solver/forensics/{forensicSlot}/checkpoints/", StringComparison.Ordinal)) > 6)
+                entry.FullName.StartsWith($"replay/{forensicSlot}/checkpoints/", StringComparison.Ordinal)) > 6)
         {
             throw new InvalidDataException("精简问题包归档了超过 6 个战斗检查点。");
         }
         ZipArchiveEntry[] generalLogs = archive.Entries
-            .Where(entry => entry.FullName.StartsWith("logs/", StringComparison.Ordinal))
+            .Where(entry => entry.FullName.StartsWith("diagnostics/logs/", StringComparison.Ordinal)
+                && entry.FullName.EndsWith(".jsonl", StringComparison.Ordinal))
             .ToArray();
-        if (generalLogs.Length > 1 || generalLogs.Any(entry => entry.Length > 2L * 1024 * 1024))
-            throw new InvalidDataException("精简问题包的常规日志数量或大小超过上限。");
+        if (generalLogs.Sum(entry => entry.Length) > 36L * 1024 * 1024
+            || archive.Entries.Any(entry => entry.FullName.Contains("godot", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException("独立诊断日志超过记录上限或包含 Godot 全局日志。");
 
-        using Stream settingsStream = archive.GetEntry("combat-solver/settings.json")!.Open();
+        using Stream settingsStream = archive.GetEntry("diagnostics/settings.json")!.Open();
         using JsonDocument settingsDocument = JsonDocument.Parse(settingsStream);
         if (settingsDocument.RootElement.TryGetProperty("reporterContactQq", out _))
             throw new InvalidDataException("问题包设置仍包含反馈联系QQ。");
 
-        using Stream environmentStream = archive.GetEntry("combat-solver/environment.json")!.Open();
+        using Stream environmentStream = archive.GetEntry("diagnostics/environment.json")!.Open();
         using JsonDocument environmentDocument = JsonDocument.Parse(environmentStream);
         JsonElement environment = environmentDocument.RootElement;
         if (Path.IsPathRooted(environment.GetProperty("gameExecutable").GetString())
@@ -266,10 +304,10 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidDataException("问题包环境信息仍包含本机绝对路径。");
         }
 
-        using Stream checkpointIndexStream = archive.GetEntry("combat-solver/checkpoint.json")!.Open();
+        using Stream checkpointIndexStream = archive.GetEntry("replay/checkpoint.json")!.Open();
         using JsonDocument checkpointIndexDocument = JsonDocument.Parse(checkpointIndexStream);
         JsonElement checkpointIndex = checkpointIndexDocument.RootElement;
-        if (checkpointIndex.GetProperty("schemaVersion").GetInt32() != 1
+        if (checkpointIndex.GetProperty("schemaVersion").GetInt32() != 2
             || !checkpointIndex.GetProperty("available").GetBoolean())
         {
             throw new InvalidDataException("问题包没有可还原的战斗检查点。");
@@ -281,6 +319,9 @@ internal sealed partial class UnattendedTestRunner
         {
             throw new InvalidDataException("问题包检查点索引与战斗会话不一致。");
         }
+        string defaultCheckpointId = checkpointIndex.GetProperty("defaultCheckpointId").GetString()!;
+        checkpointIndex = checkpointIndex.GetProperty("checkpoints").EnumerateArray().Single(item =>
+            item.GetProperty("checkpointId").GetString() == defaultCheckpointId);
         string checkpointPath = RequiredRelativeArchivePath(checkpointIndex, "metadataPath");
         string replayStatePath = RequiredRelativeArchivePath(checkpointIndex, "replayStatePath");
         string nativeStatePath = RequiredRelativeArchivePath(checkpointIndex, "nativeStatePath");
@@ -293,6 +334,8 @@ internal sealed partial class UnattendedTestRunner
         JsonElement root = checkpointDocument.RootElement;
         if (!root.TryGetProperty("settings", out _))
             throw new InvalidDataException("问题包检查点没有当时生效的求解设置。");
+        if (root.GetProperty("settings").TryGetProperty("reporterContactQq", out _))
+            throw new InvalidDataException("检查点设置包含白名单外的联系方式字段。");
         if (!root.TryGetProperty("controlMode", out _)
             || !root.TryGetProperty("lastSolverDeployedTurn", out _))
         {
@@ -353,7 +396,7 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidDataException("问题包的即时跑局存档没有完整 Run RNG 流。");
         }
 
-        string rootPrefix = $"combat-solver/forensics/{forensicSlot}";
+        string rootPrefix = $"replay/{forensicSlot}";
         using Stream sessionStream = archive.GetEntry($"{rootPrefix}/session.json")!.Open();
         using JsonDocument sessionDocument = JsonDocument.Parse(sessionStream);
         JsonElement sessionRoot = sessionDocument.RootElement;
@@ -363,7 +406,7 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidDataException("问题包战斗会话没有记录求解器/手操接管状态。");
         }
 
-        using Stream exportContextStream = archive.GetEntry("combat-solver/export-context.json")!.Open();
+        using Stream exportContextStream = archive.GetEntry("diagnostics/export-context.json")!.Open();
         using JsonDocument exportContextDocument = JsonDocument.Parse(exportContextStream);
         string controlModeProperty = forensicSlot == "current"
             ? "currentControlMode"
@@ -495,6 +538,17 @@ internal sealed partial class UnattendedTestRunner
                     $"[CombatSolver/Test] TURN_SETUP_INITIAL_SEARCH_CONTROLS_SUBMITTED " +
                     $"turn={turn} adopted_interim=true");
             }
+            if (_request.ScenarioId == "TURN-SETUP-REFRESH-TAKEOVER"
+                && manualRefreshRequested && !turnSetupPlanAccepted
+                && state != null && PlayerTurnSetupCoordinator.IsSearching)
+            {
+                if (!PlayerTurnSetupCoordinator.TryContinuePlannedChoice(_host, state, deployAfterSetup: false))
+                    throw new InvalidOperationException("Recalculation takeover was not accepted.");
+                if (PlayerTurnSetupCoordinator.IsDrivingChoiceForRecording)
+                    throw new InvalidOperationException("Recalculation takeover started driving the previous plan.");
+                turnSetupPlanAccepted = true;
+                _completedChecks.Add("TurnSetupRefreshTakeover:QueuedDuringSearch");
+            }
             if (!turnSetupPlanAccepted
                 && state != null
                 && PlayerTurnSetupCoordinator.HasPendingPlannedChoice(state))
@@ -617,8 +671,22 @@ internal sealed partial class UnattendedTestRunner
                 }
                 if (_request.VerifyTurnSetupManualRefresh && !manualRefreshCompleted)
                 {
-                    await NextFrameAsync();
-                    continue;
+                    if (_request.ScenarioId == "TURN-SETUP-REFRESH-TAKEOVER")
+                    {
+                        if (!_completedChecks.Contains("TurnSetupRefreshTakeover:QueuedDuringSearch"))
+                            throw new InvalidOperationException("Takeover fixture did not reach an active recalculation.");
+                        int turn = player.PlayerCombatState.TurnNumber;
+                        if (NativeChoiceRuntime.TraceSnapshotForTesting.Count(trace =>
+                                trace.Owner == $"turn_setup:{turn}" && trace.Stage == "PlanReady") < 2)
+                            throw new InvalidOperationException("Takeover completed before the refreshed plan was ready.");
+                        manualRefreshCompleted = true;
+                        _completedChecks.Add("TurnSetupRefreshTakeover:RefreshedPlanCompleted");
+                    }
+                    else
+                    {
+                        await NextFrameAsync();
+                        continue;
+                    }
                 }
                 if (_request.VerifyTurnSetupControlsDuringInitialSearch)
                 {
@@ -931,22 +999,37 @@ internal sealed partial class UnattendedTestRunner
             }
         }
         if (check.TriggerPlayerSideTurnEndBeforeMove)
-            CorePowerSupport.TriggerPlayerSideTurnEndEffects(simulator, simulatedCombat, [player.Creature]);
+        {
+            if (!PlayerTurnEndLifecycle.RunPhaseTwo(
+                    simulator,
+                    simulatedCombat,
+                    [player.Creature]))
+            {
+                throw new InvalidOperationException("玩家回合结束前置测试遇到未提供的挂起选择。");
+            }
+        }
         if (check.TriggerEnemySideTurnEndBeforeMove)
         {
-            CorePowerSupport.TriggerEnemySideTurnEndEffects(
-                simulator,
-                simulatedCombat,
-                combatState.Enemies);
+            if (!CorePowerSupport.TriggerEnemySideTurnEndEffects(
+                    simulator,
+                    simulatedCombat,
+                    combatState.Enemies))
+            {
+                throw new InvalidOperationException("敌方回合结束前置测试遇到未提供的挂起选择。");
+            }
         }
         ForecastMove simulatedMove = simulatedCombat.CurrentMonsterMoves()
             .Single(candidate => ReferenceEquals(candidate.Owner, enemy));
+        Action? assertPreviewOwnership = check.VerifyAeonglassPreviewForkIsolation
+            ? CaptureAeonglassPreviewForkIsolation(simulator, player, check)
+            : null;
         _ = MonsterMoveSemantics.ApplyForecastMove(
             simulator,
             simulatedCombat,
             simulatedMove,
             player.Creature,
             new HashSet<uint>());
+        assertPreviewOwnership?.Invoke();
         foreach (UnattendedPowerInjection injectedPowerAfterMove in check.PowersAfterMove)
             ApplySimulatedPowerInjection(simulator, simulatedCombat, combatState, player, injectedPowerAfterMove, enemy);
         if (check.CardAfterMove is { } simulatedCardAfterMove)
@@ -994,7 +1077,15 @@ internal sealed partial class UnattendedTestRunner
         int simulatedPlayerBlockAfterMoveActions =
             simulator.State.GetCreature(player.Creature).Block;
         if (check.TriggerPlayerSideTurnEndAfterMove)
-            CorePowerSupport.TriggerPlayerSideTurnEndEffects(simulator, simulatedCombat, [player.Creature]);
+        {
+            if (!PlayerTurnEndLifecycle.RunPhaseTwo(
+                    simulator,
+                    simulatedCombat,
+                    [player.Creature]))
+            {
+                throw new InvalidOperationException("玩家回合结束后置测试遇到未提供的挂起选择。");
+            }
+        }
         foreach (UnattendedCardPlayCheck playCheck in check.CardPlayChecksAfterPlayerSideTurnEnd)
         {
             PredictedCard card = FindSimulatedHandCard(simulator, player, playCheck.CardId, playCheck.Occurrence);
@@ -1022,10 +1113,13 @@ internal sealed partial class UnattendedTestRunner
         for (int trigger = 0; trigger < enemySideTurnEndCount; trigger++)
         {
             simulatedCombat.CurrentSide = CombatSide.Enemy;
-            CorePowerSupport.TriggerEnemySideTurnEndEffects(
-                simulator,
-                simulatedCombat,
-                combatState.Enemies);
+            if (!CorePowerSupport.TriggerEnemySideTurnEndEffects(
+                    simulator,
+                    simulatedCombat,
+                    combatState.Enemies))
+            {
+                throw new InvalidOperationException("敌方回合结束循环测试遇到未提供的挂起选择。");
+            }
             CorePowerSupport.ApplyEnemyDeathPowers(
                 simulator,
                 simulatedCombat,
@@ -1034,11 +1128,20 @@ internal sealed partial class UnattendedTestRunner
         }
         if (check.TriggerPlayerSideTurnStartAfterMove)
         {
-            TurnStartRelicSupport.TriggerBeforeSideTurnStart(simulator, simulatedCombat, [player.Creature]);
-            TurnStartPowerSupport.TriggerBeforeSideTurnStart(
-                simulator,
-                simulatedCombat,
-                [player.Creature]);
+            if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(
+                    simulator,
+                    simulatedCombat,
+                    [player.Creature]))
+            {
+                throw new InvalidOperationException("玩家回合开始遗物测试遇到未提供的挂起选择。");
+            }
+            if (TurnStartPowerSupport.TriggerBeforeSideTurnStart(
+                    simulator,
+                    simulatedCombat,
+                    [player.Creature]))
+            {
+                throw new InvalidOperationException("玩家回合开始 Power 测试遇到未提供的挂起选择。");
+            }
             SimCreatureState simulatedPlayer = simulator.State.GetCreature(player.Creature);
             if (simulatedPlayer.Block > 0)
             {
@@ -1051,25 +1154,38 @@ internal sealed partial class UnattendedTestRunner
                         player.Creature);
             }
             CorePowerSupport.TriggerAfterBlockCleared(simulator, simulatedCombat, player.Creature);
-            CorePowerSupport.TriggerPoison(simulator, simulatedCombat, [player.Creature]);
+            if (!CorePowerSupport.TriggerPoison(simulator, simulatedCombat, [player.Creature]))
+                throw new InvalidOperationException("玩家回合开始毒伤测试遇到未提供的挂起选择。");
             TurnStartChoiceCursor choices = new(null);
             if (simulatedCombat.TriggerAfterPlayerTurnStart(simulator, player.Creature, choices))
                 throw new InvalidOperationException("模拟玩家回合开始遇到未计划选择。");
-            simulatedCombat.TriggerSideTurnStart(
-                simulator,
-                CombatSide.Player,
-                [player.Creature],
-                decrementPlating: simulatedCombat.GetPlayerTurnNumber(player) != 1);
+            if (!simulatedCombat.TriggerSideTurnStart(
+                    simulator,
+                    CombatSide.Player,
+                    [player.Creature],
+                    decrementPlating: simulatedCombat.GetPlayerTurnNumber(player) != 1))
+            {
+                throw new InvalidOperationException("玩家回合开始测试遇到未提供的挂起选择。");
+            }
             EnchantmentLifecycleSupport.TriggerAfterTurnStartOrbs(simulator, player);
         }
         if (check.TriggerEnemySideTurnStartAfterMove)
         {
             simulatedCombat.SnapshotPowerAmountsAtTurnStart([enemy]);
-            TurnStartRelicSupport.TriggerBeforeSideTurnStart(simulator, simulatedCombat, [enemy]);
-            TurnStartPowerSupport.TriggerBeforeSideTurnStart(
-                simulator,
-                simulatedCombat,
-                [enemy]);
+            if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(
+                    simulator,
+                    simulatedCombat,
+                    [enemy]))
+            {
+                throw new InvalidOperationException("敌方回合开始遗物测试遇到未提供的挂起选择。");
+            }
+            if (TurnStartPowerSupport.TriggerBeforeSideTurnStart(
+                    simulator,
+                    simulatedCombat,
+                    [enemy]))
+            {
+                throw new InvalidOperationException("敌方回合开始 Power 测试遇到未提供的挂起选择。");
+            }
             SimCreatureState simulatedEnemy = simulator.State.GetCreature(enemy);
             if (simulatedEnemy.Block > 0)
             {
@@ -1079,12 +1195,16 @@ internal sealed partial class UnattendedTestRunner
                     PersistentRelicSupport.TriggerAfterPreventingBlockClear(simulator, preventer, enemy);
             }
             CorePowerSupport.TriggerAfterBlockCleared(simulator, simulatedCombat, enemy);
-            simulatedCombat.TriggerSideTurnStart(
-                simulator,
-                CombatSide.Enemy,
-                [enemy],
-                combatState.RoundNumber > 1);
-            CorePowerSupport.TriggerPoison(simulator, simulatedCombat, [enemy]);
+            if (!simulatedCombat.TriggerSideTurnStart(
+                    simulator,
+                    CombatSide.Enemy,
+                    [enemy],
+                    combatState.RoundNumber > 1))
+            {
+                throw new InvalidOperationException("敌方回合开始测试遇到未提供的挂起选择。");
+            }
+            if (!CorePowerSupport.TriggerPoison(simulator, simulatedCombat, [enemy]))
+                throw new InvalidOperationException("敌方回合开始毒伤测试遇到未提供的挂起选择。");
             CorePowerSupport.ApplyEnemyDeathPowers(
                 simulator,
                 simulatedCombat,
@@ -1098,11 +1218,15 @@ internal sealed partial class UnattendedTestRunner
         if (check.TriggerPlayerTurnEndAfterMove)
         {
             int etherealExhaustCount = simulatedCombat.CountEtherealCardsInHand(simulator, player);
-            PlayerTurnEndLifecycle.RunPhaseOne(
-                simulator,
-                simulatedCombat,
-                player,
-                [player.Creature]);
+            if (!PlayerTurnEndLifecycle.RunPhaseOne(
+                    simulator,
+                    simulatedCombat,
+                    player,
+                    [player.Creature]))
+            {
+                throw new InvalidOperationException(
+                    "回合结束测试遇到未提供的挂起选择。");
+            }
             simulatedCombat.NormalizeAeonglassWithers(simulator);
             simulatedCombat.NormalizeCardAfflictions(simulator);
             CorePowerSupport.ApplyEnemyDeathPowers(
@@ -1111,16 +1235,14 @@ internal sealed partial class UnattendedTestRunner
                 combatState.Enemies,
                 new HashSet<uint>());
             CorePowerSupport.FlushPlayerHandAtTurnEnd(simulator, simulatedCombat, player);
-            TurnStartRelicSupport.TriggerAfterSideTurnEnd(
-                simulator,
-                simulatedCombat,
-                [player.Creature],
-                etherealExhaustCount);
-            CorePowerSupport.TriggerPlayerSideTurnEndEffects(
-                simulator,
-                simulatedCombat,
-                [player.Creature],
-                etherealExhaustCount);
+            if (!PlayerTurnEndLifecycle.RunPhaseTwo(
+                    simulator,
+                    simulatedCombat,
+                    [player.Creature],
+                    etherealExhaustCount))
+            {
+                throw new InvalidOperationException("回合结束 Power 测试遇到未提供的挂起选择。");
+            }
             CorePowerSupport.ApplyEnemyDeathPowers(
                 simulator,
                 simulatedCombat,

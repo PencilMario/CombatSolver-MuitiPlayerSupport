@@ -36,10 +36,6 @@ internal sealed partial class SolverSettingsPanel
            && _finalBossHpStrategy.GetItemId(_finalBossHpStrategy.Selected)
                == (int)SolverSettings.Current.FinalBossHpStrategy;
 
-    internal bool AcceptableBattleHpLossSettingsConfiguredForTesting
-        => _acceptableBattleHpLoss.Text
-           == SolverSettings.Current.AcceptableBattleHpLoss.ToString(CultureInfo.InvariantCulture);
-
     internal bool MultiplayerSearchTurnLimitSettingsConfiguredForTesting
         => _multiplayerSearchTurnLimit.Text
            == SolverSettings.Current.MultiplayerSearchTurnLimit.ToString(CultureInfo.InvariantCulture);
@@ -98,7 +94,6 @@ internal sealed partial class SolverSettingsPanel
             Reload();
         }
     }
-
     internal bool ExerciseBossHpStrategySettingsForTesting()
     {
         SolverSettingsData original = SolverSettings.Current;
@@ -125,6 +120,40 @@ internal sealed partial class SolverSettingsPanel
             SolverSettings.ApplyForTesting(original);
             Reload();
         }
+    }
+
+    internal bool AcceptableBattleHpLossSettingsConfiguredForTesting
+        => _acceptableBattleHpLoss.Text == SolverSettings.Current.AcceptableBattleHpLoss.ToString(CultureInfo.InvariantCulture);
+
+    internal bool ExerciseThresholdOutsideClickForTesting()
+    {
+        _acceptableBattleHpLoss.GrabFocus();
+        _acceptableBattleHpLoss.Text = "19";
+        using InputEventMouseButton click = new() { Pressed = true, ButtonIndex = MouseButton.Left, Position = new Vector2(-1, -1) };
+        _Input(click);
+        return !_acceptableBattleHpLoss.HasFocus() && SolverSettings.Current.AcceptableBattleHpLoss == 19;
+    }
+
+    private LineEdit CreateAcceptableBattleHpLossInput()
+    {
+        LineEdit input = CreateInput("0");
+        _reloadInputs.Add(data => input.Text = data.AcceptableBattleHpLoss.ToString(CultureInfo.InvariantCulture));
+        bool Commit()
+        {
+            if (!int.TryParse(input.Text.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
+                || value < 0 || value > SolverSettings.MaximumAcceptableBattleHpLoss)
+            {
+                ShowInvalid(input, SolverText.Format($"请输入 0–{SolverSettings.MaximumAcceptableBattleHpLoss} 的整数"));
+                return false;
+            }
+            if (SolverSettings.Current.AcceptableBattleHpLoss == value)
+                return KeepUnchanged(input);
+            return SaveSetting(input, SolverSettings.Current with { AcceptableBattleHpLoss = value }, SolverText.Get("已保存，下次搜索生效"));
+        }
+        input.FocusExited += () => Commit();
+        input.TextSubmitted += _ => Commit();
+        _commitInputs.Add(Commit);
+        return input;
     }
 
     internal bool ExerciseVisualSettingsForTesting()
@@ -196,30 +225,27 @@ internal sealed partial class SolverSettingsPanel
     private Control CreateGeneralPage()
     {
         VBoxContainer content = CreatePageContent("GeneralSettingsPage");
-        content.AddChild(CreateSectionHeading("求解器"));
+        content.AddChild(CreateSectionHeading(SolverText.Get("求解器")));
         GridContainer solverGrid = CreateSettingsGrid();
         _solverEnabled = CreateToggle();
         _solverEnabled.Toggled += OnSolverEnabledToggled;
-        AddBasicRow(solverGrid, "启用求解器", _solverEnabled);
+        AddBasicRow(solverGrid, SolverText.Get("启用求解器"), _solverEnabled);
         _automaticCalculation = CreateToggle();
         _automaticCalculation.Toggled += OnAutomaticCalculationToggled;
         AddBasicRow(
             solverGrid,
-            "自动计算",
+            SolverText.Get("自动计算"),
             _automaticCalculation,
-            "开启后会在进入战斗局面和每个玩家回合自动开始后台计算；关闭后由主面板手动开始计算。");
+            SolverText.Get("开启后会在进入战斗局面和每个玩家回合自动开始后台计算；关闭后由主面板手动开始计算。"));
         _searchCompletionNotificationPolicy = CreateSearchCompletionNotificationPolicyInput();
         AddBasicRow(
             solverGrid,
-            "搜索结束通知",
+            SolverText.Get("搜索结束通知"),
             _searchCompletionNotificationPolicy,
-            "搜索成功、失败、停止或结果过期时发送 Windows 系统通知和提示音。可关闭、仅在游戏不处于前台时通知，或始终通知；其他平台不会调用 Windows 接口。");
+            SolverText.Get("搜索成功、失败、停止或结果过期时发送 Windows 系统通知和提示音。可关闭、仅在游戏不处于前台时通知，或始终通知；其他平台不会调用 Windows 接口。"));
         _acceptableBattleHpLoss = CreateAcceptableBattleHpLossInput();
-        AddBasicRow(
-            solverGrid,
-            "可接受战损上限（HP）",
-            _acceptableBattleHpLoss,
-            "完整胜利路线的预计本局战损小于等于此值时停止继续搜索；默认 0，只在零战损路线出现后停止。死亡或未完成路线不会触发。重新计算后生效。");
+        AddBasicRow(solverGrid, SolverText.Get("提前结束搜索的战损阈值（HP）"), _acceptableBattleHpLoss,
+            SolverText.Get("找到预计整场战损不超过此值的完整胜利路线时，可提前结束搜索。默认 0。有成长目标或非零成长额度时不生效；下次搜索生效。"));
         _multiplayerSearchTurnLimit = CreateMultiplayerSearchTurnLimitInput();
         AddBasicRow(
             solverGrid,
@@ -235,39 +261,39 @@ internal sealed partial class SolverSettingsPanel
             "默认开启。关闭时，本次计算固定使用开始时的快照；只有计算结束后或被打断后再次计算，才会捕获新状态。下次多人模式搜索生效。");
         content.AddChild(solverGrid);
 
-        content.AddChild(CreateSectionHeading("幕末 Boss"));
+        content.AddChild(CreateSectionHeading(SolverText.Get("幕末 Boss")));
         GridContainer bossStrategyGrid = CreateSettingsGrid();
         _actTransitionBossHpStrategy = CreateBossHpStrategyInput(
             data => data.ActTransitionBossHpStrategy,
             (data, strategy) => data with { ActTransitionBossHpStrategy = strategy });
         AddBasicRow(
             bossStrategyGrid,
-            "第一、二幕血量取舍",
+            SolverText.Get("第一、二幕血量取舍"),
             _actTransitionBossHpStrategy,
-            "通关优先会按战后回复 80% 折算血量价值并尽量保留药水；最低战损会按普通战斗完整比较掉血。重新计算后生效。");
+            SolverText.Get("通关优先会按战后回复 80% 折算血量价值并尽量保留药水；最低战损会按普通战斗完整比较掉血。重新计算后生效。"));
         _finalBossHpStrategy = CreateBossHpStrategyInput(
             data => data.FinalBossHpStrategy,
             (data, strategy) => data with { FinalBossHpStrategy = strategy });
         AddBasicRow(
             bossStrategyGrid,
-            "最终 Boss 血量取舍",
+            SolverText.Get("最终 Boss 血量取舍"),
             _finalBossHpStrategy,
-            "通关优先只要求路线存活并优先保留资源；最低战损会继续比较剩余血量。重新计算后生效。");
+            SolverText.Get("通关优先只要求路线存活并优先保留资源；最低战损会继续比较剩余血量。重新计算后生效。"));
         content.AddChild(bossStrategyGrid);
 
-        content.AddChild(CreateSectionHeading("自动执行"));
+        content.AddChild(CreateSectionHeading(SolverText.Get("自动执行")));
         GridContainer executionGrid = CreateSettingsGrid();
         _stopOnCombatEnd = CreateToggle();
         _stopOnCombatEnd.Toggled += OnStopOnCombatEndToggled;
-        AddBasicRow(executionGrid, "预计结束战斗时暂停", _stopOnCombatEnd);
+        AddBasicRow(executionGrid, SolverText.Get("预计结束战斗时暂停"), _stopOnCombatEnd);
         _stopOnDeathTurn = CreateToggle();
         _stopOnDeathTurn.Toggled += OnStopOnDeathTurnToggled;
-        AddBasicRow(executionGrid, "死亡回合时暂停", _stopOnDeathTurn);
+        AddBasicRow(executionGrid, SolverText.Get("死亡回合时暂停"), _stopOnDeathTurn);
         _stopOnWorseRecalculation = CreateToggle();
         _stopOnWorseRecalculation.Toggled += OnStopOnWorseRecalculationToggled;
-        AddBasicRow(executionGrid, "重算后战损增加时暂停", _stopOnWorseRecalculation);
-        AddBasicRow(executionGrid, "自动出牌速度", CreateDeploymentFastModeInput());
-        AddBasicRow(executionGrid, "牌间额外停顿（秒）", CreateOptionalDoubleInput(
+        AddBasicRow(executionGrid, SolverText.Get("重算后战损增加时暂停"), _stopOnWorseRecalculation);
+        AddBasicRow(executionGrid, SolverText.Get("自动出牌速度"), CreateDeploymentFastModeInput());
+        AddBasicRow(executionGrid, SolverText.Get("牌间额外停顿（秒）"), CreateOptionalDoubleInput(
             0d,
             data => data.DeploymentInterActionDelaySeconds,
             (data, value) => data with { DeploymentInterActionDelaySeconds = value },
@@ -275,20 +301,34 @@ internal sealed partial class SolverSettingsPanel
             3d));
         content.AddChild(executionGrid);
 
-        content.AddChild(CreateSectionHeading("界面"));
+        content.AddChild(CreateSectionHeading(SolverText.Get("界面")));
         GridContainer interfaceGrid = CreateSettingsGrid();
         _overlayTheme = CreateOverlayThemeInput();
         AddBasicRow(
             interfaceGrid,
-            "界面主题",
+            SolverText.Get("界面主题"),
             _overlayTheme,
-            "深色为默认主题；切换后会重建当前覆盖层，并保留最近的路线与设置页面。");
+            SolverText.Get("深色为默认主题；切换后会重建当前覆盖层，并保留最近的路线与设置页面。"));
         AddBasicRow(
             interfaceGrid,
-            "覆盖层透明度",
+            SolverText.Get("覆盖层透明度"),
             CreateOverlayOpacityInput(),
-            "调整整个求解器覆盖层的透明度，范围为 25%–100%，立即生效。");
+            SolverText.Get("调整整个求解器覆盖层的透明度，范围为 25%–100%，立即生效。"));
         content.AddChild(interfaceGrid);
+        content.AddChild(CreateSectionHeading(SolverText.Get("在线统计")));
+        GridContainer statisticsGrid = CreateSettingsGrid();
+        CheckButton statistics = CreateToggle();
+        _reloadInputs.Add(data => statistics.SetPressedNoSignal(data.OnlineStatisticsEnabled));
+        statistics.Toggled += enabled =>
+        {
+            if (_loading) return;
+            SolverSettings.Update(SolverSettings.Current with { OnlineStatisticsEnabled = enabled });
+            OnlinePresence.SettingsChanged();
+            SetStatus(enabled ? SolverText.Get("在线统计已开启") : SolverText.Get("在线统计已关闭"), SolverUiTokens.Palette.Success);
+        };
+        AddBasicRow(statisticsGrid, SolverText.Get("向作者发送在线状态（默认开启）"), statistics,
+            SolverText.Get("每 30 秒发送随机安装标识、昵称、角色、楼层、当前战斗、预计战损和 Mod 版本。作者后台可见当前状态，不上传完整路线；离线后清除玩家详情，仅保留历史人数。关闭后停止发送，最迟 90 秒从在线列表移除。"));
+        content.AddChild(statisticsGrid);
         return CreatePageScroll(content);
     }
 
@@ -336,9 +376,9 @@ internal sealed partial class SolverSettingsPanel
     private OptionButton CreateSearchCompletionNotificationPolicyInput()
     {
         OptionButton input = CreateOptionInput(260);
-        input.AddItem("关闭", (int)SearchCompletionNotificationPolicy.Disabled);
-        input.AddItem("仅游戏不在前台（默认）", (int)SearchCompletionNotificationPolicy.BackgroundOnly);
-        input.AddItem("始终通知", (int)SearchCompletionNotificationPolicy.Always);
+        input.AddItem(SolverText.Get("关闭"), (int)SearchCompletionNotificationPolicy.Disabled);
+        input.AddItem(SolverText.Get("仅游戏不在前台（默认）"), (int)SearchCompletionNotificationPolicy.BackgroundOnly);
+        input.AddItem(SolverText.Get("始终通知"), (int)SearchCompletionNotificationPolicy.Always);
         _reloadInputs.Add(data => input.Selected = input.GetItemIndex(
             (int)ResolveSearchCompletionNotificationPolicy(data)));
         input.ItemSelected += index =>
@@ -354,7 +394,7 @@ internal sealed partial class SolverSettingsPanel
                     ? SolverSearchCompletionNotificationMode.Always
                     : SolverSearchCompletionNotificationMode.OnlyWhenGameInBackground,
             });
-            SetStatus("已保存并立即生效", SolverUiTokens.Palette.Success);
+            SetStatus(SolverText.Get("已保存并立即生效"), SolverUiTokens.Palette.Success);
         };
         return input;
     }
@@ -364,8 +404,8 @@ internal sealed partial class SolverSettingsPanel
         Func<SolverSettingsData, BossHpStrategy, SolverSettingsData> write)
     {
         OptionButton input = CreateOptionInput(260);
-        input.AddItem("通关优先（默认）", (int)BossHpStrategy.ProgressionFirst);
-        input.AddItem("最低战损", (int)BossHpStrategy.MinimizeHpLoss);
+        input.AddItem(SolverText.Get("通关优先（默认）"), (int)BossHpStrategy.ProgressionFirst);
+        input.AddItem(SolverText.Get("最低战损"), (int)BossHpStrategy.MinimizeHpLoss);
         _reloadInputs.Add(data => input.Selected = input.GetItemIndex((int)read(data)));
         input.ItemSelected += index =>
         {
@@ -374,46 +414,18 @@ internal sealed partial class SolverSettingsPanel
             BossHpStrategy strategy = (BossHpStrategy)input.GetItemId((int)index);
             SolverSettings.Update(write(SolverSettings.Current, strategy));
             SolverOverlay.RefreshBossHpStrategyHint();
-            SetStatus("已保存，重新计算后生效", SolverUiTokens.Palette.Success);
+            SetStatus(SolverText.Get("已保存，重新计算后生效"), SolverUiTokens.Palette.Success);
         };
-        return input;
-    }
-
-    private LineEdit CreateAcceptableBattleHpLossInput()
-    {
-        LineEdit input = CreateInput("0");
-        _reloadInputs.Add(data => input.Text = data.AcceptableBattleHpLoss
-            .ToString(CultureInfo.InvariantCulture));
-        bool Commit()
-        {
-            string text = input.Text.Trim();
-            if (!int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
-                || value < 0
-                || value > SolverSettings.MaximumAcceptableBattleHpLoss)
-            {
-                ShowInvalid(input, $"请输入 0–{SolverSettings.MaximumAcceptableBattleHpLoss} 的整数");
-                return false;
-            }
-            if (SolverSettings.Current.AcceptableBattleHpLoss == value)
-                return KeepUnchanged(input);
-            return SaveSetting(
-                input,
-                SolverSettings.Current with { AcceptableBattleHpLoss = value },
-                "已保存，下次搜索生效");
-        }
-        input.FocusExited += () => Commit();
-        input.TextSubmitted += _ => Commit();
-        _commitInputs.Add(Commit);
         return input;
     }
 
     private OptionButton CreateDeploymentFastModeInput()
     {
         OptionButton input = CreateOptionInput();
-        input.AddItem("跟随游戏（默认）", (int)SolverDeploymentFastMode.FollowGame);
-        input.AddItem("正常", (int)SolverDeploymentFastMode.Normal);
-        input.AddItem("快速", (int)SolverDeploymentFastMode.Fast);
-        input.AddItem("瞬间", (int)SolverDeploymentFastMode.Instant);
+        input.AddItem(SolverText.Get("跟随游戏（默认）"), (int)SolverDeploymentFastMode.FollowGame);
+        input.AddItem(SolverText.Get("正常"), (int)SolverDeploymentFastMode.Normal);
+        input.AddItem(SolverText.Get("快速"), (int)SolverDeploymentFastMode.Fast);
+        input.AddItem(SolverText.Get("瞬间"), (int)SolverDeploymentFastMode.Instant);
         _reloadInputs.Add(data => input.Selected = input.GetItemIndex((int)data.DeploymentFastMode));
         input.ItemSelected += index =>
         {
@@ -421,7 +433,7 @@ internal sealed partial class SolverSettingsPanel
                 return;
             SolverDeploymentFastMode mode = (SolverDeploymentFastMode)input.GetItemId((int)index);
             SolverSettings.Update(SolverSettings.Current with { DeploymentFastMode = mode });
-            SetStatus("已保存，下次执行生效", SolverUiTokens.Palette.Success);
+            SetStatus(SolverText.Get("已保存，下次执行生效"), SolverUiTokens.Palette.Success);
         };
         return input;
     }
@@ -429,8 +441,8 @@ internal sealed partial class SolverSettingsPanel
     private OptionButton CreateOverlayThemeInput()
     {
         OptionButton input = CreateOptionInput();
-        input.AddItem("深色（默认）", (int)SolverOverlayTheme.Dark);
-        input.AddItem("浅色", (int)SolverOverlayTheme.Light);
+        input.AddItem(SolverText.Get("深色（默认）"), (int)SolverOverlayTheme.Dark);
+        input.AddItem(SolverText.Get("浅色"), (int)SolverOverlayTheme.Light);
         _reloadInputs.Add(data => input.Selected = input.GetItemIndex((int)data.OverlayTheme));
         input.ItemSelected += index =>
         {
@@ -438,7 +450,7 @@ internal sealed partial class SolverSettingsPanel
                 return;
             SolverOverlayTheme theme = (SolverOverlayTheme)input.GetItemId((int)index);
             SolverSettings.Update(SolverSettings.Current with { OverlayTheme = theme });
-            SetStatus("界面主题已保存并应用", SolverUiTokens.Palette.Success);
+            SetStatus(SolverText.Get("界面主题已保存并应用"), SolverUiTokens.Palette.Success);
             SolverOverlay.ApplyConfiguredTheme();
         };
         return input;
@@ -482,7 +494,7 @@ internal sealed partial class SolverSettingsPanel
                 return;
             SolverSettings.Update(SolverSettings.Current with { OverlayOpacity = (float)value });
             SolverOverlay.ApplyOverlayOpacity();
-            SetStatus("透明度已保存并立即生效", SolverUiTokens.Palette.Success);
+            SetStatus(SolverText.Get("透明度已保存并立即生效"), SolverUiTokens.Palette.Success);
         };
         row.AddChild(_overlayOpacity);
         row.AddChild(_overlayOpacityValue);
@@ -494,7 +506,7 @@ internal sealed partial class SolverSettingsPanel
         if (_loading)
             return;
         SolverController.SetSolverDisabled(!enabled);
-        SetStatus(enabled ? "求解器已启用" : "求解器已暂停", SolverUiTokens.Palette.Success);
+        SetStatus(enabled ? SolverText.Get("求解器已启用") : SolverText.Get("求解器已暂停"), SolverUiTokens.Palette.Success);
     }
 
     private void OnAutomaticCalculationToggled(bool enabled)
@@ -503,7 +515,7 @@ internal sealed partial class SolverSettingsPanel
             return;
         SolverController.SetAutomaticCalculationEnabled(enabled);
         SetStatus(
-            enabled ? "自动计算已开启" : "自动计算已关闭",
+            enabled ? SolverText.Get("自动计算已开启") : SolverText.Get("自动计算已关闭"),
             SolverUiTokens.Palette.Success);
     }
 
@@ -512,7 +524,7 @@ internal sealed partial class SolverSettingsPanel
         if (_loading)
             return;
         SolverController.SetStopFullAutoOnCombatEnd(enabled);
-        SetStatus("已保存并立即生效", SolverUiTokens.Palette.Success);
+        SetStatus(SolverText.Get("已保存并立即生效"), SolverUiTokens.Palette.Success);
     }
 
     private void OnStopOnDeathTurnToggled(bool enabled)
@@ -520,7 +532,7 @@ internal sealed partial class SolverSettingsPanel
         if (_loading)
             return;
         SolverController.SetStopFullAutoOnDeathTurn(enabled);
-        SetStatus("已保存并立即生效", SolverUiTokens.Palette.Success);
+        SetStatus(SolverText.Get("已保存并立即生效"), SolverUiTokens.Palette.Success);
     }
 
     private void OnStopOnWorseRecalculationToggled(bool enabled)
@@ -528,7 +540,7 @@ internal sealed partial class SolverSettingsPanel
         if (_loading)
             return;
         SolverController.SetStopFullAutoOnWorseRecalculation(enabled);
-        SetStatus("已保存并立即生效", SolverUiTokens.Palette.Success);
+        SetStatus(SolverText.Get("已保存并立即生效"), SolverUiTokens.Palette.Success);
     }
 
     private void OnRecalculateMultiplayerSearchOnStateChangeToggled(bool enabled)

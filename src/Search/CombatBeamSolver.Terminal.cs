@@ -35,6 +35,9 @@ internal sealed partial class CombatBeamSolver
         if (ended.Count == 0)
             return ended;
 
+        int pathBoundaryId = ObserveSearchPathBoundaryInput(
+            ended, SearchPathObservationStage.TurnInput, "before_turn_outcome_annotation");
+
         List<PendingTurnOutcome> pending = [];
         foreach (SearchNode node in ended)
         {
@@ -122,7 +125,7 @@ internal sealed partial class CombatBeamSolver
                     : 0;
                 int previousSold = outcome.Node.Parent!.FutureSoldHp;
                 int futureSold = previousSold + soldThisTurn;
-                bool exceedsPolicyThreshold = futureSold > availableFutureSoldHp;
+                bool exceedsPolicyThreshold = futureSold > availableFutureSoldHp + outcome.Node.Snapshot.GrowthHpCredit;
                 bool protectsInvestment = exceedsPolicyThreshold
                     && HasStrategicInvestmentPayoff(outcome, conservative);
                 if (futureSold > absoluteFutureSoldHp)
@@ -193,6 +196,7 @@ internal sealed partial class CombatBeamSolver
                     isInvestment: true));
             }
         }
+        ObserveSearchPathTurnSelection(ended, annotated, pathBoundaryId);
         return annotated;
     }
 
@@ -215,6 +219,10 @@ internal sealed partial class CombatBeamSolver
             Outcome = new TurnOutcome(
                 outcome.Turn,
                 outcome.HpLost,
+                Math.Max(
+                    0,
+                    outcome.Node.Snapshot.RecoveredPlayerHp
+                        - outcome.TurnStart.Snapshot.RecoveredPlayerHp),
                 outcome.Node.CumulativeEnemyHpLost
                     - outcome.TurnStart.CumulativeEnemyHpLost,
                 soldThisTurn,
@@ -277,6 +285,7 @@ internal sealed partial class CombatBeamSolver
         Dictionary<int, int> sold = [];
         Dictionary<int, int> maxBlock = [];
         Dictionary<int, int> actualBlock = [];
+        Dictionary<int, int> recoveries = [];
         Dictionary<int, int> energy = [];
         Dictionary<int, int> potionCounts = [];
         Dictionary<int, int> potionCosts = [];
@@ -312,6 +321,7 @@ internal sealed partial class CombatBeamSolver
             if (node.Outcome is { } outcome)
             {
                 losses[outcome.Turn] = outcome.HpLost;
+                recoveries[outcome.Turn] = outcome.HpRecovered;
                 enemyHpLosses[outcome.Turn] = outcome.EnemyHpLost;
                 actualBlock[outcome.Turn] = outcome.ActualBlock;
                 maxBlock[outcome.Turn] = outcome.MaxBlock;
@@ -326,10 +336,10 @@ internal sealed partial class CombatBeamSolver
                     node.Snapshot.ProjectedPlayerHp)
                 && node.Snapshot.BoundaryReason != SearchBoundaryReason.UnsupportedEffect)
             {
-                combatEndedTurn = action.Turn;
+                combatEndedTurn = node.Snapshot.CombatEndedTurn;
             }
             if (deathTurn == null && node.Snapshot.PlayerDead)
-                deathTurn = action.Turn;
+                deathTurn = node.Snapshot.DeathTurn;
         }
         if (killRecorder != null)
         {
@@ -354,7 +364,7 @@ internal sealed partial class CombatBeamSolver
                 else if (kills.TryGetValue(actionIndex, out IReadOnlyList<string>? fallback))
                 {
                     attributedKills[actionIndex] = fallback
-                        .Select(name => $"{name}（未知效果）")
+                        .Select(name => $"{name}（{displayNames.DamageSource(CombatDamageSource.Unknown)}）")
                         .ToArray();
                 }
             }
@@ -363,6 +373,7 @@ internal sealed partial class CombatBeamSolver
 
         return new RouteAnnotations(
             losses,
+            recoveries,
             enemyHpLosses,
             sold,
             maxBlock,

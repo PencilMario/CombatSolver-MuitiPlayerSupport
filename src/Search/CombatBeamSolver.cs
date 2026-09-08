@@ -58,6 +58,9 @@ internal sealed partial class CombatBeamSolver(
         policy.ActTransitionBossHpStrategy,
         policy.FinalBossHpStrategy);
     private readonly int _acceptableBattleHpLoss = policy.AcceptableBattleHpLoss;
+    private readonly GrowthValues _growthBudgets = policy.EffectiveGrowthBudgets;
+    private readonly bool _hasGrowthTargets = policy.EffectiveHasGrowthTargets;
+    private readonly bool _ignoreLongTermRewards = policy.IgnoreLongTermRewards;
     private readonly bool _detailedDiagnostics = policy.DetailedDiagnostics;
     private readonly int? _maximumPotionUses = maximumPotionUses;
     private readonly int _minimumPotionUses = minimumPotionUses ?? 0;
@@ -86,6 +89,8 @@ internal sealed partial class CombatBeamSolver(
     private BeamRetentionPolicy Retention => _retention ??= new BeamRetentionPolicy(
         _profile,
         _isActEndingBoss,
+        _strategicBossHpRelief,
+        root.PostCombatRelicHeal,
         _initialEnemyCount,
         root.InitialPlayerHp,
         root.InitialPlayerMaxHp,
@@ -105,6 +110,7 @@ internal sealed partial class CombatBeamSolver(
         root.HasRenewablePotionShapedRock,
         _theftPolicy,
         _strategicBossHpRelief,
+        root.PostCombatRelicHeal,
         _potionFreePolicyBaseline,
         root.InitialPlayerMaxHp,
         _minimumPotionUses,

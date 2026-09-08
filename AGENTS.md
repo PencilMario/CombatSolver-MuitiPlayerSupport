@@ -28,17 +28,20 @@ CombatSolver 是《杀戮尖塔 2》的单人战斗路线求解器 Mod，使用 
 - 卡牌、Power、遗物、药水、球、怪物、死亡/召唤、选牌、RNG、Fork 或跨回合语义：`.agents/skills/combat-semantic-change/SKILL.md`。
 - Beam、评分、剪枝、Pareto、转置、预算、分配、GC 或实机卡顿：`.agents/skills/search-performance-optimization/SKILL.md`。
 - Search/Runtime/UI/Testing/registry 的职责迁移、结构拆分和依赖边界：`.agents/skills/architecture-boundary-refactor/SKILL.md`。
+- 玩家可见 UI 文案、胶囊附加信息和中英本地化：`.agents/skills/ui-localization/SKILL.md`；新增文案同时维护中文与英文。
 - 版本提升、发布 ZIP、版本标签、创意工坊上传、GitHub 同步、干净安装或“可发布”结论：`.agents/skills/release-gate/SKILL.md`。
 
 同一任务可以依次使用多个 skill。先确定语义是否正确，再处理搜索或结构，最后只在用户要求时发布。
 
 ## 3. 当前事实来源
 
+- [文档总目录](docs/README.md)：当前指南与专题索引；玩家更新日志统一位于 `docs/releases/`，专题资料按目录维护。新增或移动文档时同步索引与引用。
 - [架构与职责地图](docs/ARCHITECTURE.md)：当前源码入口、所有权和禁止依赖的单一维护入口。
 - [滚动重构路线](docs/refactoring/refactor-roadmap.md)：已完成批次和明确不做项。
 - [核验审计](docs/refactoring/verified-audit-4117eb0.md)：本轮重构的逐阶段证据；它是历史结果，不是持续规则。
 - [测试矩阵](docs/TEST_MATRIX.md) 与 `coverage/test-evidence.json`：可重跑场景和结构化证据。
 - [开发笔记](docs/DEVELOPMENT_NOTES.md)：版本历史与未发布行为变化。
+- [第三方 Mod 适配手册](docs/THIRD_PARTY_ADAPTERS.md)：面向外部 Mod 作者的登记点总表、登记纪律与验收标准；同时是「哪些位置还是封闭开关」的单一维护入口。
 - `tools/verify-refactor-boundaries.ps1`（Windows / PowerShell 7）与 `tools/verify-refactor-boundaries.sh`（Linux / Bash）：当前架构边界的等价可执行门禁。
 
 源码与当前可重跑结果优先于历史说明。职责发生变化时，同一提交更新 `docs/ARCHITECTURE.md`、相关 skill 和结构门禁，避免多份地图继续漂移。
@@ -187,12 +190,15 @@ Windows `.ps1` 与 Linux `.sh` 都是受维护的平台原生入口：PowerShell
 
 - 改动职责边界：更新 `docs/ARCHITECTURE.md`、相关 skill、结构门禁及必要的重构路线/核验记录。
 - 改动语义、搜索、性能、UI 或测试方式：更新 `docs/DEVELOPMENT_NOTES.md` 与 `docs/TEST_MATRIX.md`；需要进入覆盖目录时同步结构化证据。
+- 改动任何第三方登记点：在同一提交更新 `docs/THIRD_PARTY_ADAPTERS.md`。登记点指外部 Mod 能写入的入口——镜像注册表、`StrategicEffectMirrors` 这类按类型登记的表、订阅者门禁，以及手册第 6 节列出的封闭开关。新增登记入口要写进第 2 节并从第 6 节移除对应行；改动既有入口的签名、语义或登记时机要更新对应章节；发现新的封闭开关要补进第 6 节。登记点有专属子文档时（例如 `docs/third-party-strategic-effects.md`）一并更新，手册只保留概述和链接。
+- 功能修复顺带暴露出手册没讲清的行为时，把它补进手册，不要只写进开发笔记——手册是外部作者唯一会读的那份。
 - 面向玩家的更新日志和开发文档使用当前支持游戏版本的官方中文译名；名称从游戏内本地化或实机路线日志核对，不沿用玩家口语、旧译名或自行翻译。原始问题摘录保持用户原文，并明确标记为原始描述。
 - 用户声明“这一批不发版”“直到我说发版都记入 `X`”或等价要求时，建立活动发布批次。批次内每项改动均写入 `X（开发中）` 并正常提交，不逐项提升版本、构建、打包、创建标签或上传；直到用户明确结束批次。该批次声明优先于“修复后默认最小发包”。
 - 版本创建标签或成功上传创意工坊后即冻结。后续行为改动进入新的“下一版本（开发中）”记录，不追加到已发布版本的更新日志或开发章节；用户尚未指定新版本号时不擅自编造，等下次版本指令再统一命名。
 - 没有活动发布批次时，玩家问题包修复和用户提出的功能修改默认以补丁版本、提交、一次 Release 构建和一次最小 ZIP 定版；用户明确说不发包时停止在提交。
 - 发布口令按字面分层执行：`准备发版` 完成版本同步、玩家更新日志、提交、一次 Release 构建和一次最小 ZIP，不创建标签、不上传、不推送；带有“给我审核/我拍板后”的请求只整理并提交更新日志草案，等用户批准后再构建定版。`发版/发布` 在必要时补齐准备步骤并创建当前版本的 annotated tag，不自动上传创意工坊或推送 GitHub。`上传/更新创意工坊` 只发布当前已定版版本；`推送/同步远端` 只提交明确属于当前任务的跟踪文件并推送当前分支及已存在的当前版本标签。只有用户明确要求“完整发布门禁/完整验收/干净安装”才执行完整门禁。
 - 最小发包链固定为：完成必要行为验证、提交、一次 Release 构建、一次最小 ZIP 创建。后续没有行为源码或构建输入变化时，到 ZIP 创建成功即结束，不追加发布后复测或包内容复核；前一阶段已有成功证据时直接复用，不重做。
+- Release ZIP 统一写入仓库根目录的 `releases/`，命名为 `CombatSolver-<版本号>.zip`。当前工作区对应 `D:\Desktop\sts2mod\CombatSolver\releases`；目录不存在时先创建，交付链接也指向该目录。
 - 用户明确要求“上传/更新创意工坊”时，直接上传仓库当前已经定版的最新版，并在创意工坊 `changeNote` 中附本次面向玩家的更新说明。创意工坊暂存目录中的旧 DLL、manifest 或旧 `changeNote` 不是最新版来源；存在尚未定版的当前改动时，只补齐缺失的最小发包阶段。上传成功后不打开页面或重新下载确认。
 - 创意工坊更新说明与 `docs/DEVELOPMENT_NOTES.md` 的开发记录用途不同。开发记录用于保留根因、内部职责、测试证据和性能数据；更新说明只提炼玩家在游戏中能感知的新增、优化、修复、UI/操作、兼容性与必要限制。禁止写类名、方法名、算法内部、内存/GC 实现、runId、提交、构建、测试和打包细节，也不要直接复制开发记录。跨多个版本更新时合并同类玩家改动，不逐版堆技术流水账。
 - 普通开发完成后直接提交当前任务改动；“干净提交”表示显式暂存本任务文件、保留用户其他改动并排除构建产物、发布包和暂存内容，不表示清空工作区。没有新改动但已有本地提交领先远端时，直接推送，不创建空提交。
@@ -201,7 +207,7 @@ Windows `.ps1` 与 Linux `.sh` 都是受维护的平台原生入口：PowerShell
 
 ## 10. 已知外部边界
 
-- 当前没有通用 `replay-state` / `native-state` 一键导入器。问题包可用于取证和建立 fixture，不能仅因存在状态文件就声称已经回放。
+- 问题包通过 `CheckpointArchivePath` 或 `run-checkpoint-batch` 导入，`ReplayMode=RestoreOnly` 默认只验证检查点；`Preflight` 只验证材料，不能视作恢复成功。新包从原生战前存档和事件恢复，完整 ContinuationStamp 与 native-state 分别对账；旧包支持开战前注入及检查点恢复，缺失历史与政策明确报告。批量工具口径与限制见 `docs/CHECKPOINT_REPLAY.md`。
 - Overlay 的人工布局、字体、拖动和真实动画需要可见游戏验证；headless 只证明结构化状态与部署事件。
 - No-GC 和卡顿受完整 Mod 栈及渲染分配影响；headless 数据不能替代可见 Steam 性能口径。
 - `.local/decompiled/sts2-v0.111.0/` 是当前游戏版本的只读原版源码参考。只有调查原版语义时定向读取，游戏版本变化后重新建立对应版本目录；不要在普通仓库扫描中载入它。

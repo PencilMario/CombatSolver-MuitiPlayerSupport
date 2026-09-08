@@ -27,6 +27,7 @@ internal sealed partial class UnattendedTestRunner
         public bool AutomaticTurnSearchEnabled { get; private set; } = true;
         public bool VerifyIncrementalSearch { get; private set; }
         public bool ForceShortSearchOnly { get; private set; }
+        public void ApplyRecordedShortSearchMode(bool enabled) => ForceShortSearchOnly = enabled;
         public bool MeasureSearchPhases { get; private set; }
         public int? SearchMaxDegreeOfParallelismOverride { get; private set; }
         public int? ShortSearchBudgetOverrideMilliseconds { get; private set; }
@@ -146,7 +147,7 @@ internal sealed partial class UnattendedTestRunner
                         WriteReady(request.RunId, held: true);
                         return;
                     }
-                    if (completion != RunCompletion.Passed)
+                    if (completion is not (RunCompletion.Passed or RunCompletion.FailedReusable))
                         throw new InvalidOperationException($"未知的无人测试完成状态 {completion}。");
                     if (request.HoldAfterInitialSearch)
                     {

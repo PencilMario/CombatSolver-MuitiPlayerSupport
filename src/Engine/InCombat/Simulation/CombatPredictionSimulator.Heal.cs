@@ -1,4 +1,5 @@
 using MegaCrit.Sts2.Core.Entities.Creatures;
+using CombatSolver.Engine.Common;
 using CombatSolver.Engine.InCombat.Mirrors;
 
 namespace CombatSolver.Engine.InCombat.Simulation;
@@ -15,7 +16,15 @@ internal sealed partial class CombatPredictionSimulator
         }
 
         var creatureState = State.GetCreature(creature);
+        int hpBeforeHeal = creatureState.CurrentHp;
         creatureState.Heal(amount);
+        int restoredHp = creatureState.CurrentHp - hpBeforeHeal;
+        ActionRelicTriggers?.RecordHealth("heal", creature.CombatId, ResolveDamageSource(null),
+            amount, restoredHp, hpBeforeHeal, creatureState.CurrentHp);
+        if (restoredHp > 0 && State.CombatState is ICombatPredictionCardEventSink eventSink)
+        {
+            eventSink.RecordHpRecovered(creature, restoredHp);
+        }
 
         if (amount > 0m)
         {

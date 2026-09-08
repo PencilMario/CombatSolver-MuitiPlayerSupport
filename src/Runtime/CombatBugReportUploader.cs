@@ -3,6 +3,9 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.IO.Compression;
+using System.Net.Security;
+using System.Security.Cryptography;
 
 namespace CombatSolver;
 
@@ -25,13 +28,27 @@ internal static class CombatBugReportUploader
     public const int MaximumDescriptionUtf8Bytes = 64 * 1024;
     private const int MaximumResponseBytes = 64 * 1024;
     private const int MaximumDisplayedResponseCharacters = 1_000;
-    private const string UploadEndpoint = "https://combatsolver.iryougi.com/api/v1/reports";
+    private const string UploadEndpoint = "https://43.249.195.13:10289/api/v2/reports";
     private const string UploadTokenHeaderName = "X-CombatSolver-Key";
 
     // 仅用于过滤扫描器和误触的公共流量，不是访问控制。
     private const string UploadToken = "9d61747056101b511150372adcf98bf61aa49394803dcdd4";
 
-    private static readonly HttpClientHandler ProductionHandler = new() { UseProxy = false };
+    private static readonly HttpClientHandler ProductionHandler = CreateProductionHandler();
+    internal static HttpClientHandler CreateProductionHandler()
+    {
+        byte[] pin = Convert.FromHexString("AFFF5C405F7112E452ED7EBAE61420FE9CF900A70DEB017B4E03371BA3769870");
+        return new HttpClientHandler
+        {
+            UseProxy = false,
+            AllowAutoRedirect = false,
+            ServerCertificateCustomValidationCallback = (_, certificate, _, errors) => certificate != null
+                && (errors & (SslPolicyErrors.RemoteCertificateNameMismatch | SslPolicyErrors.RemoteCertificateNotAvailable)) == 0
+                && CryptographicOperations.FixedTimeEquals(certificate.GetCertHash(HashAlgorithmName.SHA256), pin)
+                && DateTime.UtcNow >= certificate.NotBefore.ToUniversalTime()
+                && DateTime.UtcNow <= certificate.NotAfter.ToUniversalTime(),
+        };
+    }
     private static readonly HttpClient Client = new(ProductionHandler)
     {
         Timeout = TimeSpan.FromMinutes(2),
@@ -86,6 +103,7 @@ internal static class CombatBugReportUploader
         CancellationToken cancellationToken)
     {
         ValidateInputs(zipPath, description, contact, submissionId);
+        string metadata = ReadMetadata(zipPath, submissionId, description);
         await using FileStream stream = new(
             zipPath,
             FileMode.Open,
@@ -99,6 +117,8 @@ internal static class CombatBugReportUploader
             { fileContent, "report", Path.GetFileName(zipPath) },
             { new StringContent(description, Encoding.UTF8), "description" },
             { new StringContent(contact, Encoding.UTF8), "contact" },
+            { new StringContent(metadata, Encoding.UTF8, "application/json"), "metadata" },
+            { new StringContent(submissionId, Encoding.UTF8), "submissionId" },
         };
         using HttpRequestMessage request = new(HttpMethod.Post, endpoint) { Content = form };
         request.Headers.Add(UploadTokenHeaderName, UploadToken);
@@ -139,6 +159,23 @@ internal static class CombatBugReportUploader
                 serverReceipt.SizeBytes,
                 response.StatusCode);
         }
+    }
+
+    internal static string ReadMetadata(string zipPath, string submissionId, string description)
+    {
+        using ZipArchive archive = ZipFile.OpenRead(zipPath);
+        ZipArchiveEntry entry = archive.GetEntry(CombatBugReportMetadata.EntryPath)
+            ?? throw new InvalidDataException("问题包缺少 report.json。");
+        if (entry.Length > CombatBugReportMetadata.MaximumBytes) throw new InvalidDataException("问题包元数据过大。");
+        using StreamReader reader = new(entry.Open(), Encoding.UTF8);
+        string metadata = reader.ReadToEnd();
+        using JsonDocument document = JsonDocument.Parse(metadata);
+        JsonElement root = document.RootElement;
+        if (root.GetProperty("schemaVersion").GetInt32() != 2
+            || root.GetProperty("reportId").GetString() != submissionId
+            || root.GetProperty("playerDescription").GetString() != description)
+            throw new InvalidDataException("提交信息与问题包元数据不一致。");
+        return metadata;
     }
 
     private static void ValidateInputs(

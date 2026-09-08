@@ -6,16 +6,43 @@ namespace CombatSolver;
 
 internal static class PlayerTurnEndLifecycle
 {
-    public static void RunPhaseOne(
+    public static bool RunPhaseTwo(
+        CombatPredictionSimulator simulator,
+        SimulatedCombatState combat,
+        IReadOnlyList<Creature> participants,
+        int etherealExhaustCount = 0)
+    {
+        if (!CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects(
+                simulator, combat, participants, etherealExhaustCount)
+            || !TurnStartRelicSupport.TriggerAfterSideTurnEnd(
+                simulator, combat, participants, etherealExhaustCount)
+            || !EndTurnPowerSupport.TriggerLate(simulator, combat, participants))
+        {
+            return false;
+        }
+        combat.NormalizeCardAfflictions(simulator);
+        return true;
+    }
+
+    public static bool RunPhaseOne(
         CombatPredictionSimulator simulator,
         SimulatedCombatState combat,
         Player player,
         IReadOnlyList<Creature> participants)
     {
         EndTurnPowerSupport.TriggerVeryEarly(combat, participants);
+        if (combat.HasPendingChoice)
+            return false;
         TurnStartRelicSupport.TriggerBeforeSideTurnEnd(simulator, combat, participants);
-        OrbLifecycleSupport.TriggerBeforeTurnEnd(simulator, combat, player);
-        simulator.SimulateEndPlayerTurnAfterOrbPassives();
+        if (combat.HasPendingChoice)
+            return false;
+        if (!OrbLifecycleSupport.TriggerBeforeTurnEnd(simulator, combat, player)
+            || combat.HasPendingChoice
+            || !simulator.SimulateEndPlayerTurnAfterOrbPassives(combat.GetPlayerTurnNumber(player)))
+        {
+            return false;
+        }
         CorePowerSupport.CompletePlayerEarlySideTurnEndEffects(combat, participants);
+        return !combat.HasPendingChoice;
     }
 }

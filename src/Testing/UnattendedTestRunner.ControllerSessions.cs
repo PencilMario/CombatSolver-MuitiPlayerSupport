@@ -278,6 +278,7 @@ internal sealed partial class UnattendedTestRunner
                     progressTurn,
                     Actions: [],
                     HpLost: 9,
+                    HpRecovered: 0,
                     EnemyHpLost: 1,
                     EnergyLeft: 0,
                     CombatEnded: false),
@@ -945,52 +946,118 @@ internal sealed partial class UnattendedTestRunner
                 completeVictory: false,
                 strategicHpDeficit: 0,
                 combatEndedTurn: null,
-                earliestPossibleCombatEndedTurn: 1)
+                earliestPossibleCombatEndedTurn: 1,
+                provableStrategicHpFloor: 0)
             || CombatSearchCoordinator.HasReachedProvablePrimaryQualityLowerBound(
                 completeVictory: true,
                 strategicHpDeficit: 0,
                 combatEndedTurn: 2,
-                earliestPossibleCombatEndedTurn: 1)
+                earliestPossibleCombatEndedTurn: 1,
+                provableStrategicHpFloor: 0)
             || CombatSearchCoordinator.HasReachedProvablePrimaryQualityLowerBound(
                 completeVictory: true,
                 strategicHpDeficit: 0,
                 combatEndedTurn: 1,
-                earliestPossibleCombatEndedTurn: null)
+                earliestPossibleCombatEndedTurn: null,
+                provableStrategicHpFloor: 0)
             || !CombatSearchCoordinator.HasReachedProvablePrimaryQualityLowerBound(
                 completeVictory: true,
                 strategicHpDeficit: 0,
                 combatEndedTurn: 1,
-                earliestPossibleCombatEndedTurn: 1))
+                earliestPossibleCombatEndedTurn: 1,
+                provableStrategicHpFloor: 0))
         {
             throw new InvalidOperationException(
                 "开局能力补查错误地把未胜、较慢的零战损结果或未知回合下界当成可停止条件。");
+        }
+        // A wounded player can still end the fight higher than zero battle loss, so zero stops being the
+        // provable floor and a zero-loss route no longer proves the search can stop.
+        if (CombatSearchCoordinator.HasReachedProvablePrimaryQualityLowerBound(
+                completeVictory: true,
+                strategicHpDeficit: 0,
+                combatEndedTurn: 1,
+                earliestPossibleCombatEndedTurn: 1,
+                provableStrategicHpFloor: -9)
+            || !CombatSearchCoordinator.HasReachedProvablePrimaryQualityLowerBound(
+                completeVictory: true,
+                strategicHpDeficit: -9,
+                combatEndedTurn: 1,
+                earliestPossibleCombatEndedTurn: 1,
+                provableStrategicHpFloor: -9))
+        {
+            throw new InvalidOperationException(
+                "可回复生命时，零战损被错误地当成了已证明的最优下界。");
+        }
+        if (ActEndingBossPolicy.PersistentValueOfRecoveredHp(10, BossHpRelief.None) != 10
+            || ActEndingBossPolicy.PersistentValueOfRecoveredHp(10, BossHpRelief.ActClearHeal) != 2
+            || ActEndingBossPolicy.PersistentValueOfRecoveredHp(10, BossHpRelief.RunEnding) != 0
+            || ActEndingBossPolicy.PersistentValueOfRecoveredHp(0, BossHpRelief.None) != 0
+            || ActEndingBossPolicy.StrategicHpDeficit(12, 3, 10, BossHpRelief.None) != 5
+            || ActEndingBossPolicy.StrategicHpDeficit(0, 0, 9, BossHpRelief.None) != -9
+            || ActEndingBossPolicy.StrategicHpDeficit(0, 0, 9, BossHpRelief.RunEnding) != 0)
+        {
+            throw new InvalidOperationException(
+                "回复生命的跨战斗计价没有按幕末 Boss 的战后回复折算。");
+        }
+        PostCombatRelicHealProfile bloodOnly = new(
+            UnconditionalHeal: 6,
+            WoundedHeal: 0,
+            WoundedHpPercent: 0);
+        PostCombatRelicHealProfile bloodAndMeat = new(
+            UnconditionalHeal: 6,
+            WoundedHeal: 12,
+            WoundedHpPercent: 50);
+        if (bloodOnly.HealFor(finalHp: 70, finalMaxHp: 80) != 6
+            || bloodOnly.HealFor(finalHp: 78, finalMaxHp: 80) != 2
+            || bloodOnly.HealFor(finalHp: 80, finalMaxHp: 80) != 0
+            || PostCombatRelicHealProfile.None.HealFor(finalHp: 10, finalMaxHp: 80) != 0)
+        {
+            throw new InvalidOperationException("无条件战后遗物回血没有被剩余生命上限裁剪。");
+        }
+        // Vanilla truncates the threshold, so half of 75 max HP is 37 and ending on 38 misses the heal.
+        if (bloodAndMeat.HealFor(finalHp: 37, finalMaxHp: 75) != 18
+            || bloodAndMeat.HealFor(finalHp: 38, finalMaxHp: 75) != 6
+            || bloodAndMeat.HealFor(finalHp: 70, finalMaxHp: 75) != 5
+            || bloodAndMeat.MonotoneHealFor(finalHp: 37, finalMaxHp: 75) != 6)
+        {
+            throw new InvalidOperationException("带阈值的战后遗物回血没有按原版截断判定，或进入了排序口径。");
+        }
+        if (ActEndingBossPolicy.RankedPostCombatRelicHeal(
+                bloodAndMeat, completeVictory: true, finalHp: 37, finalMaxHp: 75) != 6
+            || ActEndingBossPolicy.RankedPostCombatRelicHeal(
+                bloodAndMeat, completeVictory: false, finalHp: 37, finalMaxHp: 75) != 0
+            || ActEndingBossPolicy.RankedPostCombatRelicHeal(
+                bloodOnly, completeVictory: true, finalHp: 0, finalMaxHp: 75) != 0)
+        {
+            throw new InvalidOperationException("战后遗物回血没有只在活着获胜的路线上计入。");
         }
         PrimarySearchIncumbent incumbent = new(
             StrategicHpDeficit: 5,
             CombatEndedTurn: 3);
         if (!CombatBeamSolver.ShouldPruneByPrimaryIncumbent(
-                cumulativePlayerHpLost: 6,
+                strategicHpLowerBound: 6,
                 turn: 2,
                 incumbent: incumbent)
             || !CombatBeamSolver.ShouldPruneByPrimaryIncumbent(
-                cumulativePlayerHpLost: 5,
+                strategicHpLowerBound: 5,
                 turn: 4,
                 incumbent: incumbent)
             || CombatBeamSolver.ShouldPruneByPrimaryIncumbent(
-                cumulativePlayerHpLost: 5,
+                strategicHpLowerBound: 5,
                 turn: 3,
                 incumbent: incumbent)
             // Even far past the incumbent turn, a branch below the incumbent's loss
             // remains eligible. Its current max-HP deficit is deliberately not an input:
             // later effects may recover max HP before combat ends.
             || CombatBeamSolver.ShouldPruneByPrimaryIncumbent(
-                cumulativePlayerHpLost: 4,
+                strategicHpLowerBound: 4,
                 turn: 99,
                 incumbent: incumbent))
         {
             throw new InvalidOperationException(
                 "主结果下界剪枝没有严格限制为不可逆累计战损与回合字典序。");
         }
+        AssertPrimaryIncumbentFiltering();
         PotionFreePolicyBaseline auditedPotionFreeBaseline = new(
             Won: true,
             HpDeficit: 5,
@@ -1113,6 +1180,22 @@ internal sealed partial class UnattendedTestRunner
                 theftPolicy: null) != 75)
         {
             throw new InvalidOperationException("跨幕回复没有按 80% 同步缩放药水与卖血阈值。");
+        }
+        if (ActEndingBossPolicy.DeathSaveRelicPremium(0, BossHpRelief.None) != 0
+            || ActEndingBossPolicy.DeathSaveRelicPremium(40, BossHpRelief.None) != 360
+            || ActEndingBossPolicy.DeathSaveRelicPremium(40, BossHpRelief.ActClearHeal) != 360
+            || ActEndingBossPolicy.DeathSaveRelicPremium(40, BossHpRelief.RunEnding) != 0
+            || ActEndingBossPolicy.DeathSaveRelicBeamCost(40, BossHpRelief.None) != 400
+            || ActEndingBossPolicy.DeathSaveRelicBeamCost(40, BossHpRelief.RunEnding) != 0)
+        {
+            throw new InvalidOperationException(
+                "一次性保命遗物的复活没有按用掉它的代价计价，或者整局最后一战没有免收。");
+        }
+        if (ActEndingBossPolicy.StrategicHpDeficit(20, 0, 56, BossHpRelief.None, 40) != 364
+            || ActEndingBossPolicy.StrategicHpDeficit(20, 0, 56, BossHpRelief.ActClearHeal, 40) != 377
+            || ActEndingBossPolicy.StrategicHpDeficit(20, 0, 56, BossHpRelief.RunEnding, 40) != 20)
+        {
+            throw new InvalidOperationException("路线治疗、战后回血与保命遗物消耗的组合计价不一致。");
         }
         if (ActEndingBossPolicy.ResolveStrategicHpRelief(
                 BossHpRelief.ActClearHeal,
@@ -1406,6 +1489,132 @@ internal sealed partial class UnattendedTestRunner
             || displayedHpLost != adopted.ProjectedBattleHpLost)
         {
             throw new InvalidOperationException("搜索中间结果没有显示用药、战损并在玩家采纳后成为最终路线。");
+        }
+    }
+
+    private static void AssertPrimaryIncumbentFiltering()
+    {
+        PrimarySearchIncumbent incumbent = new(StrategicHpDeficit: 0, CombatEndedTurn: 3);
+        // All nodes have zero accumulated loss; their turns exercise the second primary key.
+        SimulationSnapshot snapshot = new(
+            score: 0,
+            stateKey: default,
+            unorderedPileKey: default,
+            cycleShapeKey: default,
+            projectedShuffleOrderKey: default,
+            projectedShuffleOrderValue: 0,
+            hasRisk: false,
+            playerDead: false,
+            allEnemiesDead: false,
+            playerHp: 1,
+            playerMaxHp: 1,
+            cumulativePlayerHpLost: 0,
+            recoveredPlayerHp: 0,
+            deathSaveRelicHpRestored: 0,
+            longTermResourceValue: 0,
+            angerCopiesGenerated: 0,
+            projectedPlayerHp: 1,
+            playerBlock: 0,
+            enemyHp: 1,
+            enemyBlock: 0,
+            aliveEnemyCount: 1,
+            aliveEnemyMask: 1,
+            rawEnemyHp: 1,
+            maxCurrentEnemyHp: 1,
+            enemyCombatDistributionKey: default,
+            enemyDurabilityByCombatId: default,
+            revivingEnemyCount: 0,
+            persistentBuffValue: 0,
+            strategicEffects: default,
+            persistentSetupTraits: default,
+            latentSetupValue: 0,
+            latentSetupTraits: default,
+            focusTargetCombatId: null,
+            focusTargetPressure: 0,
+            focusTargetRemainingHp: 0,
+            focusTargetCurrentThreat: 0,
+            focusTargetVulnerableTurns: 0,
+            mostVulnerableTargetCombatId: null,
+            retainedAttackValue: 0,
+            replayPotentialValue: 0,
+            futureResourceValue: 0,
+            ostyHp: 0,
+            ostyMaxHp: 0,
+            delayedDamageValue: 0,
+            reactiveDamageValue: 0,
+            enemyStrengthSuppression: 0,
+            enemyWeakTurns: 0,
+            enemyVulnerableTurns: 0,
+            enemyControlDistributionKey: default,
+            sandpitRemaining: 0,
+            liveDeckClutter: 0,
+            liveDeckSize: 0,
+            outstandingStolenResource: 0,
+            offensiveProgressValue: 0,
+            energy: 0,
+            stars: 0,
+            historyEntryCount: 0,
+            handCount: 0,
+            reachableHandValue: 0,
+            zeroCostPlayableCount: 0,
+            canTriggerArtOfWarNextTurn: false,
+            pocketwatchCardsPlayedThisTurn: 0,
+            pocketwatchCardsPlayedLastTurn: 0,
+            pocketwatchCardThreshold: -1,
+            potionUseCount: 0,
+            potionStrategicCost: 0,
+            automaticPotionUseCount: 0,
+            turn: 1,
+            shufflesCrossed: 0,
+            processedEnemyDeaths: new HashSet<uint>(),
+            boundaryReason: SearchBoundaryReason.None,
+            predictionGaps: [],
+            simulator: null!);
+        SearchNode keepFirst = new(
+            Action: null,
+            ActionCount: 0,
+            PotionCount: 0,
+            PotionStrategicCost: 0,
+            Turn: 2,
+            Traits: SearchRouteTraits.None,
+            FutureSoldHp: 0,
+            Score: 0,
+            StateKey: default,
+            HasPredictionRisk: false,
+            BoundaryReason: SearchBoundaryReason.None,
+            IsTerminal: false,
+            Parent: null,
+            Snapshot: snapshot,
+            CombatProgress: null!);
+        SearchNode keepSecond = keepFirst with { Turn = 3 };
+        SearchNode rejectFirst = keepFirst with { Turn = 4 };
+        SearchNode rejectSecond = keepFirst with { Turn = 5 };
+
+        foreach ((List<SearchNode> input, SearchNode[] expected) in new[]
+                 {
+                     (new List<SearchNode> { rejectFirst, rejectSecond, keepFirst },
+                         new[] { keepFirst }),
+                     (new List<SearchNode> { rejectFirst, rejectSecond },
+                         Array.Empty<SearchNode>()),
+                     (new List<SearchNode> { keepFirst, rejectFirst, keepSecond, rejectSecond },
+                         new[] { keepFirst, keepSecond }),
+                     (new List<SearchNode> { keepFirst, keepSecond },
+                         new[] { keepFirst, keepSecond }),
+                 })
+        {
+            SearchNode[] original = input.ToArray();
+            List<SearchNode> result = CombatBeamSolver.ApplyPrimaryIncumbentBound(
+                input,
+                incumbent,
+                out int pruned);
+            if (!result.SequenceEqual(expected, ReferenceEqualityComparer.Instance)
+                || !input.SequenceEqual(original, ReferenceEqualityComparer.Instance)
+                || pruned != input.Count - expected.Length
+                || pruned == 0 && !ReferenceEquals(input, result))
+            {
+                throw new InvalidOperationException(
+                    "主结果下界过滤恢复了被拒绝的前缀、改变了顺序或原列表，或剪枝计数不一致。");
+            }
         }
     }
 

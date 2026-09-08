@@ -2,6 +2,8 @@ using System.Runtime;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Godot;
+using MegaCrit.Sts2.Core.Map;
+using MegaCrit.Sts2.Core.Rooms;
 
 namespace CombatSolver;
 
@@ -21,12 +23,30 @@ internal sealed class UnattendedTestRequest
     public string[] ModifierIds { get; init; } = [];
     public string Seed { get; init; } = "COMBATSOLVER";
     public string? RunSnapshotPath { get; init; }
+    public bool LoadRunSnapshotDirectly { get; init; }
+    public int? TargetActFloor { get; init; }
+    public int? TargetMapColumn { get; init; }
+    public RoomType TargetRoomType { get; init; } = RoomType.Monster;
+    public MapPointType TargetMapPointType { get; init; } = MapPointType.Unassigned;
+    public int? PreCombatPlayerCurrentHpOverride { get; init; }
+    public ulong? PreCombatSimulationSeed { get; init; }
+    public UnattendedPreCombatMapStep[] PreCombatInterveningMapPoints { get; init; } = [];
+    public string[] ExpectedLoadedMods { get; init; } = [];
     public string? ReplayStatePath { get; init; }
+    public string? NativeStatePath { get; init; }
+    public string? CheckpointArchivePath { get; init; }
+    public string CheckpointSelector { get; init; } = "latest";
+    public string ReplayMode { get; init; } = "RestoreOnly";
+    public string? ReplayPolicyOverridePath { get; init; }
+    public string? EvidenceDirectory { get; init; }
+    public bool PreserveNativeCombatStateForTest { get; init; }
     public int Ascension { get; init; }
     public int ActIndexForTest { get; init; }
     public bool MarkEncounterAsSecondBossForTest { get; init; }
     public int EnemyCurrentHp { get; init; } = 1;
+    public int[] InitialEnemyMaxHps { get; init; } = [];
     public int[] InitialEnemyCurrentHps { get; init; } = [];
+    public int[] InitialEnemyBlocks { get; init; } = [];
     public int? InitialPlayerHp { get; init; }
     public int? InitialPlayerMaxHp { get; init; }
     public int? InitialPlayerBlock { get; init; }
@@ -63,9 +83,11 @@ internal sealed class UnattendedTestRequest
     public bool ClearAllPowers { get; init; }
     public bool VerifyPredictionFailureBoundaries { get; init; }
     public bool VerifySearchPolicySnapshot { get; init; }
+    public bool VerifyGrowthPolicy { get; init; }
     public bool VerifyControllerSessionLifecycle { get; init; }
     public bool VerifyForkBoundaries { get; init; }
     public bool VerifyCombatRootSnapshot { get; init; }
+    public bool VerifyPreCombatForecastApi { get; init; }
     public bool VerifyBaseLibCardModifierBoundary { get; init; }
     public bool StopAfterCombatRootSnapshotAssertion { get; init; }
     public bool VerifyIncrementalSearch { get; init; }
@@ -78,6 +100,11 @@ internal sealed class UnattendedTestRequest
     public SolverSearchPhase? ExpectedInitialSearchPhase { get; init; }
     public bool? ExpectedInitialDeepSearchTriggered { get; init; }
     public bool? ExpectedInitialDeepSearchImprovedResult { get; init; }
+    public int? ExpectedInitialExpandedNodesAtMost { get; init; }
+    public int? ExpectedInitialTransitionsAtMost { get; init; }
+    public long? ExpectedInitialTotalExpandedNodesAtMost { get; init; }
+    public long? ExpectedInitialTotalTransitionsAtMost { get; init; }
+    public SearchBoundaryReason? ExpectedInitialBoundaryReason { get; init; }
     public double? ExpectedInitialTotalElapsedMillisecondsAtMost { get; init; }
     public long? ExpectedInitialTotalAllocatedBytesAtMost { get; init; }
     public int? ExpectedInitialGen2CollectionsAtMost { get; init; }
@@ -90,6 +117,7 @@ internal sealed class UnattendedTestRequest
     public int? ExpectedInitialRepeatableNoProgressBranchesPrunedAtLeast { get; init; }
     public int? ExpectedInitialCycleShapesDetectedAtLeast { get; init; }
     public int? ExpectedInitialCycleProbeContinuationsExpandedAtLeast { get; init; }
+    public int? ExpectedInitialCycleProbeContinuationsExpandedAtMost { get; init; }
     public int? ExpectedInitialCycleCandidatesProtectedAtLeast { get; init; }
     public int? ExpectedInitialCycleContinuationsStoppedAtLeast { get; init; }
     public int? ExpectedInitialCrossTurnCandidatesProtectedAtLeast { get; init; }
@@ -100,6 +128,7 @@ internal sealed class UnattendedTestRequest
     public int? ExpectedInitialSoldHp { get; init; }
     public int? ExpectedInitialSoldHpAtMost { get; init; }
     public int? ExpectedInitialSoldHpBranchesPrunedAtLeast { get; init; }
+    public int? ExpectedInitialDeathSaveRelicHp { get; init; }
     public int? ExpectedInitialActionAdmissionRepresentativesProtectedAtLeast { get; init; }
     public int? ExpectedInitialHpInvestmentBranchesProtectedAtLeast { get; init; }
     public int? ExpectedInitialPotionCount { get; init; }
@@ -114,12 +143,14 @@ internal sealed class UnattendedTestRequest
     public int? ExpectedInitialProjectedBattleHpLost { get; init; }
     public int? ExpectedInitialProjectedBattleHpLostAtMost { get; init; }
     public int? ExpectedInitialLongTermResourceValueAtLeast { get; init; }
+    public int? ExpectedInitialGrowthRewardCount { get; init; }
     public int? ExpectedInitialFinalMaxHp { get; init; }
     public int? ExpectedInitialMaxBlockAtLeast { get; init; }
     public int? ExpectedInitialActualBlockAtLeast { get; init; }
     public string? ExpectedInitialActionCardId { get; init; }
     public string? ExpectedInitialAbsentActionCardId { get; init; }
     public string? ExpectedInitialFirstActionCardId { get; init; }
+    public string? ExpectedInitialFirstActionChoiceCardId { get; init; }
     public string? ExpectedInitialFirstActionPotionId { get; init; }
     public string? ExpectedInitialActionTitle { get; init; }
     public int? ExpectedInitialActionReplayCount { get; init; }
@@ -197,6 +228,13 @@ internal sealed class UnattendedTestRequest
     public bool ExitOnComplete { get; init; } = true;
 }
 
+internal sealed record UnattendedPreCombatMapStep
+{
+    public MapCoord Coordinate { get; init; }
+    public RoomType RoomType { get; init; }
+    public MapPointType MapPointType { get; init; }
+}
+
 internal sealed class UnattendedPotionCheck
 {
     public string PotionId { get; init; } = string.Empty;
@@ -243,6 +281,7 @@ internal sealed class UnattendedMonsterMoveCheck
     public string? SpawnInitialMoveId { get; init; }
     public string MoveId { get; init; } = string.Empty;
     public bool UseCurrentMove { get; init; }
+    public bool VerifyAeonglassPreviewForkIsolation { get; init; }
     public SearchBoundaryReason? ExpectedSearchBoundary { get; init; }
     public bool? ExpectedSimulatedDynamicResolution { get; init; }
     public int? PlayerHpBefore { get; init; }
@@ -418,6 +457,8 @@ internal sealed class UnattendedOrbInjection
 
 internal sealed class UnattendedTestResult
 {
+    public bool ProcessReusable { get; init; }
+    public int ProcessId { get; init; } = System.Environment.ProcessId;
     public int SchemaVersion { get; init; } = 1;
     public required string RunId { get; init; }
     public required string ScenarioId { get; init; }
@@ -437,6 +478,7 @@ internal sealed class UnattendedTestResult
     public long WorkingSetBytes { get; init; }
     public long PrivateMemoryBytes { get; init; }
     public UnattendedSolverMetrics? SolverMetrics { get; init; }
+    public System.Text.Json.Nodes.JsonObject? ReplayVerification { get; init; }
     public UnattendedStageTiming[] StageTimings { get; init; } = [];
     public string[] CompletedChecks { get; init; } = [];
     public string? Error { get; init; }
@@ -445,6 +487,8 @@ internal sealed class UnattendedTestResult
 
 internal sealed class UnattendedSolverMetrics
 {
+    public SearchGcLifecycleSnapshot GcLifecycle { get; init; }
+    public SearchGcLifecycleAttribution? GcLifecycleAttribution { get; init; }
     public SolverSearchPhase Phase { get; init; }
     public SearchBoundaryReason Boundary { get; init; }
     public int SelectedExpanded { get; init; }
@@ -452,6 +496,20 @@ internal sealed class UnattendedSolverMetrics
     public int SelectedChoiceBranches { get; init; }
     public int ChoiceReplayAttempts { get; init; }
     public int ChoiceReplayBudgetExhaustions { get; init; }
+    public int ChoiceBranchesDroppedByBudget { get; init; }
+    public int CycleRegionsDetected { get; init; }
+    public int CycleRegionCandidatesConsidered { get; init; }
+    public int CycleRegionCandidatesAdmitted { get; init; }
+    public int CycleRegionCandidatesDropped { get; init; }
+    public int CycleRegionProgressEpochs { get; init; }
+    public int CycleRegionProbeCandidatesAdmitted { get; init; }
+    public int CycleRegionProgressCandidatesAdmitted { get; init; }
+    public int CycleRegionMaxActionFamilies { get; init; }
+    public int OrderedMutationCandidatesAdmitted { get; init; }
+    public int OrderedMutationLeaseExpiredBudget { get; init; }
+    public int OrderedMutationOrdinaryFallbacks { get; init; }
+    public int OrderedMutationColdAtomicCommitted { get; init; }
+    public int OrderedMutationColdAtomicRejected { get; init; }
     public long TotalExpanded { get; init; }
     public long TotalTransitions { get; init; }
     public long TotalChoiceBranches { get; init; }
@@ -482,6 +540,7 @@ internal sealed class UnattendedSolverMetrics
     public double Score { get; init; }
     public int ProjectedBattleHpLost { get; init; }
     public int PotionCount { get; init; }
+    public UnattendedPotionUse[] PotionUses { get; init; } = [];
     public bool OnlyDeathRoutes { get; init; }
     public int FinalHp { get; init; }
     public int FinalEnemyHp { get; init; }
@@ -498,6 +557,14 @@ internal sealed class UnattendedSolverMetrics
     public bool NoGcRegionActive { get; init; }
     public long NoGcRegionBudgetBytes { get; init; }
     public int NoGcRegionRolloverCount { get; init; }
+}
+
+internal sealed class UnattendedPotionUse
+{
+    public string Id { get; init; } = string.Empty;
+    public string Title { get; init; } = string.Empty;
+    public int Turn { get; init; }
+    public int Slot { get; init; }
 }
 
 internal sealed class UnattendedStageTiming

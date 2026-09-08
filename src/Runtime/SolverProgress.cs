@@ -142,12 +142,17 @@ internal sealed record SolverInterimResult(
     int ProjectedBattlePotionCount,
     int EnemyHp,
     double Score,
-    int? CombatEndedTurn = null);
+    int? CombatEndedTurn = null)
+{
+    public int GrowthHpCredit { get; init; }
+    public int GrowthRewardCount { get; init; }
+}
 
 internal sealed record SolverFrontierTurn(
     int Turn,
     IReadOnlyList<PlanAction> Actions,
     int HpLost,
+    int HpRecovered,
     int EnemyHpLost,
     int EnergyLeft,
     bool CombatEnded)
@@ -160,6 +165,7 @@ internal sealed record SolverFrontierTurn(
                 group.Key,
                 group.ToArray(),
                 result.HpLostByTurn.GetValueOrDefault(group.Key),
+                result.HpRecoveredByTurn.GetValueOrDefault(group.Key),
                 result.EnemyHpLostByTurn.GetValueOrDefault(group.Key),
                 result.EnergyLeftByTurn.GetValueOrDefault(group.Key),
                 result.CombatEndedTurn == group.Key))
@@ -171,6 +177,7 @@ internal sealed record SolverCurrentTurnPreview(
     int Turn,
     IReadOnlyList<PlanAction> Actions,
     int HpLost,
+    int HpRecovered,
     int EnemyHpLost,
     int EnergyLeft,
     bool CombatEnded,
@@ -186,6 +193,7 @@ internal sealed record SolverCurrentTurnPreview(
                 .Where(action => action.Turn == result.StartTurnNumber)
                 .ToArray(),
             result.HpLostByTurn.GetValueOrDefault(result.StartTurnNumber),
+            result.HpRecoveredByTurn.GetValueOrDefault(result.StartTurnNumber),
             result.EnemyHpLostByTurn.GetValueOrDefault(result.StartTurnNumber),
             result.EnergyLeftByTurn.GetValueOrDefault(result.StartTurnNumber),
             result.CombatEndedTurn == result.StartTurnNumber,

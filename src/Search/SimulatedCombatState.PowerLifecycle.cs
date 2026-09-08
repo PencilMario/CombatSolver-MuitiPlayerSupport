@@ -30,6 +30,7 @@ internal sealed partial class SimulatedCombatState
     private ForkableSet<CardModel>? _liveCardsAtSnapshot;
     private HashSet<PredictedCard>? _powerAfflictionKnownCards;
     private bool _swordSageCardsInitialized;
+    private int? _lastNormalizedVitalSparkAmount;
     private ForkableSet<Creature>? _skillsPlayedThisTurn;
 
     public void RecordPowerAmountChange(PowerModel power, int delta, Creature? applier)
@@ -138,6 +139,22 @@ internal sealed partial class SimulatedCombatState
         }
     }
 
+    /// <remarks>
+    /// 关于污染层数：原版的生命火花有两个施加入口，只有一个带空判。
+    ///
+    /// <list type="bullet">
+    /// <item><c>BeforeCombatStart</c> 遍历玩家全部技能牌，<b>不判</b>牌上有没有污染。</item>
+    /// <item><c>AfterCardEnteredCombat</c> 只在 <c>card.Affliction == null</c> 时施加。</item>
+    /// </list>
+    ///
+    /// 而 <c>CardCmd.Afflict</c> 遇到同类污染走的是 <c>card.Affliction.Amount += amount</c>，
+    /// 是叠加。所以任何在 <c>BeforeCombatStart</c> 之前就进场的技能牌会被施加两次，层数是火花
+    /// 数量的两倍。实机问题包（INFESTED_PRISMS_ELITE，火花恒为 2）里，战斗开始生成的三张牌是
+    /// <c>TAINTED:4</c>，牌组里原有的技能牌是 <c>TAINTED:2</c>。
+    ///
+    /// 层数本身不影响结算——<c>AfterCardPlayed</c> 施加污染 Power 用的是火花的数量，不是牌上
+    /// 那个数——但它进续接戳，所以把它拍平会让每一回合的续接都作废，玩家每回合被强制重算。
+    /// </remarks>
     private void NormalizePowerAfflictions(CombatPredictionSimulator simulator)
     {
         ForkableSet<CardModel> liveCardsAtSnapshot = _liveCardsAtSnapshot
@@ -150,8 +167,18 @@ internal sealed partial class SimulatedCombatState
                 vitalSparkAmount = checked(vitalSparkAmount + vitalSpark.Amount);
         }
         bool hasVitalSpark = vitalSparkAmount > 0;
-        foreach (Player player in Players)
+        // 生命火花只在自己的数量变化时才回写卡上的污染层数（AfterPowerAmountChanged），平时
+        // 不碰。别把「污染层数恒等于当前火花层数」当成不变量——原版自己就不满足，见下面
+        // NormalizeTaintedAmount 的注释。第一次归一化只记基线，不回写：那时候的层数是从实机
+        // 快照里读来的，实机是什么就该是什么。
+        bool vitalSparkAmountChanged =
+            _lastNormalizedVitalSparkAmount is int previousVitalSparkAmount
+            && previousVitalSparkAmount != vitalSparkAmount;
+        _lastNormalizedVitalSparkAmount = vitalSparkAmount;
+        IReadOnlyList<Player> players = Players;
+        for (int playerIndex = 0; playerIndex < players.Count; playerIndex++)
         {
+            Player player = players[playerIndex];
             Creature owner = player.Creature;
             // Vital Spark is owned by Infested Prism but its vanilla hooks afflict every player
             // Skill, not creatures on the Power owner's side.
@@ -165,9 +192,11 @@ internal sealed partial class SimulatedCombatState
                     enteredCombat = (_powerAfflictionKnownCards ??= []).Add(card);
                 if (card.Preview.Affliction is Tainted tainted)
                 {
+                    // VitalSparkPower.AfterRemoved 会清掉所有污染。
                     if (!hasVitalSpark)
                         card.ClearAffliction();
-                    else if (tainted.Amount != vitalSparkAmount)
+                    // AfterPowerAmountChanged 会把所有污染拍平成新的数量，包括叠高了的那些。
+                    else if (vitalSparkAmountChanged && tainted.Amount != vitalSparkAmount)
                         card.MutablePreview.Affliction!.Amount = vitalSparkAmount;
                     continue;
                 }
@@ -181,8 +210,6 @@ internal sealed partial class SimulatedCombatState
                         continue;
                     if (power is GalvanicPower && card.Preview.Type == CardType.Power)
                     {
-                        if (power.Owner.Side != owner.Side)
-                            continue;
                         simulator.Afflict<Galvanized>(card, power.Amount);
                         break;
                     }
@@ -208,8 +235,10 @@ internal sealed partial class SimulatedCombatState
     private void NormalizeSwordSageReplays(CombatPredictionSimulator simulator)
     {
         _swordSageReplayBonuses ??= [];
-        foreach (Player player in Players)
+        IReadOnlyList<Player> players = Players;
+        for (int playerIndex = 0; playerIndex < players.Count; playerIndex++)
         {
+            Player player = players[playerIndex];
             int desired = GetAmount<SwordSagePower>(player.Creature);
             int liveAmount = player.Creature.GetPower<SwordSagePower>()?.Amount ?? 0;
             foreach (PredictedCard card in simulator.State.GetPlayerCombatState(player).AllCards)

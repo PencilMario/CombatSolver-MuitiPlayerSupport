@@ -394,6 +394,8 @@ internal static partial class MonsterMoveEffects
                 {
                     simulator.Kill(move.Owner, force: true);
                 }
+                if (simulator.HasPendingChoice)
+                    return true;
                 killedOwner = true;
                 return true;
             case ("GlobeHead", "SHOCKING_SLAP"):
@@ -809,8 +811,8 @@ internal static partial class MonsterMoveEffects
                     player.Player ?? throw new InvalidOperationException("永世沙漏的目标不是玩家。"));
                 foreach (PredictedCard card in playerState.AllCards)
                 {
-                    if (card.MutablePreview is Wither wither)
-                        wither.FakeUpgrade();
+                    if (card.Preview is Wither)
+                        ((Wither)card.MutablePreview).FakeUpgrade();
                 }
                 combat.AdvanceAeonglassWitherUpgrade(move.Owner);
                 simulator.CreateAndAddGeneratedCardsToCombat<Wither>(
@@ -897,6 +899,8 @@ internal static partial class MonsterMoveEffects
                 {
                     simulator.Kill(move.Owner, force: true);
                 }
+                if (simulator.HasPendingChoice)
+                    return true;
                 killedOwner = true;
                 return true;
             case ("DecimillipedeSegmentBack", "BULK_MOVE"):

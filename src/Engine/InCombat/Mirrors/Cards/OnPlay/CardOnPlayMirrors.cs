@@ -52,7 +52,8 @@ internal static class CardOnPlayMirrors
             Card = card,
             CardPlay = cardPlay
         });
-        if (simulator.State.CombatState is SimulatedCombatState combat)
+        if (!simulator.HasPendingChoice
+            && simulator.State.CombatState is SimulatedCombatState combat)
             CardEffectSpecRegistry.Apply(simulator, combat, card, cardPlay.Target);
         return result;
     }
@@ -65,6 +66,7 @@ internal static class CardOnPlayMirrors
         registry.Register<Mangle>(GeneralCardMirrors.GeneralAttackOnPlay);
         registry.Register<IAmInvincible>(GeneralCardMirrors.GeneralBlockOnPlay);
         registry.Register<AstralPulse>(BespokeCardMirrors.AstralPulseOnPlay);
+        registry.Register<BoneShards>(BespokeCardMirrors.BoneShardsOnPlay);
         registry.Register<DaggerSpray>(BespokeCardMirrors.DaggerSprayOnPlay);
         registry.Register<PactsEnd>(BespokeCardMirrors.PactsEndOnPlay);
         registry.Register<TwinStrike>(BespokeCardMirrors.TwinStrikeOnPlay);

@@ -36,17 +36,30 @@ internal static class TurnStartPowerSupport
         SimulatedCombatState combat,
         IReadOnlyList<Creature> participants)
     {
+        // EffectivePowers 返回的数组一旦发布就不会被就地改写（失效只是把缓存字段置空，
+        // 旧数组内容不变），所以先取一次快照按下标推进，与原来的 ToArray/OfType 迭代器
+        // 看到的元素与顺序完全一致，只是不再复制数组、不再建迭代器。
         if (combat.CurrentSide == CombatSide.Player && combat.RoundNumber <= 1)
         {
-            foreach (PlatingPower plating in combat.EffectivePowers().OfType<PlatingPower>())
+            IReadOnlyList<PowerModel> platingPowers = combat.EffectivePowers();
+            for (int powerIndex = 0; powerIndex < platingPowers.Count; powerIndex++)
             {
+                if (platingPowers[powerIndex] is not PlatingPower plating)
+                    continue;
                 if (plating.Amount > 0 && plating.Owner.IsEnemy)
+                {
                     simulator.GainBlock(plating.Owner, plating.Amount, ValueProp.Unpowered);
+                    if (combat.HasPendingChoice)
+                        return true;
+                }
             }
         }
 
-        foreach (AggressionPower aggression in combat.EffectivePowers().OfType<AggressionPower>().ToArray())
+        IReadOnlyList<PowerModel> aggressionPowers = combat.EffectivePowers();
+        for (int powerIndex = 0; powerIndex < aggressionPowers.Count; powerIndex++)
         {
+            if (aggressionPowers[powerIndex] is not AggressionPower aggression)
+                continue;
             if (aggression.Amount <= 0
                 || !participants.Contains(aggression.Owner)
                 || aggression.Owner.Player is not { } aggressionPlayer)
@@ -62,14 +75,21 @@ internal static class TurnStartPowerSupport
                 .ToArray();
             foreach (PredictedCard card in selected)
             {
-                simulator.AddToPile([card], PileType.Hand);
+                // 单张牌走单张重载：多张重载对 N==1 的两阶段流程与它逐步等价（同样的所有者
+                // 解析、同样的合法性判定、同样的手牌上限溢出改投弃牌堆、同一次 Shuffle 取位、
+                // 同样的入场事件），但会额外分配一个单元素数组和一张结果表。
+                simulator.AddToPile(card, PileType.Hand);
+                if (combat.HasPendingChoice)
+                    return true;
                 if (card.Preview.IsUpgradable)
                     card.Upgrade();
             }
         }
 
-        foreach (PowerModel power in combat.EffectivePowers().ToArray())
+        IReadOnlyList<PowerModel> effectivePowers = combat.EffectivePowers();
+        for (int powerIndex = 0; powerIndex < effectivePowers.Count; powerIndex++)
         {
+            PowerModel power = effectivePowers[powerIndex];
             if (power.Amount <= 0)
                 continue;
 
@@ -92,6 +112,8 @@ internal static class TurnStartPowerSupport
                         .CardsPlayedThisTurn = 0;
                     break;
             }
+            if (combat.HasPendingChoice)
+                return true;
         }
         return false;
     }
@@ -203,6 +225,8 @@ internal static class TurnStartPowerSupport
                 player,
                 CardPilePosition.Bottom,
                 CardGenerationResultKind.Random);
+            if (combat.HasPendingChoice)
+                return true;
         }
         return false;
     }
@@ -244,6 +268,8 @@ internal static class TurnStartPowerSupport
                             ValueProp.Unblockable | ValueProp.Unpowered,
                             owner);
                     }
+                    if (combat.HasPendingChoice)
+                        return true;
                     simulator.GainBlock(owner, mantle.Amount, ValueProp.Unpowered);
                     break;
                 case HibernatePower:
@@ -259,13 +285,19 @@ internal static class TurnStartPowerSupport
                             ValueProp.Unblockable | ValueProp.Unpowered,
                             owner);
                     }
+                    if (combat.HasPendingChoice)
+                        return true;
                     break;
                 case LoopPower:
                     SimOrbQueue queue = simulator.State.GetPlayerCombatState(player).OrbQueue;
                     if (queue.Orbs.Count == 0)
                         break;
                     for (int index = 0; index < power.Amount; index++)
+                    {
                         simulator.OrbPassive(queue.Orbs[0]);
+                        if (combat.HasPendingChoice)
+                            return true;
+                    }
                     break;
                 case RollingBoulderPower rolling:
                     using (simulator.PushDamageSource(
@@ -273,10 +305,14 @@ internal static class TurnStartPowerSupport
                     {
                         simulator.Damage(combat.HittableEnemies, rolling.Amount, ValueProp.Unpowered, owner);
                     }
+                    if (combat.HasPendingChoice)
+                        return true;
                     combat.SetPowerAmount(rolling, rolling.Amount + rolling.DynamicVars.Damage.IntValue);
                     break;
                 case SummonNextTurnPower:
                     combat.SummonOsty(simulator, player, power.Amount);
+                    if (combat.HasPendingChoice)
+                        return true;
                     combat.SetPowerAmount(power, 0);
                     break;
                 case ToolsOfTheTradePower:
@@ -306,11 +342,13 @@ internal static class TurnStartPowerSupport
                     }
                     break;
             }
+            if (combat.HasPendingChoice)
+                return true;
         }
         return false;
     }
 
-    public static void TriggerAfterSideTurnStart(
+    public static bool TriggerAfterSideTurnStart(
         CombatPredictionSimulator simulator,
         SimulatedCombatState combat,
         CombatSide side,
@@ -331,7 +369,7 @@ internal static class TurnStartPowerSupport
         }
 
         if (side != CombatSide.Enemy)
-            return;
+            return !simulator.HasPendingChoice;
         foreach (SandpitPower sandpit in combat.EffectivePowers().OfType<SandpitPower>().ToArray())
         {
             if (sandpit.Amount <= 0)
@@ -350,9 +388,11 @@ internal static class TurnStartPowerSupport
             }
             using (simulator.PushDamageSource(
                 CombatDamageSource.For(CombatDamageSourceKind.Power, nameof(SandpitPower))))
-            {
-                simulator.Kill(target, force: true);
-            }
+                {
+                    simulator.Kill(target, force: true);
+                }
+                if (simulator.HasPendingChoice)
+                    return false;
             if (target.Player is { } player
                 && simulator.State.GetOsty(player) is { } osty
                 && simulator.State.GetCreature(osty).IsAlive)
@@ -362,7 +402,10 @@ internal static class TurnStartPowerSupport
                 {
                     simulator.Kill(osty, force: true);
                 }
+                if (simulator.HasPendingChoice)
+                    return false;
             }
         }
+        return true;
     }
 }

@@ -45,6 +45,7 @@ internal static class SolverController
     private static SolverSearchSession? _search;
     private static SolverDeploymentSession? _deployment;
     private static CombatBugReportClassificationSnapshot? _lastBugReportClassification;
+    private static ManualProjectionComparison? _lastManualProjectionComparison;
     private static int _nextSearchGeneration;
     private static int _combatLifecycleGeneration;
     private static bool _solverDisabled;
@@ -153,6 +154,7 @@ internal static class SolverController
             : "solver_only";
     internal static int? LastSolverDeployedTurnForBugReport => _combat.LastSolverDeployedTurn;
     internal static SolverResult? LastCompletedResultForTesting { get; private set; }
+    internal static bool HasActiveSearchSessionForTesting => _search != null;
     internal static SolverResult? LastTurnSetupResultForTesting { get; private set; }
     internal static Exception? LastSearchFailureForTesting { get; private set; }
     internal static bool LastFullAutoStoppedForWorseRecalculationForTesting { get; private set; }
@@ -474,7 +476,7 @@ internal static class SolverController
         (bool currentTurnOnly, int maximumSearchedTurnLayers) = ResolveSearchHorizon(
             IsMultiplayerSession,
             settings.MultiplayerSearchTurnLimit);
-        return new SearchPolicySnapshot(
+        SearchPolicySnapshot policy = new(
             settings.ShortProfile,
             settings.DeepProfile,
             settings.PotionPolicy,
@@ -494,13 +496,21 @@ internal static class SolverController
             currentTurnOnly,
             maximumSearchedTurnLayers,
             new SearchDiagnosticsSink(
-                message => Entry.Logger.Info(message),
-                message => Entry.Logger.Debug(message)),
+                Entry.Logger.Journal.Bind("info"),
+                Entry.Logger.Journal.Bind("debug")),
             FramePressureSignal,
             new SearchMemoryPressureSignal())
         {
             Interaction = interaction,
+            // 这里记的是玩家填的原始值；「不考虑局外收益」的折算交给快照上的 Effective* 一处做，
+            // 免得两边各判一次而走岔。问题包里两样都在，方便看出当时是填了额度还是开了开关。
+            GrowthBudgets = settings.GrowthBudgets,
+            HasGrowthTargets = settings.GrowthBudgets.IsEnabled
+                || state.Players.SelectMany(player => player.PlayerCombatState!.AllCards).Any(GrowthValues.HasTarget),
+            IgnoreLongTermRewards = settings.IgnoreLongTermRewards,
         };
+        CombatBugReportExporter.RecordSearchPolicy(state, policy);
+        return policy;
     }
 
     internal static (bool CurrentTurnOnly, int MaximumSearchedTurnLayers)
@@ -550,6 +560,8 @@ internal static class SolverController
 
     private static void RecordReviewedWorldlines(SolverResult result)
     {
+        if (result.WasRestoredFromCache)
+            return;
         if (!_combat.ReviewedWorldlineResults.Add(result))
             return;
         long reviewed = (long)result.ShortExpandedNodes + result.DeepExpandedNodes;
@@ -588,8 +600,13 @@ internal static class SolverController
             || result.ResultScope == SolverResultScope.CurrentTurnAdoption
             ? null
             : result;
-        _combat.SearchesStarted++;
-        _combat.ReplanCounts[ReplanCause.InitialSearch] = _combat.ReplanCounts.GetValueOrDefault(ReplanCause.InitialSearch) + 1;
+        if (!result.WasRestoredFromCache)
+        {
+            _combat.SearchesStarted++;
+            _combat.ReplanCounts[ReplanCause.InitialSearch] = _combat.ReplanCounts.GetValueOrDefault(ReplanCause.InitialSearch) + 1;
+        }
+        else
+            _combat.RoutesRestored++;
         if (UnattendedTestRunner.IsActive)
         {
             LastCompletedResultForTesting = result;
@@ -915,6 +932,18 @@ internal static class SolverController
             SolverOverlay.ShowSearchStopped(host);
             return;
         }
+        // Queue completion includes post-action victory checks; a paused choice also keeps
+        // its action completion pending even when the queue temporarily has no ready work.
+        ActionExecutor actionExecutor = RunManager.Instance.ActionExecutor;
+        Task nativeActionBarrier = actionExecutor.CurrentlyRunningAction is { } runningAction
+            ? Task.WhenAll(actionExecutor.FinishedExecutingActions(), runningAction.CompletionTask)
+            : actionExecutor.FinishedExecutingActions();
+        if (!nativeActionBarrier.IsCompleted)
+        {
+            DeferSearchUntilRootCaptureBarrier(host, state, reason, deployWhenReady, nativeActionBarrier);
+            return;
+        }
+        nativeActionBarrier.GetAwaiter().GetResult();
         ReplanCause replanCause = reason switch
         {
             SearchReason.AutoTurnStart => ReplanCause.InitialSearch,
@@ -955,7 +984,8 @@ internal static class SolverController
                 _combat.PendingManualProjectionBaseline = new ManualProjectionBaseline(
                     previousResult.StartTurnNumber,
                     previousResult.ProjectedBattleHpLost,
-                    "field=live_combat_stamp expected={solver_result} actual={manual_state_change}");
+                    "field=live_combat_stamp expected={solver_result} actual={manual_state_change}",
+                    CombatBugReportExporter.LastCompletedSearchRootId);
             }
             setupStage = "continuation";
             ContinuationStamp? continuationStamp = reason == SearchReason.AutoTurnStart && _combat.ContinuationSource != null
@@ -1021,7 +1051,8 @@ internal static class SolverController
                     _combat.PendingManualProjectionBaseline = new ManualProjectionBaseline(
                         _combat.ContinuationSource.StartTurnNumber,
                         _combat.ContinuationSource.ProjectedBattleHpLost,
-                        difference);
+                        difference,
+                        CombatBugReportExporter.LastCompletedSearchRootId);
                 }
                 if (followedBySolver
                     && _combat.ContinuationSource.BoundaryReason == SearchBoundaryReason.None
@@ -1036,7 +1067,7 @@ internal static class SolverController
                     $"[CombatSolver/Test] SEARCH_REUSE_MISS turn={currentTurn} " +
                     $"reason={CauseToken(replanCause)} cached_turns={_combat.ContinuationSource.Continuations.Count} " +
                     $"previous_boundary={_combat.ContinuationSource.BoundaryReason} diff_count={_combat.LastContinuationDifferences.Count} {difference}");
-                if (SolverSettings.Current.EnableDetailedDiagnosticLogs)
+                if (_combat.LastContinuationDifferences.Count > 0)
                 {
                     for (int index = 0; index < _combat.LastContinuationDifferences.Count; index++)
                     {
@@ -1056,7 +1087,10 @@ internal static class SolverController
                 stamp,
                 deployWhenReady,
                 IsMultiplayerSession,
-                settings.RecalculateMultiplayerSearchOnStateChange);
+                settings.RecalculateMultiplayerSearchOnStateChange)
+            {
+                ReplanCause = replanCause,
+            };
             _search = search;
             CancellationToken token = search.Cancellation.Token;
             int generation = search.Generation;
@@ -1135,15 +1169,25 @@ internal static class SolverController
                 settings.DeepProfile));
 
             setupStage = "worker_schedule";
+            SolvedRouteCache routeCache = SolvedRouteCache.Capture(state, rootSnapshot, searchPolicy, battleDamage);
             Task<SolverResult> solveTask = Task.Run(() =>
             {
+                if (!searchPolicy.VerifyIncrementalSearch && !searchPolicy.MeasurePhasePerformance
+                    && reason is SearchReason.AutoTurnStart or SearchReason.Deploy or SearchReason.FullAuto
+                    && routeCache.Read(rootSnapshot.Forecast) is { } cached)
+                {
+                    token.ThrowIfCancellationRequested();
+                    return cached;
+                }
                 Entry.Logger.Info($"[CombatSolver/Test] SEARCH_WORKER_START generation={generation} thread={System.Environment.CurrentManagedThreadId} main_thread={NGame.IsMainThread()}");
                 Thread worker = Thread.CurrentThread;
                 ThreadPriority previousPriority = worker.Priority;
                 worker.Priority = ThreadPriority.BelowNormal;
+                ISearchGcScope? gcPolicy = null;
+                SolverResult? finalizedResult = null;
                 try
                 {
-                    using IDisposable gcPolicy = SearchGcPolicy.EnterLowLatencySearch(
+                    using ISearchGcScope admittedGcPolicy = gcPolicy = SearchGcPolicy.EnterSearchScope(
                         settings.EnableNoGcRegion,
                         settings.NoGcRegionBudgetBytes,
                         searchPolicy.MemoryPressureSignal,
@@ -1155,11 +1199,29 @@ internal static class SolverController
                         searchPolicy,
                         token,
                         progress => PublishSearchProgress(search, progress));
-                    return search.Interaction.FinalizeWorkerResult(result);
+                    finalizedResult = search.Interaction.FinalizeWorkerResult(result);
+                    token.ThrowIfCancellationRequested();
+                    if (!search.Interaction.StopRequested)
+                        routeCache.StoreFirst(finalizedResult);
+                    return finalizedResult;
                 }
                 finally
                 {
                     worker.Priority = previousPriority;
+                    if (gcPolicy?.IsLifecycleCompleted == true)
+                    {
+                        SearchGcLifecycleSnapshot gcLifecycle = gcPolicy.Lifecycle;
+                        if (finalizedResult != null)
+                        {
+                            finalizedResult.GcLifecycle = gcLifecycle;
+                            finalizedResult.GcLifecycleAttribution = gcPolicy.LifecycleAttribution;
+                        }
+                        Entry.Logger.Info(
+                            $"[CombatSolver/Test] SEARCH_GC_LIFECYCLE generation={generation} " +
+                            $"completed={(finalizedResult != null).ToString().ToLowerInvariant()} " +
+                            $"attribution={gcPolicy.LifecycleAttribution} " +
+                            gcLifecycle.ToDiagnosticString());
+                    }
                 }
             }, token);
             search.WorkerCompletion = solveTask;
@@ -1222,7 +1284,7 @@ internal static class SolverController
 
     internal static string FormatSearchSetupFailure(Exception exception)
     {
-        string title = $"[color={SolverUiTokens.Palette.DangerHex}][b]搜索初始化失败[/b][/color]";
+        string title = $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("搜索初始化失败")}[/b][/color]";
         if (exception is not IncompatibleGameplayModException incompatible)
         {
             return $"{title}\n[color={SolverUiTokens.Palette.DangerHex}]{EscapeRichText(exception.Message)}[/color]" +
@@ -1230,8 +1292,8 @@ internal static class SolverController
         }
 
         string modName = EscapeRichText(incompatible.PlayerFacingModName);
-        return $"{title}\n[color={SolverUiTokens.Palette.DangerHex}]检测到不兼容的第三方 Mod：{modName}。" +
-               $"建议卸载该 Mod 并重启游戏后再使用求解器。[/color]\n" +
+        return $"{title}\n[color={SolverUiTokens.Palette.DangerHex}]" +
+               SolverText.Format($"检测到不兼容的第三方 Mod：{modName}。建议卸载该 Mod 并重启游戏后再使用求解器。") + "[/color]\n" +
                SolverUiTokens.BugReportUploadInstructionRichText;
     }
 
@@ -1651,6 +1713,38 @@ internal static class SolverController
         string potionId)
         => SolverSettings.ResolvePotionDirective(slot, potionId);
 
+    internal static void SetGrowthPolicy(NGame host, CombatState state, GrowthValues budgets)
+    {
+        AssertMainThread();
+        if (_deployment != null)
+            return;
+        SolverSettingsData current = SolverSettings.Current;
+        if (current.GrowthBudgets == budgets)
+            return;
+        SolverSettings.Update(current with { GrowthBudgets = budgets });
+        _combat.ContinuationSource = null;
+        _combat.PendingCompleteProjectionBaseline = null;
+        SolverOverlay.RefreshControls();
+        if (!_combat.AutomaticSearchPaused && AutomaticCalculationEnabled)
+            RequestSearch(host, state, SearchReason.Manual);
+    }
+
+    internal static void SetIgnoreLongTermRewards(NGame host, CombatState state, bool ignore)
+    {
+        AssertMainThread();
+        if (_deployment != null)
+            return;
+        SolverSettingsData current = SolverSettings.Current;
+        if (current.IgnoreLongTermRewards == ignore)
+            return;
+        SolverSettings.Update(current with { IgnoreLongTermRewards = ignore });
+        _combat.ContinuationSource = null;
+        _combat.PendingCompleteProjectionBaseline = null;
+        SolverOverlay.RefreshControls();
+        if (!_combat.AutomaticSearchPaused && AutomaticCalculationEnabled)
+            RequestSearch(host, state, SearchReason.Manual);
+    }
+
     internal static void SetPotionDirective(
         NGame host,
         CombatState state,
@@ -1798,6 +1892,7 @@ internal static class SolverController
         if (_combat.SearchesStarted > 0 || _combat.ContinuationsReused > 0)
             Entry.Logger.Info($"[CombatSolver/Test] REPLAN_SUMMARY reason={reason} {DescribeReplanCounts()}");
         _lastBugReportClassification = CaptureBugReportClassification();
+        _lastManualProjectionComparison = _combat.LastManualProjectionComparison;
         CancelSearch();
         Task searchReferenceRelease = DrainSearchReferenceReleases();
         if (searchCanceled)
@@ -2049,7 +2144,7 @@ internal static class SolverController
     {
         string counts = string.Join(' ', Enum.GetValues<ReplanCause>()
             .Select(cause => $"{CauseToken(cause)}={_combat.ReplanCounts.GetValueOrDefault(cause)}"));
-        return $"searches={_combat.SearchesStarted} reused={_combat.ContinuationsReused} {counts} " +
+        return $"searches={_combat.SearchesStarted} reused={_combat.ContinuationsReused} restored={_combat.RoutesRestored} {counts} " +
                $"control_mode={ControlModeForBugReport} " +
                $"last_solver_deployed_turn={_combat.LastSolverDeployedTurn?.ToString() ?? "-"}";
     }
@@ -2166,6 +2261,13 @@ internal static class SolverController
         }
 
         SolverResult result = task.Result;
+        if (result.WasRestoredFromCache)
+        {
+            _combat.SearchesStarted--;
+            _combat.RoutesRestored++;
+            _combat.ReplanCounts[search.ReplanCause]--;
+            Entry.Logger.Info($"[CombatSolver/Test] ROUTE_CACHE_HIT turn={result.StartTurnNumber} validation=exact_root");
+        }
         bool stopped = search.Interaction.StopRequested;
         bool currentTurnAdopted = result.ResultScope == SolverResultScope.CurrentTurnAdoption;
         bool routeAdopted = result.ResultScope == SolverResultScope.RouteAdoption;
@@ -2434,7 +2536,10 @@ internal static class SolverController
 
                 Player player = LocalContext.GetMe(state)!;
                 Creature? target = state.GetCreature(action.TargetCombatId);
-                SolverOverlay.ShowDeploymentStep(actionIndex, actions.Count, action.ActionTitle);
+                string actionTitle = action.Kind == PlanActionKind.UsePotion
+                    ? SolverUiModelNames.Potion(action.PotionId, action.PotionTitle)
+                    : SolverUiModelNames.Card(action.CardId, action.CardUpgradeLevel, action.CardTitle);
+                SolverOverlay.ShowDeploymentStep(actionIndex, actions.Count, actionTitle);
                 List<PlanCardChoice> actionChoices = [.. action.GetActionChoicesInExecutionOrder()];
                 // A card can advance the turn directly or through a nested auto-play, so its
                 // next-turn choices belong to this native UI session.
@@ -2564,12 +2669,12 @@ internal static class SolverController
                         $"action={action.CardId ?? action.PotionId ?? action.Kind.ToString()} " +
                         $"elapsed_ms={Stopwatch.GetElapsedTime(actionStartedAt).TotalMilliseconds:F1}");
                 }
-                if (deploymentSettings.EnableDetailedDiagnosticLogs)
                 {
                     PlayerCombatState liveState = player.PlayerCombatState!;
                     Entry.Logger.Info(
                         $"[CombatSolver/Debug] DEPLOY_STATE turn={turn} action_index={actionIndex} " +
                         $"action={action.CardId ?? action.PotionId ?? action.Kind.ToString()} " +
+                        $"target={action.TargetCombatId} hp={player.Creature.CurrentHp} block={player.Creature.Block} " +
                         $"energy={liveState.Energy} hand={string.Join(',', liveState.Hand.Cards.Select(card => card.Id.Entry))} " +
                         $"draw={string.Join(',', liveState.DrawPile.Cards.Select(card => card.Id.Entry))} " +
                         $"discard={string.Join(',', liveState.DiscardPile.Cards.Select(card => card.Id.Entry))} " +
@@ -3051,8 +3156,11 @@ internal static class SolverController
             currentTurnNumber,
             baseline.ProjectedBattleHpLost,
             currentProjectedBattleHpLost,
-            baseline.StateDifference);
+            baseline.StateDifference,
+            baseline.OriginalCheckpointId,
+            CombatBugReportExporter.CurrentSearchRootId);
         _combat.LastManualProjectionComparison = comparison;
+        CombatBugReportExporter.RecordComparisonReference(baseline.OriginalCheckpointId);
         string direction;
         if (comparison.Difference < 0)
         {
@@ -3087,19 +3195,19 @@ internal static class SolverController
     private static string FormatSearchFailure(
         Exception exception,
         bool parallelSearchWasEnabled)
-        => $"[color={SolverUiTokens.Palette.DangerHex}][b]计算失败[/b]\n" +
+        => $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("计算失败")}[/b]\n" +
            $"{EscapeRichText(exception.Message)}[/color]\n" +
            SolverUiTokens.SearchFailureInstructionRichText(parallelSearchWasEnabled);
 
     private static string FormatDeploymentFailure(Exception exception)
-        => $"[color={SolverUiTokens.Palette.DangerHex}][b]自动执行中止[/b]\n" +
+        => $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("自动执行中止")}[/b]\n" +
            $"{EscapeRichText(exception.Message)}[/color]\n" +
            SolverUiTokens.BugReportUploadInstructionRichText;
 
     private static string FormatTurnSetupFailure(
         Exception exception,
         bool parallelSearchWasEnabled)
-        => $"[color={SolverUiTokens.Palette.DangerHex}][b]回合准备选牌失败[/b]\n" +
+        => $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("回合准备选牌失败")}[/b]\n" +
            $"{EscapeRichText(exception.GetBaseException().Message)}[/color]\n" +
            SolverUiTokens.SearchFailureInstructionRichText(parallelSearchWasEnabled);
 
@@ -3161,6 +3269,12 @@ internal static class SolverController
             _combat.ReplanCounts.GetValueOrDefault(ReplanCause.PlanExhausted),
             _combat.ReplanCounts.GetValueOrDefault(ReplanCause.ManualDivergence),
             _combat.BugReportIssues.Snapshot());
+
+    internal static CombatBugReportClassificationSnapshot CaptureBugReportClassificationForExport()
+        => CombatManager.Instance.IsInProgress ? CaptureBugReportClassification()
+            : _lastBugReportClassification ?? CaptureBugReportClassification();
+    internal static ManualProjectionComparison? ManualProjectionComparisonForExport
+        => CombatManager.Instance.IsInProgress ? _combat.LastManualProjectionComparison : _lastManualProjectionComparison;
 
     private static void CompleteDeployment(SolverDeploymentSession deployment)
     {

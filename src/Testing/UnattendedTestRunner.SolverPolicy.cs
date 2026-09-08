@@ -103,6 +103,7 @@ internal sealed partial class UnattendedTestRunner
         => _request.ExpectedInitialSoldHp.HasValue
             || _request.ExpectedInitialSoldHpAtMost.HasValue
             || _request.ExpectedInitialSoldHpBranchesPrunedAtLeast.HasValue
+            || _request.ExpectedInitialDeathSaveRelicHp.HasValue
             || _request.ExpectedInitialActionAdmissionRepresentativesProtectedAtLeast.HasValue
             || _request.ExpectedInitialHpInvestmentBranchesProtectedAtLeast.HasValue
             || _request.ExpectedInitialPotionCount.HasValue
@@ -117,12 +118,18 @@ internal sealed partial class UnattendedTestRunner
             || _request.ExpectedInitialProjectedBattleHpLost.HasValue
             || _request.ExpectedInitialProjectedBattleHpLostAtMost.HasValue
             || _request.ExpectedInitialLongTermResourceValueAtLeast.HasValue
+            || _request.ExpectedInitialGrowthRewardCount.HasValue
             || _request.ExpectedInitialFinalMaxHp.HasValue
             || _request.ExpectedInitialMaxBlockAtLeast.HasValue
             || _request.ExpectedInitialActualBlockAtLeast.HasValue
             || _request.ExpectedInitialSearchPhase.HasValue
             || _request.ExpectedInitialDeepSearchTriggered.HasValue
             || _request.ExpectedInitialDeepSearchImprovedResult.HasValue
+            || _request.ExpectedInitialExpandedNodesAtMost.HasValue
+            || _request.ExpectedInitialTransitionsAtMost.HasValue
+            || _request.ExpectedInitialTotalExpandedNodesAtMost.HasValue
+            || _request.ExpectedInitialTotalTransitionsAtMost.HasValue
+            || _request.ExpectedInitialBoundaryReason.HasValue
             || _request.ExpectedInitialTotalElapsedMillisecondsAtMost.HasValue
             || _request.ExpectedInitialTotalAllocatedBytesAtMost.HasValue
             || _request.ExpectedInitialGen2CollectionsAtMost.HasValue
@@ -135,6 +142,7 @@ internal sealed partial class UnattendedTestRunner
             || _request.ExpectedInitialRepeatableNoProgressBranchesPrunedAtLeast.HasValue
             || _request.ExpectedInitialCycleShapesDetectedAtLeast.HasValue
             || _request.ExpectedInitialCycleProbeContinuationsExpandedAtLeast.HasValue
+            || _request.ExpectedInitialCycleProbeContinuationsExpandedAtMost.HasValue
             || _request.ExpectedInitialCycleCandidatesProtectedAtLeast.HasValue
             || _request.ExpectedInitialCycleContinuationsStoppedAtLeast.HasValue
             || _request.ExpectedInitialCrossTurnCandidatesProtectedAtLeast.HasValue
@@ -163,6 +171,7 @@ internal sealed partial class UnattendedTestRunner
             || !string.IsNullOrWhiteSpace(_request.ExpectedInitialActionCardId)
             || !string.IsNullOrWhiteSpace(_request.ExpectedInitialAbsentActionCardId)
             || !string.IsNullOrWhiteSpace(_request.ExpectedInitialFirstActionCardId)
+            || !string.IsNullOrWhiteSpace(_request.ExpectedInitialFirstActionChoiceCardId)
             || !string.IsNullOrWhiteSpace(_request.ExpectedInitialFirstActionPotionId)
             || !string.IsNullOrWhiteSpace(_request.ExpectedInitialActionTitle)
             || _request.ExpectedInitialActionReplayCount.HasValue
@@ -196,12 +205,19 @@ internal sealed partial class UnattendedTestRunner
             ? reviewSnapshot.ReviewSummaryText.StartsWith("路线已复用，共查阅了 ", StringComparison.Ordinal)
             : reviewSnapshot.ReviewSummaryText.StartsWith("花费了 ", StringComparison.Ordinal)
                 && reviewSnapshot.ReviewSummaryText.Contains("秒，共查阅了 ", StringComparison.Ordinal);
-        if (!validReviewSummary
-            || !reviewSnapshot.ReviewSummaryText.EndsWith(" 条世界线", StringComparison.Ordinal))
+        bool validCachedSummary = reviewSnapshot.ReviewSummaryText == "已恢复本场战斗记录的路线";
+        if (result.WasRestoredFromCache ? !validCachedSummary
+            : !validReviewSummary || !reviewSnapshot.ReviewSummaryText.EndsWith(" 条世界线", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("搜索完成快照没有生成耗时与世界线汇总。");
         }
         _completedChecks.Add("InitialWorldlineSummary");
+        if (_request.ScenarioId == "ROUTE-CACHE-SETUP-RESTORE-V0111")
+        {
+            if (!result.WasRestoredFromCache)
+                throw new InvalidOperationException("回合开始选牌没有使用已记录路线。");
+            _completedChecks.Add("InitialRouteCacheRestore");
+        }
 
         if (_request.ExpectedInitialSetupChoiceCountAtLeast is { } minimumTurnSetupChoices
             && result.TurnSetupChoices.Count < minimumTurnSetupChoices)
@@ -277,6 +293,13 @@ internal sealed partial class UnattendedTestRunner
         {
             throw new InvalidOperationException(
                 $"首轮卖血预算剪枝为 {result.SoldHpBranchesPruned}，低于预期下限 {minimumPruned}。");
+        }
+        if (_request.ExpectedInitialDeathSaveRelicHp is { } expectedDeathSaveRelicHp
+            && result.Snapshot.DeathSaveRelicHpRestored != expectedDeathSaveRelicHp)
+        {
+            throw new InvalidOperationException(
+                $"首轮路线用掉一次性保命遗物回了 {result.Snapshot.DeathSaveRelicHpRestored} 点血，"
+                + $"预期为 {expectedDeathSaveRelicHp}。");
         }
         if (_request.ExpectedInitialActionAdmissionRepresentativesProtectedAtLeast is { } minimumProtected
             && result.ActionAdmissionRepresentativesProtected < minimumProtected)
@@ -371,6 +394,12 @@ internal sealed partial class UnattendedTestRunner
                 $"首轮路线长期资源价值为 {result.Snapshot.LongTermResourceValue}，" +
                 $"低于预期 {minimumLongTermResource}。");
         }
+        if (_request.ExpectedInitialGrowthRewardCount is { } expectedGrowthCount
+            && result.Snapshot.GrowthRewards.Total != expectedGrowthCount)
+        {
+            throw new InvalidOperationException(
+                $"Growth reward count {result.Snapshot.GrowthRewards.Total}, expected {expectedGrowthCount}: {result.Snapshot.GrowthRewards}");
+        }
         if (_request.ExpectedInitialFinalMaxHp is { } expectedFinalMaxHp
             && result.Snapshot.PlayerMaxHp != expectedFinalMaxHp)
         {
@@ -400,6 +429,38 @@ internal sealed partial class UnattendedTestRunner
         {
             throw new InvalidOperationException(
                 $"首轮深化改善状态为 {result.DeepSearchImprovedResult}，预期为 {expectedDeepImproved}。");
+        }
+        if (_request.ExpectedInitialExpandedNodesAtMost is { } maximumExpandedNodes
+            && result.ExpandedNodes > maximumExpandedNodes)
+        {
+            throw new InvalidOperationException(
+                $"首轮展开节点数为 {result.ExpandedNodes}，超过上限 {maximumExpandedNodes}。");
+        }
+        if (_request.ExpectedInitialTransitionsAtMost is { } maximumTransitions
+            && result.TransitionCount > maximumTransitions)
+        {
+            throw new InvalidOperationException(
+                $"首轮转移数为 {result.TransitionCount}，超过上限 {maximumTransitions}。");
+        }
+        if (_request.ExpectedInitialTotalExpandedNodesAtMost is { } maximumTotalExpandedNodes
+            && result.TotalExpandedNodes > maximumTotalExpandedNodes)
+        {
+            throw new InvalidOperationException(
+                $"首轮请求总展开节点数为 {result.TotalExpandedNodes}，" +
+                $"超过上限 {maximumTotalExpandedNodes}。");
+        }
+        if (_request.ExpectedInitialTotalTransitionsAtMost is { } maximumTotalTransitions
+            && result.TotalTransitionCount > maximumTotalTransitions)
+        {
+            throw new InvalidOperationException(
+                $"首轮请求总转移数为 {result.TotalTransitionCount}，" +
+                $"超过上限 {maximumTotalTransitions}。");
+        }
+        if (_request.ExpectedInitialBoundaryReason is { } expectedBoundaryReason
+            && result.BoundaryReason != expectedBoundaryReason)
+        {
+            throw new InvalidOperationException(
+                $"首轮搜索边界为 {result.BoundaryReason}，预期为 {expectedBoundaryReason}。");
         }
         if (_request.ExpectedInitialTotalElapsedMillisecondsAtMost is { } maximumElapsed
             && result.TotalSearchElapsed.TotalMilliseconds > maximumElapsed)
@@ -477,6 +538,12 @@ internal sealed partial class UnattendedTestRunner
         {
             throw new InvalidOperationException(
                 $"首轮展开的循环探测延续为 {result.CycleProbeContinuationsExpanded}，低于预期下限 {minimumCycleProbes}。");
+        }
+        if (_request.ExpectedInitialCycleProbeContinuationsExpandedAtMost is { } maximumCycleProbes
+            && result.CycleProbeContinuationsExpanded > maximumCycleProbes)
+        {
+            throw new InvalidOperationException(
+                $"首轮展开的循环探测延续为 {result.CycleProbeContinuationsExpanded}，超过预期上限 {maximumCycleProbes}。");
         }
         if (_request.ExpectedInitialCycleCandidatesProtectedAtLeast is { } minimumCycleCandidates
             && result.CycleCandidatesProtected < minimumCycleCandidates)
@@ -695,6 +762,26 @@ internal sealed partial class UnattendedTestRunner
             }
             _completedChecks.Add($"InitialFirstAction:{firstAction.CardId}");
         }
+        if (!string.IsNullOrWhiteSpace(_request.ExpectedInitialFirstActionChoiceCardId))
+        {
+            PlanAction? firstAction = result.BestNode.Actions.FirstOrDefault(action =>
+                action.Turn == startedTurn && action.IsExecutable);
+            PlanCardChoice? firstChoice = firstAction?
+                .GetActionChoicesInExecutionOrder()
+                .FirstOrDefault(choice => choice.Cards.Count > 0);
+            if (firstChoice == null
+                || firstChoice.Cards.All(card => !card.CardId.Equals(
+                    _request.ExpectedInitialFirstActionChoiceCardId,
+                    StringComparison.Ordinal)))
+            {
+                throw new InvalidOperationException(
+                    $"首轮第一个动作的首个选牌是 " +
+                    $"{(firstChoice == null ? "-" : string.Join(',', firstChoice.Cards.Select(card => card.CardId)))}，" +
+                    $"预期包含 {_request.ExpectedInitialFirstActionChoiceCardId}。");
+            }
+            _completedChecks.Add(
+                $"InitialFirstActionChoice:{_request.ExpectedInitialFirstActionChoiceCardId}");
+        }
         if (!string.IsNullOrWhiteSpace(_request.ExpectedInitialFirstActionPotionId))
         {
             PlanAction? firstAction = result.BestNode.Actions.FirstOrDefault(action =>
@@ -800,6 +887,7 @@ internal sealed partial class UnattendedTestRunner
             $"DeathTurn={result.DeathTurn?.ToString() ?? "-"};ActEndingBoss={result.IsActEndingBoss};" +
             $"BossHpRelief={result.BossHpRelief}");
     }
+
 
     private void ForceInitialEnemyMoves(CombatState combatState)
     {

@@ -127,6 +127,7 @@ internal static class NativeChoiceRuntime
         bool requireManualConfirmation = false,
         string sourceId = "")
     {
+        CombatReplayRecording.ObserveChoiceCandidates(surface, player, options, minSelect, maxSelect, sourceId);
         if (CardSelectCmd.Selector != null || Sessions.Count == 0)
             return;
         NativeChoiceSession session = Sessions[^1];

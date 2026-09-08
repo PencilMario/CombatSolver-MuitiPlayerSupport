@@ -102,12 +102,12 @@ internal static class CalculatedVarSpecRegistry
             MementoMori => combat.GetCardsDiscardedThisTurn(owner),
             SoulStorm => playerState.ExhaustPile.Cards.Count(candidate => candidate.Preview is Soul),
             Voltaic => CountLightningChannels(simulator, model.Owner),
-            TearAsunder => CountUnblockedDamageEvents(simulator, owner),
+            TearAsunder => 1 + CountUnblockedDamageEvents(simulator, owner),
             ExpectAFight => Math.Max(0, combat.GetAmount<StrengthPower>(owner)),
             HelixDrill => Math.Max(0, combat.GetEnergySpentThisTurn(model.Owner)
                 - card.GetEnergyCostWithModifiers(simulator, playerState)),
             PullFromBelow => CountEtherealPlays(simulator, model.Owner),
-            Normality => Math.Min(3, combat.GetCardsPlayedThisTurn(owner)),
+            Normality => Math.Min(3, combat.GetCardPlayStartsThisTurn(owner)),
             Synchronize or CompileDriver => playerState.OrbQueue.Orbs.Select(orb => orb.Id).Distinct().Count(),
             Protector => simulator.State.GetOsty(model.Owner) is { } protectorOsty
                 && simulator.State.GetCreature(protectorOsty).IsAlive

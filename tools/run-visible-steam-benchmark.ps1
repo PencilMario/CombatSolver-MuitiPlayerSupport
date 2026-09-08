@@ -4,10 +4,16 @@ param(
     [int]$TimeoutSeconds = 360,
     [ValidateRange(1, 16)]
     [int]$SearchMaxDegreeOfParallelism = 2,
-    [switch]$VerifyBaseLibCardModifierBoundary
+    [switch]$VerifyBaseLibCardModifierBoundary,
+    [switch]$LoggingFixture,
+    [string]$EvidenceDirectory,
+    [string]$CheckpointArchivePath,
+    [ValidateSet('RestoreOnly','ReplayRecorded','SearchOnly','DeploySolver')][string]$ReplayMode = 'RestoreOnly',
+    [string]$CheckpointSelector = 'latest'
 )
 
 $ErrorActionPreference = "Stop"
+if ($LoggingFixture) { $TimeoutSeconds = [Math]::Min($TimeoutSeconds, 120) }
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $steamExe = "D:\Steam\steam.exe"
 $gameProcessName = "SlayTheSpire2"
@@ -134,6 +140,22 @@ $request = [ordered]@{
 }
 
 $gameProcess = $null
+if ($LoggingFixture) {
+    $request = Get-Content -LiteralPath (Join-Path $repositoryRoot 'coverage/unattended/logging-short-combat.json') -Raw | ConvertFrom-Json -AsHashtable
+    $request.runId = $runId
+    $request.timeoutSeconds = $TimeoutSeconds
+}
+if ($EvidenceDirectory) { $request.evidenceDirectory = [IO.Path]::GetFullPath($EvidenceDirectory) }
+if ($CheckpointArchivePath) {
+    $request = @{
+        schemaVersion = 1; runId = $runId; scenarioId = 'VISIBLE-CHECKPOINT-REPLAY'
+        checkpointArchivePath = (Resolve-Path -LiteralPath $CheckpointArchivePath).Path
+        checkpointSelector = $CheckpointSelector; replayMode = $ReplayMode
+        timeoutSeconds = [Math]::Min($TimeoutSeconds, 120); exitOnComplete = $true
+        evidenceDirectory = if ($EvidenceDirectory) { [IO.Path]::GetFullPath($EvidenceDirectory) } else { $null }
+    }
+    $TimeoutSeconds = [Math]::Min($TimeoutSeconds, 120)
+}
 try {
     $request | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $requestTempPath -Encoding UTF8
     Move-Item -LiteralPath $requestTempPath -Destination $requestPath -Force

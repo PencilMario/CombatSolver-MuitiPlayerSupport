@@ -35,12 +35,36 @@ internal sealed class SearchMemoryPressureSignal
     private long _allocationLimitBytes = long.MaxValue;
     private long _memoryLoadBytesAtStart;
     private long _systemMemoryLimitBytes = long.MaxValue;
-    private Action<CancellationToken>? _reclaimAndContinue;
+    private Action<CancellationToken, string>? _reclaimAndContinue;
+    private Action<CancellationToken>? _useDefaultGcAndContinue;
     private Func<bool>? _unexpectedNoGcLossProbe;
+    private Func<SearchGcLifecycleSnapshot>? _gcLifecycleProbe;
+    private long _lastReclaimMaxObservedGcPauseTicks;
     private int _reclaiming;
     private int _conservativeParallelismRequired;
 
     public int ReclaimCount { get; private set; }
+
+    public TimeSpan LastReclaimMaxObservedGcPause
+        => TimeSpan.FromTicks(Volatile.Read(ref _lastReclaimMaxObservedGcPauseTicks));
+
+    public SearchGcLifecycleSnapshot CaptureGcLifecycle()
+        => Volatile.Read(ref _gcLifecycleProbe)?.Invoke() ?? default;
+
+    internal void SetGcLifecycleProbe(Func<SearchGcLifecycleSnapshot> probe)
+    {
+        ArgumentNullException.ThrowIfNull(probe);
+        Volatile.Write(ref _gcLifecycleProbe, probe);
+    }
+
+    internal void ObserveReclaimGcPause(TimeSpan pause)
+    {
+        if (pause < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(pause));
+        long previous = Volatile.Read(ref _lastReclaimMaxObservedGcPauseTicks);
+        if (pause.Ticks > previous)
+            Volatile.Write(ref _lastReclaimMaxObservedGcPauseTicks, pause.Ticks);
+    }
 
     public long AllocatedBytes
         => Math.Max(0, GC.GetTotalAllocatedBytes(precise: false) - Volatile.Read(ref _allocatedBytesAtStart));
@@ -120,6 +144,27 @@ internal sealed class SearchMemoryPressureSignal
         long memoryLoadBytesAtStart,
         long systemMemoryLimitBytes,
         Action<CancellationToken> reclaimAndContinue,
+        Action<CancellationToken> useDefaultGcAndContinue,
+        Func<bool>? unexpectedNoGcLossProbe = null)
+    {
+        ArgumentNullException.ThrowIfNull(reclaimAndContinue);
+        Configure(
+            allocatedBytesAtStart,
+            allocationLimitBytes,
+            memoryLoadBytesAtStart,
+            systemMemoryLimitBytes,
+            (token, _) => reclaimAndContinue(token),
+            useDefaultGcAndContinue,
+            unexpectedNoGcLossProbe);
+    }
+
+    public void Configure(
+        long allocatedBytesAtStart,
+        long allocationLimitBytes,
+        long memoryLoadBytesAtStart,
+        long systemMemoryLimitBytes,
+        Action<CancellationToken, string> reclaimAndContinue,
+        Action<CancellationToken> useDefaultGcAndContinue,
         Func<bool>? unexpectedNoGcLossProbe = null)
     {
         if (allocationLimitBytes <= 0)
@@ -129,10 +174,12 @@ internal sealed class SearchMemoryPressureSignal
         if (systemMemoryLimitBytes <= 0)
             throw new ArgumentOutOfRangeException(nameof(systemMemoryLimitBytes));
         ArgumentNullException.ThrowIfNull(reclaimAndContinue);
+        ArgumentNullException.ThrowIfNull(useDefaultGcAndContinue);
         Volatile.Write(ref _allocatedBytesAtStart, allocatedBytesAtStart);
         Volatile.Write(ref _memoryLoadBytesAtStart, memoryLoadBytesAtStart);
         Volatile.Write(ref _systemMemoryLimitBytes, systemMemoryLimitBytes);
         Volatile.Write(ref _reclaimAndContinue, reclaimAndContinue);
+        Volatile.Write(ref _useDefaultGcAndContinue, useDefaultGcAndContinue);
         Volatile.Write(ref _unexpectedNoGcLossProbe, unexpectedNoGcLossProbe);
         Volatile.Write(ref _conservativeParallelismRequired, 0);
         Volatile.Write(ref _allocationLimitBytes, allocationLimitBytes);
@@ -153,14 +200,30 @@ internal sealed class SearchMemoryPressureSignal
     public bool HasUnexpectedNoGcLoss()
         => Volatile.Read(ref _unexpectedNoGcLossProbe)?.Invoke() == true;
 
-    public void ReclaimAndContinue(CancellationToken cancellationToken)
+    public void ReclaimAndContinue(CancellationToken cancellationToken, string reason = "unspecified")
     {
-        Action<CancellationToken> reclaim = Volatile.Read(ref _reclaimAndContinue)
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        Action<CancellationToken, string> reclaim = Volatile.Read(ref _reclaimAndContinue)
             ?? throw new InvalidOperationException("搜索内存回收信号尚未配置。");
+        RunCheckpoint(token => reclaim(token, reason), cancellationToken);
+    }
+
+    public void UseDefaultGcAndContinue(CancellationToken cancellationToken)
+        => RunCheckpoint(
+            Volatile.Read(ref _useDefaultGcAndContinue)
+                ?? throw new InvalidOperationException("搜索默认 GC 回退信号尚未配置。"),
+            cancellationToken);
+
+    private void RunCheckpoint(
+        Action<CancellationToken> checkpoint,
+        CancellationToken cancellationToken)
+    {
+        Volatile.Write(ref _lastReclaimMaxObservedGcPauseTicks, 0);
+        cancellationToken.ThrowIfCancellationRequested();
         Volatile.Write(ref _reclaiming, 1);
         try
         {
-            reclaim(cancellationToken);
+            checkpoint(cancellationToken);
             ReclaimCount++;
         }
         finally
@@ -175,6 +238,7 @@ internal sealed class SearchMemoryPressureSignal
         Volatile.Write(ref _memoryLoadBytesAtStart, 0);
         Volatile.Write(ref _systemMemoryLimitBytes, long.MaxValue);
         Volatile.Write(ref _reclaimAndContinue, null);
+        Volatile.Write(ref _useDefaultGcAndContinue, null);
         Volatile.Write(ref _unexpectedNoGcLossProbe, null);
         Volatile.Write(ref _conservativeParallelismRequired, 0);
     }

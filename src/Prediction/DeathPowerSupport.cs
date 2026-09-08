@@ -9,7 +9,25 @@ namespace CombatSolver;
 
 internal static class DeathPowerSupport
 {
-    public static void Trigger(
+    /// <summary>
+    /// 这个死亡效果会不会往场上放一个新的<b>主要</b>敌人。
+    /// </summary>
+    /// <remarks>
+    /// 下面那个 switch 里三条走 <see cref="MonsterSpawnSupport.Spawn{T}" /> 且没传
+    /// <c>minion: true</c>，所以生成出来的是主要敌人：巨斧机器人的补货、寄生的蠕虫、
+    /// 惊吓的小恶魔。**这三种死亡效果没结算完之前不能宣布胜利**——原版是在杀死的那一刻同步
+    /// 结算完死亡效果的，求解器把死亡效果推迟到 <see cref="CorePowerSupport.ApplyEnemyDeathPowers" />
+    /// 的清扫，于是中间存在一个「场上没有活着的主要敌人、但马上会有」的窗口。
+    ///
+    /// 幻象和重接不在这里：它们复活的是同一个个体，走的是
+    /// <c>SimulatedCombatState.RevivingEnemyHp</c> 那条既有的有效生命路径。
+    ///
+    /// 新增会生成主要敌人的死亡效果时，这里和下面那个 switch 要一起改。
+    /// </remarks>
+    public static bool SpawnsPrimaryEnemyOnDeath(PowerModel power)
+        => power.Amount > 0 && power is StockPower or InfestedPower or SurprisePower;
+
+    public static bool Trigger(
         CombatPredictionSimulator simulator,
         SimulatedCombatState combat,
         Creature dead)
@@ -41,6 +59,8 @@ internal static class DeathPowerSupport
                     power.Owner,
                     power.DynamicVars.Block.BaseValue,
                     ValueProp.Unpowered);
+                if (simulator.HasPendingChoice)
+                    return false;
                 combat.SetPowerAmount(power, 0);
                 continue;
             }
@@ -126,10 +146,15 @@ internal static class DeathPowerSupport
                     combat.RefundPossessedStats(dead);
                     break;
             }
+            if (simulator.HasPendingChoice)
+                return false;
         }
         combat.RecoverStolenResources(simulator, dead);
+        if (simulator.HasPendingChoice)
+            return false;
         combat.RemovePowersAfterDeath(dead);
         combat.CompleteDeathPhase(dead);
+        return true;
     }
 
 }

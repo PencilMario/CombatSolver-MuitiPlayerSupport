@@ -4,6 +4,12 @@ Combat Solver 是一个面向《杀戮尖塔 2》单人模式的战斗路线求�
 
 玩家可以只查看建议，也可以让求解器执行当前回合，或连续接管整场战斗。搜索不会修改游戏 RNG，也不会在后台操作真实战斗状态。
 
+当前本地版本为 **0.34.4**：修复凡庸与倾泻等自动打牌效果的预测偏差。详见 [更新日志](docs/releases/0.34.4-RELEASE_NOTES.md)。
+
+**English UI:** Set the game language to English and restart the game. CombatSolver provides a recommended route; use **Play turn** for one turn or **Auto: On** for continuous play. Configure potions, growth and search budgets in the overlay. **Settings > Reports > Upload report** submits a bug report. Logs, raw errors and some detailed diagnostics retain their original text. Single-player only.
+
+界面跟随游戏语言：简体/繁体中文使用现有中文文案，其他语言使用英文。简化版不提供独立语言开关；卡牌胶囊、选牌和相关悬停说明支持运行中切换语言，其他既有窗口可通过重启统一刷新。
+
 ## 主要功能
 
 - **跨回合搜索**：继续预测抽牌、洗牌、敌人行动、持续状态和后续资源，而不是只计算眼前一回合。
@@ -12,9 +18,11 @@ Combat Solver 是一个面向《杀戮尖塔 2》单人模式的战斗路线求�
 - **原生选牌流程**：开局选牌、回合开始选牌以及抽弃牌等操作继续使用游戏原生页面和动画；求解器在页面出现后计算并展示计划。
 - **跨回合路线复用**：实机状态与预测一致时直接沿用既有路线，只有状态发生实际变化时才重新搜索。
 - **逐瓶药水策略**：主界面实时显示当前药水的图标和名称，每瓶可独立设为智能使用、强制使用或禁用保护；新获得的药水默认使用智能策略。
+- **局外成长策略**：主界面“成长策略”侧栏可分别配置八类局外收益每次允许的额外战损，点击输入框外部或按回车保存；默认 0 也会优先获取同等战损下的收益。搜索设置另有“提前结束搜索的战损阈值”，有成长目标或非零成长额度时不生效。
 - **可调搜索预算**：提供低、中、高、极高和自定义配置，并支持单线程或 `2-16` 路并行搜索。
 - **界面与通知**：默认使用深色界面，可切换浅色模式并调整覆盖层透明度；搜索结束可按设置发送 Windows 系统通知和提示音。
 - **问题反馈**：可以从设置中直接上传问题包，也可以导出到本地后手动提交。问题描述会附带本场自动分类，便于定位更优路线、计划外重算、执行中止和搜索失败。
+- **在线统计**：默认每 30 秒向作者发送随机安装标识、昵称、角色、楼层、当前战斗、预计战损和版本，可在设置中关闭；不上传完整路线，离线后清除昵称和战斗详情，保留历史人数及安装标识对应的累计在线时长。详见 [统计字段与关闭方式](docs/ONLINE_STATISTICS.md)。
 
 ## 工作方式
 
@@ -25,12 +33,47 @@ Combat Solver 是一个面向《杀戮尖塔 2》单人模式的战斗路线求�
 
 这一设计把“预测”和“实机执行”分开：后台线程不能读取持续变化的实机值，模拟分支也不能修改真实战斗。
 
+## 战前预测 API（面向 Mod 开发者）
+
+该接口从 `0.31.2` 起提供，当前公开 API 版本为 v6。v5 的确定预测与假设样本入口保持兼容；使用规划快照入口的伴生 Mod 应依赖包含 v6 的 CombatSolver 构建。
+
+`CombatSolver.Api.PreCombatForecastApi` 为地图信息类 Mod 提供公开的战前预测入口。调用方在游戏主线程提交当前单人跑局、已确定的 `EncounterModel`、目标楼层及房间/地图节点类型；API 返回预计整场战损、所选路线中的药水动作、搜索边界、可信度、结束回合和诊断日志位置。
+
+该入口不会在当前游戏进程中建立战斗。它先序列化完整跑局并生成不透明状态令牌，再启动 Combat Solver 独占的 Windows headless 游戏进程；子进程加载与主进程完全一致的 Mod 集合，在独立用户目录中精确恢复跑局、核对规范化快照、进入目标战斗并复用现有求解器。Combat Solver 会在主进程初始化期间用独立文件副本保存本次会话实际选择的 Mod 文件；Steam 在游戏运行中更新工坊目录时，worker 仍加载主进程已经载入的版本。API v6 会在每次请求完整回到主菜单且后台活动归零后复用同一进程；默认空闲两分钟后关闭，调用方也可把期限改为其他值、用 `null` 一直维持、调用 `StopWorkerAsync()` 立即关闭，或要求请求完成后自动关闭。调用方可以读取 PID、工作集和私有内存，手动重启/预热，并在 worker 已经待命时立即重设空闲期限。隔离设置会把主音量、BGM、音效与环境音强制为零。结果返回前，主进程再次比较活动跑局、战斗状态和完整令牌；任一状态或 RNG 变化都会返回 `LiveStateChanged`，不会发布过期结果。
+
+`SimulateAsync` 提供独立的纯模拟入口：调用方从当前幕原生遭遇池选择怪组并提供样本种子，worker 在精确恢复当前跑局之后，只在隔离进程中替换怪物组成/生命、开局洗牌、怪物行动和其他战斗相关 RNG。它使用当前牌组、遗物、药水与生命评估假设战斗，不代表尚未确定的远处战斗结果。
+
+`SimulatePlanningAsync` 用调用方提供的独立 `SerializableRun` 作为 worker 的实际跑局状态，同时用当前跑局只捕获 Mod/游戏环境并在返回前验证 live 状态未变化。这样地图规划可以把已计划的牌、生命、药水和地图修改带入战斗模拟；它接受问号点和原生事件战斗，并在主线程按目标坐标确定第二首领标记。规划存档必须属于同一幕、种子、角色和玩家身份，失败或过期结果不会写回主跑局。
+
+最小调用方式：
+
+```csharp
+if (PreCombatForecastApi.IsAvailable)
+{
+    PreCombatForecastResult result = await PreCombatForecastApi.ForecastAsync(
+        run,
+        encounter,
+        targetActFloor,
+        targetMapColumn,
+        PreCombatRoomKind.Normal,
+        PreCombatMapPointKind.Normal);
+}
+```
+
+当前 API 版本为 `6`，仅支持 Windows、单人跑局和未处于战斗中的状态。首次请求需要建立隔离游戏镜像并启动进程，适合由地图信息类 Mod 异步调用。相同状态与目标的确定请求会复用运行中任务或已完成结果；显式假设样本和规划快照模拟不进入确定结果缓存。`SetWorkerIdleTimeoutAsync()` 与请求选项中的 `WorkerIdleTimeoutMilliseconds` 控制当前及后续 worker 的空闲期限，`null` 表示不自动关闭。
+
+## 第三方角色适配
+
+`0.31.3` 合入 PR #50–#55，提供第三方 Power 战略估值、药水玩家选择与牌堆可选弃牌入口，并补充未镜像可打出条件的覆盖提示。使用这些入口的适配 Mod 应将 CombatSolver 最低依赖设为 `0.31.3`。
+
+各角色的具体战斗效果由适配层实现与验证。登记方式、分支状态要求和验证方法见 [第三方 Mod 适配手册](docs/THIRD_PARTY_ADAPTERS.md)。
+
 ## 安装与兼容性
 
 运行要求：
 
 - 《杀戮尖塔 2》`0.111.0`
-- [RitsuLib](https://steamcommunity.com/sharedfiles/filedetails/?id=3747602295) `0.5.13` 或更高版本
+- [RitsuLib](https://steamcommunity.com/sharedfiles/filedetails/?id=3747602295) `0.5.18` 或更高版本
 - 单人战斗模式
 
 推荐通过 Steam 创意工坊订阅。使用 GitHub Release 手动安装时，在游戏目录的 `mods/CombatSolver` 下放置以下文件：
@@ -38,6 +81,7 @@ Combat Solver 是一个面向《杀戮尖塔 2》单人模式的战斗路线求�
 ```text
 CombatSolver.dll
 CombatSolver.json
+CombatSolver.MemoryCleaner.exe
 THIRD_PARTY_NOTICES.md
 ```
 
@@ -108,6 +152,7 @@ Linux 构建命令：
 
 开发前建议先阅读：
 
+- [文档总目录](docs/README.md)：当前指南、版本日志和各专题索引
 - [架构与职责地图](docs/ARCHITECTURE.md)
 - [开发记录](docs/DEVELOPMENT_NOTES.md)
 - [测试矩阵](docs/TEST_MATRIX.md)

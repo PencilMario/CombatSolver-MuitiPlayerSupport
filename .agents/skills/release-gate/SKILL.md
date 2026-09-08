@@ -27,6 +27,7 @@ description: 用户要求准备或发布 CombatSolver 版本、生成 ZIP、创�
 
 - 同步 `CombatSolver.csproj`、`CombatSolver.json`、`docs/DEVELOPMENT_NOTES.md`、`docs/TEST_MATRIX.md` 和该版本玩家更新日志。
 - 玩家更新日志使用当前游戏官方简中译名，只写玩家可感知的变化。开发日志中的根因、内部职责、runId、构建和测试信息不复制进去。
+- 玩家更新日志和创意工坊 changeNote 同时提供简中与英文，内容等价并使用各语言的游戏译名；一次跨多个未上传版本时合并玩家变化。发布包含 UI 改动时参考 `../ui-localization/SKILL.md`，复用已完成的中英验证，不为了发包重复测试。
 - 提交源码、fixture 和文档后，从该提交构建；记录该提交为 release source commit。构建后行为源码、编译配置、依赖或 manifest 变化才使构建失效，纯渠道暂存变化不会。
 - “当前最新版”来自仓库中已同步、已提交且完成最小发包的最高版本，不来自游戏 Mods 目录或创意工坊暂存目录。
 - 版本创建标签或成功上传创意工坊后即冻结。后续行为改动进入新的“下一版本（开发中）”，不回写已发布版本；用户未指定新版本号时保留待定，不自行猜版本。
@@ -53,6 +54,8 @@ dotnet clean -c Release
 目标行为已在当前行为源码上通过，之后只改版本号、文档或发布元数据时，Release 构建足以进入打包，不重复行为审计。
 
 ## 3. 一次最小 ZIP
+
+发布包统一输出到仓库根目录的 `releases/CombatSolver-<版本号>.zip`；当前工作区为 `D:\Desktop\sts2mod\CombatSolver\releases`。创建 ZIP 前确保目录存在，交付链接使用该路径，发布 ZIP 由现有 Git 忽略规则排除。
 
 当前 `has_pck=false`。命令显式只写入：
 
@@ -88,6 +91,12 @@ Linux 不使用上述 Windows 路径。上传前必须设置 `COMBATSOLVER_MOD_U
 2. 保留标题、长描述、作者、封面、效果图、标签、依赖和可见性，除非用户明确要求修改或兼容性事实已经变化；
 3. 将该版本玩家更新日志提炼为 `workshop.json` 的 `changeNote`；
 4. Windows 执行一次 `ModUploader.exe upload -w .\CombatSolverWorkshop`；Linux 执行一次 `"$COMBATSOLVER_MOD_UPLOADER" upload -w "$COMBATSOLVER_WORKSHOP_DIR"`。
+
+创意工坊介绍已有 English / 简体中文两套，正文维护于 `docs/workshop/`。官方 ModUploader 未指定语言时写 English，因此本地 workshop.json 的默认标题和 description 必须保持英文；简中介绍通过明确的 `SetItemUpdateLanguage("schinese")` 独立维护，不能把中文塞回默认 description，或仅改 tags 代替语言字段。只更新介绍时提交元数据，不顺带上传二进制。
+
+英文界面发布时语言 tags 包含 English 与 Simplified Chinese，保留其他标签；tags 用于发现，不能代替上述介绍语言字段。仅发包且介绍未变化时保留既有两种语言，不重复提交介绍。英文介绍和中文介绍各自保留依赖、单人限制、代码来源与许可署名。
+
+官方上传器还会把工作区 `previews/` 当作远端示例图的完整列表，上传缺少的图片并删除目录中不存在的远端图片。通过网页或 API 替换示例图后，同时同步此目录并移出旧文件；当前顺序为中文、英文 1、英文 2、英文 3，对应 `01-cn1.jpg`、`02-en1.jpg`、`03-en2.jpg`、`04-en3.jpg`。不要用旧 previews 目录覆盖玩家刚指定的新图。主封面 image.png 独立于示例图。
 
 更新说明只写新增功能、实战结果修复、路线质量、UI/操作、兼容性和玩家能感知的性能变化。不要写类名、方法名、Beam/Mirror/GC 实现、runId、提交、构建、测试或打包过程。
 

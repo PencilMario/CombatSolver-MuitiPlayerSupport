@@ -126,6 +126,20 @@ forbid_regex() {
     fi
 }
 
+for relative_path in \
+    src/Search/CombatBeamSolver.Expansion.cs \
+    src/Runtime/LiveEndTurnRiskEvaluator.cs \
+    src/Testing/UnattendedTestRunner.cs \
+    src/Testing/UnattendedTestRunner.Potions.cs; do
+    for reference in \
+        'CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects(' \
+        'TurnStartRelicSupport.TriggerAfterSideTurnEnd(' \
+        'EndTurnPowerSupport.TriggerLate('; do
+        forbid_fixed "$repository_root/$relative_path" "$reference" \
+            'player phase two must use PlayerTurnEndLifecycle'
+    done
+done
+
 mapfile -d '' -t search_files < <(
     find "$search_root" -type f -name '*.cs' -print0 | sort -z
 )
@@ -134,7 +148,11 @@ beam_files=("$search_root"/CombatBeamSolver*.cs)
 runtime_files=("$repository_root"/src/Runtime/*.cs)
 shopt -u nullglob
 
-cycle_planning_path="$search_root/CombatBeamSolver.CyclePlanning.cs"
+cycle_policy_paths=(
+    "$search_root/CombatBeamSolver.CyclePlanning.cs"
+    "$search_root/CombatBeamSolver.CycleRegionRetention.cs"
+    "$search_root/CombatBeamSolver.OrderedMutationRetention.cs"
+)
 legacy_loop_guard_paths=(
     "$search_root/CombatBeamSolver.Expansion.cs"
     "$search_root/CombatBeamSolver.ParallelExpansion.cs"
@@ -153,19 +171,109 @@ legacy_loop_guard_paths=(
 # Cycle planning must infer recurrence and payoff from generic simulated-state deltas. Keeping
 # scenario names out of this policy file prevents a regression to card/power/relic/enemy allowlists.
 scenario_specific_cycle_model_pattern='\b(?:Body[[:space:]_.-]*Slam|Lunar[[:space:]_.-]*Blast|Gold[[:space:]_.-]*Axe|Slow[[:space:]_.-]*Power|Hellraiser|Pillage|Bloodletting|Particle[[:space:]_.-]*Wall|Pale[[:space:]_.-]*Blue[[:space:]_.-]*Dot|Flash[[:space:]_.-]*Of[[:space:]_.-]*Steel|Finesse|Speedster|Black[[:space:]_.-]*Hole|Glow|Alignment|Spoils[[:space:]_.-]*Of[[:space:]_.-]*Battle)\b'
-forbid_regex \
-    "$cycle_planning_path" \
-    "$scenario_specific_cycle_model_pattern" \
-    'generic cycle planning contains a scenario-specific model name or ID:'
-for direct_model_lookup_pattern in \
-    '\bModelDb\.(?:Card|Power|Relic|Monster)\b' \
-    '\bGetAmount<[A-Za-z_][A-Za-z0-9_]*(?:Power|Relic|Monster)>' \
-    '\btypeof\([A-Za-z_][A-Za-z0-9_]*(?:Card|Power|Relic|Monster)\)'; do
+for cycle_policy_path in "${cycle_policy_paths[@]}"; do
     forbid_regex \
-        "$cycle_planning_path" \
-        "$direct_model_lookup_pattern" \
-        'generic cycle planning performs a direct concrete-model lookup:'
+        "$cycle_policy_path" \
+        "$scenario_specific_cycle_model_pattern" \
+        'generic cycle planning contains a scenario-specific model name or ID:'
+    for direct_model_lookup_pattern in \
+        '\bModelDb\.(?:Card|Power|Relic|Monster)\b' \
+        '\bGetAmount<[A-Za-z_][A-Za-z0-9_]*(?:Power|Relic|Monster)>' \
+        '\btypeof\([A-Za-z_][A-Za-z0-9_]*(?:Card|Power|Relic|Monster)\)'; do
+        forbid_regex \
+            "$cycle_policy_path" \
+            "$direct_model_lookup_pattern" \
+            'generic cycle planning performs a direct concrete-model lookup:'
+    done
 done
+
+cycle_region_retention_path="$search_root/CombatBeamSolver.CycleRegionRetention.cs"
+for cycle_transaction_rule in \
+    'CycleRegionRetentionTransaction' \
+    'CloneCycleRegionLedger(' \
+    'ObservationBaseline' \
+    'FindBestCycleRegionProgressWitness(' \
+    'lanePriority: -1' \
+    'SelectCycleRegionAdmissionKind(' \
+    'normalAdmissionSucceeded' \
+    'HasActiveOrderedMutationCycleRegionAdmission(' \
+    'node.CycleExitRetentionRank != int.MaxValue'; do
+    require_fixed \
+        "$cycle_region_retention_path" \
+        "$cycle_transaction_rule" \
+        'cycle-region final-survivor transaction invariant is missing:'
+done
+for retired_cycle_ordered_coupling in \
+    'CycleRegionOrderedProgressTail' \
+    'OrderCycleRegionOrderedMutationLane(' \
+    'TryStageCycleRegionOrderedProgressTailAdmission('; do
+    forbid_fixed \
+        "$cycle_region_retention_path" \
+        "$retired_cycle_ordered_coupling" \
+        'retired cycle-region/ordered joint ledger returned:'
+done
+require_fixed \
+    "$search_root/CombatBeamSolver.Retention.cs" \
+    'FinalizeCycleRegionRetention(cycleRegionTransaction, finalized);' \
+    'cycle-region provisional admissions are no longer reconciled after final arbitration:'
+for ordered_transaction_rule in \
+    'MaximumOrderedMutationRunAdmissions = 2048' \
+    'HasFullyPendingAtomicOrderedMutationPair(' \
+    'ExpireOrderedMutationSchedulingLeaseForOrdinaryFallback(node);' \
+    'PendingOrderedMutationOrdinaryFallbackNodes' \
+    'ValidateOrderedMutationAdmissionLedger(' \
+    'typeof(OrderedMutationRetentionLease).IsValueType'; do
+    require_fixed \
+        "$search_root/CombatBeamSolver.OrderedMutationRetention.cs" \
+        "$ordered_transaction_rule" \
+        'ordered-mutation atomic accounting invariant is missing:'
+done
+for ordered_coordinator_rule in \
+    'BuildOrderedMutationContinuationAdmissionLease(candidate);' \
+    'Every independent retention channel must finish before the ordered coordinator.' \
+    'Any inherited lane left outside this prune' \
+    'HasOrdinaryAnchor'; do
+    if [[ "$ordered_coordinator_rule" == 'Every independent retention channel must finish before the ordered coordinator.' ]]; then
+        ordered_coordinator_path="$search_root/CombatBeamSolver.Retention.cs"
+    else
+        ordered_coordinator_path="$search_root/CombatBeamSolver.BeamRetentionPolicy.cs"
+    fi
+    require_fixed \
+        "$ordered_coordinator_path" \
+        "$ordered_coordinator_rule" \
+        'unified ordered-mutation coordinator invariant is missing:'
+done
+for ordered_metric in \
+    'ordered_admitted=' \
+    'ordered_lease_expired_budget=' \
+    'ordered_ordinary_fallback=' \
+    'cold_atomic_committed=' \
+    'cold_atomic_rejected='; do
+    require_fixed \
+        "$repository_root/src/Runtime/SolverDiagnostics.cs" \
+        "$ordered_metric" \
+        'ordered-mutation acceptance metric is missing:'
+done
+opening_channel_line="$(rg --line-number --fixed-strings \
+    'List<List<SearchNode>> openingChannels = pool' \
+    "$search_root/CombatBeamSolver.Retention.cs" | head -n 1 | cut -d: -f1)"
+ordered_coordinator_line="$(rg --line-number --fixed-strings \
+    'Retention.AddOrderedMutationPortfolio(pool, selected, selectedSet);' \
+    "$search_root/CombatBeamSolver.Retention.cs" | head -n 1 | cut -d: -f1)"
+cycle_region_line="$(rg --line-number --fixed-strings \
+    'cycleRegionTransaction = ApplyCycleRegionRetention(' \
+    "$search_root/CombatBeamSolver.Retention.cs" | head -n 1 | cut -d: -f1)"
+if [[ -z "$opening_channel_line" || -z "$ordered_coordinator_line" \
+    || -z "$cycle_region_line" \
+    || "$opening_channel_line" -ge "$ordered_coordinator_line" \
+    || "$ordered_coordinator_line" -ge "$cycle_region_line" ]]; then
+    add_violation \
+        "$search_root/CombatBeamSolver.Retention.cs: opening/independent channels must settle before ordered admission, which must settle before CycleRegion"
+fi
+forbid_fixed \
+    "$cycle_region_retention_path" \
+    'selectedSet.Add(node);' \
+    'CycleRegion rebuilt an O(pool) selected-set shadow:'
 
 # PR #28's fixed repeat count and named payoff exceptions are retired. These checks intentionally
 # stay scoped to expansion and policy files so unrelated combat-semantic mirrors remain legal.
@@ -187,12 +295,22 @@ for legacy_loop_guard_path in "${legacy_loop_guard_paths[@]}"; do
         'retired named loop-payoff exception returned:'
 done
 
+require_fixed "$repository_root/src/Engine/InCombat/Mirrors/Hooks/Card/ShouldPlayMirrors.cs" \
+    'registry.Register<Normality>(HandleNormality)' \
+    'Normality must use the shared ShouldPlay mirror for manual and automatic cards.'
+
 for file in "${search_files[@]}"; do
     for reference in \
         'SolverSettings.Current' \
         'Entry.Logger' \
         'SolverController' \
         'SolverOverlay' \
+        'SolverText' \
+        'SolverRelicEffectText' \
+        'SolverUiModelNames' \
+        'SolverActionTextIdentity' \
+        'SolverLocaleRefresh' \
+        'SolvedRouteCache' \
         'UnattendedTestRunner'; do
         forbid_fixed "$file" "$reference" 'forbidden Search reference'
     done
@@ -253,9 +371,36 @@ src/Engine/InCombat/Mirrors/Hooks/Card/CardPlayHookPredictionStates.cs	Cannot fo
 src/Engine/InCombat/Mirrors/Hooks/Card/AfterCardPlayedMirrors.cs	Cannot fork Curl Up
 EOF
 
+while IFS=$'\t' read -r relative_path text; do
+    require_fixed "$repository_root/$relative_path" "$text" 'missing pre-combat isolation boundary'
+done <<'EOF'
+src/Api/PreCombatForecastApi.cs	public static class PreCombatForecastApi
+src/Api/PreCombatLiveStateSnapshot.cs	RunManager.Instance.ToSave(null)
+src/Api/PreCombatRunSerialization.cs	point["can_modify"] = false
+src/Api/PreCombatRunSerialization.cs	eventChoice["variables"] is JsonObject { Count: 0 }
+src/Api/PreCombatForecastWorker.cs	COMBATSOLVER_PRECOMBAT_WORKER
+src/Api/PreCombatForecastWorker.cs	ExpectedLoadedMods = expectedMods
+src/Api/PreCombatForecastWorker.cs	EnableNoGcRegionForTest = false
+src/Api/PreCombatForecastWorker.cs	PreCombatInterveningMapPoints = options.InterveningMapPoints
+src/Testing/UnattendedTestRunner.ScenarioBuilder.cs	EnterMapCoordDebug
+src/Testing/UnattendedTestRunner.ScenarioBuilder.cs	PreCombatPlayerHp:
+src/Testing/UnattendedTestRunner.ScenarioBuilder.cs	DirectRunSnapshot:ExactStateRestored
+EOF
+
+while IFS= read -r -d '' api_file; do
+    for forbidden_call in \
+        'SolverController.RequestSearch' \
+        'CombatManager.Instance.SetUpCombat' \
+        'RunManager.Instance.EnterRoomDebug'; do
+        forbid_fixed "$api_file" "$forbidden_call" 'pre-combat API directly mutates live combat via'
+    done
+done < <(find "$repository_root/src/Api" -type f -name '*.cs' -print0 | sort -z)
+
 search_gc_policy_path="$repository_root/src/Runtime/SearchGcPolicy.cs"
 for gc_chain_rule in \
     'return WaitForReclaimChainAsync(_reclaimTask)' \
+    'CollectGeneration2InBackgroundAsync(inSearchCheckpoint: true)' \
+    '_inSearchManualReclaimTask = manualCompletion.Task' \
     'failure == null && (_regionExitRequired || _reclaimRequired)'; do
     require_fixed "$search_gc_policy_path" "$gc_chain_rule" 'missing serialized reclaim-chain rule'
 done
@@ -263,6 +408,19 @@ forbid_fixed \
     "$search_gc_policy_path" \
     'ReclaimAfterActiveCheckpointAsync' \
     'recursive reclaim handoff returned:'
+
+# GC admission accounting and scratch-container ownership remain in their existing layers.
+while IFS=$'\t' read -r relative_path text; do
+    require_fixed "$repository_root/$relative_path" "$text" 'missing GC research ownership boundary'
+done <<'EOF'
+src/Runtime/SearchGcPolicy.cs	scope.CompleteLifecycle(CaptureLifecycle())
+src/Runtime/SolverController.cs	SearchGcPolicy.EnterSearchScope(
+src/Search/CombatBeamSolver.Models.cs	ExpansionBatchPool = new(static snapshot => snapshot.ReleaseSimulator())
+src/Search/CombatBeamSolver.ParallelExpansion.cs	new(_run.ExpansionBatchPool)
+src/Search/CombatBeamSolver.Phases.cs	SearchWaveMemoryPolicy.Capacity(
+src/Search/CombatBeamSolver.Models.cs	SnapshotListBuffer<PredictedCard> SnapshotLiveCards = new()
+src/Search/CombatBeamSolver.StateEvaluation.cs	_run.SnapshotLiveCards.Rent()
+EOF
 
 card_play_prediction_state_path="$repository_root/src/Engine/InCombat/Mirrors/Hooks/Card/CardPlayHookPredictionStates.cs"
 for stable_vambrace_state in \
@@ -313,10 +471,14 @@ expected_beam_files=(
     CombatBeamSolver.BeamRetentionPolicy.cs
     CombatBeamSolver.CrossTurnPlanning.cs
     CombatBeamSolver.CyclePlanning.cs
+    CombatBeamSolver.CycleRegionRetention.cs
+    CombatBeamSolver.DeferredFrontier.cs
     CombatBeamSolver.Expansion.cs
     CombatBeamSolver.FinalPlanOrdering.cs
     CombatBeamSolver.Models.cs
+    CombatBeamSolver.OrderedMutationRetention.cs
     CombatBeamSolver.ParallelExpansion.cs
+    CombatBeamSolver.PathDiagnostics.cs
     CombatBeamSolver.Phases.cs
     CombatBeamSolver.Retention.cs
     CombatBeamSolver.StateEvaluation.cs
@@ -340,6 +502,8 @@ while IFS=$'\t' read -r file_name text; do
     require_fixed "$search_root/$file_name" "$text" 'missing CombatBeamSolver stage member'
 done <<'EOF'
 CombatBeamSolver.cs	internal sealed partial class CombatBeamSolver(
+GrowthPolicy.cs	internal readonly record struct GrowthValues(
+SearchPolicySnapshot.cs	public GrowthValues GrowthBudgets { get; init; }
 CombatBeamSolver.cs	private readonly SearchRunContext _run = new(
 CombatBeamSolver.cs	private BeamRetentionPolicy Retention =>
 CombatBeamSolver.cs	private FinalPlanOrdering FinalOrdering =>
@@ -362,14 +526,71 @@ EOF
 
 require_fixed \
     "$search_root/CombatBeamSolver.Expansion.cs" \
-    'ResolveWholeActionChoiceBranchLimit' \
+    'CreateWholeActionChoiceBudget' \
     'repeated card choices are missing their whole-action branch quota:'
+
+path_diagnostics_path="$search_root/CombatBeamSolver.PathDiagnostics.cs"
+require_fixed "$search_root/CombatBeamSolver.BeamRetentionPolicy.cs" 'HasRetainedRoutingChoice: RetainedRoutingChoice(node) != null' 'ordinary tactical ties must use the existing retained routing semantics:'
+require_fixed "$search_root/CombatBeamSolver.BeamRetentionPolicy.cs" 'if (values.HasRetainedRoutingChoice)' 'ordinary tactical ties must leave routing positions unchanged:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.SearchPolicy.cs" 'seven, [], [0, 7, 1, 4, 2, 5, 6], useTacticalOrder: true);' 'ordinary tactical ties lost the interleaved routing-position contract:'
+deferred_frontier_path="$search_root/CombatBeamSolver.DeferredFrontier.cs"
+require_fixed "$deferred_frontier_path" 'private sealed class DeferredTurnFrontier(' 'deferred frontier ownership is missing:'
+require_fixed "$deferred_frontier_path" '_run.DeferredFrontierReplayActions++;' 'deferred replay action accounting is missing:'
+require_fixed "$deferred_frontier_path" 'node with { Snapshot = replayed }' 'deferred replay must preserve post-final node history:'
+require_fixed "$search_root/CombatBeamSolver.Phases.cs" 'CaptureDeferredFrontier(nextPlays, prunedPlays);' 'deferred capture must follow final prune:'
+require_fixed "$search_root/CombatSearchCoordinator.FailureRecovery.cs" 'RecoverDeferredTurnFrontier = true' 'deferred frontier must remain tied to failed-layer recovery:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.Executor.cs" 'KNOWN-CUSTOM-DEFERRED-FRONTIER-V0111' 'deferred frontier contract lost its executor entry:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.KnownCustomDeferredFrontier.cs" 'MetadataContractOnly:NotFrontierQualityOrPerformance' 'deferred contract must distinguish metadata from search quality:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.Executor.cs" 'KNOWN-SOUL-GENERATION-CONTEXT-V0111' 'generation context replay lost its executor entry:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.Executor.cs" 'KNOWN-SOUL-GENERATION-SUFFIX-V0111' 'generation context frozen suffix replay lost its executor entry:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.Executor.cs" 'KNOWN-SOUL-VARIANT-PATH-TRACE-V0111' 'proved variant path trace lost its executor entry:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.Executor.cs" 'KNOWN-SOUL-RETAINED-PATH-TRACE-V0111' 'retained variant alias proof lost its executor entry:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.KnownSoulVariantPathTrace.cs" 'requiredRetentionStep: 18, proveRetentionAliases: true' 'retained variant must strictly prove the actual observed prefix suffix:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.KnownSoulVariantPathTrace.cs" 'RunKnownSoulGenerationContext(combat, player, fullKnownSuffix: true, frozenVariants: variants);' 'variant trace must prove the complete alternative suffixes before search:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.KnownRoutePathTrace.cs" 'watched.UnionWith(variants.Values.SelectMany(variant => variant.Prefixes)' 'variant trace must watch all proved prefix states:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.KnownRoutePathTrace.cs" 'exact.GroupBy(item => new { item.PolicyLabel, item.ParentPolicyLabel })' 'variant trace must report separate observed current and parent policy buckets:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.Executor.cs" 'KNOWN-EXOSKELETONS-ROUTE-REPLAY-V0111' 'multi-enemy known route lost its executor entry:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.Executor.cs" 'KNOWN-EXOSKELETONS-PATH-TRACE-V0111' 'multi-enemy path trace lost its executor entry:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.Executor.cs" 'KNOWN-EXOSKELETONS-CONTINUATION-PATH-TRACE-V0111' 'multi-enemy post-generation path trace lost its executor entry:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.Executor.cs" 'KNOWN-EXOSKELETONS-ROUTE-NATIVE-V0111' 'multi-enemy native replay lost its executor entry:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.KnownRoutePathTrace.cs" 'CaptureKnownRouteRootStates(root, player, enemies)' 'path trace must guard all original enemy identities:'
+require_fixed "$repository_root/src/Testing/UnattendedTestRunner.KnownExoskeletonsPathTrace.cs" 'RunKnownExoskeletonsRouteReplay(combat, player, freeze: frozen);' 'multi-enemy path trace must first prove and freeze the real route:'
+require_fixed "$path_diagnostics_path" 'observer.WantsState(node.StateKey)' 'path observer no longer filters before copying:'
+require_fixed "$path_diagnostics_path" 'observer.WantsRetentionPool(node.StateKey)' 'retention pool observer no longer requires an explicit match:'
+require_fixed "$path_diagnostics_path" 'SearchPathObservationStage.RetentionPoolInput' 'retention pool input observation is missing:'
+require_fixed "$path_diagnostics_path" 'Evaluation: new SearchPathEvaluationValues(' 'retention evaluation value copy is missing:'
+require_fixed "$search_root/CombatBeamSolver.Retention.cs" 'SearchPathObservationStage.RetentionPoolFinal' 'retention pool final observation is missing:'
+require_fixed "$search_root/CombatBeamSolver.BeamRetentionPolicy.cs" 'observedOptionLeaders.Add(optionLeader)' 'routing observation no longer captures the actual option leader:'
+forbid_fixed "$path_diagnostics_path" 'node.Actions;' 'path observer populates retained action caches:'
+require_fixed "$search_root/CombatBeamSolver.Retention.cs" 'SearchPathObservationStage.PruneFinal' 'final prune observation is missing:'
+stat_relic_mirror_path="$repository_root/src/Engine/InCombat/Mirrors/Hooks/Card/AfterCardPlayedMirrors.cs"
+require_fixed "$stat_relic_mirror_path" 'private static bool ApplyRelicStatPower(' 'relic stat application left its exact hook boundary:'
+require_fixed "$stat_relic_mirror_path" 'if (context.Simulator.IsEnding)' 'relic stat command ending guard is missing:'
+forbid_fixed "$search_root/SimulatedCombatState.Relics.cs" 'case Kunai' 'relic stat application returned to deferred lifecycle:'
+forbid_fixed "$search_root/SimulatedCombatState.Relics.cs" 'case Shuriken' 'relic stat application returned to deferred lifecycle:'
+forbid_fixed "$search_root/SimulatedCombatState.Relics.cs" 'Apply<DexterityPower>' 'relic stat application returned to deferred lifecycle:'
 
 beam_entry_path="$search_root/CombatBeamSolver.cs"
 forbid_fixed "$beam_entry_path" 'public SolverResult Solve()' 'Solve returned to the entry/field declaration file:'
 beam_retention_facade_path="$search_root/CombatBeamSolver.Retention.cs"
 forbid_fixed "$beam_retention_facade_path" 'private List<SearchNode> RankBest(' 'RankBest returned outside BeamRetentionPolicy:'
 beam_phases_path="$search_root/CombatBeamSolver.Phases.cs"
+require_fixed \
+    "$beam_phases_path" \
+    'TightenPrimarySearchIncumbentAtTurnLayer(' \
+    'turn-layer incumbent is no longer tightened before coordinator pruning:'
+forbid_fixed \
+    "$beam_phases_path" \
+    'FinalizePrunedSelection(' \
+    'turn-layer incumbent pruning performs a second post-commit finalization:'
+for direct_prune_finalizer in \
+    'ApplyPrimaryIncumbentBound(' \
+    'FinalizePrunedCycleExitProbeTickets('; do
+    forbid_fixed \
+        "$beam_phases_path" \
+        "$direct_prune_finalizer" \
+        'turn-layer pruning bypasses observation-debt finalization:'
+done
 for implementation in \
     'POLICY_BASELINE kind=potion_free' \
     'PotionUsePolicy.IsEligible(' \
@@ -405,6 +626,9 @@ src/Prediction/PowerPredictionStateSupport.cs	HardenedShellPredictionState(origi
 src/Search/SimulatedCombatState.cs	PowerPredictionStateSupport.CaptureRootState(simulator, mutable, power)
 src/Testing/UnattendedTestRunner.CombatRootSnapshot.cs	workerLiveConstructorRejected
 src/Engine/InCombat/Simulation/CombatPredictionSimulator.cs	ICombatPredictionRootMaterializable materializable
+src/Engine/InCombat/Simulation/CombatPredictionSimulator.cs	public CombatTerminalStamp? TerminalStamp { get; private set; }
+src/Search/CombatPlan.cs	public CombatTerminalStamp? TerminalStamp { get; } = terminalStamp;
+src/Search/CombatBeamSolver.Terminal.cs	combatEndedTurn = node.Snapshot.CombatEndedTurn;
 src/Search/SimulatedCombatState.cs	.Select(PredictionUtils.CloneModelForSimulation)
 src/Engine/InCombat/Mirrors/Hooks/Card/AfterCardGeneratedForCombatMirrors.cs	GetAeonglassWitherUpgradeCount(monster.Creature)
 src/Prediction/MonsterSpawnSupport.cs	.SelectMany(combat.RelicsOf)
@@ -471,6 +695,29 @@ EOF
 
 unattended_entry_path="$repository_root/src/Testing/UnattendedTestRunner.cs"
 while IFS=$'\t' read -r relative_path text; do
+    require_fixed "$repository_root/$relative_path" "$text" 'missing headless infrastructure ownership boundary'
+done <<'EOF'
+tools/run-unattended-test.sh	source "$script_dir/headless-runtime.sh"
+tools/run-unattended-test.sh	hr_acquire "$process_pid" "$process_identity_start_time"
+tools/run-unattended-test.sh	if ((option_value[stop-instance] == 1)); then
+tools/run-unattended-test.ps1	. (Join-Path $PSScriptRoot 'headless-runtime.ps1')
+tools/run-unattended-test.ps1	if ($StopInstance) {
+tools/run-headless-matrix.sh	--stop-instance
+tools/run-headless-matrix.ps1	"-StopInstance"
+tools/headless-runtime.sh	hr_prepare_snapshot() {
+tools/headless-runtime.sh	hr_bind() {
+tools/headless-runtime.ps1	function Set-HeadlessGameSnapshot(
+tools/headless-runtime.ps1	function Enter-HeadlessHostLease(
+tools/headless-runtime.ps1	function Set-HeadlessHostGame(
+EOF
+for matrix in "$repository_root/tools/run-headless-matrix.sh" "$repository_root/tools/run-headless-matrix.ps1"; do
+    forbid_fixed "$matrix" 'MATRIX-CLEANUP' 'matrix cleanup must not dispatch a new game request:'
+done
+for helper in "$repository_root/tools/headless-runtime.sh" "$repository_root/tools/headless-runtime.ps1"; do
+    forbid_fixed "$helper" 'combat_solver_test_request.json' 'request protocol leaked into headless resource owner:'
+    forbid_fixed "$helper" 'SolverSettings' 'game settings leaked into headless resource owner:'
+done
+while IFS=$'\t' read -r relative_path text; do
     require_fixed "$repository_root/$relative_path" "$text" 'missing unattended protocol boundary'
 done <<'EOF'
 src/Testing/UnattendedTestRunner.cs	private static readonly ProtocolHost Host = new();
@@ -480,7 +727,7 @@ src/Testing/UnattendedTestRunner.ProtocolHost.cs	private void Activate(Unattende
 src/Testing/UnattendedTestRunner.ProtocolHost.cs	private void Reset()
 src/Testing/UnattendedTestRunner.Writer.cs	private sealed class Writer(
 src/Testing/UnattendedTestRunner.Writer.cs	public RuntimeMemorySnapshot Write(
-src/Testing/UnattendedTestRunner.Writer.cs	private static void WriteResult(UnattendedTestResult result)
+src/Testing/UnattendedTestRunner.Writer.cs	private static void WriteResult(UnattendedTestResult result, UnattendedTestRequest request)
 src/Testing/UnattendedTestRunner.ScenarioBuilder.cs	private sealed class ScenarioBuilder(
 src/Testing/UnattendedTestRunner.ScenarioBuilder.cs	public async Task<ScenarioContext> BuildAsync()
 src/Testing/UnattendedTestRunner.ScenarioBuilder.cs	public CombatState? CombatState { get; private set; }
@@ -496,7 +743,7 @@ EOF
 for retired_protocol_host_member in \
     'private static bool _requestLoopStarted' \
     'private static async Task RunRequestLoopAsync' \
-    'private static void WriteResult(UnattendedTestResult result)' \
+    'private static void WriteResult(UnattendedTestResult result, UnattendedTestRequest request)' \
     'private static RuntimeMemorySnapshot CaptureRuntimeMemory()'; do
     forbid_fixed "$unattended_entry_path" "$retired_protocol_host_member" 'protocol host member returned to runner entry:'
 done
@@ -537,6 +784,7 @@ for renderer_path in "${overlay_renderer_paths[@]}"; do
 done
 
 bug_report_exporter_path="$repository_root/src/Runtime/CombatBugReportExporter.cs"
+diagnostic_journal_path="$repository_root/src/Runtime/CombatDiagnosticJournal.cs"
 bug_report_uploader_path="$repository_root/src/Runtime/CombatBugReportUploader.cs"
 solver_settings_panel_path="$repository_root/src/UI/SolverSettingsPanel.cs"
 solver_settings_general_path="$repository_root/src/UI/SolverSettingsPanel.General.cs"
@@ -546,10 +794,17 @@ solver_settings_controls_path="$repository_root/src/UI/SolverSettingsPanel.Contr
 while IFS=$'\t' read -r path text; do
     require_fixed "$path" "$text" 'missing bug-report ownership boundary'
 done <<EOF
+$diagnostic_journal_path	AppendOnlyEventLog<CombatLogEntry>
+$diagnostic_journal_path	_session?.Log.CaptureAsync()
+$bug_report_exporter_path	Entry.Logger.Journal.CaptureAsync()
+$bug_report_exporter_path	WriteDiagnosticLogs(archive, diagnosticLogs)
 $bug_report_exporter_path	private static readonly BlockingCollection<Action> BackgroundOperations = new();
 $bug_report_exporter_path	QueueCheckpointWrite(session, capture);
 $bug_report_exporter_path	Task<ForensicArchiveBundle> forensicsTask = QueueBackground(
 $bug_report_exporter_path	ForensicArchiveBundle forensics = await forensicsTask.ConfigureAwait(false);
+$bug_report_exporter_path	CombatBugReportMetadata.CaptureCombat
+$bug_report_uploader_path	ReadMetadata(zipPath, submissionId, description)
+$bug_report_uploader_path	AllowAutoRedirect = false
 $bug_report_uploader_path	IProgress<CombatBugReportUploadProgress>
 $bug_report_uploader_path	HttpCompletionOption.ResponseHeadersRead
 $bug_report_uploader_path	CancellationToken requestCancellationToken
@@ -562,6 +817,9 @@ $solver_settings_bug_reports_path	TryApplyUploadCompletion()
 $solver_settings_bug_reports_path	等待服务器确认
 EOF
 forbid_fixed "$bug_report_uploader_path" 'using Godot' 'uploader must not own Godot UI state:'
+for legacy_log_read in 'AddFileTail(' 'CaptureLogStarts(' '"*.log"'; do
+    forbid_fixed "$bug_report_exporter_path" "$legacy_log_read" 'global log collection must stay out of report exports:'
+done
 
 search_completion_notifier_path="$repository_root/src/Runtime/SearchCompletionNotifier.cs"
 while IFS=$'\t' read -r path text; do
@@ -611,10 +869,22 @@ forbid_fixed \
     '_monsterAiStates?.Remove(creature)' \
     'active-roster removal must retain known-monster AI state through move completion:'
 
+for rule in 'ConditionalWeakTable<Assembly, Resolution>' 'SimulationNotificationIsolation.IsActive' '__0.IsDynamic' 'callbacks.Length != 1'; do
+    require_fixed "$repository_root/src/Runtime/RitsuBaseLibTargetTypeLookupPatch.cs" "$rule" 'missing metadata cache boundary'
+done
+
 if ((${#violations[@]} > 0)); then
     printf '%s\n' "${violations[@]}" >&2
     printf 'Refactor boundary verification failed with %d violation(s).\n' "${#violations[@]}" >&2
     exit 1
 fi
 
+if grep -Eq '\b(Godot|SolverController|RunManager)\b' "$repository_root/src/Replay/CheckpointArchive.cs"; then
+    echo 'Checkpoint archive contract must remain independent of the game runtime.' >&2
+    exit 1
+fi
+if grep -Fq 'ApplyReplayStateAsync(' "$repository_root/src/Testing/UnattendedTestRunner.NativeReplay.cs"; then
+    echo 'Native recorded replay must reconstruct state through native actions.' >&2
+    exit 1
+fi
 printf 'REFACTOR_BOUNDARIES_OK search_files=%d\n' "${#search_files[@]}"

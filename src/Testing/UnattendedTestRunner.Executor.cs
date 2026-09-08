@@ -23,6 +23,12 @@ internal sealed partial class UnattendedTestRunner
             if (_settingsBeforeTest != null)
                 SolverSettings.ApplyForTesting(_settingsBeforeTest);
         }
+        public void PrepareArchiveSettings()
+        {
+            if (runner._checkpointImport?["resolvedPolicy"] == null) return;
+            _settingsBeforeTest ??= SolverSettings.Current;
+            SolverSettings.ApplyForTesting(runner.ApplyRecordedCheckpointPolicy(_settingsBeforeTest));
+        }
 
         public async Task<ExecutionOutcome> ExecuteAsync(ScenarioContext scenario)
         {
@@ -33,6 +39,456 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId is "NORMALITY-AUTOPLAY" or "NORMALITY-AUTOPLAY-REPLAY")
+            {
+                await runner.AssertNormalityAutoPlayAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "UI-LOCALIZATION")
+            {
+                await runner.AssertUiLocalizationAsync(combatState);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "COMBAT-DIAGNOSTIC-LOG")
+            {
+                await runner.AssertCombatDiagnosticLogAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "REPORT-V2-CONTRACT")
+            {
+                await runner.AssertBugReportUploadBoundariesAsync();
+                string reportId = Guid.NewGuid().ToString("N");
+                string archivePath = await CombatBugReportExporter.ExportCurrentAsync(
+                    playerDescription: "结构化问题包验证", submissionId: reportId);
+                using (ZipArchive archive = ZipFile.OpenRead(archivePath))
+                    AssertBugReportArchive(archive, "current", "solver_only");
+                string metadata = CombatBugReportUploader.ReadMetadata(archivePath, reportId, "结构化问题包验证");
+                using var document = System.Text.Json.JsonDocument.Parse(metadata);
+                var combat = document.RootElement.GetProperty("combat");
+                if (combat.GetProperty("encounterId").GetString() != combatState.Encounter!.Id.Entry
+                    || combat.GetProperty("characterId").GetString() != player.Character.Id.Entry
+                    || combat.GetProperty("monsters").GetArrayLength() == 0
+                    || document.RootElement.GetProperty("hpLoss").ValueKind != System.Text.Json.JsonValueKind.Null)
+                    throw new InvalidDataException("结构化问题包身份或未知战损不正确。");
+                foreach (int after in new[] { 3, 10, 14 })
+                {
+                    using var compared = System.Text.Json.JsonDocument.Parse(CombatBugReportMetadata.Serialize(
+                        reportId, string.Empty, null, new CombatBugReportClassificationSnapshot(0, 0, 0, 0, 0, []),
+                        new ManualProjectionComparison(1, 2, 10, after, "test")));
+                    if (compared.RootElement.GetProperty("hpLoss").GetProperty("reduction").GetInt32() != 10 - after)
+                        throw new InvalidDataException("战损下降值的符号不正确。");
+                }
+                runner._completedChecks.Add($"ReportV2UploadAndArchive:{archivePath}");
+                CombatBugReportUploadReceipt receipt = await CombatBugReportUploader.UploadAsync(
+                    archivePath, "结构化问题包验证", string.Empty, reportId);
+                if (receipt.ReportId != reportId) throw new InvalidDataException("V2 服务端未确认问题包身份。");
+                runner._completedChecks.Add($"ReportV2ProductionTlsUpload:{reportId}");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "SUMMON-DEATH-POWER-ORDER")
+            {
+                await runner.AssertSummonDeathPowerOrderAsync(combatState, player);
+                runner._completedChecks.Add("SummonDeathPowerOrderNativeFork");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "TURN-START-DAMAGE-SPITE")
+            {
+                await runner.AssertTurnStartDamageSpiteAsync(combatState, player);
+                runner._completedChecks.Add("TurnStartDamageSpiteNativeFork");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "TEAR-ASUNDER-DAMAGE-HISTORY")
+            {
+                await runner.AssertTurnStartDamageSpiteAsync(combatState, player, "TEAR_ASUNDER");
+                runner._completedChecks.Add("TearAsunderDamageHistoryNativeFork");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "LIVING-FOG-SUMMON-INTENT")
+            {
+                await runner.AssertLivingFogSummonIntentAsync(combatState, player);
+                runner._completedChecks.Add("LivingFogSummonIntentAndExplosionNativeFork");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "ONLINE-PRESENCE-CONTRACT")
+            {
+                if (!OnlinePresence.IsHeadless()) throw new InvalidOperationException("Presence fixture requires headless isolation.");
+                if (!new SolverSettingsData().OnlineStatisticsEnabled
+                    || SolverSettings.RoundTripForTesting(new SolverSettingsData { OnlineStatisticsEnabled = false }).OnlineStatisticsEnabled)
+                    throw new InvalidOperationException("Presence opt-out did not persist.");
+                OnlinePresencePayload payload = OnlinePresence.Capture("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "test");
+                if (payload.Floor != combatState.RunState.TotalFloor || payload.Character.Length == 0 || payload.Encounter.Length == 0 || payload.HpLoss != null)
+                    throw new InvalidOperationException("Presence scalar snapshot differs from the current combat.");
+                OnlinePresencePayload complete = payload with { HpLoss = 0, BattleUpdatedAt = 123 };
+                OnlinePresencePayload idle = payload with { Character = "", Floor = null, Encounter = "", InCombat = false, InRun = false };
+                OnlinePresencePayload cached = OnlinePresence.RetainLatestBattle(idle, complete);
+                if (!payload.InRun || cached.InRun || cached.HpLoss != 0 || cached.Encounter != complete.Encounter || cached.Floor != complete.Floor || cached.InCombat || cached.BattleUpdatedAt != 123)
+                    throw new InvalidOperationException("Presence lost the completed battle while idle.");
+                OnlinePresencePayload next = payload with { Character = "next", Floor = payload.Floor + 1, Encounter = "next" };
+                if (OnlinePresence.RetainLatestBattle(next, cached) != cached with { InCombat = true, InRun = true }
+                    || OnlinePresence.RetainLatestBattle(next with { HpLoss = 3 }, cached) != next with { HpLoss = 3 }
+                    || OnlinePresence.RetainLatestBattle(next, null).Encounter.Length != 0)
+                    throw new InvalidOperationException("Presence mixed battles or fabricated an initial result.");
+                await OnlinePresence.VerifyTransportForTestingAsync();
+                runner._completedChecks.Add("PresenceDefaultOptOutSnapshotTlsAndInvalidPinRejection");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "PR60-65-CONTRACT")
+            {
+                AssertVictoryWaitsForStockRespawn(combatState, player);
+                AssertThirdPartyBasicCardRemoval(player);
+                runner._completedChecks.Add("StockRespawnVictoryAndThirdPartyRemoval");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "LONG-TERM-RESOURCE-BEAM-CAP")
+            {
+                AssertLongTermResourceBeamCap(combatState, player);
+                runner._completedChecks.Add("LongTermResourceBeamCap");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "PR57-58-STATE-CONTRACT")
+            {
+                AssertVitalSparkKeepsStackedTaintedAmount(combatState, player);
+                AssertPowerHiddenStateRegistration(combatState, player);
+                runner._completedChecks.Add("VitalSparkStackingAndPowerHiddenStateRegistration");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "RAT-SUMMON-NEXT-INTENT")
+            {
+                runner.SetStage("rat_summon_next_intent");
+                await runner.AssertRatSummonNextIntentAsync(combatState, player);
+                runner._completedChecks.Add("RatSummonNextIntent");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "FUNERARY-MASK-BEFORE-DRAW")
+            {
+                runner.SetStage("funerary_mask_before_draw");
+                await runner.AssertFuneraryMaskBeforeDrawAsync(combatState, player);
+                runner._completedChecks.Add("FuneraryMaskBeforeDraw");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "CARD-ENERGY-GAIN-COMMAND")
+            {
+                runner.SetStage("card_energy_gain_command");
+                await runner.AssertCardEnergyGainCommandAsync(combatState, player);
+                runner._completedChecks.Add("CardEnergyGainCommand");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "MELANCHOLY-OSTY-DEATH")
+            {
+                runner.SetStage("melancholy_osty_death");
+                await runner.AssertMelancholyOstyDeathAsync(combatState, player);
+                runner._completedChecks.Add("MelancholyOstyDeath");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId is "QUEEN-INFERNO-MINION-DEATH" or "QUEEN-INFERNO-TERMINAL")
+            {
+                runner.SetStage("queen_inferno_minion_death");
+                await runner.AssertQueenInfernoMinionDeathAsync(combatState, player);
+                runner._completedChecks.Add("QueenInfernoMinionDeath");
+                return Observation(combatEnded: !CombatManager.Instance.IsInProgress);
+            }
+            if (request.ScenarioId == "GAMBLING-CHIP-SLY-ORDER")
+            {
+                runner.SetStage("gambling_chip_sly_order");
+                await runner.AssertGamblingChipSlyOrderAsync(combatState, player);
+                runner._completedChecks.Add("GamblingChipSlyOrder");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "GALVANIC-GENERATED-POWER")
+            {
+                runner.SetStage("galvanic_generated_power");
+                await runner.AssertGalvanicGeneratedPowerAsync(combatState, player);
+                runner._completedChecks.Add("GalvanicGeneratedPower");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "SLOW-TURN-RESET-FORK")
+            {
+                await runner.AssertSlowTurnResetForkAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "SUMMONED-ALLY-POWER-ORDER")
+            {
+                await runner.AssertSummonedAllyPowerOrderAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId is "MIXED-POWER-ACQUISITION-ORDER" or "REMOVED-POWER-REAPPLICATION")
+            {
+                await runner.AssertReportPowerLifecycleAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId is "ENERGY-RESET-POWER-ORDER" or "ENERGY-RESET-POWER-ORDER-REVERSE"
+                or "ENERGY-RESET-POWER-ORDER-REAPPLY" or "ENERGY-RESET-POWER-ORDER-OVERFLOW")
+            {
+                runner.SetStage("energy_reset_power_order");
+                await runner.AssertEnergyResetPowerOrderAsync(combatState, player);
+                runner._completedChecks.Add("EnergyResetPowerOrder");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId is "REPLAY-START-HISTORY" or "REPLAY-START-HISTORY-ECHO")
+            {
+                runner.SetStage("replay_start_history");
+                await runner.AssertReplayStartHistoryAsync(combatState, player);
+                runner._completedChecks.Add("ReplayStartHistory");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "DEATH-EFFECTS-ONCE")
+            {
+                runner.SetStage("death_effects_once");
+                await runner.AssertDeathEffectsOnceAsync(combatState, player);
+                runner._completedChecks.Add("DeathEffectsOnce");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "FEED-THORNS-TERMINAL-DIFFERENTIAL")
+            {
+                runner.SetStage("feed_thorns_terminal_differential");
+                await runner.AssertFeedThornsTerminalAsync(combatState, player);
+                runner._completedChecks.Add("FeedThornsTerminalDifferential");
+                return Observation(combatEnded: true);
+            }
+            if (request.ScenarioId == "ROOT-CAPTURE-ACTION-BARRIER")
+            {
+                _ = ApplySettingsOverrides();
+                runner.SetStage("root_capture_action_barrier");
+                await runner.AssertSearchWaitsForNativeActionAsync(combatState, player);
+                runner._completedChecks.Add("RootCaptureActionBarrier");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "PR15-POTION-VALUE-TIERS")
+                runner.AssertPotionValueTiers(combatState);
+            if (request.ScenarioId == "PR18-FOREIGN-ONPLAY-BOUNDARY")
+                runner.AssertForeignCardPatchBoundary(combatState);
+
+            if (request.ScenarioId is "ROUTE-CACHE-RECORD-V0111" or "ROUTE-CACHE-RESTORE-V0111")
+            {
+                _ = ApplySettingsOverrides();
+                runner.SetStage("solved_route_cache");
+                bool restoreOnly = request.ScenarioId == "ROUTE-CACHE-RESTORE-V0111";
+                await runner.RunSolvedRouteCacheAsync(combatState, player, restoreOnly);
+                return Observation(combatEnded: restoreOnly);
+            }
+
+            if (request.ScenarioId.Equals("GC-CHECKPOINT-BACKGROUND-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("后台 GC 生命周期夹具不能混入战斗差分或正式搜索。");
+                runner.SetStage("gc_checkpoint_background");
+                await runner.RunGcCheckpointBackgroundFixtureAsync();
+                return Observation(combatEnded: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-SOUL-ROUTE-NATIVE-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("Soul 原版对照不能混入其他差分或正式搜索请求。");
+                runner.SetStage("known_soul_route_native");
+                int finishedTurn = await runner.RunKnownSoulRouteNativeAsync(combatState, player);
+                return new ExecutionOutcome(true, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-SOUL-PATH-TRACE-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("已知路径诊断不能混入其他差分或增量搜索请求。");
+                _ = ApplySettingsOverrides();
+                runner.SetStage("known_soul_path_trace_prepare");
+                int finishedTurn = await runner.RunKnownSoulPathTraceAsync(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-SOUL-VARIANT-PATH-TRACE-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("Soul 替代路线观察不能混入其他差分或增量搜索请求。");
+                _ = ApplySettingsOverrides();
+                runner.SetStage("known_soul_variant_path_trace_prepare");
+                int finishedTurn = await runner.RunKnownSoulVariantPathTraceAsync(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-SOUL-RETAINED-PATH-TRACE-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("Soul 实际保留别名观察不能混入其他差分或增量搜索请求。");
+                _ = ApplySettingsOverrides();
+                runner.SetStage("known_soul_retained_path_trace_prepare");
+                int finishedTurn = await runner.RunKnownSoulVariantPathTraceAsync(
+                    combatState, player, proveRetainedAlias: true);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-CUSTOM-PATH-TRACE-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("已知路径诊断不能混入其他差分或增量搜索请求。");
+                _ = ApplySettingsOverrides();
+                runner.SetStage("known_custom_path_trace_prepare");
+                int finishedTurn = await runner.RunKnownCustomPathTraceAsync(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-SOUL-GENERATION-CONTEXT-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("生成上下文回放不能混入其他差分或正式搜索请求。");
+                runner.SetStage("known_soul_generation_context");
+                int finishedTurn = runner.RunKnownSoulGenerationContext(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-SOUL-GENERATION-SUFFIX-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("生成上下文完整后缀回放不能混入其他差分或正式搜索请求。");
+                runner.SetStage("known_soul_generation_suffix");
+                int finishedTurn = runner.RunKnownSoulGenerationContext(combatState, player, fullKnownSuffix: true);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-CUSTOM-DEFERRED-FRONTIER-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("落选恢复合同不能混入其他差分或正式搜索请求。");
+                runner.SetStage("known_custom_deferred_frontier");
+                int finishedTurn = runner.RunKnownCustomDeferredFrontier(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals(RelicStatTerminalScenarioId, StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("遗物属性终局夹具不能混入其他差分或正式搜索请求。");
+                runner.SetStage("relic_stat_terminal");
+                int finishedTurn = await runner.RunRelicStatTerminalAsync(combatState, player);
+                return new ExecutionOutcome(true, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-SOUL-ROUTE-REPLAY-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("已知 Soul 路线重建不能混入其他差分或正式搜索请求。");
+                runner.SetStage("known_soul_route_replay");
+                int finishedTurn = runner.RunKnownSoulRouteReplay(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-EXOSKELETONS-ROUTE-REPLAY-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("已知外骨骼虫路线重建不能混入其他差分或正式搜索请求。");
+                runner.SetStage("known_exoskeletons_route_replay");
+                int finishedTurn = runner.RunKnownExoskeletonsRouteReplay(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-EXOSKELETONS-PATH-TRACE-V0111", StringComparison.OrdinalIgnoreCase)
+                || request.ScenarioId.Equals("KNOWN-EXOSKELETONS-CONTINUATION-PATH-TRACE-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("外骨骼虫路径观察不能混入其他差分或增量搜索请求。");
+                _ = ApplySettingsOverrides();
+                runner.SetStage("known_exoskeletons_path_trace");
+                int retentionStep = request.ScenarioId.Equals(
+                    "KNOWN-EXOSKELETONS-CONTINUATION-PATH-TRACE-V0111", StringComparison.OrdinalIgnoreCase) ? 5 : 4;
+                int finishedTurn = await runner.RunKnownExoskeletonsPathTraceAsync(
+                    combatState, player, requiredRetentionStep: retentionStep);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-EXOSKELETONS-ROUTE-NATIVE-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("外骨骼虫原版对照不能混入其他差分或正式搜索请求。");
+                runner.SetStage("known_exoskeletons_route_native");
+                int finishedTurn = await runner.RunKnownExoskeletonsRouteNativeAsync(combatState, player);
+                return new ExecutionOutcome(true, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-CUSTOM-ROUTE-NATIVE-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("已知路线原版对照不能混入其他差分或正式搜索请求。");
+                runner.SetStage("known_custom_route_native");
+                int finishedTurn = await runner.RunKnownCustomRouteNativeAsync(combatState, player);
+                return new ExecutionOutcome(true, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals("KNOWN-CUSTOM-ROUTE-REPLAY-V0111", StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("已知路线重建夹具不能混入其他差分或正式搜索请求。");
+                runner.SetStage("known_custom_route_replay");
+                int finishedTurn = runner.RunKnownCustomRouteReplay(combatState, player);
+                // Only shadow replay was performed: the native combat remains untouched.
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals(MercuryReattachScenarioId, StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("沙漏复活边界夹具不能混入其他差分或正式搜索请求。");
+                runner.SetStage("mercury_reattach_differential");
+                int finishedTurn = await runner.RunMercuryReattachDifferentialAsync(combatState, player);
+                return new ExecutionOutcome(true, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals(ForcedTurnTerminalScenarioId, StringComparison.OrdinalIgnoreCase)
+                || request.ScenarioId.Equals(PotionForcedTurnTerminalScenarioId, StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("强制结束终局夹具不能混入其他差分或正式搜索请求。");
+                runner.SetStage("forced_turn_terminal_differential");
+                int finishedTurn = await runner.RunForcedTurnTerminalDifferentialAsync(combatState, player);
+                return new ExecutionOutcome(true, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId.Equals(ReturnToHandOrderScenarioId, StringComparison.OrdinalIgnoreCase))
+            {
+                if (scenario.OrbChecks.Count > 0 || scenario.PotionChecks.Count > 0
+                    || scenario.MonsterMoveChecks.Count > 0 || request.VerifyIncrementalSearch)
+                    throw new InvalidOperationException("回手顺序专用夹具不能混入其他差分或搜索请求。");
+                runner.SetStage("return_to_hand_order_differential");
+                await runner.RunReturnToHandOrderDifferentialAsync(combatState, player);
+                runner._completedChecks.Add("ReturnToHandOrder:ActualContinuousForkRoot");
+                return Observation(combatEnded: false);
+            }
 
             if (request.VerifyTurnSetupSceneExitCancellation
                 || request.VerifyTurnSetupControlsDuringInitialSearch)
@@ -108,7 +564,7 @@ internal sealed partial class UnattendedTestRunner
                 return Observation(combatEnded: false);
             }
             if (request.StopAfterCombatRootSnapshotAssertion)
-                return Observation(combatEnded: false);
+                return Observation(combatEnded: runner.HasNativeRecording && !CombatManager.Instance.IsInProgress);
             if (request.VerifyTurnSetupManualRecalculate)
                 return Observation(combatEnded: false);
             if (request.StopAfterInitialSetupAssertion)
@@ -121,7 +577,8 @@ internal sealed partial class UnattendedTestRunner
 
             runner.SetStage("full_auto");
             FastModeType? fastModeBeforeDeployment = ApplySettingsOverrides();
-            if (SolverController.LastTurnSetupResultForTesting == null)
+            if (SolverController.LastTurnSetupResultForTesting == null
+                && !request.PreserveNativeCombatStateForTest && !runner.HasNativeRecording)
                 SolverController.BeginCombat(combatState);
             if (request.TheftPolicyForTest is { } theftPolicy)
                 SolverController.SetTheftPolicyForTesting(combatState, theftPolicy);
@@ -515,7 +972,8 @@ internal sealed partial class UnattendedTestRunner
         private FastModeType? ApplySettingsOverrides()
         {
             UnattendedTestRequest request = runner._request;
-            if (!request.PerformancePresetForTest.HasValue
+            if (runner._checkpointImport == null
+                && !request.PerformancePresetForTest.HasValue
                 && !request.ShortMaxCardBranchesPerNodeForTest.HasValue
                 && !request.DeepMaxCardBranchesPerNodeForTest.HasValue
                 && !request.PotionPolicyForTest.HasValue
@@ -528,10 +986,11 @@ internal sealed partial class UnattendedTestRunner
                 return null;
             }
 
-            _settingsBeforeTest = SolverSettings.Current;
+            _settingsBeforeTest ??= SolverSettings.Current;
+            SolverSettingsData recordedSettings = runner.ApplyRecordedCheckpointPolicy(_settingsBeforeTest);
             SolverSettingsData testSettings = request.PerformancePresetForTest is { } preset
-                ? SolverSettings.ApplyPerformancePreset(_settingsBeforeTest, preset)
-                : _settingsBeforeTest;
+                ? SolverSettings.ApplyPerformancePreset(recordedSettings, preset)
+                : recordedSettings;
             bool hasCustomPerformanceOverride = request.ShortMaxCardBranchesPerNodeForTest.HasValue
                 || request.DeepMaxCardBranchesPerNodeForTest.HasValue;
             if (request.NoGcRegionBudgetGigabytesForTest is { } noGcBudget)
@@ -568,7 +1027,7 @@ internal sealed partial class UnattendedTestRunner
                 EnableDetailedDiagnosticLogs = request.EnableDetailedDiagnosticLogsForTest
                     ?? _settingsBeforeTest.EnableDetailedDiagnosticLogs,
                 PotionPolicy = request.PotionPolicyForTest
-                    ?? _settingsBeforeTest.PotionPolicy,
+                    ?? testSettings.PotionPolicy,
             });
             FastModeType fastModeBeforeDeployment = SaveManager.Instance.PrefsSave.FastMode;
             if (request.PerformancePresetForTest is { } expectedPreset)
@@ -579,6 +1038,12 @@ internal sealed partial class UnattendedTestRunner
                         : expectedPreset);
             }
             SolverSettingsSnapshot snapshot = SolverSettings.Capture();
+            if (runner._writer.ReplayVerification != null)
+                runner._writer.ReplayVerification["executedPolicy"] = System.Text.Json.JsonSerializer.SerializeToNode(
+                    new { snapshot.PotionPolicy, SolverSettings.Current.PotionDirectives,
+                        snapshot.ActTransitionBossHpStrategy, snapshot.FinalBossHpStrategy,
+                        snapshot.ShortProfile, snapshot.DeepProfile, snapshot.SearchMaxDegreeOfParallelism },
+                    UnattendedTestFiles.JsonOptions);
             if (request.EnableNoGcRegionForTest is { } expectedNoGcEnabled
                 && snapshot.EnableNoGcRegion != expectedNoGcEnabled)
             {

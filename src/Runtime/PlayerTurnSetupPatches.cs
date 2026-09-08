@@ -44,6 +44,8 @@ internal sealed class PlayerTurnSetupPatch : IPatchMethod
         HookPlayerChoiceContext __2,
         ref Task __result)
     {
+        if (UnattendedTestRunner.IsReplayingRecordedInputs)
+            return true;
         if (!PlayerTurnSetupCoordinator.TryInterceptSetup(__instance, __0, __1, __2, out Task? task))
             return true;
         __result = task!;
@@ -77,6 +79,8 @@ internal sealed class PlayerTurnAutoPrePlayPatch : IPatchMethod
         Player __3,
         ref Task __result)
     {
+        if (UnattendedTestRunner.IsReplayingRecordedInputs)
+            return true;
         if (!PlayerTurnSetupCoordinator.TryInterceptAutoPrePlay(
                 __instance,
                 __0,
@@ -114,7 +118,8 @@ internal static class PlayerTurnSetupCoordinator
         SolverSettingsSnapshot Settings,
         BattleDamageSnapshot BattleDamage,
         SearchPolicySnapshot SearchPolicy,
-        CombatRootSnapshot RootSnapshot);
+        CombatRootSnapshot RootSnapshot,
+        SolvedRouteCache RouteCache);
 
     private sealed class ActivePlan(
         CombatState combat,
@@ -396,6 +401,8 @@ internal static class PlayerTurnSetupCoordinator
 
     internal static bool TakeoverRequestedForTesting
         => _active?.TakeoverRequested == true;
+    internal static bool IsDrivingChoiceForRecording
+        => _active is { ReplayDrivingStarted: true } active && IsCurrentActivePlan(active);
 
     public static bool HasPendingPlannedChoice(CombatState combat)
         => _active is { PlannedChoices: not null } active
@@ -747,7 +754,8 @@ internal static class PlayerTurnSetupCoordinator
                 settings,
                 battleDamage,
                 searchPolicy,
-                rootSnapshot);
+                rootSnapshot,
+                SolvedRouteCache.Capture(combat, rootSnapshot, searchPolicy, battleDamage));
         }
         catch
         {
@@ -1044,10 +1052,12 @@ internal static class PlayerTurnSetupCoordinator
 
     private static async Task RecalculatePendingChoiceAsync(ActivePlan active, NGame host)
     {
+        if (active.ReplayDrivingStarted)
+            return;
         InitialSearchContext original = active.InitialSearch
             ?? throw new InvalidOperationException("回合开始选项重算缺少选择前搜索根。");
         await active.Choices.LockVisibleSurfaceForSearchAsync(host, active.Token);
-        if (!IsCurrentActivePlan(active))
+        if (!IsCurrentActivePlan(active) || active.ReplayDrivingStarted)
             return;
 
         SolverSettingsSnapshot settings = SolverSettings.Capture();
@@ -1061,11 +1071,14 @@ internal static class PlayerTurnSetupCoordinator
                 includeTurnSetup: true,
                 theftPolicy: SolverController.ResolveTheftPolicy(active.Combat),
                 interaction: active.Interaction),
-            original.RootSnapshot);
+            original.RootSnapshot,
+            original.RouteCache);
         Volatile.Write(ref active.MemoryPressureSignal, refreshed.SearchPolicy.MemoryPressureSignal);
         int turn = active.Player.PlayerCombatState!.TurnNumber;
         active.Interaction.ResetForSearch();
         Interlocked.Exchange(ref active.ManualSearchState, 1);
+        // A takeover during this search must use the result that will validate its choices.
+        active.Result = null;
         SolverOverlay.ShowSearching(
             host,
             turn,
@@ -1180,6 +1193,14 @@ internal static class PlayerTurnSetupCoordinator
         {
             Task<SolverResult> solveTask = Task.Run(() =>
             {
+                if (!initialSearch.SearchPolicy.VerifyIncrementalSearch
+                    && !initialSearch.SearchPolicy.MeasurePhasePerformance
+                    && initialSearch.RouteCache.Read(initialSearch.RootSnapshot.Forecast) is { } cached)
+                {
+                    active.Token.ThrowIfCancellationRequested();
+                    Entry.Logger.Info($"[CombatSolver/Test] ROUTE_CACHE_HIT turn={cached.StartTurnNumber} phase=setup validation=exact_root");
+                    return cached;
+                }
                 Thread worker = Thread.CurrentThread;
                 ThreadPriority previousPriority = worker.Priority;
                 worker.Priority = ThreadPriority.BelowNormal;
@@ -1197,7 +1218,11 @@ internal static class PlayerTurnSetupCoordinator
                         initialSearch.SearchPolicy,
                         active.Token,
                         active.Interaction.PublishProgress);
-                    return active.Interaction.FinalizeWorkerResult(result);
+                    SolverResult finalized = active.Interaction.FinalizeWorkerResult(result);
+                    active.Token.ThrowIfCancellationRequested();
+                    if (!active.Interaction.StopRequested)
+                        initialSearch.RouteCache.StoreFirst(finalized);
+                    return finalized;
                 }
                 finally
                 {

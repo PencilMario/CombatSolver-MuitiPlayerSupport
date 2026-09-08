@@ -102,17 +102,17 @@ internal sealed partial class SolverSettingsPanel
             {
                 if (getter(SolverSettings.Current) == null)
                     return KeepUnchanged(input);
-                return SaveSetting(input, setter(SolverSettings.Current, null), "已保存，下次执行生效");
+                return SaveSetting(input, setter(SolverSettings.Current, null), SolverText.Get("已保存，下次执行生效"));
             }
             if (!double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
                 || value < minimum || value > maximum)
             {
-                ShowInvalid(input, $"请输入 {minimum:0.###}–{maximum:0.###} 的数字");
+                ShowInvalid(input, SolverText.Format($"请输入 {minimum:0.###}–{maximum:0.###} 的数字"));
                 return false;
             }
             if (getter(SolverSettings.Current) is { } current && current.Equals(value))
                 return KeepUnchanged(input);
-            return SaveSetting(input, setter(SolverSettings.Current, value), "已保存，下次执行生效");
+            return SaveSetting(input, setter(SolverSettings.Current, value), SolverText.Get("已保存，下次执行生效"));
         }
         input.FocusExited += () => Commit();
         input.TextSubmitted += _ => Commit();
@@ -169,7 +169,8 @@ internal sealed partial class SolverSettingsPanel
         return label;
     }
 
-    private static CheckButton CreateToggle()
+    /// <summary>成长侧栏也用这个开关，保持两处外观一致。</summary>
+    internal static CheckButton CreateToggle()
     {
         CheckButton toggle = new()
         {

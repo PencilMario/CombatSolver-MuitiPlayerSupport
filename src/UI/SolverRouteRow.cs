@@ -47,7 +47,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
         });
 
         TurnLabel = SolverUiTokens.CreateLabel(
-            $"第 {index + 1} 回合",
+            SolverText.Format($"第 {index + 1} 回合"),
             SolverUiTokens.Type.Body,
             index == 0 ? SolverUiTokens.Palette.Accent : SolverUiTokens.Palette.TextPrimary,
             FontType.Bold);
@@ -126,7 +126,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
         if (turn.Actions.Count == 0)
         {
             Control endTurn = turn.EndTurnAction == null
-                ? SolverActionPill.CreateStatus("直接结束", SolverUiTokens.Palette.TextMuted)
+                ? SolverActionPill.CreateStatus(SolverText.Get("直接结束"), SolverUiTokens.Palette.TextMuted)
                 : SolverActionPill.Create(turn.EndTurnAction);
             ActionFlow.AddChild(endTurn);
             _endTurnAction = endTurn;

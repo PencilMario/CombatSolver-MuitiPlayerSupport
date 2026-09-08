@@ -1,4 +1,4 @@
-#requires -Version 7.0
+#requires -Version 7.4
 
 param(
     [string]$ScenarioId = "SMOKE-001",
@@ -7,16 +7,44 @@ param(
     [string]$EncounterId = "FUZZY_WURM_CRAWLER_WEAK",
     [string]$Sts2GameRoot = "D:\Steam\steamapps\common\Slay the Spire 2",
     [string]$RitsuWorkshopRoot = "D:\Steam\steamapps\workshop\content\2868840\3747602295",
+    [string]$CombatSolverBuildDir = "",
+    [string]$HeadlessInstance = "",
+    [switch]$StopInstance,
+    [ValidateSet("exclusive", "parallel")]
+    [string]$HeadlessExecutionMode = "exclusive",
+    [ValidateRange(1, 1048576)]
+    [int]$HeadlessMemoryReservationMiB = 4096,
+    [ValidateRange(1, 1024)]
+    [int]$HeadlessCpuReservation = 2,
+    [ValidateRange(1, 3600)]
+    [int]$HeadlessQueueTimeoutSeconds = 120,
     [string]$RunSnapshotPath = "",
+    [switch]$LoadRunSnapshotDirectly,
+    [int]$TargetActFloor = -1,
+    [int]$TargetMapColumn = -1,
+    [ValidateSet("Monster", "Elite", "Boss")]
+    [string]$TargetRoomType = "Monster",
+    [ValidateSet("Unassigned", "Monster", "Elite", "Boss", "Unknown")]
+    [string]$TargetMapPointType = "Unassigned",
+    [int]$PreCombatPlayerCurrentHpOverride = -1,
+    [string]$PreCombatInterveningMapPointsJson = "",
     [string]$ReplayStatePath = "",
     [string]$CheckpointArchivePath = "",
+    [string]$CheckpointSelector = "latest",
+    [ValidateSet("Preflight", "RestoreOnly", "ReplayRecorded", "SearchOnly", "DeploySolver")]
+    [string]$ReplayMode = "RestoreOnly",
+    [string]$ReplayPolicyOverridePath = "",
+    [string]$EvidenceDirectory = "",
+    [switch]$PreserveNativeCombatStateForTest,
     [string]$ProgressSnapshotPath = "",
     [ValidateRange(0, 10)]
     [int]$Ascension = 0,
     [int]$ActIndexForTest = 0,
     [switch]$MarkEncounterAsSecondBossForTest,
     [int]$EnemyCurrentHp = 1,
+    [string]$InitialEnemyMaxHpsJson = "",
     [string]$InitialEnemyCurrentHpsJson = "",
+    [string]$InitialEnemyBlocksJson = "",
     [int]$InitialPlayerHp = -1,
     [int]$InitialPlayerMaxHp = -1,
     [int]$InitialPlayerBlock = -1,
@@ -72,9 +100,11 @@ param(
     [switch]$ClearAllPowers,
     [switch]$VerifyPredictionFailureBoundaries,
     [switch]$VerifySearchPolicySnapshot,
+    [switch]$VerifyGrowthPolicy,
     [switch]$VerifyControllerSessionLifecycle,
     [switch]$VerifyForkBoundaries,
     [switch]$VerifyCombatRootSnapshot,
+    [switch]$VerifyPreCombatForecastApi,
     [switch]$VerifyBaseLibCardModifierBoundary,
     [switch]$StopAfterCombatRootSnapshotAssertion,
     [switch]$VerifyIncrementalSearch,
@@ -91,6 +121,12 @@ param(
     [int]$ExpectedInitialDeepSearchTriggered = -1,
     [ValidateSet(-1, 0, 1)]
     [int]$ExpectedInitialDeepSearchImprovedResult = -1,
+    [int]$ExpectedInitialExpandedNodesAtMost = -1,
+    [int]$ExpectedInitialTransitionsAtMost = -1,
+    [long]$ExpectedInitialTotalExpandedNodesAtMost = -1,
+    [long]$ExpectedInitialTotalTransitionsAtMost = -1,
+    [ValidateSet("", "None", "Shuffle", "NoCards", "UnsupportedEffect", "DynamicResolution", "PendingChoice", "EventDefeat", "TurnLimit", "NodeLimit", "TimeLimit")]
+    [string]$ExpectedInitialBoundaryReason = "",
     [double]$ExpectedInitialTotalElapsedMillisecondsAtMost = -1,
     [long]$ExpectedInitialTotalAllocatedBytesAtMost = -1,
     [int]$ExpectedInitialGen2CollectionsAtMost = -1,
@@ -103,6 +139,7 @@ param(
     [int]$ExpectedInitialRepeatableNoProgressBranchesPrunedAtLeast = -1,
     [int]$ExpectedInitialCycleShapesDetectedAtLeast = -1,
     [int]$ExpectedInitialCycleProbeContinuationsExpandedAtLeast = -1,
+    [int]$ExpectedInitialCycleProbeContinuationsExpandedAtMost = -1,
     [int]$ExpectedInitialCycleCandidatesProtectedAtLeast = -1,
     [int]$ExpectedInitialCycleContinuationsStoppedAtLeast = -1,
     [int]$ExpectedInitialCrossTurnCandidatesProtectedAtLeast = -1,
@@ -112,6 +149,7 @@ param(
     [int]$ExpectedInitialExecutableActionCountAtLeast = -1,
     [int]$ExpectedInitialSoldHp = -1,
     [int]$ExpectedInitialSoldHpAtMost = -1,
+    [int]$ExpectedInitialDeathSaveRelicHp = -1,
     [int]$ExpectedInitialSoldHpBranchesPrunedAtLeast = -1,
     [int]$ExpectedInitialActionAdmissionRepresentativesProtectedAtLeast = -1,
     [int]$ExpectedInitialHpInvestmentBranchesProtectedAtLeast = -1,
@@ -128,12 +166,14 @@ param(
     [int]$ExpectedInitialProjectedBattleHpLost = -1,
     [int]$ExpectedInitialProjectedBattleHpLostAtMost = -1,
     [int]$ExpectedInitialLongTermResourceValueAtLeast = -1,
+    [int]$ExpectedInitialGrowthRewardCount = -1,
     [int]$ExpectedInitialFinalMaxHp = -1,
     [int]$ExpectedInitialMaxBlockAtLeast = -1,
     [int]$ExpectedInitialActualBlockAtLeast = -1,
     [string]$ExpectedInitialActionCardId = "",
     [string]$ExpectedInitialAbsentActionCardId = "",
     [string]$ExpectedInitialFirstActionCardId = "",
+    [string]$ExpectedInitialFirstActionChoiceCardId = "",
     [string]$ExpectedInitialFirstActionPotionId = "",
     [string]$ExpectedInitialActionTitle = "",
     [int]$ExpectedInitialActionReplayCount = -1,
@@ -221,82 +261,22 @@ param(
     [int]$InjectPlayerHpLossBeforeAutoSearchTurn = 0,
     [int]$InjectPlayerHpLossAmount = 0,
     [int]$ClearPlayerBlockBeforeEndTurnForTest = 0,
-    [int]$TimeoutSeconds = 150,
+    [int]$TimeoutSeconds = 120,
     [switch]$KeepGameOpen,
+    [switch]$StopOwnedProcess,
     [switch]$ExitOnComplete
 )
 
 $ErrorActionPreference = "Stop"
-
-$checkpointImportRoot = $null
-function Import-CheckpointArchive {
-    param([string]$ArchivePath)
-
-    $resolvedArchivePath = [IO.Path]::GetFullPath($ArchivePath)
-    if (-not (Test-Path -LiteralPath $resolvedArchivePath -PathType Leaf)) {
-        throw "Checkpoint archive not found: $resolvedArchivePath"
-    }
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
-    $archive = [IO.Compression.ZipFile]::OpenRead($resolvedArchivePath)
-    try {
-        $indexEntry = $archive.GetEntry("combat-solver/checkpoint.json")
-        if ($null -eq $indexEntry) {
-            throw "Checkpoint archive is missing combat-solver/checkpoint.json"
-        }
-        $index = [IO.StreamReader]::new($indexEntry.Open()).ReadToEnd() | ConvertFrom-Json
-        if ([int]$index.schemaVersion -ne 1 -or $index.available -ne $true) {
-            throw "Checkpoint archive does not contain an available restorable checkpoint"
-        }
-        $paths = @("metadataPath", "replayStatePath", "nativeStatePath", "runStatePath")
-        $archiveRoot = Join-Path ([IO.Path]::GetTempPath()) ("CombatSolver-Checkpoint-" + [guid]::NewGuid().ToString("N"))
-        New-Item -ItemType Directory -Path $archiveRoot -Force | Out-Null
-        $script:checkpointImportRoot = $archiveRoot
-        foreach ($propertyName in $paths) {
-            $entryPath = [string]$index.$propertyName
-            if ([string]::IsNullOrWhiteSpace($entryPath) -or
-                [IO.Path]::IsPathRooted($entryPath) -or
-                $entryPath.Contains("..", [StringComparison]::Ordinal) -or
-                $entryPath.Contains("\\", [StringComparison]::Ordinal)) {
-                throw "Checkpoint archive contains an unsafe $propertyName"
-            }
-            $entry = $archive.GetEntry($entryPath)
-            if ($null -eq $entry) {
-                throw "Checkpoint archive is missing $propertyName entry: $entryPath"
-            }
-            $destination = Join-Path $archiveRoot ([IO.Path]::GetFileName($entryPath))
-            $input = $entry.Open()
-            $output = [IO.File]::Create($destination)
-            try { $input.CopyTo($output) } finally { $output.Dispose(); $input.Dispose() }
-            Set-Variable -Name $propertyName -Value $destination -Scope 1
-        }
-        $replay = Get-Content -LiteralPath $replayStatePath -Raw -Encoding UTF8 | ConvertFrom-Json -Depth 100
-        $player = @($replay.players)[0]
-        if ($null -eq $player) {
-            throw "Checkpoint replay-state does not contain a player"
-        }
-        $script:CharacterId = [string]$player.characterId
-        $script:Seed = [string]$replay.runRng.seed
-        $script:EncounterId = [string]$replay.encounterId
-        $script:Ascension = [int]$replay.ascensionLevel
-        $script:ActIndexForTest = [int]$replay.currentActIndex
-        $script:InitialPlayerHp = [int]$player.currentHp
-        $script:InitialPlayerMaxHp = [int]$player.maxHp
-        $script:InitialPlayerBlock = [int]$player.block
-        $script:InitialPlayerEnergy = [int]$player.energy
-        $script:InitialPlayerStars = [int]$player.stars
-        $script:InitialRoundNumber = [int]$replay.roundNumber
-        $script:InitialPlayerTurnNumber = [int]$player.turnNumber
-        $script:RunSnapshotPath = $runStatePath
-        $script:ReplayStatePath = $replayStatePath
-        Write-Host "CHECKPOINT_IMPORTED archive=$resolvedArchivePath checkpoint=$($index.checkpoint) turn=$($replay.roundNumber)" -ForegroundColor Cyan
-    }
-    finally {
-        $archive.Dispose()
-    }
-}
+. (Join-Path $PSScriptRoot 'headless-runtime.ps1')
+if ($EvidenceDirectory) { $EvidenceDirectory = [IO.Path]::GetFullPath($EvidenceDirectory) }
 
 if (-not [string]::IsNullOrWhiteSpace($CheckpointArchivePath)) {
-    Import-CheckpointArchive $CheckpointArchivePath
+    $CheckpointArchivePath = (Resolve-Path -LiteralPath $CheckpointArchivePath).Path
+    if ($ReplayMode -eq "Preflight") {
+        & dotnet run --project (Join-Path $PSScriptRoot "CheckpointTool/CheckpointTool.csproj") -c Release --verbosity quiet -- preflight $CheckpointArchivePath $CheckpointSelector
+        exit $LASTEXITCODE
+    }
 }
 
 if ($null -eq ("CombatSolverUnattendedLauncherCancellation" -as [type])) {
@@ -306,6 +286,20 @@ using System.Threading;
 
 public static class CombatSolverUnattendedLauncherCancellation
 {
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+    private static extern bool QueryFullProcessImageName(
+        Microsoft.Win32.SafeHandles.SafeProcessHandle process, int flags,
+        System.Text.StringBuilder path, ref int size);
+
+    public static string GetExecutablePath(System.Diagnostics.Process process)
+    {
+        var path = new System.Text.StringBuilder(32768);
+        int size = path.Capacity;
+        if (!QueryFullProcessImageName(process.SafeHandle, 0, path, ref size))
+            throw new System.ComponentModel.Win32Exception(System.Runtime.InteropServices.Marshal.GetLastWin32Error());
+        return path.ToString();
+    }
+
     private static int requested;
     private static int installed;
 
@@ -338,18 +332,33 @@ function Assert-LauncherNotCancelled {
         throw [OperationCanceledException]::new("Unattended launcher cancellation was requested.")
     }
 }
-$gameRoot = [IO.Path]::GetFullPath($Sts2GameRoot)
+$sourceGameRoot = Get-HeadlessCanonicalPath $Sts2GameRoot
+$repositoryRoot = Get-HeadlessCanonicalPath (Join-Path $PSScriptRoot '..')
+if ([Environment]::ProcessorCount -eq 1 -and -not $PSBoundParameters.ContainsKey('HeadlessCpuReservation')) {
+    $HeadlessCpuReservation = 1
+}
+$runtimeContext = New-HeadlessRuntimeContext $repositoryRoot $sourceGameRoot $HeadlessInstance `
+    $HeadlessExecutionMode $HeadlessMemoryReservationMiB $HeadlessCpuReservation $HeadlessQueueTimeoutSeconds
+$gameRoot = $runtimeContext.GameRoot
 $gameExe = Join-Path $gameRoot "SlayTheSpire2.exe"
 $gameModsRoot = Join-Path $gameRoot "mods"
-$combatSolverDll = Join-Path $gameModsRoot "CombatSolver\CombatSolver.dll"
-$combatSolverManifest = Join-Path $gameModsRoot "CombatSolver\CombatSolver.json"
+$buildDirectory = if ([string]::IsNullOrWhiteSpace($CombatSolverBuildDir)) {
+    Join-Path $repositoryRoot '.godot\mono\temp\bin\Release'
+} else { Get-HeadlessCanonicalPath $CombatSolverBuildDir }
+$combatSolverDll = Join-Path $buildDirectory 'CombatSolver.dll'
+$combatSolverManifest = if ([string]::IsNullOrWhiteSpace($CombatSolverBuildDir)) {
+    Join-Path $repositoryRoot 'CombatSolver.json'
+} else { Join-Path $buildDirectory 'CombatSolver.json' }
+$memoryCleaner = if ([string]::IsNullOrWhiteSpace($CombatSolverBuildDir)) {
+    Join-Path $repositoryRoot 'tools\CombatSolver.MemoryCleaner\bin\Release\net48\CombatSolver.MemoryCleaner.exe'
+} else { Join-Path $buildDirectory 'CombatSolver.MemoryCleaner.exe' }
 $resolvedRitsuWorkshopRoot = [IO.Path]::GetFullPath($RitsuWorkshopRoot)
 $ritsuVariantDll = Join-Path $resolvedRitsuWorkshopRoot "lib\0.111.0\STS2-RitsuLib.dll"
 $ritsuManifestSource = Join-Path $resolvedRitsuWorkshopRoot "mod_manifest.json"
 $headlessDependencyDir = Join-Path $gameModsRoot ".combatsolver-headless-ritsulib"
 $headlessDependencyMarker = Join-Path $headlessDependencyDir ".combatsolver-headless-only"
 $interactiveDataDir = Join-Path ([Environment]::GetFolderPath("ApplicationData")) "SlayTheSpire2"
-$headlessRoot = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "CombatSolver\headless-runtime"
+$headlessRoot = $runtimeContext.Root
 $headlessRoaming = Join-Path $headlessRoot "Roaming"
 $headlessLocal = Join-Path $headlessRoot "Local"
 $dataDir = Join-Path $headlessRoaming "SlayTheSpire2"
@@ -361,16 +370,19 @@ $resultPath = Join-Path $dataDir "combat_solver_test_result.json"
 $readyPath = Join-Path $dataDir "combat_solver_test_ready.json"
 $launcherLockPath = Join-Path $headlessRoot "launcher.lock"
 
-if (-not (Test-Path -LiteralPath $gameExe -PathType Leaf)) {
-    throw "Game executable not found: $gameExe"
+if (-not $StopInstance) {
+if (-not (Test-Path -LiteralPath (Join-Path $sourceGameRoot 'SlayTheSpire2.exe') -PathType Leaf)) {
+    throw "Source game executable not found: $sourceGameRoot"
 }
 if (-not (Test-Path -LiteralPath $combatSolverDll -PathType Leaf) -or
-    -not (Test-Path -LiteralPath $combatSolverManifest -PathType Leaf)) {
-    throw "Built CombatSolver mod not found under: $(Join-Path $gameModsRoot 'CombatSolver')"
+    -not (Test-Path -LiteralPath $combatSolverManifest -PathType Leaf) -or
+    -not (Test-Path -LiteralPath $memoryCleaner -PathType Leaf)) {
+    throw "Built CombatSolver DLL/manifest/MemoryCleaner not found: $combatSolverDll ; $combatSolverManifest ; $memoryCleaner"
 }
 if (-not (Test-Path -LiteralPath $ritsuVariantDll -PathType Leaf) -or
     -not (Test-Path -LiteralPath $ritsuManifestSource -PathType Leaf)) {
     throw "Headless RitsuLib source not found under: $resolvedRitsuWorkshopRoot"
+}
 }
 if ([string]::Equals(
         [IO.Path]::GetFullPath($dataDir),
@@ -384,6 +396,9 @@ if ($KeepGameOpen.IsPresent -and $ExitOnComplete.IsPresent) {
 if ($HoldAfterInitialSearch.IsPresent -and -not $KeepGameOpen.IsPresent) {
     throw "HoldAfterInitialSearch requires KeepGameOpen so the profiler can attach to the held combat."
 }
+if ($HoldAfterInitialSearch.IsPresent -and $StopAfterInitialSolverResultAssertion.IsPresent) {
+    throw "HoldAfterInitialSearch and StopAfterInitialSolverResultAssertion cannot be used together."
+}
 if ($StopAfterExpectedReuse.IsPresent -and $ExpectedReusedTurn -le 0) {
     throw "StopAfterExpectedReuse requires ExpectedReusedTurn."
 }
@@ -393,7 +408,6 @@ if ($StopAfterExpectedPlayerPower.IsPresent -and [string]::IsNullOrWhiteSpace($E
 
 New-Item -ItemType Directory -Path $headlessRoot -Force | Out-Null
 $launcherLock = $null
-$launcherLockDeadline = (Get-Date).AddSeconds(15)
 while ($null -eq $launcherLock) {
     try {
         $launcherLock = [IO.File]::Open(
@@ -402,10 +416,7 @@ while ($null -eq $launcherLock) {
             [IO.FileAccess]::ReadWrite,
             [IO.FileShare]::None)
     } catch [IO.IOException] {
-        if ((Get-Date) -ge $launcherLockDeadline) {
-            throw "Another unattended launcher owns $launcherLockPath."
-        }
-        Start-Sleep -Milliseconds 100
+        throw "Another unattended launcher already owns this instance: $launcherLockPath."
     }
 }
 
@@ -421,7 +432,8 @@ try {
 [CombatSolverUnattendedLauncherCancellation]::Install()
 $launcherCancellationInstalled = $true
 Assert-LauncherNotCancelled
-if ($HoldAfterInitialSearch.IsPresent -and (Test-Path -LiteralPath $holdReleasePath -PathType Leaf)) {
+Initialize-HeadlessRuntimeOwner $runtimeContext
+if (-not $StopInstance -and $HoldAfterInitialSearch.IsPresent -and (Test-Path -LiteralPath $holdReleasePath -PathType Leaf)) {
     Remove-Item -LiteralPath $holdReleasePath -Force
 }
 
@@ -435,60 +447,15 @@ function Assert-HeadlessDependencyPath {
 
 function Install-HeadlessDependency {
     Assert-HeadlessDependencyPath
-    if (Test-Path -LiteralPath $headlessDependencyDir -PathType Container) {
-        if (-not (Test-Path -LiteralPath $headlessDependencyMarker -PathType Leaf)) {
-            throw "Headless dependency target already exists without the ownership marker: $headlessDependencyDir"
-        }
-        Remove-HeadlessDependency
-    }
-    New-Item -ItemType Directory -Path $headlessDependencyDir -Force | Out-Null
-    # Publish ownership before either loadable file. If a supervising matrix
-    # must hard-stop this launcher, it can still identify and remove a partial
-    # projection without guessing whether the directory belongs to the user.
-    Set-Content -LiteralPath $headlessDependencyMarker -Value "CombatSolver isolated headless dependency" -Encoding UTF8
-    Copy-Item -LiteralPath $ritsuVariantDll -Destination (Join-Path $headlessDependencyDir "STS2-RitsuLib.dll")
-    Copy-Item -LiteralPath $ritsuManifestSource -Destination (Join-Path $headlessDependencyDir "STS2-RitsuLib.json")
-}
-
-function Remove-HeadlessDependency {
-    Assert-HeadlessDependencyPath
-    if (-not (Test-Path -LiteralPath $headlessDependencyDir -PathType Container)) {
-        return
-    }
-    if (-not (Test-Path -LiteralPath $headlessDependencyMarker -PathType Leaf)) {
-        throw "Refusing to remove a headless dependency without the ownership marker: $headlessDependencyDir"
-    }
-    $knownPayloads = @(
-        (Join-Path $headlessDependencyDir "STS2-RitsuLib.dll"),
-        (Join-Path $headlessDependencyDir "STS2-RitsuLib.json")
-    )
-    $knownPaths = @($headlessDependencyMarker) + $knownPayloads
-    $unexpected = @(Get-ChildItem -LiteralPath $headlessDependencyDir -Force |
-        Where-Object { $_.FullName -notin $knownPaths })
-    if ($unexpected.Count -gt 0) {
-        throw "Headless dependency target contains unexpected files: $($unexpected.Name -join ',')"
-    }
-    foreach ($payload in $knownPayloads) {
-        if (-not (Test-Path -LiteralPath $payload -PathType Leaf)) {
-            continue
-        }
-        $deadline = (Get-Date).AddSeconds(5)
-        while ($true) {
-            try {
-                Remove-Item -LiteralPath $payload -Force
-                break
-            } catch {
-                if (($_.Exception -isnot [System.IO.IOException] -and
-                        $_.Exception -isnot [System.UnauthorizedAccessException]) -or
-                    (Get-Date) -ge $deadline) {
-                    throw
-                }
-                Start-Sleep -Milliseconds 100
-            }
+    # Payload ownership moved from an individual process to its immutable
+    # private game snapshot. Reuse must not recopy mutable workshop files.
+    foreach ($path in @($headlessDependencyMarker,
+            (Join-Path $headlessDependencyDir 'STS2-RitsuLib.dll'),
+            (Join-Path $headlessDependencyDir 'STS2-RitsuLib.json'))) {
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Frozen headless dependency is incomplete: $path"
         }
     }
-    Remove-Item -LiteralPath $headlessDependencyMarker -Force
-    Remove-Item -LiteralPath $headlessDependencyDir -Force
 }
 
 function Get-ProcessStartTimeUtc([Diagnostics.Process]$TestProcess) {
@@ -496,6 +463,14 @@ function Get-ProcessStartTimeUtc([Diagnostics.Process]$TestProcess) {
     return $TestProcess.StartTime.ToUniversalTime().ToString(
         "O",
         [Globalization.CultureInfo]::InvariantCulture)
+}
+
+function Get-ProcessExecutablePath([Diagnostics.Process]$TestProcess) {
+    $executable = $TestProcess.MainModule.FileName
+    if ([string]::IsNullOrWhiteSpace($executable)) {
+        throw "Process $($TestProcess.Id) did not expose its executable path."
+    }
+    return [IO.Path]::GetFullPath($executable)
 }
 
 function ConvertTo-NormalizedUtcTimestamp([object]$Value) {
@@ -596,10 +571,54 @@ function Stop-ClaimedProcessAndRemoveDependency(
     if (-not $TestProcess.HasExited) {
         throw "Claimed headless process did not exit within 10 seconds: pid=$processIdForCleanup"
     }
-    # Never remove the temporary dependency while the exact process that loaded
-    # it may still be alive. Marker removal remains PID+start-time guarded.
+    # Private dependencies remain frozen for the next request. Only the snapshot
+    # owner may replace them after this exact game has exited.
     Remove-ProcessMarkerForIdentity $processIdForCleanup $ExpectedStartTimeUtc
-    Remove-HeadlessDependency
+    Exit-HeadlessHostLease $runtimeContext $processIdForCleanup $ExpectedStartTimeUtc
+}
+
+if ($StopInstance) {
+    # No snapshot/DLL/dependency reads, request writes or resource admission.
+    # The same launcher lock, SafeHandle and stop routine own this path.
+    if (-not (Test-Path -LiteralPath $processMarkerPath -PathType Leaf)) {
+        if (Test-HeadlessUnboundGame $headlessRoot) {
+            throw 'Markerless private game preserved; stop cannot prove ownership.'
+        }
+        Write-Host "UNATTENDED_STOP instance=$($runtimeContext.Instance) state=absent"
+        return
+    }
+    $marker = Get-Content -LiteralPath $processMarkerPath -Raw | ConvertFrom-Json
+    $stopProcessId = 0
+    $stopBirth = ConvertTo-NormalizedUtcTimestamp $marker.processStartTimeUtc
+    if (-not [int]::TryParse([string]$marker.pid, [ref]$stopProcessId) -or $stopProcessId -le 0 -or
+        [string]::IsNullOrWhiteSpace($stopBirth) -or $marker.instance -ne $runtimeContext.Instance -or
+        -not [string]::Equals($marker.runtimeRoot, $headlessRoot, [StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($marker.executable, $gameExe, [StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($marker.appData, $headlessRoaming, [StringComparison]::OrdinalIgnoreCase) -or
+        -not [string]::Equals($marker.dataDir, $dataDir, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'Invalid or foreign marker preserved; stop refused.'
+    }
+    $candidate = Get-Process -Id $stopProcessId -ErrorAction SilentlyContinue
+    if ($null -eq $candidate) {
+        Remove-ProcessMarkerForIdentity $stopProcessId $stopBirth
+        Exit-HeadlessHostLease $runtimeContext $stopProcessId $stopBirth
+        Write-Host "UNATTENDED_STOP instance=$($runtimeContext.Instance) state=exited pid=$stopProcessId"
+        return
+    }
+    $candidateSafeHandle = $candidate.SafeHandle
+    $candidate.Refresh()
+    if (-not $candidate.HasExited -and -not (Test-ProcessMatchesHeadlessIdentity $candidate $stopBirth $gameExe)) {
+        $candidate.Dispose()
+        throw 'Unknown, reused or foreign process identity preserved; stop refused.'
+    }
+    $process = $candidate
+    $processSafeHandle = $candidateSafeHandle
+    $processIdentityStartTimeUtc = $stopBirth
+    $cleanupProcessOnExit = $true
+    Stop-ClaimedProcessAndRemoveDependency $process $stopBirth
+    $cleanupProcessOnExit = $false
+    Write-Host "UNATTENDED_STOP instance=$($runtimeContext.Instance) state=stopped_or_exited pid=$stopProcessId"
+    return
 }
 
 New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
@@ -608,14 +627,14 @@ if (-not (Test-Path -LiteralPath (Join-Path $dataDir "default") -PathType Contai
     foreach ($directory in @("default", "ModConfig", "mod_configs")) {
         $source = Join-Path $interactiveDataDir $directory
         if (Test-Path -LiteralPath $source -PathType Container) {
-            Copy-Item -LiteralPath $source -Destination $dataDir -Recurse -Force
+            Copy-HeadlessProfileTree $source $dataDir
         }
     }
     $sourceModConfig = Join-Path $interactiveDataDir "mods\config"
     if (Test-Path -LiteralPath $sourceModConfig -PathType Container) {
         $targetMods = Join-Path $dataDir "mods"
         New-Item -ItemType Directory -Path $targetMods -Force | Out-Null
-        Copy-Item -LiteralPath $sourceModConfig -Destination $targetMods -Recurse -Force
+        Copy-HeadlessProfileTree $sourceModConfig $targetMods
     }
 }
 $settingsPath = Join-Path $dataDir "default\1\settings.save"
@@ -645,13 +664,6 @@ $resolvedRunSnapshotPath = if ([string]::IsNullOrWhiteSpace($RunSnapshotPath)) {
     (Resolve-Path -LiteralPath $RunSnapshotPath).Path
 }
 
-function Get-ProcessExecutablePath([Diagnostics.Process]$TestProcess) {
-    $executable = $TestProcess.MainModule.FileName
-    if ([string]::IsNullOrWhiteSpace($executable)) {
-        throw "Process $($TestProcess.Id) did not expose its executable path."
-    }
-    return [IO.Path]::GetFullPath($executable)
-}
 $resolvedReplayStatePath = if ([string]::IsNullOrWhiteSpace($ReplayStatePath)) {
     $null
 } else {
@@ -708,7 +720,24 @@ $request = [ordered]@{
     characterId = $CharacterId
     encounterId = $EncounterId
     runSnapshotPath = $resolvedRunSnapshotPath
+    loadRunSnapshotDirectly = $LoadRunSnapshotDirectly.IsPresent
+    targetActFloor = if ($TargetActFloor -gt 0) { $TargetActFloor } else { $null }
+    targetMapColumn = if ($TargetMapColumn -ge 0) { $TargetMapColumn } else { $null }
+    targetRoomType = $TargetRoomType
+    targetMapPointType = $TargetMapPointType
+    preCombatPlayerCurrentHpOverride = if ($PreCombatPlayerCurrentHpOverride -gt 0) { $PreCombatPlayerCurrentHpOverride } else { $null }
+    preCombatInterveningMapPoints = if ([string]::IsNullOrWhiteSpace($PreCombatInterveningMapPointsJson)) {
+        @()
+    } else {
+        @($PreCombatInterveningMapPointsJson | ConvertFrom-Json -NoEnumerate)
+    }
     replayStatePath = $resolvedReplayStatePath
+    checkpointArchivePath = if ($CheckpointArchivePath) { $CheckpointArchivePath } else { $null }
+    evidenceDirectory = if ($EvidenceDirectory) { $EvidenceDirectory } else { $null }
+    checkpointSelector = $CheckpointSelector
+    replayMode = $ReplayMode
+    replayPolicyOverridePath = if ($ReplayPolicyOverridePath) { (Resolve-Path -LiteralPath $ReplayPolicyOverridePath).Path } else { $null }
+    preserveNativeCombatStateForTest = $PreserveNativeCombatStateForTest.IsPresent
     ascension = $Ascension
     actIndexForTest = $ActIndexForTest
     markEncounterAsSecondBossForTest = $MarkEncounterAsSecondBossForTest.IsPresent
@@ -748,9 +777,11 @@ $request = [ordered]@{
     clearAllPowers = $ClearAllPowers.IsPresent
     verifyPredictionFailureBoundaries = $VerifyPredictionFailureBoundaries.IsPresent
     verifySearchPolicySnapshot = $VerifySearchPolicySnapshot.IsPresent
+    verifyGrowthPolicy = $VerifyGrowthPolicy.IsPresent
     verifyControllerSessionLifecycle = $VerifyControllerSessionLifecycle.IsPresent
     verifyForkBoundaries = $VerifyForkBoundaries.IsPresent
     verifyCombatRootSnapshot = $VerifyCombatRootSnapshot.IsPresent
+    verifyPreCombatForecastApi = $VerifyPreCombatForecastApi.IsPresent
     verifyBaseLibCardModifierBoundary = $VerifyBaseLibCardModifierBoundary.IsPresent
     stopAfterCombatRootSnapshotAssertion = $StopAfterCombatRootSnapshotAssertion.IsPresent
     verifyIncrementalSearch = $VerifyIncrementalSearch.IsPresent
@@ -763,6 +794,11 @@ $request = [ordered]@{
     expectedInitialSearchPhase = if ([string]::IsNullOrWhiteSpace($ExpectedInitialSearchPhase)) { $null } else { $ExpectedInitialSearchPhase }
     expectedInitialDeepSearchTriggered = if ($ExpectedInitialDeepSearchTriggered -ge 0) { [bool]$ExpectedInitialDeepSearchTriggered } else { $null }
     expectedInitialDeepSearchImprovedResult = if ($ExpectedInitialDeepSearchImprovedResult -ge 0) { [bool]$ExpectedInitialDeepSearchImprovedResult } else { $null }
+    expectedInitialExpandedNodesAtMost = if ($ExpectedInitialExpandedNodesAtMost -ge 0) { $ExpectedInitialExpandedNodesAtMost } else { $null }
+    expectedInitialTransitionsAtMost = if ($ExpectedInitialTransitionsAtMost -ge 0) { $ExpectedInitialTransitionsAtMost } else { $null }
+    expectedInitialTotalExpandedNodesAtMost = if ($ExpectedInitialTotalExpandedNodesAtMost -ge 0) { $ExpectedInitialTotalExpandedNodesAtMost } else { $null }
+    expectedInitialTotalTransitionsAtMost = if ($ExpectedInitialTotalTransitionsAtMost -ge 0) { $ExpectedInitialTotalTransitionsAtMost } else { $null }
+    expectedInitialBoundaryReason = if ([string]::IsNullOrWhiteSpace($ExpectedInitialBoundaryReason)) { $null } else { $ExpectedInitialBoundaryReason }
     expectedInitialTotalElapsedMillisecondsAtMost = if ($ExpectedInitialTotalElapsedMillisecondsAtMost -ge 0) { $ExpectedInitialTotalElapsedMillisecondsAtMost } else { $null }
     expectedInitialTotalAllocatedBytesAtMost = if ($ExpectedInitialTotalAllocatedBytesAtMost -ge 0) { $ExpectedInitialTotalAllocatedBytesAtMost } else { $null }
     expectedInitialGen2CollectionsAtMost = if ($ExpectedInitialGen2CollectionsAtMost -ge 0) { $ExpectedInitialGen2CollectionsAtMost } else { $null }
@@ -775,6 +811,7 @@ $request = [ordered]@{
     expectedInitialRepeatableNoProgressBranchesPrunedAtLeast = if ($ExpectedInitialRepeatableNoProgressBranchesPrunedAtLeast -ge 0) { $ExpectedInitialRepeatableNoProgressBranchesPrunedAtLeast } else { $null }
     expectedInitialCycleShapesDetectedAtLeast = if ($ExpectedInitialCycleShapesDetectedAtLeast -ge 0) { $ExpectedInitialCycleShapesDetectedAtLeast } else { $null }
     expectedInitialCycleProbeContinuationsExpandedAtLeast = if ($ExpectedInitialCycleProbeContinuationsExpandedAtLeast -ge 0) { $ExpectedInitialCycleProbeContinuationsExpandedAtLeast } else { $null }
+    expectedInitialCycleProbeContinuationsExpandedAtMost = if ($ExpectedInitialCycleProbeContinuationsExpandedAtMost -ge 0) { $ExpectedInitialCycleProbeContinuationsExpandedAtMost } else { $null }
     expectedInitialCycleCandidatesProtectedAtLeast = if ($ExpectedInitialCycleCandidatesProtectedAtLeast -ge 0) { $ExpectedInitialCycleCandidatesProtectedAtLeast } else { $null }
     expectedInitialCycleContinuationsStoppedAtLeast = if ($ExpectedInitialCycleContinuationsStoppedAtLeast -ge 0) { $ExpectedInitialCycleContinuationsStoppedAtLeast } else { $null }
     expectedInitialCrossTurnCandidatesProtectedAtLeast = if ($ExpectedInitialCrossTurnCandidatesProtectedAtLeast -ge 0) { $ExpectedInitialCrossTurnCandidatesProtectedAtLeast } else { $null }
@@ -784,6 +821,7 @@ $request = [ordered]@{
     expectedInitialExecutableActionCountAtLeast = if ($ExpectedInitialExecutableActionCountAtLeast -ge 0) { $ExpectedInitialExecutableActionCountAtLeast } else { $null }
     expectedInitialSoldHp = if ($ExpectedInitialSoldHp -ge 0) { $ExpectedInitialSoldHp } else { $null }
     expectedInitialSoldHpAtMost = if ($ExpectedInitialSoldHpAtMost -ge 0) { $ExpectedInitialSoldHpAtMost } else { $null }
+    expectedInitialDeathSaveRelicHp = if ($ExpectedInitialDeathSaveRelicHp -ge 0) { $ExpectedInitialDeathSaveRelicHp } else { $null }
     expectedInitialSoldHpBranchesPrunedAtLeast = if ($ExpectedInitialSoldHpBranchesPrunedAtLeast -ge 0) { $ExpectedInitialSoldHpBranchesPrunedAtLeast } else { $null }
     expectedInitialActionAdmissionRepresentativesProtectedAtLeast = if ($ExpectedInitialActionAdmissionRepresentativesProtectedAtLeast -ge 0) { $ExpectedInitialActionAdmissionRepresentativesProtectedAtLeast } else { $null }
     expectedInitialHpInvestmentBranchesProtectedAtLeast = if ($ExpectedInitialHpInvestmentBranchesProtectedAtLeast -ge 0) { $ExpectedInitialHpInvestmentBranchesProtectedAtLeast } else { $null }
@@ -799,12 +837,14 @@ $request = [ordered]@{
     expectedInitialProjectedBattleHpLost = if ($ExpectedInitialProjectedBattleHpLost -ge 0) { $ExpectedInitialProjectedBattleHpLost } else { $null }
     expectedInitialProjectedBattleHpLostAtMost = if ($ExpectedInitialProjectedBattleHpLostAtMost -ge 0) { $ExpectedInitialProjectedBattleHpLostAtMost } else { $null }
     expectedInitialLongTermResourceValueAtLeast = if ($ExpectedInitialLongTermResourceValueAtLeast -ge 0) { $ExpectedInitialLongTermResourceValueAtLeast } else { $null }
+    expectedInitialGrowthRewardCount = if ($ExpectedInitialGrowthRewardCount -ge 0) { $ExpectedInitialGrowthRewardCount } else { $null }
     expectedInitialFinalMaxHp = if ($ExpectedInitialFinalMaxHp -ge 0) { $ExpectedInitialFinalMaxHp } else { $null }
     expectedInitialMaxBlockAtLeast = if ($ExpectedInitialMaxBlockAtLeast -ge 0) { $ExpectedInitialMaxBlockAtLeast } else { $null }
     expectedInitialActualBlockAtLeast = if ($ExpectedInitialActualBlockAtLeast -ge 0) { $ExpectedInitialActualBlockAtLeast } else { $null }
     expectedInitialActionCardId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialActionCardId)) { $null } else { $ExpectedInitialActionCardId }
     expectedInitialAbsentActionCardId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialAbsentActionCardId)) { $null } else { $ExpectedInitialAbsentActionCardId }
     expectedInitialFirstActionCardId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialFirstActionCardId)) { $null } else { $ExpectedInitialFirstActionCardId }
+    expectedInitialFirstActionChoiceCardId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialFirstActionChoiceCardId)) { $null } else { $ExpectedInitialFirstActionChoiceCardId }
     expectedInitialFirstActionPotionId = if ([string]::IsNullOrWhiteSpace($ExpectedInitialFirstActionPotionId)) { $null } else { $ExpectedInitialFirstActionPotionId }
     expectedInitialActionTitle = if ([string]::IsNullOrWhiteSpace($ExpectedInitialActionTitle)) { $null } else { $ExpectedInitialActionTitle }
     expectedInitialActionReplayCount = if ($ExpectedInitialActionReplayCount -ge 0) { $ExpectedInitialActionReplayCount } else { $null }
@@ -883,6 +923,12 @@ $request = [ordered]@{
 }
 if (-not [string]::IsNullOrWhiteSpace($InitialEnemyCurrentHpsJson)) {
     $request.initialEnemyCurrentHps = @($InitialEnemyCurrentHpsJson | ConvertFrom-Json)
+}
+if (-not [string]::IsNullOrWhiteSpace($InitialEnemyMaxHpsJson)) {
+    $request.initialEnemyMaxHps = @($InitialEnemyMaxHpsJson | ConvertFrom-Json)
+}
+if (-not [string]::IsNullOrWhiteSpace($InitialEnemyBlocksJson)) {
+    $request.initialEnemyBlocks = @($InitialEnemyBlocksJson | ConvertFrom-Json)
 }
 if (-not [string]::IsNullOrWhiteSpace($InitialEnemyMoveIdsJson)) {
     $request.initialEnemyMoveIds = @($InitialEnemyMoveIdsJson | ConvertFrom-Json)
@@ -978,8 +1024,10 @@ if (-not [string]::IsNullOrWhiteSpace($PowerId)) {
     )
 }
 
-$combatSolverDllSha256 = (Get-FileHash -LiteralPath $combatSolverDll -Algorithm SHA256).Hash
-$combatSolverManifestSha256 = (Get-FileHash -LiteralPath $combatSolverManifest -Algorithm SHA256).Hash
+$snapshotPlan = Get-HeadlessSnapshotPlan $runtimeContext $combatSolverDll $combatSolverManifest $memoryCleaner $ritsuVariantDll $ritsuManifestSource
+$runtimeContext.ArtifactId = $snapshotPlan.id
+$combatSolverDllSha256 = @($snapshotPlan.files | Where-Object { $_.relative -eq 'mods\CombatSolver\CombatSolver.dll' })[0].sha256
+$combatSolverManifestSha256 = @($snapshotPlan.files | Where-Object { $_.relative -eq 'mods\CombatSolver\CombatSolver.json' })[0].sha256
 if (Test-Path -LiteralPath $processMarkerPath -PathType Leaf) {
     $marker = $null
     $markerProcessId = 0
@@ -1006,7 +1054,10 @@ if (Test-Path -LiteralPath $processMarkerPath -PathType Leaf) {
         }
         $markerAppData = [IO.Path]::GetFullPath([string]$marker.appData)
         $markerDataDir = [IO.Path]::GetFullPath([string]$marker.dataDir)
-        if (($null -ne $markerRequestedExecutable -and
+        if (-not [string]::Equals($markerExecutable, $gameExe, [StringComparison]::OrdinalIgnoreCase) -or
+            [string]$marker.instance -ne $runtimeContext.Instance -or
+            -not [string]::Equals([string]$marker.runtimeRoot, $headlessRoot, [StringComparison]::OrdinalIgnoreCase) -or
+            ($null -ne $markerRequestedExecutable -and
                 -not [string]::Equals(
                     $markerRequestedExecutable,
                     $gameExe,
@@ -1081,15 +1132,9 @@ if (Test-Path -LiteralPath $processMarkerPath -PathType Leaf) {
     if ($discardMarker) {
         Write-Warning "Discarding stale or unowned process marker ($markerProblem): $processMarkerPath"
         Remove-Item -LiteralPath $processMarkerPath -Force
-    } elseif (-not [string]::Equals(
-            [string]$marker.combatSolverDllSha256,
-            $combatSolverDllSha256,
-            [StringComparison]::OrdinalIgnoreCase) -or
-        -not [string]::Equals(
-            [string]$marker.combatSolverManifestSha256,
-            $combatSolverManifestSha256,
-            [StringComparison]::OrdinalIgnoreCase)) {
-        Write-Host "UNATTENDED_RESTART reason=mod_changed pid=$($process.Id)"
+    } elseif (-not [string]::Equals([string]$marker.artifactId,
+            $runtimeContext.ArtifactId, [StringComparison]::OrdinalIgnoreCase)) {
+        Write-Host "UNATTENDED_RESTART reason=frozen_artifact_changed pid=$($process.Id)"
         Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
         $cleanupProcessOnExit = $false
         $process = $null
@@ -1113,17 +1158,22 @@ if (Test-Path -LiteralPath $processMarkerPath -PathType Leaf) {
         }
     }
 }
-$otherProcesses = @(Get-Process -Name "SlayTheSpire2" -ErrorAction SilentlyContinue |
-    Where-Object { $null -eq $process -or $_.Id -ne $process.Id })
-if ($otherProcesses.Count -gt 0) {
-    $ids = $otherProcesses.Id -join ","
-    throw "Refusing to start or reuse headless tests while an interactive SlayTheSpire2 process is running. pid=$ids"
+Enter-HeadlessHostLease $runtimeContext $process
+if ($null -eq $process) {
+    Set-HeadlessGameSnapshot $runtimeContext $snapshotPlan
 }
+$snapshotPlan = $null
+Write-Host "UNATTENDED_RUNTIME instance=$($runtimeContext.Instance) root=$headlessRoot artifact=$($runtimeContext.ArtifactId)"
 $reusedProcess = $null -ne $process
 Assert-LauncherNotCancelled
 
 # Publish only after marker ownership, process identity, mod fingerprint, and
 # interactive-process checks have all succeeded.
+if ($StopOwnedProcess.IsPresent) {
+    Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
+    $cleanupProcessOnExit = $false
+    exit 0
+}
 $requestTempPath = "$requestPath.$runId.tmp"
 if (Test-Path -LiteralPath $readyPath -PathType Leaf) {
     Remove-Item -LiteralPath $readyPath -Force
@@ -1142,6 +1192,7 @@ if (-not $reusedProcess) {
         Assert-LauncherNotCancelled
         $process = Start-Process `
             -FilePath $gameExe `
+            -WorkingDirectory $gameRoot `
             -ArgumentList $arguments `
             -Environment @{
                 APPDATA = $headlessRoaming
@@ -1149,6 +1200,8 @@ if (-not $reusedProcess) {
                 COMBATSOLVER_HEADLESS = "1"
             } `
             -WindowStyle Hidden `
+            -RedirectStandardOutput (Join-Path $headlessRoot 'native-stdout.log') `
+            -RedirectStandardError (Join-Path $headlessRoot 'native-stderr.log') `
             -PassThru
         # Start-Process returned this exact Process object, so the launcher owns
         # its handle even before StartTime is readable and marker identity exists.
@@ -1156,12 +1209,13 @@ if (-not $reusedProcess) {
         $cleanupProcessOnExit = $true
         $processSafeHandle = $process.SafeHandle
         $processIdentityStartTimeUtc = Get-ProcessStartTimeUtc $process
-        Assert-LauncherNotCancelled
         $process.Refresh()
         if ($process.HasExited -or $process.ProcessName -ne "SlayTheSpire2") {
             throw "Started process exited or did not expose the expected game process."
         }
         $processActualExecutable = Get-ProcessExecutablePath $process
+        Set-HeadlessHostGame $runtimeContext $process
+        Assert-LauncherNotCancelled
     } catch {
         $launchError = $_
         if ($startedHere) {
@@ -1174,10 +1228,10 @@ if (-not $reusedProcess) {
             }
         } else {
             try {
-                Remove-HeadlessDependency
+                Exit-HeadlessHostLease $runtimeContext
             } catch {
                 throw "Headless game startup failed: $($launchError.Exception.Message) " +
-                    "Dependency cleanup also failed: $($_.Exception.Message)"
+                    "Host lease cleanup also failed: $($_.Exception.Message)"
             }
         }
         throw $launchError
@@ -1192,6 +1246,9 @@ if (-not $reusedProcess) {
         appData = $headlessRoaming
         dataDir = $dataDir
         logPath = $headlessLogPath
+        instance = $runtimeContext.Instance
+        runtimeRoot = $runtimeContext.Root
+        artifactId = $runtimeContext.ArtifactId
         combatSolverDllSha256 = $combatSolverDllSha256
         combatSolverManifestSha256 = $combatSolverManifestSha256
     } | ConvertTo-Json | Set-Content -LiteralPath $processMarkerTempPath -Encoding UTF8
@@ -1216,19 +1273,19 @@ if ($reusedProcess) {
     Write-Host "UNATTENDED_STARTED run_id=$runId pid=$($process.Id)"
 }
 
-$resultDeadline = $startedAt.AddSeconds($TimeoutSeconds + 45)
+$resultDeadline = $startedAt.AddSeconds($TimeoutSeconds)
 while ((Get-Date) -lt $resultDeadline) {
     Assert-LauncherNotCancelled
     if (Test-Path -LiteralPath $resultPath) {
         $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
         if ($result.runId -eq $runId) {
             $result | ConvertTo-Json -Depth 8
-            if ($result.status -ne "Passed") {
+            if ($result.status -ne "Passed" -and -not $result.processReusable) {
                 Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
                 $cleanupProcessOnExit = $false
                 exit 1
             }
-            $quiescenceDeadline = (Get-Date).AddSeconds(120)
+            $quiescenceDeadline = $resultDeadline
             if ($HoldAfterInitialSearch.IsPresent -and $result.status -eq "Passed") {
                 $ready = $null
                 while (-not $process.HasExited -and (Get-Date) -lt $quiescenceDeadline) {
@@ -1293,7 +1350,7 @@ while ((Get-Date) -lt $resultDeadline) {
                         Assert-LauncherNotCancelled
                         Write-Host "UNATTENDED_READY run_id=$runId pid=$($process.Id)"
                         $cleanupProcessOnExit = $false
-                        exit 0
+                        if ($result.status -eq "Passed") { exit 0 } else { exit 1 }
                     }
                 }
                 Start-Sleep -Milliseconds 100
@@ -1302,7 +1359,7 @@ while ((Get-Date) -lt $resultDeadline) {
             }
             Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
             $cleanupProcessOnExit = $false
-            throw "Test passed but did not become reusable before timeout. run_id=$runId"
+            throw [TimeoutException]::new("Test passed but did not become reusable before timeout. run_id=$runId")
         }
     }
     if ($process.HasExited) {
@@ -1325,7 +1382,7 @@ while ((Get-Date) -lt $resultDeadline) {
 
 Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
 $cleanupProcessOnExit = $false
-throw "Unattended test exceeded the launcher timeout; its game process was stopped. run_id=$runId"
+throw [TimeoutException]::new("Unattended test exceeded the launcher timeout; its game process was stopped. run_id=$runId")
 } catch {
     $launcherFailure = $_
     $launcherWasCancelled =
@@ -1333,6 +1390,14 @@ throw "Unattended test exceeded the launcher timeout; its game process was stopp
         [CombatSolverUnattendedLauncherCancellation]::IsCancellationRequested
 } finally {
     try {
+        if ($EvidenceDirectory) {
+            New-Item -ItemType Directory -Path $EvidenceDirectory -Force | Out-Null
+            [ordered]@{
+                runId = $runId
+                status = if ($launcherFailure.Exception -is [TimeoutException]) { 'timeout' } elseif ($launcherWasCancelled) { 'cancelled' } elseif ($launcherFailure) { 'launcher_failed' } else { 'result_received' }
+                reason = if ($launcherFailure) { $launcherFailure.Exception.Message } else { $null }
+            } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $EvidenceDirectory 'launcher-result.json') -Encoding utf8
+        }
         if ($cleanupProcessOnExit) {
             try {
                 Stop-ClaimedProcessAndRemoveDependency $process $processIdentityStartTimeUtc
@@ -1341,13 +1406,17 @@ throw "Unattended test exceeded the launcher timeout; its game process was stopp
             }
         }
     } finally {
-        if ($launcherCancellationInstalled) {
-            [CombatSolverUnattendedLauncherCancellation]::Uninstall()
+        try {
+            Exit-HeadlessHostLease $runtimeContext
+        } finally {
+            try {
+                if ($launcherCancellationInstalled) {
+                    [CombatSolverUnattendedLauncherCancellation]::Uninstall()
+                }
+            } finally {
+                $launcherLock.Dispose()
+            }
         }
-        if ($null -ne $checkpointImportRoot -and (Test-Path -LiteralPath $checkpointImportRoot -PathType Container)) {
-            Remove-Item -LiteralPath $checkpointImportRoot -Recurse -Force
-        }
-        $launcherLock.Dispose()
     }
 }
 

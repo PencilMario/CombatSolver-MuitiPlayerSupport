@@ -14,16 +14,21 @@ internal sealed partial class UnattendedTestRunner
         long PrivateMemoryBytes);
 
     private sealed class Writer(
-        UnattendedTestRequest request,
+        Func<UnattendedTestRequest> getRequest,
         Stopwatch stopwatch,
         IReadOnlyList<string> completedChecks,
         DateTimeOffset startedAtUtc,
         Func<UnattendedStageTiming[]> captureStageTimings)
     {
         private UnattendedSolverMetrics? _solverMetrics;
+        public bool HasSolverMetrics => _solverMetrics != null;
+        public System.Text.Json.Nodes.JsonObject? ReplayVerification { get; set; }
+        public bool ProcessReusable { get; set; }
 
         public void CaptureSolverResult(SolverResult result)
         {
+            if (ReplayVerification != null && CombatBugReportExporter.LatestEffectivePolicy is { } policy)
+                ReplayVerification["executedPolicy"] = JsonSerializer.SerializeToNode(policy, UnattendedTestFiles.JsonOptions);
             RuntimeMemorySnapshot memory = CaptureRuntimeMemory();
             SolverSettingsSnapshot configuredSettings = SolverSettings.Capture();
             GCLatencyMode gcLatencyMode = GCSettings.LatencyMode;
@@ -31,6 +36,8 @@ internal sealed partial class UnattendedTestRunner
                 SearchGcPolicy.CurrentNoGcRegionBudgetBytesForTesting;
             _solverMetrics = new UnattendedSolverMetrics
             {
+                GcLifecycle = result.GcLifecycle,
+                GcLifecycleAttribution = result.GcLifecycleAttribution,
                 Phase = result.SearchPhase,
                 Boundary = result.BoundaryReason,
                 SelectedExpanded = result.ExpandedNodes,
@@ -38,6 +45,27 @@ internal sealed partial class UnattendedTestRunner
                 SelectedChoiceBranches = result.ChoiceBranchesEvaluated,
                 ChoiceReplayAttempts = result.ChoiceReplayAttempts,
                 ChoiceReplayBudgetExhaustions = result.ChoiceReplayBudgetExhaustions,
+                ChoiceBranchesDroppedByBudget = result.ChoiceBranchesDroppedByBudget,
+                CycleRegionsDetected = result.CycleRegionsDetected,
+                CycleRegionCandidatesConsidered = result.CycleRegionCandidatesConsidered,
+                CycleRegionCandidatesAdmitted = result.CycleRegionCandidatesAdmitted,
+                CycleRegionCandidatesDropped = result.CycleRegionCandidatesDropped,
+                CycleRegionProgressEpochs = result.CycleRegionProgressEpochs,
+                CycleRegionProbeCandidatesAdmitted =
+                    result.CycleRegionProbeCandidatesAdmitted,
+                CycleRegionProgressCandidatesAdmitted =
+                    result.CycleRegionProgressCandidatesAdmitted,
+                CycleRegionMaxActionFamilies = result.CycleRegionMaxActionFamilies,
+                OrderedMutationCandidatesAdmitted =
+                    result.OrderedMutationCandidatesAdmitted,
+                OrderedMutationLeaseExpiredBudget =
+                    result.OrderedMutationLeaseExpiredBudget,
+                OrderedMutationOrdinaryFallbacks =
+                    result.OrderedMutationOrdinaryFallbacks,
+                OrderedMutationColdAtomicCommitted =
+                    result.OrderedMutationColdAtomicCommitted,
+                OrderedMutationColdAtomicRejected =
+                    result.OrderedMutationColdAtomicRejected,
                 TotalExpanded = result.TotalExpandedNodes,
                 TotalTransitions = result.TotalTransitionCount,
                 TotalChoiceBranches = result.TotalChoiceBranchesEvaluated,
@@ -72,6 +100,16 @@ internal sealed partial class UnattendedTestRunner
                 Score = result.BestNode.Score,
                 ProjectedBattleHpLost = result.ProjectedBattleHpLost,
                 PotionCount = result.PotionCount,
+                PotionUses = result.BestNode.Actions
+                    .Where(static action => action.Kind == PlanActionKind.UsePotion)
+                    .Select(static action => new UnattendedPotionUse
+                    {
+                        Id = action.PotionId,
+                        Title = action.PotionTitle,
+                        Turn = action.Turn,
+                        Slot = action.PotionSlot,
+                    })
+                    .ToArray(),
                 OnlyDeathRoutes = result.OnlyDeathRoutesFound,
                 FinalHp = result.Snapshot.PlayerHp,
                 FinalEnemyHp = result.Snapshot.EnemyHp,
@@ -101,9 +139,11 @@ internal sealed partial class UnattendedTestRunner
             int finishedTurn,
             string? error = null)
         {
+            UnattendedTestRequest request = getRequest();
             RuntimeMemorySnapshot memory = CaptureRuntimeMemory();
             WriteResult(new UnattendedTestResult
             {
+                ProcessReusable = ProcessReusable,
                 RunId = request.RunId,
                 ScenarioId = request.ScenarioId,
                 Status = status,
@@ -122,10 +162,11 @@ internal sealed partial class UnattendedTestRunner
                 WorkingSetBytes = memory.WorkingSetBytes,
                 PrivateMemoryBytes = memory.PrivateMemoryBytes,
                 SolverMetrics = _solverMetrics,
+                ReplayVerification = ReplayVerification,
                 StageTimings = captureStageTimings(),
                 CompletedChecks = completedChecks.ToArray(),
                 Error = error,
-            });
+            }, request);
             return memory;
         }
 
@@ -140,8 +181,23 @@ internal sealed partial class UnattendedTestRunner
                 process.PrivateMemorySize64);
         }
 
-        private static void WriteResult(UnattendedTestResult result)
+        private static void WriteResult(UnattendedTestResult result, UnattendedTestRequest request)
         {
+            if (!string.IsNullOrWhiteSpace(request.EvidenceDirectory))
+            {
+                Directory.CreateDirectory(request.EvidenceDirectory);
+                WriteEvidence("request.json", request);
+                WriteEvidence("result.json", result);
+                WriteEvidence("policy.json", result.ReplayVerification);
+                WriteEvidence("timings.json", result.StageTimings);
+                WriteEvidence("difference.json", result.ReplayVerification?["firstDifference"]);
+                void WriteEvidence(string name, object? value)
+                {
+                    string path = Path.Combine(request.EvidenceDirectory, name);
+                    File.WriteAllText(path + ".tmp", JsonSerializer.Serialize(value, UnattendedTestFiles.JsonOptions));
+                    File.Move(path + ".tmp", path, true);
+                }
+            }
             string resultPath = UnattendedTestFiles.GlobalPath(UnattendedTestFiles.ResultUri);
             string tempPath = resultPath + ".tmp";
             File.WriteAllText(tempPath, JsonSerializer.Serialize(result, UnattendedTestFiles.JsonOptions));

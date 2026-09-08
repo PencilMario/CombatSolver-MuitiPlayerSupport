@@ -20,7 +20,7 @@ internal sealed partial class CombatBeamSolver
         }
         else
         {
-            CrossTurnProbeState probe = parent.CrossTurnProbe!.Value;
+            CrossTurnProbeState probe = parent.CrossTurnProbe!;
             CycleExitQuality quality = MeasureCycleExitQuality(
                 probe.Tracker.OriginNode,
                 child);
@@ -148,6 +148,6 @@ internal sealed partial class CombatBeamSolver
             SoldHpThreshold() - battleDamage.SoldHpCommitted);
         return node.CombatProgress.TurnsWithoutProgress > 0
             || node.CrossTurnSemanticInvisibleToModeledQuality
-            || node.FutureSoldHp > availableFutureSoldHp;
+            || node.FutureSoldHp > availableFutureSoldHp + node.Snapshot.GrowthHpCredit;
     }
 }

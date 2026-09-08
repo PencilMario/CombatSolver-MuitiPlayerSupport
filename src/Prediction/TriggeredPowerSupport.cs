@@ -33,6 +33,8 @@ internal static class TriggeredPowerSupport
                 }
             }
             PowerLifecycleSupport.ResolvePowerAmountChanges(simulator, combat);
+            if (simulator.HasPendingChoice)
+                return;
             if (nextEntry >= history.Entries.Count)
                 return;
         }
@@ -80,7 +82,7 @@ internal static class TriggeredPowerSupport
         SimulatedCombatState combat,
         CombatPredictionCardPlayFinishedEntry entry)
     {
-        Creature owner = entry.Card.Preview.Owner.Creature;
+        Creature owner = entry.Card.Owner.Creature;
         TenderPower? tender = combat.GetPower<TenderPower>(owner);
         if (tender is not { Amount: > 0 })
             return;

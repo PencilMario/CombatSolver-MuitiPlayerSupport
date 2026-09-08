@@ -155,7 +155,7 @@ internal sealed record ContinuationStamp(string StateText)
             text,
             simulator,
             combat.RelicsOf(player));
-        AppendPowers(text, combat.EffectivePowers());
+        AppendPowers(text, combat.EffectivePowers(), simulator);
         AppendRng(text,
             simulator.Rng.Shuffle.CaptureState(),
             simulator.Rng.CombatCardGeneration.CaptureState(),
@@ -403,13 +403,10 @@ internal sealed record ContinuationStamp(string StateText)
                 .Append(OrbMirrors.GetEvokeValue(simulator, orb)).Append("],");
     }
 
-    private static void AppendPowers(StringBuilder text, IEnumerable<PowerModel> powers)
+    private static void AppendPowers(StringBuilder text, IEnumerable<PowerModel> powers, CombatPredictionSimulator? simulator = null)
     {
         text.Append(";P=");
-        foreach (PowerModel power in powers
-            .Where(power => power.Amount != 0)
-            .OrderBy(power => power.Owner.CombatId)
-            .ThenBy(power => power.Id.Entry, StringComparer.Ordinal))
+        foreach (PowerModel power in powers.Where(power => power.Amount != 0))
         {
             text.Append(power.Owner.CombatId).Append(':').Append(power.Id.Entry).Append('=')
                 .Append(power.Amount).Append('/')
@@ -424,6 +421,9 @@ internal sealed record ContinuationStamp(string StateText)
                     text.Append(':').Append(stringVar.StringValue);
                 text.Append(',');
             }
+            if (power is SurroundedPower surrounded)
+                text.Append("Facing=").Append(simulator == null ? surrounded.Facing
+                    : PowerPredictionStateSupport.SurroundedFacing(simulator, surrounded)).Append(',');
             text.Append("],");
         }
     }

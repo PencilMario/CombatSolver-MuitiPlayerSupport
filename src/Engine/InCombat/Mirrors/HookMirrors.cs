@@ -168,11 +168,13 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             AfterBlockGainedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
     // Mirrors Hook.AfterStarsGained.
-    public static void AfterStarsGained(
+    public static bool AfterStarsGained(
         CombatPredictionSimulator simulator,
         int amount,
         Player gainer)
@@ -187,7 +189,10 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             AfterStarsGainedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return false;
         }
+        return true;
     }
 
     // Mirrors Hook.AfterBlockBroken. Vanilla deliberately iterates the combat state directly
@@ -207,6 +212,8 @@ internal static class HookMirrors
         foreach (var listener in context.State.IterateHookListeners())
         {
             AfterBlockBrokenMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -254,12 +261,16 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             AfterCardDrawnMirrors.InvokeEarly(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
 
         HookListenerEnumerable listeners = IterateCombatHookListeners(simulator);
         foreach (var listener in listeners)
         {
             AfterCardDrawnMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
         AfterCardDrawnMirrors.Invoke(card.Preview, context);
     }
@@ -280,6 +291,8 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             AfterCardExhaustedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -327,6 +340,8 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             AfterCardDiscardedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -347,6 +362,8 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             AfterCardGeneratedForCombatMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -392,12 +409,27 @@ internal static class HookMirrors
             return originalCost;
         }
 
-        var context = new ModifyEnergyCostInCombatMirrorContext
+        // 费用查询是最热的 hook 之一（每次可玩性判定都要为手里每张牌跑一遍）。这个 context
+        // 调用返回后无人持有，按模拟器复用一份即可；绑在模拟器上是因为 Simulator 是 required
+        // init，复用范围不能跨模拟器。取用时先摘空槽位，万一某个游戏侧 hook 递归回到这里，
+        // 内层会自建一份，两层互不干扰。
+        ModifyEnergyCostInCombatMirrorContext context;
+        if (simulator.EnergyCostMirrorScratch is { } scratch)
         {
-            Simulator = simulator,
-            Card = card,
-            Cost = originalCost
-        };
+            simulator.EnergyCostMirrorScratch = null;
+            scratch.Card = card;
+            scratch.Cost = originalCost;
+            context = scratch;
+        }
+        else
+        {
+            context = new ModifyEnergyCostInCombatMirrorContext
+            {
+                Simulator = simulator,
+                Card = card,
+                Cost = originalCost
+            };
+        }
 
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
@@ -416,7 +448,9 @@ internal static class HookMirrors
             context.Cost = 0m;
         }
 
-        return context.Cost;
+        decimal cost = context.Cost;
+        simulator.EnergyCostMirrorScratch = context;
+        return cost;
     }
 
     /// <summary>
@@ -573,6 +607,8 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             BeforeCardPlayedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -599,11 +635,15 @@ internal static class HookMirrors
         foreach (var listener in context.State.IterateHookListeners())
         {
             AfterCardPlayedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
 
         foreach (var listener in context.State.IterateHookListeners())
         {
             AfterCardPlayedMirrors.InvokeLate(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
 
         // A paired listener can be removed by the card being resolved, so it no longer appears in
@@ -628,6 +668,8 @@ internal static class HookMirrors
         foreach (var listener in IterateRunHookListeners(simulator))
         {
             AfterCurrentHpChangedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -804,6 +846,8 @@ internal static class HookMirrors
         foreach (var listener in IterateRunHookListeners(simulator))
         {
             AfterDamageGivenMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -847,6 +891,8 @@ internal static class HookMirrors
         foreach (var listener in IterateRunHookListeners(simulator))
         {
             BeforeDamageReceivedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -872,11 +918,15 @@ internal static class HookMirrors
         foreach (var listener in IterateRunHookListeners(simulator))
         {
             AfterDamageReceivedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
 
         foreach (var listener in IterateRunHookListeners(simulator))
         {
             AfterDamageReceivedMirrors.InvokeLate(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -917,11 +967,35 @@ internal static class HookMirrors
     public static void AfterAttack(CombatPredictionSimulator simulator, AttackCommand command)
     {
         var context = new AfterAttackMirrorContext { Simulator = simulator, Command = command };
+        IReadOnlyList<AbstractModel> listeners = simulator.State.IterateHookListeners();
+        bool completed = false;
 
-        foreach (var listener in simulator.State.IterateHookListeners())
+        try
         {
-            AfterAttackMirrors.Invoke(listener, context);
+            foreach (var listener in listeners)
+            {
+                AfterAttackMirrors.Invoke(listener, context);
+                if (simulator.HasPendingChoice)
+                    return;
+            }
+            completed = true;
         }
+        finally
+        {
+            foreach (AbstractModel listener in listeners)
+                AfterAttackMirrors.CompleteOrAbortPairedState(listener, context, completed);
+        }
+    }
+
+    // Clears command-scoped BeforeAttack bookkeeping when the containing action
+    // suspends. This deliberately does not record an attack, invoke ordinary
+    // AfterAttack effects, or consume one-shot attack powers; replay starts again
+    // from the whole-action snapshot.
+    public static void AbortAttack(CombatPredictionSimulator simulator, AttackCommand command)
+    {
+        var context = new AfterAttackMirrorContext { Simulator = simulator, Command = command };
+        foreach (AbstractModel listener in simulator.State.IterateHookListeners())
+            AfterAttackMirrors.CompleteOrAbortPairedState(listener, context, completed: false);
     }
 
     // Mirrors Hook.ShouldDie followed by Hook.ShouldDieLate, including first-preventer short-circuiting.
@@ -999,6 +1073,8 @@ internal static class HookMirrors
         foreach (var listener in IterateRunHookListeners(simulator))
         {
             AfterDeathMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -1043,6 +1119,8 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             AfterOrbChanneledMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -1062,6 +1140,8 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             AfterOrbEvokedMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -1073,6 +1153,8 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             AfterAutoPostPlayPhaseEnteredMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -1092,16 +1174,22 @@ internal static class HookMirrors
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             BeforeSideTurnEndMirrors.InvokeVeryEarly(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
 
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             BeforeSideTurnEndMirrors.InvokeEarly(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
 
         foreach (var listener in IterateCombatHookListeners(simulator))
         {
             BeforeSideTurnEndMirrors.Invoke(listener, context);
+            if (simulator.HasPendingChoice)
+                return;
         }
     }
 
@@ -1114,43 +1202,86 @@ internal static class HookMirrors
         IReadOnlyList<AbstractModel> listeners = simulator.IsOverOrEnding
             ? Array.Empty<AbstractModel>()
             : simulator.State.IterateHookListeners();
-        return new HookListenerEnumerable(listeners);
+        return new HookListenerEnumerable(simulator, listeners);
     }
 
     // IReadOnlyList<T>.GetEnumerator returns an interface enumerator and boxes List/array
     // enumerators. Hook dispatch is frequent enough for those tiny objects to become a visible
     // search allocation source, so iterate the immutable listener snapshot by index instead.
-    private readonly struct HookListenerEnumerable(
-        IReadOnlyList<AbstractModel> listeners)
+    private readonly struct HookListenerEnumerable
     {
-        public IReadOnlyList<AbstractModel> Listeners { get; } = listeners;
+        // 运行级监听表可能是"根牌组前缀 + 战斗监听表"的拼接视图。走视图自己的索引器意味着
+        // 每个元素两次接口调用外加一次分支；这里拆成两段各自按下标推进，元素与顺序不变。
+        private readonly IReadOnlyList<AbstractModel> _first;
+        private readonly IReadOnlyList<AbstractModel>? _second;
+
+        private readonly CombatPredictionSimulator _simulator;
+
+        public HookListenerEnumerable(CombatPredictionSimulator simulator, IReadOnlyList<AbstractModel> listeners)
+        {
+            _simulator = simulator;
+            if (listeners is ISegmentedModelList segmented)
+            {
+                _first = segmented.Prefix;
+                _second = segmented.Suffix;
+            }
+            else
+            {
+                _first = listeners;
+                _second = null;
+            }
+        }
 
         public Enumerator GetEnumerator()
-            => new(Listeners);
+            => new(_simulator, _first, _second);
 
         public bool Contains(AbstractModel candidate)
         {
-            for (int index = 0; index < Listeners.Count; index++)
+            for (int index = 0; index < _first.Count; index++)
             {
-                if (EqualityComparer<AbstractModel>.Default.Equals(Listeners[index], candidate))
+                if (EqualityComparer<AbstractModel>.Default.Equals(_first[index], candidate))
+                    return true;
+            }
+            if (_second is null)
+                return false;
+            for (int index = 0; index < _second.Count; index++)
+            {
+                if (EqualityComparer<AbstractModel>.Default.Equals(_second[index], candidate))
                     return true;
             }
             return false;
         }
 
-        internal struct Enumerator(IReadOnlyList<AbstractModel> listeners)
+        internal struct Enumerator(
+            CombatPredictionSimulator simulator,
+            IReadOnlyList<AbstractModel> first,
+            IReadOnlyList<AbstractModel>? second)
         {
+            private IReadOnlyList<AbstractModel> _segment = first;
+            private IReadOnlyList<AbstractModel>? _pending = second;
             private int _index = -1;
 
-            public AbstractModel Current => listeners[_index];
+            public AbstractModel Current => _segment[_index];
 
             public bool MoveNext()
             {
-                int next = _index + 1;
-                if (next >= listeners.Count)
+                // Mirrored listeners are synchronous projections of async vanilla hooks. A
+                // nested card choice is their suspension boundary: no later listener or later
+                // hook phase may run until the containing action is replayed with that choice.
+                if (simulator.HasPendingChoice)
                     return false;
-                _index = next;
-                return true;
+                int next = _index + 1;
+                if (next < _segment.Count)
+                {
+                    _index = next;
+                    return true;
+                }
+                if (_pending is null)
+                    return false;
+                _segment = _pending;
+                _pending = null;
+                _index = -1;
+                return MoveNext();
             }
         }
     }
@@ -1163,8 +1294,9 @@ internal static class HookMirrors
     {
         var combatState = simulator.State.CombatState;
         if (combatState is ICombatPredictionHookListenerSource source)
-            return new HookListenerEnumerable(source.RunHookListeners);
+            return new HookListenerEnumerable(simulator, source.RunHookListeners);
         return new HookListenerEnumerable(
+            simulator,
             combatState.RunState.IterateHookListeners(combatState).ToArray());
     }
 }
