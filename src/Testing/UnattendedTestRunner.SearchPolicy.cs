@@ -8,7 +8,9 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
-    private static async Task AssertSearchPolicySnapshotAsync(CombatState combat)
+    private static async Task AssertSearchPolicySnapshotAsync(
+        CombatState combat,
+        bool verifyStandPatBatches = false)
     {
         AssertBeamRankOffensiveProgressTieBreak();
         AssertOrdinaryBeamBoundaryDiversity();
@@ -80,6 +82,14 @@ internal sealed partial class UnattendedTestRunner
             displayNames,
             battleDamage,
             capturedPolicy);
+        if (verifyStandPatBatches)
+        {
+            await AssertStandPatProbeBatchesAsync(
+                rootSnapshot,
+                displayNames,
+                battleDamage,
+                capturedPolicy);
+        }
 
         SearchPolicySnapshot serialPolicy = capturedPolicy with { MaxDegreeOfParallelism = 1 };
         SearchPolicySnapshot parallelPolicy = capturedPolicy with { MaxDegreeOfParallelism = 2 };

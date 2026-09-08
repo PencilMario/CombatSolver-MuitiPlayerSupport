@@ -220,6 +220,7 @@ sealed record StackInfo(string[] Frames, int ResolvedFrames, string Scope, strin
         ExpansionWork = new[]
         {
             Solver + ".ParallelExpansionExecutor.Execute/ExecuteActionReplay/ExecuteRoundChoiceReplay",
+            Solver + ".ParallelExpansionExecutor.AdmittedExpansionJob.Execute/StandPatJob.Execute",
             Solver + ".EvaluateRawExpansion/EvaluatePreparedCardAction/ReplayAction/Replay/Expand",
         },
         SolverSearch = Solver + ".Solve/SolveCore",
@@ -257,6 +258,8 @@ sealed record StackInfo(string[] Frames, int ResolvedFrames, string Scope, strin
         if (anchor is not null)
             scope = "RootCapture";
         else if ((anchor = Anchor(Solver + ".ParallelExpansionExecutor", "Execute", "ExecuteActionReplay", "ExecuteRoundChoiceReplay")
+                 ?? Anchor(Solver + ".ParallelExpansionExecutor.AdmittedExpansionJob", "Execute")
+                 ?? Anchor(Solver + ".ParallelExpansionExecutor.StandPatJob", "Execute")
                  ?? Anchor(Solver, "EvaluateRawExpansion", "EvaluatePreparedCardAction", "ReplayAction", "Replay", "Expand")) is not null)
             scope = "ExpansionWork";
         else if ((anchor = Anchor(Solver, "Solve", "SolveCore")) is not null)

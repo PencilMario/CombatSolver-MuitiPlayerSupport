@@ -51,6 +51,12 @@ internal sealed class CombatRootSnapshot
     public bool HasUnusedCardReplayAllocator { get; }
     public bool HasRenewablePotionShapedRock { get; }
     public PostCombatRelicHealProfile PostCombatRelicHeal { get; }
+    internal HookLayoutCacheStatistics HookLayoutCacheStatistics
+        => ((SimulatedCombatState)_rootSimulator.State.CombatState).HookLayoutCacheStatistics;
+    internal HookListenerSegmentStatistics HookListenerSegmentStatistics
+        => ((SimulatedCombatState)_rootSimulator.State.CombatState).HookListenerSegmentStatistics;
+    internal (long Hits, long Probes, long Bypasses) TargetTypeAbsenceCounts
+        => RitsuBaseLibTargetTypeResolution.MissingType.Counts;
 
     private CombatRootSnapshot(
         Player playerIdentity,

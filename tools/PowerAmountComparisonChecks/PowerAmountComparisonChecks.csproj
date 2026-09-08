@@ -5,9 +5,7 @@
     <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="../../src/Runtime/RitsuBaseLibTargetTypeLookupPatch.cs" Link="RitsuBaseLibTargetTypeLookupPatch.cs" />
-    <Compile Include="../../src/Runtime/AssemblyTypeAbsenceCache.cs" Link="AssemblyTypeAbsenceCache.cs" />
-    <Compile Include="../../src/Runtime/RitsuBaseLibTargetTypeResolutionPatches.cs" Link="RitsuBaseLibTargetTypeResolutionPatches.cs" />
+    <Compile Include="../../src/Runtime/PowerAmountComparisonPatch.cs" Link="PowerAmountComparisonPatch.cs" />
     <Reference Include="STS2-RitsuLib" HintPath="$(RitsuLibDir)/STS2-RitsuLib.dll" />
     <Reference Include="sts2" HintPath="$(Sts2DataDir)/sts2.dll" />
     <Reference Include="0Harmony" HintPath="$(Sts2DataDir)/0Harmony.dll" />

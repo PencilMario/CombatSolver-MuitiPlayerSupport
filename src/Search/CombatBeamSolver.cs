@@ -101,7 +101,8 @@ internal sealed partial class CombatBeamSolver(
         _enforcePotionDirectives,
         root.HasRenewablePotionShapedRock,
         _run,
-        EvaluateStandPat);
+        EvaluateStandPat,
+        PrepareStandPatProbes);
     private FinalPlanOrdering? _finalOrdering;
     private FinalPlanOrdering FinalOrdering => _finalOrdering ??= new FinalPlanOrdering(
         _potionPolicy,
@@ -116,7 +117,8 @@ internal sealed partial class CombatBeamSolver(
         _minimumPotionUses,
         policy.Diagnostics,
         _detailedDiagnostics,
-        battleDamage);
+        battleDamage,
+        _run.PotionStrategicCosts);
 
     private bool AllowsPotionUse(int slot, string potionId)
         => _potionStrategy.AllowsExplicitUse(

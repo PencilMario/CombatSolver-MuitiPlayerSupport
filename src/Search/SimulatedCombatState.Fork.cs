@@ -171,14 +171,38 @@ internal sealed partial class SimulatedCombatState
         if (!CanReuseHookListenerCache)
             return;
 
+        if (_baseHookListenerPrefix is not null)
+            fork._baseHookListenerPrefix = RemapCachedModels(_baseHookListenerPrefix, context);
+        if (_effectiveHookListenerPrefix is not null)
+            fork._effectiveHookListenerPrefix = ReferenceEquals(_effectiveHookListenerPrefix, _baseHookListenerPrefix)
+                ? fork._baseHookListenerPrefix : RemapCachedModels(_effectiveHookListenerPrefix, context);
+        if (_activeHookListenerPrefix is not null)
+            fork._activeHookListenerPrefix = ReferenceEquals(_activeHookListenerPrefix, _effectiveHookListenerPrefix)
+                ? fork._effectiveHookListenerPrefix : RemapCachedModels(_activeHookListenerPrefix, context);
+
         if (_baseHookListeners is not null)
-            fork._baseHookListeners = RemapCachedModels(_baseHookListeners, context);
+        {
+            fork._baseHookListeners = _baseHookListeners is ConcatenatedListenerView baseView
+                && ReferenceEquals(baseView.Prefix, _baseHookListenerPrefix)
+                && fork._baseHookListenerPrefix is { } basePrefix
+                ? new ConcatenatedListenerView(basePrefix, RemapCachedModels(baseView.Suffix, context))
+                : RemapCachedModels(_baseHookListeners, context);
+        }
 
         if (_effectiveHookListeners is not null)
         {
-            fork._effectiveHookListeners = ReferenceEquals(_effectiveHookListeners, _baseHookListeners)
-                ? fork._baseHookListeners
-                : RemapCachedModels(_effectiveHookListeners, context);
+            if (ReferenceEquals(_effectiveHookListeners, _baseHookListeners))
+                fork._effectiveHookListeners = fork._baseHookListeners;
+            else if (_effectiveHookListeners is ConcatenatedListenerView effectiveView
+                && _baseHookListeners is ConcatenatedListenerView baseView
+                && ReferenceEquals(effectiveView.Suffix, baseView.Suffix)
+                && fork._baseHookListeners is ConcatenatedListenerView forkedBase)
+                fork._effectiveHookListeners = new ConcatenatedListenerView(
+                    ReferenceEquals(effectiveView.Prefix, _effectiveHookListenerPrefix)
+                        && fork._effectiveHookListenerPrefix is { } effectivePrefix
+                        ? effectivePrefix : RemapCachedModels(effectiveView.Prefix, context), forkedBase.Suffix);
+            else
+                fork._effectiveHookListeners = RemapCachedModels(_effectiveHookListeners, context);
         }
 
         if (_effectiveRunHookListeners is not null)
@@ -213,6 +237,13 @@ internal sealed partial class SimulatedCombatState
         IReadOnlyList<AbstractModel> source,
         PredictionForkContext context)
     {
+        if (source is ConcatenatedListenerView view)
+        {
+            IReadOnlyList<AbstractModel> prefix = RemapCachedModels(view.Prefix, context);
+            IReadOnlyList<AbstractModel> suffix = RemapCachedModels(view.Suffix, context);
+            return ReferenceEquals(prefix, view.Prefix) && ReferenceEquals(suffix, view.Suffix)
+                ? source : new ConcatenatedListenerView(prefix, suffix);
+        }
         AbstractModel[]? remapped = null;
         for (int index = 0; index < source.Count; index++)
         {

@@ -1,14 +1,61 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Models;
 
 namespace CombatSolver.Engine.Common;
 
-// A root-frozen dispatch optimization for HookMirrors only. Domain/native listener
-// enumeration remains complete. Never omit external types or a patched base hook.
+// Root-frozen dispatch metadata for mirrors and the native keyword no-op guard.
+// Domain/native listener enumeration remains complete. External and patched hooks
+// always retain the original dispatch path.
 internal sealed class MirroredHookListenerFilter(bool enabled)
 {
+    // This filter belongs to one captured root. Only immutable runtime-type layouts
+    // cross branches; receiver models remain exclusively in each returned snapshot.
+    // A direct-mapped table has bounded retention and needs no worker-side lock.
+    internal const int SharedLayoutSlots = 2048;
+    private const int MaxSharedLayoutLength = 1024;
+    private readonly MirroredHookListenerLayout?[] _sharedLayouts =
+        enabled ? new MirroredHookListenerLayout?[SharedLayoutSlots] : [];
+    private long _sharedHits;
+    private long _sharedMisses;
+    private long _sharedCollisions;
+    private long _sharedBypasses;
+    private long _listenerPrefixReuses;
+    private long _listenerPrefixBuilds;
+    private long _listenerSplitBuilds;
+    private long _listenerWholeBuilds;
+    private long _effectivePrefixReuses;
+    private long _effectivePrefixBuilds;
+
+    internal HookListenerSegmentStatistics ListenerSegmentStatistics => new(
+        Volatile.Read(ref _listenerPrefixReuses), Volatile.Read(ref _listenerPrefixBuilds),
+        Volatile.Read(ref _listenerSplitBuilds), Volatile.Read(ref _listenerWholeBuilds),
+        Volatile.Read(ref _effectivePrefixReuses), Volatile.Read(ref _effectivePrefixBuilds));
+
+    internal void RecordEffectivePrefix(bool reused)
+    {
+        if (reused) Interlocked.Increment(ref _effectivePrefixReuses);
+        else Interlocked.Increment(ref _effectivePrefixBuilds);
+    }
+
+    internal void RecordListenerPrefix(bool reused)
+    {
+        if (reused) Interlocked.Increment(ref _listenerPrefixReuses);
+        else Interlocked.Increment(ref _listenerPrefixBuilds);
+    }
+
+    internal void RecordListenerSegmentResult(bool split)
+    {
+        if (split) Interlocked.Increment(ref _listenerSplitBuilds);
+        else Interlocked.Increment(ref _listenerWholeBuilds);
+    }
+
+    internal HookLayoutCacheStatistics Statistics => new(
+        Volatile.Read(ref _sharedHits), Volatile.Read(ref _sharedMisses),
+        Volatile.Read(ref _sharedCollisions), Volatile.Read(ref _sharedBypasses));
+
     private static readonly Dictionary<string, MirroredHookMask> HookNames = new()
     {
         [nameof(AbstractModel.AfterAttack)] = MirroredHookMask.AfterAttack,
@@ -65,39 +112,79 @@ internal sealed class MirroredHookListenerFilter(bool enabled)
         [nameof(AbstractModel.TryModifyEnergyCostInCombat)] = MirroredHookMask.TryModifyEnergyCostInCombat,
         [nameof(AbstractModel.TryModifyEnergyCostInCombatLate)] = MirroredHookMask.TryModifyEnergyCostInCombatLate,
         [nameof(AbstractModel.TryModifyStarCost)] = MirroredHookMask.TryModifyStarCost,
+        [nameof(AbstractModel.TryModifyKeywordsInCombat)] = MirroredHookMask.TryModifyKeywordsInCombat,
     };
     private static readonly MethodInfo[] BaseHooks = typeof(AbstractModel)
         .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.DeclaredOnly)
         .Where(method => HookNames.ContainsKey(method.Name))
         .ToArray();
     private static readonly ConditionalWeakTable<Type, Participation> TypeParticipation = new();
+    private static readonly MethodInfo NativeKeywordHook = typeof(Hook)
+        .GetMethod(nameof(Hook.ModifyKeywordsInCombat))!;
 
     // Re-read the patch table for every captured root, as with the OnPlay patch audit.
     // The immutable decision is shared by its forks; no model or live state is cached.
     internal static MirroredHookListenerFilter Capture()
-        => new(!BaseHooks.Any(method => Harmony.GetPatchInfo(method) is { } patches
-            && patches.Owners.Count != 0));
+        => new(!BaseHooks.Append(NativeKeywordHook).Any(method =>
+            Harmony.GetPatchInfo(method) is { } patches && patches.Owners.Count != 0));
 
     internal IReadOnlyList<AbstractModel> Filter(
         IReadOnlyList<AbstractModel> source,
         ref MirroredHookListenerLayout? layout)
     {
         if (!enabled || source.Count == 0)
+        {
+            Interlocked.Increment(ref _sharedBypasses);
             return source;
+        }
         // Only runtime types determine participation. The layout has no model references
         // and can survive model remapping, value changes and Fork without copying.
         if (layout is null || !layout.Matches(source))
         {
-            var entries = new MirroredHookListenerLayout.Entry[source.Count];
-            MirroredHookMask combined = 0;
-            for (int index = 0; index < source.Count; index++)
+            int slot = -1;
+            if (source.Count <= MaxSharedLayoutLength)
             {
-                Type type = source[index].GetType();
-                MirroredHookMask mask = MaskFor(type);
-                entries[index] = new(type, mask);
-                combined |= mask;
+                uint hash = unchecked((uint)source.Count);
+                for (int index = 0; index < source.Count; index++)
+                    hash = unchecked(hash * 16777619u
+                        ^ (uint)RuntimeHelpers.GetHashCode(source[index].GetType()));
+                slot = (int)(hash & (SharedLayoutSlots - 1));
+                MirroredHookListenerLayout? shared = Volatile.Read(ref _sharedLayouts[slot]);
+                // Hashes select a slot only. Exact type order establishes reuse, so
+                // collisions and racing replacement can only cause a cache miss.
+                if (shared is not null && shared.Matches(source))
+                {
+                    Interlocked.Increment(ref _sharedHits);
+                    layout = shared;
+                }
+                else
+                {
+                    Interlocked.Increment(ref _sharedMisses);
+                    if (shared is not null)
+                        Interlocked.Increment(ref _sharedCollisions);
+                    layout = null;
+                }
             }
-            layout = new(entries, combined);
+            else
+            {
+                Interlocked.Increment(ref _sharedBypasses);
+                layout = null;
+            }
+            if (layout is null)
+            {
+                var entries = new MirroredHookListenerLayout.Entry[source.Count];
+                MirroredHookMask combined = 0;
+                for (int index = 0; index < source.Count; index++)
+                {
+                    Type type = source[index].GetType();
+                    MirroredHookMask mask = MaskFor(type);
+                    entries[index] = new(type, mask);
+                    combined |= mask;
+                }
+                layout = new(entries, combined);
+                if (slot >= 0)
+                    Volatile.Write(ref _sharedLayouts[slot], layout);
+            }
         }
         return layout.HasAny(MirroredHookMask.All)
             ? new MirroredHookListenerSnapshot(source, layout)
@@ -130,6 +217,13 @@ internal sealed class MirroredHookListenerFilter(bool enabled)
 
     private sealed record Participation(MirroredHookMask Mask);
 }
+
+internal readonly record struct HookLayoutCacheStatistics(
+    long Hits, long Misses, long Collisions, long Bypasses);
+
+internal readonly record struct HookListenerSegmentStatistics(
+    long PrefixReuses, long PrefixBuilds, long SplitBuilds, long WholeBuilds,
+    long EffectivePrefixReuses, long EffectivePrefixBuilds);
 
 [Flags]
 internal enum MirroredHookMask : ulong
@@ -188,6 +282,7 @@ internal enum MirroredHookMask : ulong
     TryModifyEnergyCostInCombat = 1UL << 51,
     TryModifyEnergyCostInCombatLate = 1UL << 52,
     TryModifyStarCost = 1UL << 53,
+    TryModifyKeywordsInCombat = 1UL << 54,
     All = ulong.MaxValue,
 }
 

@@ -86,7 +86,9 @@ internal sealed partial class UnattendedTestRunner
             if (request.VerifySearchPolicySnapshot)
             {
                 runner.SetStage("search_policy_snapshot");
-                await AssertSearchPolicySnapshotAsync(scenario.CombatState);
+                await AssertSearchPolicySnapshotAsync(
+                    scenario.CombatState,
+                    verifyStandPatBatches: request.ScenarioId == "STAND-PAT-PROBE-BATCHES");
                 runner._completedChecks.Add("SearchPolicySnapshot");
             }
             if (request.VerifyGrowthPolicy)

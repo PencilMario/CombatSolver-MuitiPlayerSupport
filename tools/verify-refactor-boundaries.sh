@@ -475,6 +475,7 @@ expected_beam_files=(
     CombatBeamSolver.PrimaryChoiceReplay.cs
     CombatBeamSolver.Retention.cs
     CombatBeamSolver.StateEvaluation.cs
+    CombatBeamSolver.StandPatJobs.cs
     CombatBeamSolver.Terminal.cs
 )
 mapfile -t actual_beam_names < <(
@@ -527,6 +528,15 @@ CombatBeamSolver.PrimaryChoiceReplay.cs	public bool CanDispatchContinuation => C
 CombatBeamSolver.PrimaryChoiceReplay.cs	if (!budget.TrySpendReplayAttempt())
 CombatBeamSolver.PrimaryChoiceReplay.cs	frontier.AssertConsumed();
 CombatBeamSolver.PrimaryChoiceReplay.cs	if (index != NextReplay || count < 1 || count > 4 || index + count > Actions.Length)
+CombatBeamSolver.Models.cs	public ParallelExpansionExecutor? ActiveParallelExpansion;
+CombatBeamSolver.ParallelExpansion.cs	_coordinator._run.ActiveParallelExpansion = null;
+CombatBeamSolver.StandPatJobs.cs	private void PrepareStandPatProbes(IEnumerable<SearchNode> nodes)
+CombatBeamSolver.StandPatJobs.cs	seen.Add(node.StateKey)
+CombatBeamSolver.StandPatJobs.cs	_run.StandPatCache.Add(pending[index].StateKey, evaluations[index]);
+CombatBeamSolver.StandPatJobs.cs	ExpansionLane[] lanes = EnsureBackgroundLanes();
+CombatBeamSolver.StandPatJobs.cs	_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);
+CombatBeamSolver.StandPatJobs.cs	wave.Completed.Wait();
+CombatBeamSolver.Retention.cs	end.ReleaseSimulator();
 CombatBeamSolver.ParallelExpansion.cs	private void CommitExpansionBatch(
 CombatBeamSolver.Phases.cs	public SolverResult Solve()
 CombatBeamSolver.Expansion.cs	private IEnumerable<SearchNode> Expand(SearchNode node)
@@ -875,12 +885,42 @@ for rule in 'ConditionalWeakTable<Assembly, Resolution>' 'SimulationNotification
     require_fixed "$repository_root/src/Runtime/RitsuBaseLibTargetTypeLookupPatch.cs" "$rule" 'missing metadata cache boundary'
 done
 
+while IFS=$'\t' read -r relative_path text; do
+    require_fixed "$repository_root/$relative_path" "$text" 'missing exact metadata reuse boundary'
+done <<'EOF'
+src/Runtime/PowerAmountComparisonPatch.cs	Enum.GetUnderlyingType(typeof(PowerStackType)) != typeof(int)
+src/Runtime/PowerAmountComparisonPatch.cs	if (matches.Count != 2
+src/Runtime/PowerAmountComparisonPatch.cs	code[i].labels.Count != 0 || code[i].blocks.Count != 0
+src/Runtime/AssemblyTypeAbsenceCache.cs	WeakReference<Assembly>[] DynamicAssemblies
+src/Runtime/AssemblyTypeAbsenceCache.cs	AppDomain.CurrentDomain.AssemblyLoad
+src/Runtime/AssemblyTypeAbsenceCache.cs	absence.Generation == Volatile.Read(ref _assemblyGeneration)
+src/Runtime/AssemblyTypeAbsenceCache.cs	assembly.GetType(markerTypeName, throwOnError: false)
+src/Runtime/RitsuBaseLibTargetTypeResolutionPatches.cs	!SimulationNotificationIsolation.IsActive
+src/Runtime/RitsuBaseLibTargetTypeResolutionPatches.cs	MissingType.ObserveResult(__state, __result)
+src/Search/SimulatedCombatState.cs	IReadOnlyList<PowerModel>? powers = effectivePrefix is not null ? _effectivePowers : null;
+src/Search/SimulatedCombatState.cs	_effectiveHookListenerPrefix = null;
+src/Search/SimulatedCombatState.Fork.cs	ReferenceEquals(_activeHookListenerPrefix, _effectiveHookListenerPrefix)
+src/Search/SimulatedCombatState.cs	private IReadOnlyList<AbstractModel> GetBaseHookListenerPrefix()
+src/Search/SimulatedCombatState.cs	if (insertionIndex < 0 && requirePrefixAnchor)
+src/Search/SimulatedCombatState.cs	_baseHookListenerPrefix = null;
+src/Search/SimulatedCombatState.cs	private void InvalidateCardAndOrbHookListeners()
+src/Search/SimulatedCombatState.Fork.cs	fork._baseHookListenerPrefix = RemapCachedModels(_baseHookListenerPrefix, context);
+src/Search/CombatBeamSolver.BeamRetentionPolicy.cs	group.RankSummary = new(
+src/Search/CombatBeamSolver.BeamRetentionPolicy.cs	ComputeRoutingParentRetentionRank(group)
+src/Engine/Common/MirroredHookListenerFilter.cs	shared.Matches(source)
+src/Engine/Common/MirroredHookListenerFilter.cs	Volatile.Write(ref _sharedLayouts[slot], layout)
+src/Engine/Common/MirroredHookListenerFilter.cs	source.Count <= MaxSharedLayoutLength
+src/Engine/Common/MirroredHookListenerFilter.cs	BaseHooks.Append(NativeKeywordHook)
+src/Engine/InCombat/Simulation/CombatPredictedCardExtensions.cs	!listeners.HasAny(MirroredHookMask.TryModifyKeywordsInCombat)
+EOF
+
 # A new facade/default-hook callback must join the dispatch layout before it can be skipped.
 mirrored_filter_path="$repository_root/src/Engine/Common/MirroredHookListenerFilter.cs"
 while IFS= read -r mirrored_hook_name; do
     require_fixed "$mirrored_filter_path" "nameof(AbstractModel.$mirrored_hook_name)" 'missing mirrored hook participation metadata'
 done < <(
     {
+        printf '%s\n' 'TryModifyKeywordsInCombat'
         rg --no-filename -o 'nameof\(AbstractModel\.[A-Za-z][A-Za-z0-9]*\)' "$repository_root/src/Engine/InCombat/Mirrors" | sed -E 's/nameof\(AbstractModel\.([A-Za-z0-9]+)\)/\1/'
         rg --no-filename -o '(listener|modifier)\.[A-Za-z][A-Za-z0-9]*\(' "$repository_root/src/Engine/InCombat/Mirrors/HookMirrors.cs" | sed -E 's/(listener|modifier)\.([A-Za-z0-9]+)\(/\2/'
     } | sort -u

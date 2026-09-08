@@ -43,6 +43,33 @@ internal sealed partial class CombatBeamSolver
         }
         finally
         {
+            policy.Diagnostics.Info(
+                $"[CombatSolver/Test] ROUTING_CHOICE_SUMMARIES scope=solver " +
+                $"builds={_run.RoutingChoiceSummaryBuilds} hits={_run.RoutingChoiceSummaryHits} " +
+                $"bypasses={_run.RoutingChoiceSummaryBypasses}");
+            HookLayoutCacheStatistics hookLayouts = root.HookLayoutCacheStatistics;
+            HookListenerSegmentStatistics hookSegments = root.HookListenerSegmentStatistics;
+            policy.Diagnostics.Info(
+                $"[CombatSolver/Test] HOOK_LISTENER_SEGMENTS scope=root_cumulative " +
+                $"prefix_reuses={hookSegments.PrefixReuses} prefix_builds={hookSegments.PrefixBuilds} " +
+                $"split_builds={hookSegments.SplitBuilds} whole_builds={hookSegments.WholeBuilds} " +
+                $"effective_prefix_reuses={hookSegments.EffectivePrefixReuses} " +
+                $"effective_prefix_builds={hookSegments.EffectivePrefixBuilds}");
+            policy.Diagnostics.Info(
+                $"[CombatSolver/Test] HOOK_LAYOUT_CACHE scope=root_cumulative " +
+                $"hits={hookLayouts.Hits} misses={hookLayouts.Misses} " +
+                $"collisions={hookLayouts.Collisions} bypasses={hookLayouts.Bypasses}");
+            var targetTypes = root.TargetTypeAbsenceCounts;
+            policy.Diagnostics.Info(
+                $"[CombatSolver/Test] TARGET_TYPE_ABSENCE_CACHE scope=process_cumulative " +
+                $"hits={targetTypes.Hits} probes={targetTypes.Probes} bypasses={targetTypes.Bypasses}");
+            if (_run.PotionStrategicCosts.Misses > 0)
+            {
+                policy.Diagnostics.Info(
+                    $"[CombatSolver/Test] POTION_POLICY_LOOKUP " +
+                    $"hits={_run.PotionStrategicCosts.Hits} misses={_run.PotionStrategicCosts.Misses} " +
+                    $"entries={_run.PotionStrategicCosts.Count}");
+            }
             if (_run.DeferredFrontier != null)
             {
                 _run.DeferredFrontier.Clear();

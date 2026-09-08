@@ -425,7 +425,8 @@ internal sealed partial class CombatBeamSolver
         bool _enforcePotionDirectives,
         bool _renewablePotionShapedRock,
         SearchRunContext _run,
-        Func<SearchNode, StandPatEvaluation> _evaluateStandPat)
+        Func<SearchNode, StandPatEvaluation> _evaluateStandPat,
+        Action<IEnumerable<SearchNode>>? _prepareStandPat = null)
     {
         private const int PersistentRoutingContextRounds = 8;
         private const int RoutingChoiceLimit = 96;
@@ -543,7 +544,7 @@ internal sealed partial class CombatBeamSolver
                     continue;
                 if (string.IsNullOrEmpty(action.PotionId))
                     throw new InvalidOperationException("用药动作缺少药水 ID。");
-                explicitPotionStrategicCost += PotionUsePolicy.StrategicHpCost(
+                explicitPotionStrategicCost += _run.PotionStrategicCosts.Get(
                     action.PotionId,
                     _renewablePotionShapedRock);
                 if (string.Equals(action.PotionId, "AMBERGRIS", StringComparison.Ordinal))
@@ -581,7 +582,7 @@ internal sealed partial class CombatBeamSolver
                         continue;
                     }
                     forcedUseCount++;
-                    forcedStrategicHpCost += PotionUsePolicy.StrategicHpCost(
+                    forcedStrategicHpCost += _run.PotionStrategicCosts.Get(
                         directive.PotionId,
                         _renewablePotionShapedRock);
                     if (string.Equals(directive.PotionId, "AMBERGRIS", StringComparison.Ordinal))
@@ -738,7 +739,11 @@ internal sealed partial class CombatBeamSolver
             public SearchNode BestDefense = first;
             public SearchNode BestSetup = first;
             public SearchNode BestPileOrder = first;
+            public RoutingRankSummary? RankSummary;
         }
+
+        private readonly record struct RoutingRankSummary(
+            double MaximumBeamScore, double MaximumParentScore, int MinimumParentRank);
 
         private sealed class RoutingChoiceScratch
         {
@@ -2602,14 +2607,25 @@ internal sealed partial class CombatBeamSolver
                     }
                     routingNodes.Add(node);
                 }
+                // The ordered groups are now complete. Parent ranks and score inputs remain
+                // unchanged until AssignRetentionRanks, after this entire routing block.
+                // Use the original reductions once, including their NaN behavior.
+                foreach (RoutingChoiceNodes group in nodesByRoutingChoice.Values)
+                {
+                    group.RankSummary = new(
+                        group.Max(BeamRankScore),
+                        ComputeRoutingParentScore(group),
+                        ComputeRoutingParentRetentionRank(group));
+                    _run.RoutingChoiceSummaryBuilds++;
+                }
                 List<IReadOnlyList<SearchNode>> paretoByRoutingChoice = [];
                 List<IReadOnlyList<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>>> routingFamilies =
                     nodesByRoutingChoice
-                        .OrderByDescending(pair => pair.Value.Max(BeamRankScore))
+                        .OrderByDescending(pair => MaximumRoutingBeamScore(pair.Value))
                         .GroupBy(pair => BuildRoutingChoiceFamilySignature(pair.Key))
                         .OrderBy(family => family.Min(pair => RoutingParentRetentionRank(pair.Value)))
                         .ThenByDescending(family => family.Max(pair => RoutingParentScore(pair.Value)))
-                        .ThenByDescending(family => family.Max(pair => pair.Value.Max(BeamRankScore)))
+                        .ThenByDescending(family => family.Max(pair => MaximumRoutingBeamScore(pair.Value)))
                         .Select(family => (IReadOnlyList<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>>)
                             OrderRoutingChoiceEventContexts(family))
                         .ToList();
@@ -6159,7 +6175,40 @@ internal sealed partial class CombatBeamSolver
                     or PlanChoiceEffect.MoveToHandFreeThisTurn
                     or PlanChoiceEffect.GenerateToHand;
 
+        private double MaximumRoutingBeamScore(IReadOnlyList<SearchNode> nodes)
+        {
+            if (nodes is RoutingChoiceNodes { RankSummary: { } summary })
+            {
+                _run.RoutingChoiceSummaryHits++;
+                return summary.MaximumBeamScore;
+            }
+            _run.RoutingChoiceSummaryBypasses++;
+            return nodes.Max(BeamRankScore);
+        }
+
         private double RoutingParentScore(IReadOnlyList<SearchNode> nodes)
+        {
+            if (nodes is RoutingChoiceNodes { RankSummary: { } summary })
+            {
+                _run.RoutingChoiceSummaryHits++;
+                return summary.MaximumParentScore;
+            }
+            _run.RoutingChoiceSummaryBypasses++;
+            return ComputeRoutingParentScore(nodes);
+        }
+
+        private int RoutingParentRetentionRank(IReadOnlyList<SearchNode> nodes)
+        {
+            if (nodes is RoutingChoiceNodes { RankSummary: { } summary })
+            {
+                _run.RoutingChoiceSummaryHits++;
+                return summary.MinimumParentRank;
+            }
+            _run.RoutingChoiceSummaryBypasses++;
+            return ComputeRoutingParentRetentionRank(nodes);
+        }
+
+        private double ComputeRoutingParentScore(IReadOnlyList<SearchNode> nodes)
             => nodes.Max(node =>
             {
                 if (TryGetRetainedRoutingChoice(node, out _, out SearchNode choiceNode)
@@ -6170,7 +6219,7 @@ internal sealed partial class CombatBeamSolver
                 return BeamRankScore(node);
             });
 
-        private static int RoutingParentRetentionRank(IReadOnlyList<SearchNode> nodes)
+        private static int ComputeRoutingParentRetentionRank(IReadOnlyList<SearchNode> nodes)
             => nodes.Min(node =>
             {
                 if (TryGetRetainedRoutingChoice(node, out _, out SearchNode choiceNode)
@@ -6196,11 +6245,11 @@ internal sealed partial class CombatBeamSolver
                 .GroupBy(pair => BuildRoutingChoiceOptionSignature(pair.Key))
                 .OrderBy(group => group.Min(pair => RoutingParentRetentionRank(pair.Value)))
                 .ThenByDescending(group => group.Max(pair => RoutingParentScore(pair.Value)))
-                .ThenByDescending(group => group.Max(pair => pair.Value.Max(BeamRankScore)))
+                .ThenByDescending(group => group.Max(pair => MaximumRoutingBeamScore(pair.Value)))
                 .Select(group => (IReadOnlyList<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>>)group
                     .OrderBy(pair => RoutingParentRetentionRank(pair.Value))
                     .ThenByDescending(pair => RoutingParentScore(pair.Value))
-                    .ThenByDescending(pair => pair.Value.Max(BeamRankScore))
+                    .ThenByDescending(pair => MaximumRoutingBeamScore(pair.Value))
                     .ToList())
                 .ToList();
             return InterleaveRoutingChoiceContexts(optionGroups);
@@ -6429,6 +6478,11 @@ internal sealed partial class CombatBeamSolver
                  cursor?.Action is { } action;
                  cursor = cursor.Parent)
             {
+                // Action turns are monotonic along the parent chain. An end-turn action
+                // may hold next-turn choices, so retain that one-turn boundary; everything
+                // older is already rejected by TryBuildRoutingChoice's turn window.
+                if (action.Turn < minimumChoiceTurn - 1)
+                    break;
                 // Enumerable.Reverse 先把整段选择缓冲成一个数组再倒着走。这两段本来就是可按
                 // 下标访问的只读列表，直接倒序索引给出同样的访问序列与同样的首个命中即返回。
                 if (action.TurnStartChoices is { Count: > 0 } turnStartChoices)
@@ -6549,9 +6603,9 @@ internal sealed partial class CombatBeamSolver
 
         private static bool ContainsReference(IReadOnlyList<SearchNode> nodes, SearchNode candidate)
         {
-            foreach (SearchNode node in nodes)
+            for (int index = 0; index < nodes.Count; index++)
             {
-                if (ReferenceEquals(node, candidate))
+                if (ReferenceEquals(nodes[index], candidate))
                     return true;
             }
             return false;
@@ -7191,6 +7245,7 @@ internal sealed partial class CombatBeamSolver
                 .Take(limit)
                 .ToList();
 
+            _prepareStandPat?.Invoke(probes);
             SearchNode? best = null;
             StandPatEvaluation bestEvaluation = default;
             foreach (SearchNode node in probes)
@@ -7220,12 +7275,14 @@ internal sealed partial class CombatBeamSolver
 
         private SearchNode? FindBestFreshResourceStandPat(IReadOnlyList<SearchNode> nodes)
         {
-            SearchNode? best = null;
-            StandPatEvaluation bestEvaluation = default;
-            foreach (SearchNode node in nodes.Where(node => node.Parent is { } parent
+            List<SearchNode> probes = nodes.Where(node => node.Parent is { } parent
                          && (node.Snapshot.FutureResourceValue > parent.Snapshot.FutureResourceValue
                              || node.Snapshot.StrategicEffects.ResourcePotential
-                                > parent.Snapshot.StrategicEffects.ResourcePotential)))
+                                > parent.Snapshot.StrategicEffects.ResourcePotential)).ToList();
+            _prepareStandPat?.Invoke(probes);
+            SearchNode? best = null;
+            StandPatEvaluation bestEvaluation = default;
+            foreach (SearchNode node in probes)
             {
                 StandPatEvaluation evaluation = _evaluateStandPat(node);
                 if (best == null

@@ -1,5 +1,15 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：回合结束探针与元数据热路径
+
+- 第二组固定 VeryHigh/DOP8/NoGC16GB、B1–C1–C2–B2–B3–C3–C4–B4 全部八个正式结果 Passed：37.6927→25.4926 秒，平均耗时−32.37%，分配−17.14%，采样峰值 RSS−16.10%。全部90项逐项比较；唯一差异为 C2 的 `phase/deep_triggered`，源码证明由20秒耗时检查点派生，原比较和分类修正均保留。其余88项非时序字段与64条完整预测动作全部一致；正常 Deep 预算、主搜索/恢复工作量和选择数相同。第一组−24.74%的失败结果完整保留，未删慢样本；候选仍有约2.1秒GC长暂停。
+- 当前候选 `5d194a22bcc8496c998ba396f9873e83` Passed：55 回调/1,670 Model、ForkBoundaries，包含完整类型/接收者顺序、碰撞与并发替换、默认关键字原生对照、无前段锚点回退、Fork 后卡牌变更、有效前段及 Power 投影保留和父分支隔离。新候选 Release 零警告/错误。
+- 最终候选 Deep 固定1000节点 `8effcf7a2e804c52867335cf32e636aa` Passed（请求56.99秒）：实际641次探针，DOP1/2全结果/动作/评分/续用/非时序指标相同，双lane同步屏障、取消/异常身份和在途排空、部分工作唯一记账、原根复用。
+- Knights Short 哨兵 `9664c01a18084c92afe111f9d47ce7e8` Passed，与基线 `a4683db7ba964e259533372424f94250` 的90项字段/9条动作一致。正常Deep1GB NoGC 基线/候选 `591767d49821417d90d7134ce000d764` / `2345c8785fac4c8fb6d9b81e72aa43ae` 均 Passed：90字段/64动作一致，63/52次回收后保持46,239展开、636,428转移；搜索56.9968/42.4920秒，请求81.80/67.33秒，均在120秒内。
+- `dotnet run --project tools/RitsuTargetTypeLookupChecks -c Release` 23项通过：实际生产回调、AssemblyLoad/动态晚建失效、失败不发布、live旁路、弱所有权。`dotnet run --project tools/PowerAmountComparisonChecks -c Release` 8项通过：1,568组实际原生方法对照、getter调用顺序、未知IL/内部标签旁路，10万次分配9.6MB→0。
+- 最终源码 Release 构建4.07秒，零警告/错误；Bash和PowerShell结构门禁均输出 `REFACTOR_BOUNDARIES_OK search_files=82`。
+- 复跑命令、全部runId、撤回原型、线程/GC口径和未验证范围见[报告](performance/standpat-and-metadata-20260909.md)及JSON。性能只来自正常headless，未运行本轮整场原生部署或可见Steam；增量回放不用于性能测量。
+
 ## 2026-09-09：已准入父节点内的动作与选择作业
 
 - 固定 VeryHigh/DOP8/NoGC设置16GB、首结果停止、每请求120秒；预定A–B–C–C–B–A独立进程，每进程短搜预热一次后测短搜/正常配置。最终正常搜索39.4485/42.2771→36.0760/36.7188秒，均值−10.93%；原版首尾漂移7.17%，仅headless样本。32组探索及正式结果的83项非时序/非物理调度字段和59/64条预测动作一致。

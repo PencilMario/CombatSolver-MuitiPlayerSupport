@@ -136,6 +136,9 @@ internal sealed partial class CombatBeamSolver
             ArgumentOutOfRangeException.ThrowIfLessThan(degreeOfParallelism, 2);
             _coordinator = coordinator;
             DegreeOfParallelism = degreeOfParallelism;
+            if (coordinator._run.ActiveParallelExpansion != null)
+                throw new InvalidOperationException("同一搜索不能嵌套并行执行器。");
+            coordinator._run.ActiveParallelExpansion = this;
         }
 
         public int DegreeOfParallelism { get; }
@@ -175,6 +178,7 @@ internal sealed partial class CombatBeamSolver
             if (_disposed)
                 return;
             _disposed = true;
+            _coordinator._run.ActiveParallelExpansion = null;
             if (_backgroundLanes != null)
             {
                 foreach (ExpansionLane lane in _backgroundLanes)

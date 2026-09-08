@@ -130,14 +130,19 @@ internal sealed partial class CombatBeamSolver
     {
         public Guid PathDiagnosticsSolverId;
         public int PathDiagnosticsBoundaryId;
+        public long RoutingChoiceSummaryBuilds;
+        public long RoutingChoiceSummaryHits;
+        public long RoutingChoiceSummaryBypasses;
         public readonly SearchPerformanceMetrics Performance = new(measurePhasePerformance);
         public readonly SearchWorkPacer WorkPacer = new(framePressureSignal);
         public readonly OwnedExpansionBatch<SimulationSnapshot, RawCardCandidate, SearchNode>.Pool
             ExpansionBatchPool = new(static snapshot => snapshot.ReleaseSimulator());
         public readonly SnapshotListBuffer<PredictedCard> SnapshotLiveCards = new();
+        public ParallelExpansionExecutor? ActiveParallelExpansion;
         public Dictionary<StateFingerprint, TranspositionFrontier> Transpositions = [];
         public Dictionary<StateFingerprint, TranspositionFrontier> ExpandedTranspositions = [];
         public Dictionary<StateFingerprint, StandPatEvaluation> StandPatCache = [];
+        public readonly PotionStrategicCostLookup PotionStrategicCosts = new();
         public Dictionary<(StateFingerprint State, int RoundIndex), ThreatProjection> ThreatProjectionCache = [];
         public Dictionary<PredictionRiskSignature, CoverageSummary> CoverageCache = [];
         // This ledger is search semantics rather than a rebuildable cache. In particular, a

@@ -13,6 +13,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 
 - `Expansion` 产生候选；
 - `ParallelExpansion` 准备并物化原始候选；`AdmittedExpansion` 用固定 lane 调度已准入父节点内的动作/选择/药水作业，`PrimaryChoiceReplay` 保存原预算必经的首层回放，再按输入顺序提交；
+- `StandPatJobs` 复用当前 lane 评估保路必经的 EndTurn 探针，原序缓存与选择仍由 coordinator 完成；
 - `StateEvaluation` 计算快照、威胁和评分特征；
 - `BeamRetentionPolicy` 决定中间候选保留；
 - `FinalPlanOrdering` 决定终局路线；
@@ -37,6 +38,8 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 路线质量的首要基线是同一起点、同牌序与 RNG 下的整场战损。回合数、击杀速度和展开深度只作次级信息，除非用户明确把它们设为目标；不得用更少回合替代更低战损宣称优化。
 
 `-VerifyIncrementalSearch`（PowerShell）/ `--verify-incremental-search`（Bash）会逐转移执行完整回放，只用于正确性，不能与性能门槛组合，也不能引用其时间或分配作为生产性能。
+
+单会话正常搜索从 Deep profile 开始；输出的 `phase` / `deep_triggered` 由单次 solver 是否跨过 Short 时间检查点派生。优化后跨过该阈值时，先核对实际 profile、节点/转移预算、工作计数和动作，再把这两个标签与耗时一起报告；不能把标签变化误判为切换短搜，也不能把它们冒充固定工作量字段。保留原始比较与分类修正依据，不删除样本或改变耗时门槛。
 
 ## 2. 判断瓶颈所在职责
 
@@ -69,18 +72,21 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 
 ## 4. 性能所有权
 
-- `BeamRetentionPolicy.RoutingChoiceScratch` 只复用空字典桶；每次 `RankBest` 的 `RoutingChoiceNodes` 独占候选列表和五项代表，按原比较规则聚合，归还时清空引用，不跨调用缓存组。合并重复查表不能顺便缓存父链/排名查询；额外缓存必须单独证明有效期及完整非时序指标一致。
+- `BeamRetentionPolicy.RoutingChoiceScratch` 只复用空字典桶；每次 `RankBest` 的 `RoutingChoiceNodes` 独占候选列表和五项代表，按原比较规则聚合，归还时清空引用，不跨调用缓存组。组填满后用原 `Max/Min` 冻结最高 Beam 分、最高父分和最低父排名；只在本次 routing block 中使用，全部消费早于 `AssignRetentionRanks`，下一次调用重新建立。不得把该组统计扩展成单节点父链或跨调用排名缓存；新统计必须证明有效期并对比包括 deferred-round 诊断在内的相关非时序指标。
 - `SearchRunContext` 是单次运行可变指标、转置和缓存的所有者；不要把这些字段退回 solver 入口或静态全局。
 - 并行 worker 只能拥有 lane-local 模拟、缓存、节流和原始候选；transposition、dominance、fallback、预算与最终接收顺序仍由 coordinator 独占。固定 lane 应在一次 `Solve` 内复用，禁止回到每父节点 `Task.Run` / 新建 solver。
 - 外层最多预约 `2×DOP` 父节点，已准入作业内同时模拟最多 DOP；自然 singleton 也使用同一调度器。准备动作表后，每父节点独立 Fork gate 串行生成 seed，lane 在 gate 外独占模拟。动态选择预算及 occurrence collector 属于一条完整动作链，不并发消费同一个预算。药水/目标是独立作业，全部卡牌/选择/药水完成后才执行 EndTurn 并发布父节点 stand-pat 基线。coordinator 归并 worker 指标后才能复用 lane，按动作/药水原序聚合，只提交完成父节点的连续前缀。内部不能新准入父节点或做 GC checkpoint；原父节点高水位预约覆盖所有在途结果，数量界不当作硬字节界。异常停止派发、排空全部 lane 后才释放 probe/batch/root；高分支场景必须同时看峰值图和分配。
+- 待命探针并行只覆盖原保路会访问的未缓存状态，保留首次原代表；不扩大候选集合。复用同一固定 lane，coordinator 独占缓存，worker 只交出标量；临时快照在发布前释放，失败和取消必须排空。最终 Deep 固定节点合同同时覆盖 DOP1/DOP2、在途取消/失败和原根复用，普通 Short 合同不能代替这一边界。
 - 只有容器进入 `SearchRunContext` 的有界空闲池；每个发布批次必须持有独立 lease，归还前清空引用，旧 Dispose 不得触碰后来租户。不得池化 simulator/model。
 - 首层回放并行必须先证明原动态预算必定覆盖这些物理回放：N≥2 且语义最终额度和回放额度都≥N、选择非空时，原 ceil 租约递推保证每个兄弟的第一次回放必经。frontier 只暂存这 N 次结果，原序续接消费逻辑额度；嵌套选择与实例补充不并发。不能把各兄弟预先固定为平均总配额，也不能在预算不足时猜测准入；合同覆盖饱和、无效、混合消耗与512上限。
 - Snapshot 临时牌列表只由当前 `_run` / lane 租用，维持 Discard → Draw → Hand 拼接顺序和原稳定洗牌。归还清空引用，只留一个容量不超过 4096 的列表；租用代次防止复制的旧 lease 清空新租户，禁止把列表存入返回快照或策略上下文。
 - GC 生命周期计数由 Runtime 在准入 Gate 内冻结。普通 GC 的共享进程窗口不得称为独占请求归因；总暂停、observed max 与 trace max 必须区分。Smart 预测只决定可选层间回收，不能改层预算或候选策略。
-- Ritsu BaseLib 目标桥的优化仅缓存静态程序集的精确元数据查询。保持模拟隔离域、动态程序集/live旁路及 ConditionalWeakTable 弱所有权；不得升级为框架全局负缓存、跳过自定义目标谓词或修改枚举顺序。新程序集与动态晚创建须由直接生产回调合同覆盖，采样与微基准不能代替固定工作量及可见性能。
-- Hook 分发优化只省略已核对为原版默认空操作的回调，不能删除原生/领域监听成员。`MirroredHookListenerFilter` 的类型布局只含 Type/位图，按原位置对应当前分支模型，允许 Fork 共享；成员类型顺序变化时重建，普通监听失效时清空派生视图。每个新根重新检查基方法补丁，第三方/动态类型与不透明 CardModifier 旁路；新回调必须更新两端结构门禁检查的位图表。不能把父分支 Model 或暂停中的监听事务放进布局。
+- Ritsu BaseLib 目标桥只缓存精确类型元数据。单程序集查询保持 ConditionalWeakTable 弱所有权；全程序集 null 结果只能作为特定类型的缺失证据，必须校验 AssemblyLoad 代次，并逐次重查弱引用中的动态程序集。异常不形成证据，新程序集或动态晚创建目标类型立即回到原查询，live 调用旁路。不得缓存框架是否安装、跳过自定义目标谓词或改变原查询语义；直接生产回调合同覆盖失效与弱所有权，采样和微基准不能代替固定工作量及可见性能。
+- Hook 分发优化只省略已核对为原版默认空操作的回调，不能删除原生/领域监听成员。`MirroredHookListenerFilter` 的布局只含 Type/位图，按原位置对应当前分支模型；同根有界共享表必须逐项核对完整类型顺序，哈希碰撞或并发替换只允许降低命中率。表不持有 Model，普通监听失效清空派生视图，根结束后共享表可回收。每个新根重新检查基方法和原生关键字 Hook 补丁，第三方/动态类型与不透明 CardModifier 旁路；新回调同步两端位图门禁。原生关键字调用只能在确认全体接收者为空操作时省略。记录缓存命中/碰撞/旁路，根累计指标不能把主搜与恢复相加。
+- 监听前段只含阵容/遗物/药水/根 Power，卡牌/球变化不得修改已发布前段；阵容/药水变化仍完整失效。有效 Power 插入缺少前段锚点时回退原完整列表，不透明 CardModifier 也保持完整列表及追加器上下文。只有不可变已发布段才能冻结拼接长度；Fork 经同一上下文重映射，复用后段不得保留父分支可变模型。有效/活动前段及 Power 投影只在成功分段时跨卡牌/球变化保留；Power、阵容、药水失效必须同时清空，Fork 也要重映射已失去完整后段的保留前段。测试覆盖无前段锚点、卡牌变化后前段复用和 Fork 引用。
 - worker 阶段 ticks 来自 `Stopwatch`，合并后是各段经过时间之和，包含被抢占、锁等待与 GC 暂停，既不是实际 CPU 时间，也不是墙钟占比。实际 CPU 使用 perf on-CPU 样本或线程调度运行时间；同时记录 `parallel_waves`、`parallel_work_items`、`parallel_max_concurrency` 和平均用核数，避免只凭峰值并发宣称已充分并行。
 - BaseLib `3.4.5` 的克隆扩展会以非原子的“先查后加”访问全局弱表。并行搜索必须保留 `BaseLibCloneConcurrencyPatch` 对原版 `MutableClone` 第三方扩展段的窄串行边界；不要删除该边界，也不要把它扩大到候选生成、模拟、剪枝或提交阶段。
+- 原生 `PowerModel.GetTypeForAmount` 的枚举装箱优化只能替换精确匹配的两段同 int 枚举比较；保留所有虚 getter、decimal 判断、标签与异常区域，内部控制流或未知 IL 旁路。生产 transpiler 必须以真实游戏方法核对输出、getter 次数/顺序、未定义枚举值与分配；不能用跳过 getter 的类型缓存代替。
 - 游戏 `0.111.0` 的 `LocManager.SmartFormat` 复用同一个 SmartFormat 实例及对象池，不支持并发调用。`PowerDynamicVarWarmup` 必须在主线程根捕获时物化规范 Power 与当前战斗 Power 的显示变量；`PowerDynamicVarMaterializationGuardPatch` 保证 worker 不再惰性创建 Power 显示变量。命中 guard 时补齐主线程物化边界，不给全局格式化器加锁，也不在 worker 内提供默认文本。`LocManager.SmartFormat` 本身含异常过滤器，禁止直接用 Harmony 改写。
 - Runtime 拥有 `SearchGcPolicy`，Search 只通过 `SearchFramePressureSignal` / `SearchWorkPacer` 消费节流信号。
 - 搜索内回收只等待自己发起的收集，不加入要求该搜索退出的 deferred 完成链。后台 GC 请求不等于回收完成：核对最新已完成 Gen2 与释放后哨兵，取消不能提前交还所有权，超时/异常必须排空未确认请求。手动完成、引用释放 epoch 与搜索取消各有独立语义；请求后台模式与 CLR 实际 Concurrent 结果分开记录，生命周期合同不当作暂停收益证据。
