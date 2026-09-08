@@ -11,6 +11,9 @@ $forbiddenSearchReferences = @(
     "SolverOverlay",
     "SolverText",
     "SolverRelicEffectText",
+    "SolverUiModelNames",
+    "SolverActionTextIdentity",
+    "SolverLocaleRefresh",
     "SolvedRouteCache",
     "UnattendedTestRunner"
 )

@@ -148,7 +148,8 @@ internal sealed record PlanAction(
     int ReplayCount = 0,
     string CardStateKey = "",
     int CardStateOccurrence = 0,
-    bool EndsPlayerTurn = false)
+    bool EndsPlayerTurn = false,
+    int CardUpgradeLevel = 0)
 {
     public bool IsExecutable => Kind is PlanActionKind.PlayCard or PlanActionKind.UsePotion;
     public string ActionTitle => Kind == PlanActionKind.UsePotion ? PotionTitle : CardTitle;

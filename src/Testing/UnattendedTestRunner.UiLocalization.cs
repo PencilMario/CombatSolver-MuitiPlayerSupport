@@ -8,6 +8,7 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Localization;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.Cards;
 using MegaCrit.Sts2.Core.Models.Orbs;
 using MegaCrit.Sts2.Core.Models.Powers;
 
@@ -32,6 +33,7 @@ internal sealed partial class UnattendedTestRunner
         string language = LocManager.Instance.Language;
         try
         {
+            await AssertCardLanguageRoundTripAsync();
             foreach (string target in new[] { "eng", "zhs", "zht" })
             {
                 LocManager.Instance.SetLanguage(target);
@@ -135,12 +137,56 @@ internal sealed partial class UnattendedTestRunner
         string kill = $"Enemy（{names.DamageSource(CombatDamageSource.For(CombatDamageSourceKind.Poison))}）";
         SolverOverlayActionSnapshot snapshot = SolverOverlaySnapshot.CaptureAction(action, [kill]);
         if (snapshot.RelicLabels.Single() != "Relic" + (english ? ": Strength +1 Dexterity +2" : "：力量+1 敏捷+2")
-            || snapshot.ChoiceText != (english ? "Choose Strike / Skip choice" : "选 Strike / 不选")
+            || snapshot.ChoiceText != (english ? $"Choose {ModelDb.Card<StrikeIronclad>().Title} / Skip choice" : $"选 {ModelDb.Card<StrikeIronclad>().Title} / 不选")
             || !snapshot.Tooltip.Contains(snapshot.RelicLabels[0], StringComparison.Ordinal)
             || !snapshot.Tooltip.Contains(english ? "(Potion)" : "（药水）", StringComparison.Ordinal)
             || snapshot.Kills.Single() != kill)
             throw new InvalidOperationException("Secondary capsule labels and tooltips disagree.");
         _completedChecks.Add($"ActionAnnotations:{language}:CapturedDamageSources:20RelicFormats:NestedChoices:Tooltip");
+    }
+
+    private async Task AssertCardLanguageRoundTripAsync()
+    {
+        LocManager.Instance.SetLanguage("eng");
+        CardModel upgraded = ModelDb.Card<StrikeIronclad>().ToMutable();
+        upgraded.UpgradeInternal();
+        upgraded.FinalizeUpgradeInternal();
+        PlanAction plan = new(PlanActionKind.PlayCard, 1, CardId: upgraded.Id.Entry,
+            CardTitle: upgraded.Title, CardUpgradeLevel: 1,
+            Choice: new PlanCardChoice(PlanChoiceEffect.Discard, PileType.Hand,
+                [new(upgraded.Id.Entry, 1, "unchanged", 0, 0, upgraded.Title)]));
+        string serialized = JsonSerializer.Serialize(plan);
+        PlanAction restored = JsonSerializer.Deserialize<PlanAction>(serialized)!;
+        SolverOverlayActionSnapshot englishSnapshot = SolverOverlaySnapshot.CaptureAction(restored, []);
+        Control pill = SolverActionPill.Create(englishSnapshot);
+        int subscriptions = SolverLocaleRefresh.SubscriptionCountForTesting;
+        int replans = SolverController.UnexpectedReplanCount;
+        bool searching = SolverController.IsSearching;
+        _host.AddChild(pill);
+        try
+        {
+            foreach (string language in new[] { "zhs", "eng", "zhs" })
+            {
+                LocManager.Instance.SetLanguage(language);
+                await _host.ToSignal(_host.GetTree(), SceneTree.SignalName.ProcessFrame);
+                await _host.ToSignal(_host.GetTree(), SceneTree.SignalName.ProcessFrame);
+                string expected = upgraded.Title;
+                Label title = (Label)pill.GetChild(0).GetChild(1);
+                if (title.Text != expected || !pill.TooltipText.Contains(expected, StringComparison.Ordinal)
+                    || !SolverActionTextIdentity.Refresh(englishSnapshot).ChoiceText!.Contains(expected, StringComparison.Ordinal)
+                    || SolverOverlaySnapshot.CaptureAction(restored, []).Title != expected)
+                    throw new InvalidOperationException($"Retained or restored card name stayed in the previous language: {language}");
+                if (restored.CardTitle != plan.CardTitle || restored.CardUpgradeLevel != 1
+                    || JsonSerializer.Serialize(restored) != serialized)
+                    throw new InvalidOperationException("Locale refresh mutated the saved plan.");
+            }
+            if (SolverController.UnexpectedReplanCount != replans || SolverController.IsSearching != searching)
+                throw new InvalidOperationException("Locale refresh changed search state.");
+        }
+        finally { pill.Free(); }
+        if (SolverLocaleRefresh.SubscriptionCountForTesting != subscriptions)
+            throw new InvalidOperationException("Freed pill retained a locale subscription.");
+        _completedChecks.Add("CardLocaleRoundTrip:EnglishSnapshot:ChineseEnglishChinese:Upgrade:Choice:SerializedPlan:LivePill:SubscriptionCleanup:NoReplan");
     }
 
     private static void AssertEnglishControls(Node node)

@@ -10,6 +10,7 @@ description: 新增或修改 CombatSolver 玩家可见 UI 文案、胶囊附加�
 - `src/UI/SolverText.cs` 与内嵌 `src/UI/English.json`：`zhs` / `zht` 使用现有中文，其他语言使用英文。当前没有独立语言开关；切换游戏语言后重启统一刷新既有窗口和路线快照。
 - 静态文案用 `SolverText.Get`，插值用 `SolverText.Format`。先翻译完整模板，再插入名称、数字和玩家输入；保留占位符及格式，不对最终拼接文本全局替换中文。
 - `SolverOverlaySnapshot.CaptureAction` 同时生成胶囊和悬停说明。显示新信息时检查标题、目标、击杀括号来源、遗物效果、药水类型、选牌及嵌套/空选择，避免只翻译一级标签。
+- 卡牌名称以 snapshot 的 `SolverActionTextIdentity` 中稳定 ID/升级为依据，由主线程 `SolverUiModelNames` 解析当前语言；不要重新直接显示 PlanAction.CardTitle 或从已翻译标题推断升级。已有胶囊通过 `SolverLocaleRefresh` 合并语言通知原位刷新，退出树后解除登记；新增显示字段同时考虑新投影和已存活控件。
 - `SolverRelicEffectText` 解析内置遗物摘要的紧凑语法。新增内置记录格式时同步中英显示与样本；第三方自定义摘要保留其原文。
 - `SolverDisplayNames.Capture` 在主线程获取游戏名称，捕获能力/充能球的规范 ID 与类型名别名和通用来源的语言。worker 只读取冻结名称表；卡牌、怪物、遗物等沿用游戏译名。
 
@@ -22,5 +23,7 @@ description: 新增或修改 CombatSolver 玩家可见 UI 文案、胶囊附加�
 ## 验证
 
 文案改动选择受影响的最小检查；扩展胶囊来源或格式时使用 `UI-LOCALIZATION` headless 合同，覆盖 eng/zhs/zht、模板占位符、名称冻结、附加标签与 tooltip 一致性。命令及已有证据见 `docs/TEST_MATRIX.md`。只更新本 skill 时检查 frontmatter、路径和职责，不启动游戏。
+
+名称缓存/刷新改动还覆盖同一已保存英文路线和存活控件的中文→英文→中文往返，含升级牌、嵌套选择、JSON 恢复、订阅清理和搜索状态保持。只在每种语言下重建控件不足以验证热切换。
 
 输入未变且已有成功证据时复用。Headless 不证明真实排版或帧率；用户明确交由自己做交互验收时按其要求执行。

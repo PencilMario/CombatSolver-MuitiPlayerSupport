@@ -29,7 +29,8 @@ internal sealed record SolverOverlayActionSnapshot(
     IReadOnlyList<string> Kills,
     string Tooltip,
     SolverOverlayActionVisualKind VisualKind,
-    int ReplayCount);
+    int ReplayCount,
+    SolverActionTextIdentity? TextIdentity = null);
 
 internal sealed record SolverOverlayTurnSnapshot(
     int Turn,
@@ -319,32 +320,23 @@ internal sealed record SolverOverlaySnapshot(
         IReadOnlyList<string> kills,
         bool isDirectEndTurn = false)
     {
-        string[] choices = action.GetActionChoicesInExecutionOrder().Select(choice => choice.Cards.Count == 0
-            ? SolverText.Get("不选")
-            : SolverText.Format($"选 {string.Join("、", choice.Cards.Select(card => card.Title))}")).ToArray();
-        string? choiceText = choices.Length == 0 ? null : string.Join(" / ", choices);
-        string[] relicLabels = action.RelicEffects?
-            .Select(effect => effect.RelicTitle + SolverRelicEffectText.Format(effect.Summary))
-            .ToArray()
-            ?? [];
-        string[] copiedKills = kills.ToArray();
-        string title = action.Kind == PlanActionKind.EndTurn ? SolverText.Get("结束回合") : action.ActionTitle;
-        string tooltip = title + (action.Kind == PlanActionKind.UsePotion ? SolverText.Get("（药水）") : "")
-            + (string.IsNullOrEmpty(action.TargetName) ? "" : $"→{action.TargetName}")
-            + (relicLabels.Length > 0 ? $" [{string.Join("、", relicLabels)}]" : "")
-            + (choiceText == null ? "" : $"（{choiceText}）")
-            + (copiedKills.Length > 0 ? SolverText.Format($"，击杀 {string.Join("、", copiedKills)}") : string.Empty);
-        return new SolverOverlayActionSnapshot(
-            action.Kind == PlanActionKind.EndTurn
-                ? isDirectEndTurn ? SolverText.Get("直接结束") : SolverText.Get("结束回合")
-                : title,
+        SolverOverlayActionSnapshot snapshot = new(
+            action.ActionTitle,
             action.TargetName,
-            choiceText,
-            relicLabels,
-            copiedKills,
-            tooltip,
+            null,
+            [],
+            kills.ToArray(),
+            "",
             ResolveVisualKind(action),
-            action.ReplayCount);
+            action.ReplayCount,
+            new SolverActionTextIdentity(
+                action.CardId, action.CardUpgradeLevel, action.PotionId,
+                action.Kind == PlanActionKind.EndTurn, isDirectEndTurn,
+                action.GetActionChoicesInExecutionOrder().Select(choice =>
+                    (IReadOnlyList<SolverCardTextIdentity>)choice.Cards.Select(card =>
+                        new SolverCardTextIdentity(card.CardId, card.UpgradeLevel, card.Title)).ToArray()).ToArray(),
+                action.RelicEffects?.Select(effect => new SolverRelicTextIdentity(effect.RelicId, effect.RelicTitle, effect.Summary)).ToArray() ?? []));
+        return SolverActionTextIdentity.Refresh(snapshot);
     }
 
     // ModelDb.AllCards 是惰性 LINQ 查询，每次枚举都重跑 SelectMany/Distinct 并分配整套 HashSet；
@@ -399,7 +391,7 @@ internal sealed record SolverOverlaySnapshot(
             PlanChoiceEffect.GenerateToHand or PlanChoiceEffect.ModDefined => SolverText.Get("选择"),
             _ => choice.Effect.ToString(),
         };
-        return $"{source}：{effect} {string.Join('、', choice.Cards.Select(card => card.Title))}";
+        return $"{source}：{effect} {string.Join('、', choice.Cards.Select(card => SolverUiModelNames.Card(card.CardId, card.UpgradeLevel, card.Title)))}";
     }
 
     private static string BuildDetails(

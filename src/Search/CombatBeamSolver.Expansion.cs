@@ -87,7 +87,8 @@ internal sealed partial class CombatBeamSolver
                         displayNames.Creature(target),
                         ReplayCount: Math.Max(0, card.Preview.GetEnchantedReplayCount()),
                         CardStateKey: cardStateKey,
-                        CardStateOccurrence: cardStateOccurrence);
+                        CardStateOccurrence: cardStateOccurrence,
+                        CardUpgradeLevel: card.Preview.CurrentUpgradeLevel);
                     SimulationSnapshot probe = ReplayAction(seed, action);
                     try
                     {
@@ -647,7 +648,8 @@ internal sealed partial class CombatBeamSolver
                     targetName,
                     ReplayCount: Math.Max(0, card.Preview.GetEnchantedReplayCount()),
                     CardStateKey: cardStateKey,
-                    CardStateOccurrence: cardStateOccurrence);
+                    CardStateOccurrence: cardStateOccurrence,
+                        CardUpgradeLevel: card.Preview.CurrentUpgradeLevel);
                 SimulationSnapshot probeSnapshot = ReplayAction(node, action);
 
                 CardChoiceSpec? choiceSpec = BuildPrimaryCardChoiceSpec(probeSnapshot);

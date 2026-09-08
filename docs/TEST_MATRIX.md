@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：卡牌语言往返刷新（0.34.3）
+
+- `UI-LOCALIZATION`：`1e7e7f53067f4c34a1732b6c5b63c033` Passed，24.96 秒。新增英文已保存 PlanAction / UI snapshot，构造一次真实胶囊，依次切 zhs / eng / zhs，断言标题、升级符号、选牌、tooltip 与游戏译名一致；JSON 往返及旧计划内容保持原样。
+- 同时验证销毁控件后订阅数量恢复、语言切换不改变搜索状态或计划外重算计数，并继续通过 eng/zhs/zht 的 321 条文案和 20 类遗物摘要等既有合同。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId UI-LOCALIZATION -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance i18n-refresh -TimeoutSeconds 120 -ExitOnComplete`；Linux 使用对应 `.sh` 与同值长参数。
+- Release 行为构建 0 警告 / 0 错误；Windows 结构门禁通过。没有启动真实搜索或整场部署，没有可见交互/排版/帧率验收；只新增显示元数据，不改变模拟结算。
+
 ## 2026-09-08：胶囊附加信息本地化（0.34.2）
 
 - `UI-LOCALIZATION` 扩展合同 `43bdbcdfc4eb4bf68c1bd65746412e44` Passed，24.58 秒；eng/zhs/zht 分别覆盖 321 条文案、20 个遗物摘要样本、毒/荆棘/能力规范 ID 与类型名/充能球/敌方行动/未知来源、嵌套选择与空选择、药水标记、遗物胶囊和 tooltip 一致性。

@@ -2482,7 +2482,10 @@ internal static class SolverController
 
                 Player player = LocalContext.GetMe(state)!;
                 Creature? target = state.GetCreature(action.TargetCombatId);
-                SolverOverlay.ShowDeploymentStep(actionIndex, actions.Count, action.ActionTitle);
+                string actionTitle = action.Kind == PlanActionKind.UsePotion
+                    ? SolverUiModelNames.Potion(action.PotionId, action.PotionTitle)
+                    : SolverUiModelNames.Card(action.CardId, action.CardUpgradeLevel, action.CardTitle);
+                SolverOverlay.ShowDeploymentStep(actionIndex, actions.Count, actionTitle);
                 List<PlanCardChoice> actionChoices = [.. action.GetActionChoicesInExecutionOrder()];
                 // A card can advance the turn directly or through a nested auto-play, so its
                 // next-turn choices belong to this native UI session.
