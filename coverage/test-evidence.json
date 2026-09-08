@@ -1,4 +1,12 @@
 {
+  "SLOW-TURN-RESET-FORK": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTurnLifecycleForkDifferential",
+    "procedure": "旧日雕像战斗注入三张打击，先出两张，执行敌方回合开始并分叉，再出第三张。",
+    "expected": "缓慢清零保持能力身份、获得顺序和分支所有权，清零后分叉与再次攻击符合原版。",
+    "observed": "基线 21070eeed4b84c628ae7ac7f6ebe1cdf 在 Fork 抛出 SlowPower has no fork mapping；最终 2602bde5ac1c45f7af0344dc7cd6153a Passed，完整状态差分、身份、指纹和父子隔离通过。",
+    "evidence": "coverage/unattended/slow-turn-reset-fork-0339-cards.json；src/Testing/UnattendedTestRunner.SlowTurnReset.cs；docs/TEST_MATRIX.md；2026-09-08。"
+  },
   "FIX-141700-TURN-START-CHOICE-ONCE": {
     "status": "Passed",
     "level": "HeadlessTurnStartChoiceContinuationRegression",

@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：旧日雕像缓慢跨回合分叉（0.33.9）
+
+- `SLOW-TURN-RESET-FORK` 失败基线 `21070eeed4b84c628ae7ac7f6ebe1cdf`：敌方回合开始后 Fork 抛出 `SlowPower has no fork mapping`；最终 `2602bde5ac1c45f7af0344dc7cd6153a` Passed，24 秒。
+- 严格比较完整 MoveStateSnapshot / ContinuationStamp：两次打击累积、敌方阶段清零、清零后分叉、再次打击伤害和动态变量；同时断言能力实例身份、状态指纹相等，以及清零和再次出牌均保持父分支隔离。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId SLOW-TURN-RESET-FORK -EncounterId BYGONE_EFFIGY_ELITE -ClearAllPowers -ClearPlayerPiles -CardsPath coverage/unattended/slow-turn-reset-fork-0339-cards.json -EnemyCurrentHp 500 -InitialPlayerEnergy 10 -TimeoutSeconds 120 -ExitOnComplete`。Linux 使用同名 `.sh` 和对应长参数。
+- 51 份报告 / 40 场战斗的异常详情全部相同，只下载代表包 `c6e67f18952f4d1d9c9d3a4ac304b095`。Preflight 为 materials_valid；原生回放尝试 `0b29cb9ed6044ac9b702e53599111f18` 因 `environment_mismatch:mods` 被拒绝，restorationVerified=false。一次夹具启动使用了不存在的 BigDummy 遭遇名，修正为旧日雕像后取得上述基线。
+- 行为源码 Release 构建 0 警告 / 0 错误。本轮没有运行整场自动部署、增量搜索、可见 Steam 或完整发布门禁；最小生命周期差分未启动搜索。
+
 ## 2026-09-08：问题包 v2 与 miaovps（0.33.8）
 
 - `REPORT-V2-CONTRACT` 最终 `932296db26ac4e4ebb7b1432e823fddd` Passed，23 秒。覆盖真实 ZIP 导出、新目录与检查点材料、主线程战斗/角色/怪物元数据、未知和正/零/负战损下降值、multipart 字段、响应与取消边界、正式 HTTPS 证书校验上传及回执。命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId REPORT-V2-CONTRACT -HeadlessInstance report-v2 -TimeoutSeconds 120 -PreserveNativeCombatStateForTest -ForceShortSearchOnly`。

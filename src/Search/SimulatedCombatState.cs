@@ -1114,7 +1114,7 @@ internal sealed partial class SimulatedCombatState
         if (HasPendingChoice)
             return false;
         foreach (Creature owner in participants)
-            TriggerBaseSideTurnStart(owner, decrementPlating);
+            TriggerBaseSideTurnStart(simulator, owner, decrementPlating);
         if (!PersistentPowerSupport.TriggerAfterSideTurnStart(
                 simulator,
                 this,
@@ -1133,6 +1133,7 @@ internal sealed partial class SimulatedCombatState
     }
 
     private void TriggerBaseSideTurnStart(
+        CombatPredictionSimulator simulator,
         Creature owner,
         bool decrementPlating)
     {
@@ -1173,18 +1174,14 @@ internal sealed partial class SimulatedCombatState
             }
         }
 
-        SlowPower? slow = GetPower<SlowPower>(owner);
+        SlowPower? slow = GetMutablePower<SlowPower>(owner);
         if (slow != null)
         {
-            SlowPower reset = PredictionUtils.CloneModelForSimulation(slow);
-            reset._owner = owner;
-            reset._applier = slow.Applier;
-            reset._target = slow.Target;
-            reset._amount = slow.Amount;
-            reset.DynamicVars["SlowAmount"].BaseValue = 0;
-            reset.DynamicVars["DisplayAmount"].BaseValue = 0;
-            (_powers ??= [])[(owner, typeof(SlowPower))] = reset;
-            InvalidateHookListeners();
+            // Native Slow keeps its acquired instance across turns. Reset both the
+            // displayed state and the damage mirror's counter on that branch instance.
+            slow.DynamicVars["SlowAmount"].BaseValue = 0;
+            slow.DynamicVars["DisplayAmount"].BaseValue = 0;
+            simulator.StateStore.Get(slow, () => new CounterPredictionState(0)).Value = 0;
         }
 
     }

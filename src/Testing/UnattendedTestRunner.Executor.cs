@@ -186,6 +186,12 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("GalvanicGeneratedPower");
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "SLOW-TURN-RESET-FORK")
+            {
+                await runner.AssertSlowTurnResetForkAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "SUMMONED-ALLY-POWER-ORDER")
             {
                 await runner.AssertSummonedAllyPowerOrderAsync(combatState, player);
