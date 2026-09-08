@@ -52,6 +52,8 @@ description: 收到 CombatSolver 玩家问题 ZIP、战斗日志、存档或复�
 
 大日志只读取首个异常附近窗口。current/recent 多份证据先按 session 和时间去重。
 
+0.34.0 起先读 diagnostics/logs/index.json，按 combat/*.jsonl 的 Message 查异常和 traceId，再读取对应 ROUTE_REPLAY/ROUTE_ACTION/ROUTE_HEALTH 或 FAILED_CANDIDATE；history.json 只有历史战斗摘要。先核对 error/比较范围，不把首个标量差异称为首个完整语义差异，不要求新包包含 godot.log。
+
 ## 4. 找首个错误
 
 - 找最后一个已知正确检查点和第一个错误检查点。

@@ -961,6 +961,7 @@ foreach ($rendererPath in $overlayRendererPaths) {
 }
 
 $bugReportExporterPath = Join-Path $repositoryRoot "src\Runtime\CombatBugReportExporter.cs"
+$diagnosticJournalPath = Join-Path $repositoryRoot "src\Runtime\CombatDiagnosticJournal.cs"
 $bugReportUploaderPath = Join-Path $repositoryRoot "src\Runtime\CombatBugReportUploader.cs"
 $solverSettingsPanelPath = Join-Path $repositoryRoot "src\UI\SolverSettingsPanel.cs"
 $solverSettingsGeneralPath = Join-Path $repositoryRoot "src\UI\SolverSettingsPanel.General.cs"
@@ -968,6 +969,10 @@ $solverSettingsPerformancePath = Join-Path $repositoryRoot "src\UI\SolverSetting
 $solverSettingsBugReportsPath = Join-Path $repositoryRoot "src\UI\SolverSettingsPanel.BugReports.cs"
 $solverSettingsControlsPath = Join-Path $repositoryRoot "src\UI\SolverSettingsPanel.Controls.cs"
 foreach ($check in @(
+    @{ Path = $diagnosticJournalPath; Text = "AppendOnlyEventLog<CombatLogEntry>" },
+    @{ Path = $diagnosticJournalPath; Text = "_session?.Log.CaptureAsync()" },
+    @{ Path = $bugReportExporterPath; Text = "Entry.Logger.Journal.CaptureAsync()" },
+    @{ Path = $bugReportExporterPath; Text = "WriteDiagnosticLogs(archive, diagnosticLogs)" },
     @{ Path = $bugReportExporterPath; Text = "private static readonly BlockingCollection<Action> BackgroundOperations = new();" },
     @{ Path = $bugReportExporterPath; Text = "QueueCheckpointWrite(session, capture);" },
     @{ Path = $bugReportExporterPath; Text = "Task<ForensicArchiveBundle> forensicsTask = QueueBackground(" },
@@ -991,6 +996,11 @@ foreach ($check in @(
 }
 if (Select-String -LiteralPath $bugReportUploaderPath -SimpleMatch "using Godot" -Quiet) {
     $violations.Add("${bugReportUploaderPath}: uploader must not own Godot UI state")
+}
+foreach ($legacyLogRead in @("AddFileTail(", "CaptureLogStarts(", '"*.log"')) {
+    if (Select-String -LiteralPath $bugReportExporterPath -SimpleMatch $legacyLogRead -Quiet) {
+        $violations.Add("${bugReportExporterPath}: global log collection must stay out of report exports")
+    }
 }
 
 $searchCompletionNotifierPath = Join-Path $repositoryRoot "src\Runtime\SearchCompletionNotifier.cs"

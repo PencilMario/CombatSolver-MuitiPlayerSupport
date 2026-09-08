@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：战斗独立日志（0.34.0）
+
+- `dotnet run --project tools/DiagnosticLogTests/DiagnosticLogTests.csproj -c Release` 通过：冻结提交前缀、跨战斗摘要化、旧 worker 会话隔离、跑局摘要隔离、积压上限与显式不完整状态。1 万次入队调用约 6.91 ms、93.4 B/次，峰值待写计费 2,817,000 B；仅进程内微基准，不代表实机帧率。
+- `COMBAT-DIAGNOSTIC-LOG` 验证正常增量/根回放完整状态相等、人为注入 5 HP 差异后的首个动作定位、Damage/Heal 原生严格差分、失败候选日志与异常传播、独立日志 ZIP。`a5abab57628642d584802ba2d275bfce` Passed，23.23 秒；初次运行因旧归档测试仍要求最多一份全局日志而失败，更新到独立日志合同后通过。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId COMBAT-DIAGNOSTIC-LOG -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance diagnostic-log -TimeoutSeconds 120 -ExitOnComplete`；Linux 用对应 `.sh`、`--scenario-id`、`--encounter-id`、`--headless-instance`、`--timeout-seconds`、`--exit-on-complete`。
+- Windows 结构门禁通过。未做可见游戏帧率验收、整场部署或公网上传测试；提交协议未变，此场只导出本地问题包。
+- 最终合同 `6a1ff383efa84437a87b8eafc92843d1` Passed，23.37 秒，另覆盖正式搜索的最终路线物化；随后仅同步版本和文档。行为验证构建仍标记 0.33.9，发布构建统一为 0.34.0。
+
 ## 2026-09-08：在线监控登录持久化
 
 - `node --test tools/OnlinePresence/test.mjs tools/OnlinePresence/pagination.test.mjs tools/OnlinePresence/history.test.mjs tools/OnlinePresence/session.test.mjs`：10 项通过。

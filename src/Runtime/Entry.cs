@@ -21,12 +21,12 @@ public static class Entry
 {
     public const string ModId = "CombatSolver";
 
-    public static MegaCrit.Sts2.Core.Logging.Logger Logger { get; private set; } = null!;
+    public static CombatSolverLog Logger { get; private set; } = null!;
     public static bool Enabled { get; private set; } = true;
 
     public static void Initialize()
     {
-        Logger = RitsuLibFramework.CreateLogger(ModId);
+        Logger = new CombatSolverLog(Path.Combine(OS.GetUserDataDir(), "logs", "CombatSolver"));
         try
         {
             PreCombatForecastWorker.PinMainProcessModSources();
@@ -88,6 +88,7 @@ public static class Entry
             {
                 SolverDispatcher.Ensure(host);
                 host.TreeExiting += PreCombatForecastWorker.StopSessionAtProcessExit;
+                host.TreeExiting += Logger.Journal.Dispose;
             }
             UnattendedTestRunner.TryStart(host);
         }

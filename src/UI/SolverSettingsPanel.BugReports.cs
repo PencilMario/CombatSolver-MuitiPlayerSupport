@@ -120,9 +120,9 @@ internal sealed partial class SolverSettingsPanel
         _detailedDiagnosticLogs.Toggled += OnDetailedDiagnosticLogsToggled;
         AddBasicRow(
             feedbackGrid,
-            "详细诊断日志",
+            "搜索分支调试日志",
             _detailedDiagnosticLogs,
-            "记录更多搜索与回放信息，便于定位复杂问题；会增加日志体积，并让并行搜索自动切换为单线程。");
+            "每场战斗默认记录操作、选中路线与错误证据。此开关额外记录搜索候选细节，会增加开销并将并行搜索切为单线程，仅排查时开启。");
         AddBasicRow(
             feedbackGrid,
             "反馈联系QQ（选填）",

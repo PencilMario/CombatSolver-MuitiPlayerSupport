@@ -243,6 +243,8 @@ internal sealed partial class UnattendedTestRunner
             "diagnostics/settings.json",
             "diagnostics/export-context.json",
             "diagnostics/environment.json",
+            "diagnostics/logs/index.json",
+            "diagnostics/logs/history.json",
             "replay/manifest.json",
             "replay/checkpoint.json",
             $"replay/{forensicSlot}/session.json",
@@ -279,10 +281,12 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidDataException("精简问题包归档了超过 6 个战斗检查点。");
         }
         ZipArchiveEntry[] generalLogs = archive.Entries
-            .Where(entry => entry.FullName.StartsWith("diagnostics/logs/", StringComparison.Ordinal))
+            .Where(entry => entry.FullName.StartsWith("diagnostics/logs/", StringComparison.Ordinal)
+                && entry.FullName.EndsWith(".jsonl", StringComparison.Ordinal))
             .ToArray();
-        if (generalLogs.Length > 1 || generalLogs.Any(entry => entry.Length > 2L * 1024 * 1024))
-            throw new InvalidDataException("精简问题包的常规日志数量或大小超过上限。");
+        if (generalLogs.Sum(entry => entry.Length) > 36L * 1024 * 1024
+            || archive.Entries.Any(entry => entry.FullName.Contains("godot", StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidDataException("独立诊断日志超过记录上限或包含 Godot 全局日志。");
 
         using Stream settingsStream = archive.GetEntry("diagnostics/settings.json")!.Open();
         using JsonDocument settingsDocument = JsonDocument.Parse(settingsStream);

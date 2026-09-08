@@ -459,16 +459,25 @@ internal sealed partial class CombatBeamSolver
             int battleUnavoidableHpLost = Math.Max(0, battleDamage.HpLostSoFar - battleDamage.SoldHpCommitted)
                 + futureUnavoidableHpLost;
             ActionRelicTriggerRecorder relicTriggerRecorder = new();
+            SearchReplayEvidence replayEvidence = new(best);
             SimulationSnapshot? annotationRoot = _includeTurnSetup
                 ? ReplayTurnSetup(best.GetTurnSetupChoices())
                 : null;
-            SimulationSnapshot annotationReplay = Replay(
-                best.Actions,
-                annotationRoot,
-                _startTurnNumber,
-                priorActionCount: 0,
-                triggerRecorder: relicTriggerRecorder);
-            annotationRoot?.ReleaseSimulator();
+            SimulationSnapshot annotationReplay;
+            bool replayFailed = true;
+            try
+            {
+                annotationReplay = Replay(best.Actions, annotationRoot, _startTurnNumber,
+                    priorActionCount: 0, triggerRecorder: relicTriggerRecorder, replayEvidence: replayEvidence);
+                replayFailed = false;
+            }
+            finally
+            {
+                if (replayFailed)
+                    replayEvidence.Publish(policy.Diagnostics,
+                        cancellationToken.IsCancellationRequested ? "replay_cancelled" : "replay_failed", relicTriggerRecorder);
+                annotationRoot?.ReleaseSimulator();
+            }
             if (annotationReplay.StateKey != finalSnapshot.StateKey
                 || annotationReplay.PlayerHp != finalSnapshot.PlayerHp
                 || annotationReplay.EnemyHp != finalSnapshot.EnemyHp
@@ -487,6 +496,8 @@ internal sealed partial class CombatBeamSolver
                     _forecast,
                     _startTurnNumber);
                 string difference = expectedStamp.DescribeFirstDifference(replayStamp);
+                replayEvidence.Publish(policy.Diagnostics, "final_state_mismatch", relicTriggerRecorder,
+                    expectedStamp.StateText, replayStamp.StateText);
                 annotationReplay.ReleaseSimulator();
                 throw new InvalidOperationException(
                     $"最终路线的遗物标注回放与选中状态不一致：{difference}；" +
@@ -495,6 +506,7 @@ internal sealed partial class CombatBeamSolver
                     $"boundary={finalSnapshot.BoundaryReason}/{annotationReplay.BoundaryReason}。");
             }
             RouteAnnotations replayAnnotations = BuildRouteAnnotations(best, relicTriggerRecorder);
+            replayEvidence.Publish(policy.Diagnostics, "selected_route", relicTriggerRecorder);
             annotations = annotations with { KillsAfterAction = replayAnnotations.KillsAfterAction };
             annotationReplay.ReleaseSimulator();
             IReadOnlyList<PlanAction> annotatedActions = resultScope == SolverResultScope.RouteAdoption

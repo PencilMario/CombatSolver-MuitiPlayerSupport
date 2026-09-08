@@ -8,12 +8,24 @@
 report.json                 报告身份、版本、玩家描述、战斗元数据、自动分类、战损比较
 README.txt
 diagnostics/                环境、设置、当前状态、路线、重算审计、日志
+diagnostics/logs/index.json 独立日志范围、记录数量和不完整原因
+diagnostics/logs/history.json 本次跑局此前战斗摘要（最多 100 场）
+diagnostics/logs/combat/*.jsonl 当前/最近一场战斗详细日志
+diagnostics/logs/process/*.jsonl 战斗外的进程日志
 replay/manifest.json
 replay/checkpoint.json      原 v2 检查点索引，包含所有恢复材料路径
 replay/current/...          当前战斗；战后导出改为 recent，仅保留一场
 ```
 
 报告编号在导出时生成。文件名含 Mod 版本、遭遇 ID 和报告编号。原生事件、RNG、检查点选择及最多 6 个检查点的保留逻辑沿用原协议。
+
+0.34.0 起，CombatSolver 使用独立异步日志，问题包不附带 godot.log。进入下一场战斗时，上一场的详细日志退化为摘要，磁盘明细异步清理；战后尚未进入下一场时仍可提交完整最近战斗。提交调用冻结消息前缀，上传失败保留的 ZIP 不随之后战斗改变。
+
+日志位于游戏用户目录 `logs/CombatSolver/<进程实例>/`。生产线程只入队，后台序列化与写盘；待写内存上限 8 MiB、当前战斗文件 32 MiB、战斗外文件 4 MiB。达到限制或发生 I/O 错误时，index.json 的 error 明确标记记录不完整，不阻塞游戏等待写盘。导出按约 256 KiB、完整 JSON 行边界切片，单条长记录可超过片长。
+
+JSONL 每行包含 Time（UTC 毫秒）、Level、Message。ROUTE_REPLAY 给出 traceId 和比较范围，ROUTE_ACTION 按 index 保存动作、目标/选择与双方已有标量，ROUTE_HEALTH 保存该次回放的伤害/治疗来源；FAILED_CANDIDATE 保存失败展开的前缀及尝试动作。首个标量差异不等于首个完整语义差异；完整状态对账仍看最终失败的 expectedFinalState/actualFinalState。原生输入的完整度仍由 replay/checkpoint.json 的 recording 字段说明。
+
+必需的部署状态、续用差异、最终路线和错误证据默认记录；设置里的“搜索分支调试日志”只控制额外候选细节，默认关闭，避免增加搜索开销或强制单线程。
 
 ## 元数据
 

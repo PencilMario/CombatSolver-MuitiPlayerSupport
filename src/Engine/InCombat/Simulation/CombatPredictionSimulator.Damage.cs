@@ -195,7 +195,10 @@ internal sealed partial class CombatPredictionSimulator
             return false;
 
         var unblockedDamageTargetState = State.GetCreature(unblockedDamageTarget);
+        int hpBefore = unblockedDamageTargetState.CurrentHp;
         var unblockedDamageResult = unblockedDamageTargetState.LoseHp(unblockedDamage, props);
+        ActionRelicTriggers?.RecordHealth("damage", unblockedDamageTarget.CombatId, source,
+            amount, unblockedDamage, hpBefore, unblockedDamageTargetState.CurrentHp);
         var wasBlockBroken = originalTargetState.Block <= 0 && blockedDamage > 0m;
         var wasFullyBlocked = !props.HasFlag(ValueProp.Unblockable) &&
             (blockedDamage > 0m || originalTargetState.Block > 0) &&
@@ -231,9 +234,12 @@ internal sealed partial class CombatPredictionSimulator
         if (HasPendingChoice)
             return false;
 
+        int redirectedHpBefore = originalTargetState.CurrentHp;
         var damageResult = originalTargetDamage > 0m
             ? originalTargetState.LoseHp(originalTargetDamage, props)
             : new DamageResult(originalTarget, props);
+        ActionRelicTriggers?.RecordHealth("redirected_damage", originalTarget.CombatId, source,
+            unblockedDamageResult.OverkillDamage, originalTargetDamage, redirectedHpBefore, originalTargetState.CurrentHp);
         damageResult.BlockedDamage = (int)blockedDamage;
         damageResult.WasBlockBroken = wasBlockBroken;
         damageResult.WasFullyBlocked = wasFullyBlocked;

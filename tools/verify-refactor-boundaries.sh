@@ -775,6 +775,7 @@ for renderer_path in "${overlay_renderer_paths[@]}"; do
 done
 
 bug_report_exporter_path="$repository_root/src/Runtime/CombatBugReportExporter.cs"
+diagnostic_journal_path="$repository_root/src/Runtime/CombatDiagnosticJournal.cs"
 bug_report_uploader_path="$repository_root/src/Runtime/CombatBugReportUploader.cs"
 solver_settings_panel_path="$repository_root/src/UI/SolverSettingsPanel.cs"
 solver_settings_general_path="$repository_root/src/UI/SolverSettingsPanel.General.cs"
@@ -784,6 +785,10 @@ solver_settings_controls_path="$repository_root/src/UI/SolverSettingsPanel.Contr
 while IFS=$'\t' read -r path text; do
     require_fixed "$path" "$text" 'missing bug-report ownership boundary'
 done <<EOF
+$diagnostic_journal_path	AppendOnlyEventLog<CombatLogEntry>
+$diagnostic_journal_path	_session?.Log.CaptureAsync()
+$bug_report_exporter_path	Entry.Logger.Journal.CaptureAsync()
+$bug_report_exporter_path	WriteDiagnosticLogs(archive, diagnosticLogs)
 $bug_report_exporter_path	private static readonly BlockingCollection<Action> BackgroundOperations = new();
 $bug_report_exporter_path	QueueCheckpointWrite(session, capture);
 $bug_report_exporter_path	Task<ForensicArchiveBundle> forensicsTask = QueueBackground(
@@ -803,6 +808,9 @@ $solver_settings_bug_reports_path	TryApplyUploadCompletion()
 $solver_settings_bug_reports_path	等待服务器确认
 EOF
 forbid_fixed "$bug_report_uploader_path" 'using Godot' 'uploader must not own Godot UI state:'
+for legacy_log_read in 'AddFileTail(' 'CaptureLogStarts(' '"*.log"'; do
+    forbid_fixed "$bug_report_exporter_path" "$legacy_log_read" 'global log collection must stay out of report exports:'
+done
 
 search_completion_notifier_path="$repository_root/src/Runtime/SearchCompletionNotifier.cs"
 while IFS=$'\t' read -r path text; do

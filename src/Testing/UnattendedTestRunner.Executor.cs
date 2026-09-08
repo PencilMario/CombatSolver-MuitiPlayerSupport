@@ -39,6 +39,11 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "COMBAT-DIAGNOSTIC-LOG")
+            {
+                await runner.AssertCombatDiagnosticLogAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "REPORT-V2-CONTRACT")
             {
                 await runner.AssertBugReportUploadBoundariesAsync();

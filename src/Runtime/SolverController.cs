@@ -489,8 +489,8 @@ internal static class SolverController
             settings.FinalBossHpStrategy,
             settings.AcceptableBattleHpLoss,
             new SearchDiagnosticsSink(
-                message => Entry.Logger.Info(message),
-                message => Entry.Logger.Debug(message)),
+                Entry.Logger.Journal.Bind("info"),
+                Entry.Logger.Journal.Bind("debug")),
             FramePressureSignal,
             new SearchMemoryPressureSignal())
         {
@@ -1037,7 +1037,7 @@ internal static class SolverController
                     $"[CombatSolver/Test] SEARCH_REUSE_MISS turn={currentTurn} " +
                     $"reason={CauseToken(replanCause)} cached_turns={_combat.ContinuationSource.Continuations.Count} " +
                     $"previous_boundary={_combat.ContinuationSource.BoundaryReason} diff_count={_combat.LastContinuationDifferences.Count} {difference}");
-                if (SolverSettings.Current.EnableDetailedDiagnosticLogs)
+                if (_combat.LastContinuationDifferences.Count > 0)
                 {
                     for (int index = 0; index < _combat.LastContinuationDifferences.Count; index++)
                     {
@@ -2612,12 +2612,12 @@ internal static class SolverController
                         $"action={action.CardId ?? action.PotionId ?? action.Kind.ToString()} " +
                         $"elapsed_ms={Stopwatch.GetElapsedTime(actionStartedAt).TotalMilliseconds:F1}");
                 }
-                if (deploymentSettings.EnableDetailedDiagnosticLogs)
                 {
                     PlayerCombatState liveState = player.PlayerCombatState!;
                     Entry.Logger.Info(
                         $"[CombatSolver/Debug] DEPLOY_STATE turn={turn} action_index={actionIndex} " +
                         $"action={action.CardId ?? action.PotionId ?? action.Kind.ToString()} " +
+                        $"target={action.TargetCombatId} hp={player.Creature.CurrentHp} block={player.Creature.Block} " +
                         $"energy={liveState.Energy} hand={string.Join(',', liveState.Hand.Cards.Select(card => card.Id.Entry))} " +
                         $"draw={string.Join(',', liveState.DrawPile.Cards.Select(card => card.Id.Entry))} " +
                         $"discard={string.Join(',', liveState.DiscardPile.Cards.Select(card => card.Id.Entry))} " +
