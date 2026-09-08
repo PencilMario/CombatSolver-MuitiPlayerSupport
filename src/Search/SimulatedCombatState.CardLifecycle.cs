@@ -49,6 +49,7 @@ internal sealed partial class SimulatedCombatState
         power._target = owner;
         power._amount = amount;
         (_addedPowerInstances ??= []).Add(power);
+        UpdatePowerListenerOrder(power, 0, amount);
         InvalidateHookListeners();
         return power;
     }

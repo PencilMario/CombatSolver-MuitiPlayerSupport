@@ -1,5 +1,20 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：高频计划外重算（0.33.7）
+
+| 场景 | 失败基线 runId / 差异 | 最终 runId / 结果 |
+|---|---|---|
+| MIXED-POWER-ACQUISITION-ORDER | `b8a4e65825d5470b887a535e7d2ad399`，P[1] Strength / PhantomBlades 顺序不一致 | `cb0fb008d094436fbb611ec62dbc1689`，Passed，24 秒 |
+| REMOVED-POWER-REAPPLICATION | `c4cccbfbd04e4d3fbe0dc5dabd8a6b48`，DrawCardsNextTurn 的 AmountOnTurnStart 预测 5 / 原生 0 | `7cb00c33817b4521af540c868f187376`，Passed，8 秒 |
+| SUMMONED-ALLY-POWER-ORDER | `a4659ef9aa474e0396b38667fbeeed7e`，敌方 Strength 在奥斯蒂 DieForYou 前面 | `7f93620fda4d4219a5bc49dc2ce37252`，Passed，8 秒 |
+| ENERGY-RESET-POWER-ORDER-REAPPLY | 既有相邻回归 | `98d8b8e3ec1e497dbcbcfa74d77e98d5`，Passed，12 秒 |
+| SUMMON-DEATH-POWER-ORDER | 既有敌方召唤/死亡两回合回归 | `78120e49e44449f494f275173edd57f5`，Passed，18 秒，T1→T3 |
+
+- 前四场命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId <场景> -ClearAllPowers -ClearPlayerPiles -EnemyCurrentHp 500 -HeadlessInstance report-fixes -TimeoutSeconds 120`。最后一场使用 `-ScenarioId SUMMON-DEATH-POWER-ORDER -EncounterId FABRICATOR_NORMAL -EnemyCurrentHp 500 -HeadlessInstance report-fixes -TimeoutSeconds 120`。
+- 比较完整 MoveStateSnapshot / ContinuationStamp；混合能力夹具覆盖多实例与普通能力交替获得、同类多个实例、Fork、子分支移除后重获及父分支隔离。既有重获回归还检查指纹与实际能量重置 Hook，召唤回归覆盖原生跨回合状态。正式搜索未启动，未开启增量搜索验证。
+- 最终行为源码 Release 构建通过，0 警告、0 错误；结构门禁 `REFACTOR_BOUNDARIES_OK search_files=77`。一轮启动因子进程未暴露 executable path 失败，未进入行为断言，重新启动后取得上表证据。基线期间一次并发启动被实例锁拒绝，后续请求全部串行复用同一实例。
+- 188 份报告去重为 179 场，三类症状分别匹配 98/5/3 场；计数不是逐包通过率。外层 Preflight 超大小限制；拆分代表包 Preflight materials_valid / restorationVerified=false。未执行原包完整恢复、整场自动部署、可见 Steam 验收或完整发布门禁，详见 [分诊](issues/report-replans-20260908.md)。
+
 ## 2026-09-08：Issue #63 局外收益评分上限（0.33.6 开发中）
 
 - `LONG-TERM-RESOURCE-BEAM-CAP` 失败基线 `08689d31bcec4f6ea3bb90ac40cd94d1`：25 点资源加分 625,000，额外自伤 1 HP 后仍高于父状态 565,000 分。

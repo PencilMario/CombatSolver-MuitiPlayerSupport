@@ -176,7 +176,7 @@ internal sealed partial class SimulatedCombatState
     }
 
     private Dictionary<(Creature Owner, Type Type), PowerModel>? _powers;
-    private List<(Creature Owner, Type Type)>? _powerListenerOrder;
+    private List<PowerModel>? _powerListenerOrder;
     private ForkableSet<(Creature Owner, Type Type)>? _retiredRootPowerSlots;
     private Dictionary<PowerModel, PowerModel>? _rootMultiInstancePowerClones;
     private List<PredictedCard>? _generatedCombatCards;
@@ -600,7 +600,7 @@ internal sealed partial class SimulatedCombatState
         PowerModel simulated = GetOrCreatePower(target, incoming, applier);
         int previousAmount = simulated._amount;
         simulated._amount = Math.Clamp(simulated._amount + amount, -999_999_999, 999_999_999);
-        UpdatePowerListenerOrder((target, typeof(T)), previousAmount, simulated._amount);
+        UpdatePowerListenerOrder(simulated, previousAmount, simulated._amount);
         InvalidateHookListenersForAmountTransition(previousAmount, simulated._amount);
         int applied = simulated._amount - previousAmount;
         RecordPowerAmountChange(simulated, applied, applier);
@@ -733,7 +733,7 @@ internal sealed partial class SimulatedCombatState
         PowerModel simulated = GetOrCreatePower(target, canonical, null);
         int previousAmount = simulated._amount;
         simulated._amount = Math.Clamp(amount, -999_999_999, 999_999_999);
-        UpdatePowerListenerOrder((target, typeof(T)), previousAmount, simulated._amount);
+        UpdatePowerListenerOrder(simulated, previousAmount, simulated._amount);
         InvalidateHookListenersForAmountTransition(previousAmount, simulated._amount);
     }
 
@@ -742,14 +742,7 @@ internal sealed partial class SimulatedCombatState
         PowerModel mutable = GetMutablePowerInstance(power);
         int previousAmount = mutable._amount;
         mutable._amount = Math.Clamp(amount, -999_999_999, 999_999_999);
-        if (!_rootMultiInstancePowers.Contains(power)
-            && _addedPowerInstances?.Contains(mutable) != true)
-        {
-            UpdatePowerListenerOrder(
-                (mutable.Owner, mutable.GetType()),
-                previousAmount,
-                mutable._amount);
-        }
+        UpdatePowerListenerOrder(mutable, previousAmount, mutable._amount);
         InvalidateHookListenersForAmountTransition(previousAmount, mutable._amount);
     }
 
@@ -796,7 +789,7 @@ internal sealed partial class SimulatedCombatState
         simulated._target = power.Target;
         simulated._amount = power.Amount;
         (_powers ??= []).Add(key, simulated);
-        UpdatePowerListenerOrder(key, 0, simulated._amount);
+        UpdatePowerListenerOrder(simulated, 0, simulated._amount);
         InvalidateHookListeners();
         return simulated;
     }
@@ -816,7 +809,7 @@ internal sealed partial class SimulatedCombatState
         int previousAmount = simulated._amount;
         simulated._target = target;
         simulated._amount = Math.Clamp(simulated._amount + amount, -999_999_999, 999_999_999);
-        UpdatePowerListenerOrder((owner, typeof(T)), previousAmount, simulated._amount);
+        UpdatePowerListenerOrder(simulated, previousAmount, simulated._amount);
         InvalidateHookListenersForAmountTransition(previousAmount, simulated._amount);
     }
 
@@ -881,11 +874,14 @@ internal sealed partial class SimulatedCombatState
         where T : PowerModel
     {
         (Creature, Type) key = (target, typeof(T));
-        if (_powers != null && _powers.TryGetValue(key, out PowerModel? simulated))
-            return simulated;
+        bool captured = _powers != null && _powers.TryGetValue(key, out _);
+        if (captured && _powers![key].Amount != 0)
+            return _powers[key];
 
-        T? existingPower = _rootCreatures.Contains(target) ? null : target.GetPower<T>();
-        simulated = existingPower != null
+        // A removed power is acquired as a fresh native instance, including its private
+        // counters and turn-start amount. The old instance remains owned by prior hooks.
+        T? existingPower = captured || _rootCreatures.Contains(target) ? null : target.GetPower<T>();
+        PowerModel simulated = existingPower != null
             ? PredictionUtils.CloneModelForSimulation(existingPower)
             : PredictionUtils.CloneModelForSimulation(prototype);
         simulated._owner = target;
@@ -894,27 +890,28 @@ internal sealed partial class SimulatedCombatState
         simulated._amount = existingPower?.Amount ?? 0;
         if (existingPower == null)
             simulated.AmountOnTurnStart = 0;
-        (_powers ??= []).Add(key, simulated);
+        (_powers ??= [])[key] = simulated;
         InvalidateHookListeners();
         return simulated;
     }
 
     private void UpdatePowerListenerOrder(
-        (Creature Owner, Type Type) key,
+        PowerModel power,
         int previousAmount,
         int currentAmount)
     {
         if (previousAmount == 0 && currentAmount != 0)
         {
             _powerListenerOrder ??= [];
-            if (!_powerListenerOrder.Contains(key))
-                _powerListenerOrder.Add(key);
+            if (!_powerListenerOrder.Contains(power))
+                _powerListenerOrder.Add(power);
             return;
         }
         if (previousAmount != 0 && currentAmount == 0)
         {
-            _powerListenerOrder?.Remove(key);
-            if (_rootPowerAmounts.ContainsKey(key))
+            _powerListenerOrder?.Remove(power);
+            var key = (power.Owner, power.GetType());
+            if (_powers?.GetValueOrDefault(key) == power && _rootPowerAmounts.ContainsKey(key))
                 (_retiredRootPowerSlots ??= []).Add(key);
         }
     }
@@ -1596,24 +1593,15 @@ internal sealed partial class SimulatedCombatState
             if (effective.Amount != 0)
                 listeners.Add(effective);
         }
-        if (_powers != null)
+        if (_powerListenerOrder != null)
         {
-            foreach ((Creature Owner, Type Type) key in _powerListenerOrder ?? [])
+            foreach (PowerModel power in _powerListenerOrder)
             {
-                if (_powers.TryGetValue(key, out PowerModel? power)
-                    && power.Amount != 0
+                if (power.Amount != 0
                     && !ContainsPowerReference(listeners, power))
                 {
                     InsertPowerAtOwnerPosition(listeners, power);
                 }
-            }
-        }
-        if (_addedPowerInstances != null)
-        {
-            foreach (PowerModel power in _addedPowerInstances)
-            {
-                if (power.Amount != 0 && !ContainsPowerReference(listeners, power))
-                    InsertPowerAtOwnerPosition(listeners, power);
             }
         }
         _effectiveHookListeners = listeners;
@@ -1733,15 +1721,26 @@ internal sealed partial class SimulatedCombatState
             Creature creature = creatures[creatureIndex];
             if (_rootCreatures.Contains(creature))
                 continue;
-            List<AbstractModel> target = listeners;
+            List<AbstractModel> target;
             if (creature.Side == CombatSide.Enemy)
             {
                 if (!enemyListeners.TryGetValue(creature, out target!))
                     enemyListeners.Add(creature, target = []);
             }
+            else
+            {
+                target = [];
+            }
             target.AddRange(creature.Powers);
             if (creature.Monster != null)
                 target.Add(creature.Monster);
+            if (creature.Side == CombatSide.Player)
+            {
+                int insertionIndex = enemyInsertionIndex < 0 ? listeners.Count : enemyInsertionIndex;
+                listeners.InsertRange(insertionIndex, target);
+                if (enemyInsertionIndex >= 0)
+                    enemyInsertionIndex += target.Count;
+            }
         }
         // Native hooks follow the current slot-ordered roster, including newly inserted enemies.
         List<AbstractModel> orderedEnemyListeners = [];

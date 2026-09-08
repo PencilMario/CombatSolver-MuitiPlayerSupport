@@ -155,6 +155,18 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("GalvanicGeneratedPower");
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "SUMMONED-ALLY-POWER-ORDER")
+            {
+                await runner.AssertSummonedAllyPowerOrderAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId is "MIXED-POWER-ACQUISITION-ORDER" or "REMOVED-POWER-REAPPLICATION")
+            {
+                await runner.AssertReportPowerLifecycleAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId is "ENERGY-RESET-POWER-ORDER" or "ENERGY-RESET-POWER-ORDER-REVERSE"
                 or "ENERGY-RESET-POWER-ORDER-REAPPLY" or "ENERGY-RESET-POWER-ORDER-OVERFLOW")
             {
