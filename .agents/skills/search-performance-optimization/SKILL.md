@@ -78,7 +78,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - GC 生命周期计数由 Runtime 在准入 Gate 内冻结。普通 GC 的共享进程窗口不得称为独占请求归因；总暂停、observed max 与 trace max 必须区分。Smart 预测只决定可选层间回收，不能改层预算或候选策略。
 - Ritsu BaseLib 目标桥的优化仅缓存静态程序集的精确元数据查询。保持模拟隔离域、动态程序集/live旁路及 ConditionalWeakTable 弱所有权；不得升级为框架全局负缓存、跳过自定义目标谓词或修改枚举顺序。新程序集与动态晚创建须由直接生产回调合同覆盖，采样与微基准不能代替固定工作量及可见性能。
 - Hook 分发优化只省略已核对为原版默认空操作的回调，不能删除原生/领域监听成员。`MirroredHookListenerFilter` 的类型布局只含 Type/位图，按原位置对应当前分支模型，允许 Fork 共享；成员类型顺序变化时重建，普通监听失效时清空派生视图。每个新根重新检查基方法补丁，第三方/动态类型与不透明 CardModifier 旁路；新回调必须更新两端结构门禁检查的位图表。不能把父分支 Model 或暂停中的监听事务放进布局。
-- worker 阶段 ticks 合并后是累计 CPU 时间，不是墙钟占比；同时记录 `parallel_waves`、`parallel_work_items` 与 `parallel_max_concurrency`，避免只凭配置值宣称已并行。
+- worker 阶段 ticks 来自 `Stopwatch`，合并后是各段经过时间之和，包含被抢占、锁等待与 GC 暂停，既不是实际 CPU 时间，也不是墙钟占比。实际 CPU 使用 perf on-CPU 样本或线程调度运行时间；同时记录 `parallel_waves`、`parallel_work_items`、`parallel_max_concurrency` 和平均用核数，避免只凭峰值并发宣称已充分并行。
 - BaseLib `3.4.5` 的克隆扩展会以非原子的“先查后加”访问全局弱表。并行搜索必须保留 `BaseLibCloneConcurrencyPatch` 对原版 `MutableClone` 第三方扩展段的窄串行边界；不要删除该边界，也不要把它扩大到候选生成、模拟、剪枝或提交阶段。
 - 游戏 `0.111.0` 的 `LocManager.SmartFormat` 复用同一个 SmartFormat 实例及对象池，不支持并发调用。`PowerDynamicVarWarmup` 必须在主线程根捕获时物化规范 Power 与当前战斗 Power 的显示变量；`PowerDynamicVarMaterializationGuardPatch` 保证 worker 不再惰性创建 Power 显示变量。命中 guard 时补齐主线程物化边界，不给全局格式化器加锁，也不在 worker 内提供默认文本。`LocManager.SmartFormat` 本身含异常过滤器，禁止直接用 Harmony 改写。
 - Runtime 拥有 `SearchGcPolicy`，Search 只通过 `SearchFramePressureSignal` / `SearchWorkPacer` 消费节流信号。
@@ -100,7 +100,9 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 
 下一断点的完整路由签名可能仍与前一步完全相同；应检查同父同动作不同目标是否已经有代表存活，以及实际/投影生命和完整政策差异。相同战术值不表示相同目标状态，不因准确路线落选就延长祖先保护。撤回实验时检查专属派生字段的所有消费者；只服务测试的区分量优先留在测试侧，删除冗余核验也须明确其诊断覆盖变化。
 
-1. 每轮只改变一个可解释因素，失败实验立即撤回；
+1. 每轮只改变一个可解释因素，失败实验立即撤回。修改前量化所选子路径的成本；缓存方案记录命中/失效/旁路，COW 记录写入比例与实际复制量，不能把整个阶段占比当作某个小容器的收益空间；
+   已出现同版时间漂移时，预先设计有首尾基线或交错 A/B 的测量序列，报告单样本与范围；这属于必要实验设计，不是测试通过后的安心重跑。小于已观测漂移的差异只能判为收益未建立，不能断言真实提速或回退；
+   微架构分析区分实际 CPU、分支失误、IPC、缓存与调度等待。记录 PMU 的事件映射和 multiplex 比例；通用 cache-misses 不自动等同 LLC/DRAM，采样落点可能有 skid。SIMD、去分支或内联必须核对 JIT 汇编与数据依赖，不凭 C# 行数判断；
 2. 快速内环用固定短预算或固定小节点工作量，只跑目标首轮质量；单个 unattended 请求总超时不超过 `120` 秒，并在首个 solver 结果处停止；
 3. 目标改善后跑一个不可退化哨兵。药水、卖血、延迟伤害、复活和选择只挑受本次因素影响的代表，不枚举全部类型族；
 4. 只有最终候选才做一次 Release 构建、结构门禁和必要的增量等价；增量数字不用于性能比较；
