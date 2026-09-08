@@ -310,6 +310,19 @@ internal interface ICombatPredictionCreatureSemantics
     bool IsHittable(MegaCrit.Sts2.Core.Entities.Creatures.Creature creature);
 
     bool ShouldRemoveAfterDeath(MegaCrit.Sts2.Core.Entities.Creatures.Creature creature);
+
+    /// <summary>
+    /// 场上是否还有「已经死掉、但还欠一个会生成新的主要敌人的死亡效果」的个体。
+    /// </summary>
+    /// <remarks>
+    /// 死亡效果被推迟到 <c>ApplyEnemyDeathPowers</c> 的清扫才结算，而个体在死亡当时就被移出了
+    /// <c>State.Enemies</c>，所以中间有一个「场上没有活着的主要敌人、但马上会有」的窗口。在那个
+    /// 窗口里宣布胜利会把胜利戳永久锁死（<c>CheckWinCondition</c> 第一行就是
+    /// <c>if (TerminalStamp.HasValue) return true;</c>），之后补货生成出来也不会再复查。
+    ///
+    /// 问的是整场而不是逐个，正因为那些个体已经不在 <c>State.Enemies</c> 里了，调用方拿不到它们。
+    /// </remarks>
+    bool HasUnresolvedSpawningDeath();
 }
 
 internal interface ICombatPredictionMonsterStateSink

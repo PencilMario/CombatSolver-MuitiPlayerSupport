@@ -2586,6 +2586,29 @@ internal sealed partial class SimulatedCombatState
             && GetAmount<IllusionPower>(creature) <= 0
             && GetAmount<ReattachPower>(creature) <= 0
             && GetAmount<SteamEruptionPower>(creature) <= 0;
+    bool ICombatPredictionCreatureSemantics.HasUnresolvedSpawningDeath()
+    {
+        // 死亡当时个体就被移出了 _enemies，但还留在 _knownEnemies 里，powers 也要到清扫末尾的
+        // RemovePowersAfterDeath 才摘掉。所以「在已知列表里、已经不在场上、死亡效果又没结算完」
+        // 正好刻画那个窗口。
+        IReadOnlyList<Creature> known = _knownEnemies;
+        if (known.Count == 0)
+            return false;
+        IReadOnlyList<PowerModel> powers = EffectivePowers();
+        for (int index = 0; index < known.Count; index++)
+        {
+            Creature enemy = known[index];
+            if (ContainsCreature(enemy) || HasCompletedDeathEffects(enemy))
+                continue;
+            for (int powerIndex = 0; powerIndex < powers.Count; powerIndex++)
+            {
+                PowerModel power = powers[powerIndex];
+                if (power.Owner == enemy && DeathPowerSupport.SpawnsPrimaryEnemyOnDeath(power))
+                    return true;
+            }
+        }
+        return false;
+    }
     public Creature? GetCreature(uint? combatId)
     {
         if (combatId == null)

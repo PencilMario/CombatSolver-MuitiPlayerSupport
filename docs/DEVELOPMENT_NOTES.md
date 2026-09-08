@@ -18,6 +18,16 @@
 
 - 心跳新增 InRun，主线程读取 RunManager.IsInProgress，缓存战斗数据时仍使用当下跑局标志。后台将战斗人数改为跑局人数，地图、事件、商店、休息和战斗均计入，主菜单排除；跑局内挂机仍计入。
 - 旧客户端缺少 inRun 时保留 null，概览单独返回缺失人数并通过悬停提示，不用缓存角色或敌人推断。累计在线时长与最近战斗缓存不变。
+## 下一版本（开发中）：胜利判定要等会生成敌人的死亡效果结算完
+
+- 原版 `StockPower.ShouldStopCombatFromEnding()` 直接返回 `true`：**场上还有补货，战斗就不能结束。** 求解器没有照这条走。
+- 求解器把死亡效果推迟到 `CorePowerSupport.ApplyEnemyDeathPowers` 的清扫，而个体在死亡当时（`CombatPredictionSimulator.Damage`）就被移出了 `State.Enemies`。于是中间出现一个「场上没有活着的主要敌人、但马上会有」的窗口。`AdvanceRound` 里那个窗口是显式的：`PlayerTurnEndLifecycle.RunPhaseOne` 内部调了两次 `CheckWinCondition`，而清扫在它返回之后才跑。
+- `CheckWinCondition` 第一行是 `if (TerminalStamp.HasValue) return true;`——**盖章即锁死**，之后补货生成出来也不会再复查。
+- 实机后果（一份 `AXEBOTS_NORMAL` 问题包）：一条路线同时报 `combat_ended_turn=7`、`final_enemy_hp=95` 和含 `VictoryBonus` 的分数，而玩家第 7 回合面对的是一只满血 `95`、力量 `6`、带 `10` 点格挡的新机器人；缓存计划里没有第 8 回合，`continuation_missing=1` 强制重算。假胜利拿的是 `10^10` 的加成，会直接污染搜索的目标函数。
+- 改法：`IsCombatEnding()` 在「还有已死个体欠着一个会生成主要敌人的死亡效果」时返回 false，把胜利推迟到清扫之后再判。判据集中在 `DeathPowerSupport.SpawnsPrimaryEnemyOnDeath`，和那个死亡效果 `switch` 放在一起维护。
+- 覆盖三种：补货（巨斧机器人）、寄生（蠕虫）、惊吓（小恶魔）。这三条走 `MonsterSpawnSupport.Spawn` 都没传 `minion: true`，生成的是主要敌人，所以是同一个洞。幻象和重接**没动**：它们复活的是同一个个体，走既有的 `RevivingEnemyHp` 有效生命路径。
+- 刻画那个窗口用的是「还在 `_knownEnemies` 里、已经不在场上、死亡效果又没结算完」，因为那些个体已经不在 `State.Enemies` 里，逐个问拿不到。
+- 回归用例 `AssertVictoryWaitsForStockRespawn` 加进 Fork 边界批，三段加一条反向对照：没有补货时照常结束；有补货、未清扫时不结束；清扫之后仍不结束（此时是替补真的站上来了）；库存为零的巨斧机器人打死后必须照常结束。
 
 ## 0.33.5：受伤历史与攻击次数修复
 

@@ -199,6 +199,7 @@ internal sealed partial class UnattendedTestRunner
         AssertPendingSpawnCanEnterIllusionRevive(combat);
         AssertPendingRandomBranchSpawnRollsAtTurnBoundary(combat);
         AssertDefeatedEnemyRejectsLatePowerApplication(combat, player);
+        AssertVictoryWaitsForStockRespawn(combat, player);
         AssertOrbSlotAdditionCapsAtVanillaMaximum(combat, player);
         AssertAutoPlayedBlockHonorsPriorTurnHistory(combat, player, card);
         AssertOrbDeathsSettleBetweenTurnEndPassives(combat, player);
@@ -2083,6 +2084,86 @@ internal sealed partial class UnattendedTestRunner
         simulatedCombat.Apply<VulnerablePower>(enemy, 2, player.Creature);
         if (simulatedCombat.GetAmount<VulnerablePower>(enemy) != 0)
             throw new InvalidOperationException("永久死亡的敌人仍然接收了后续 Power。");
+    }
+
+    /// <summary>
+    /// 补货还没结算完之前不能判定战斗结束；补货用尽时必须照常判定结束。
+    /// </summary>
+    /// <remarks>
+    /// 原版 <c>StockPower.ShouldStopCombatFromEnding()</c> 直接返回 <c>true</c>——场上还有补货，
+    /// 战斗就不能结束。求解器把死亡效果推迟到 <c>ApplyEnemyDeathPowers</c> 的清扫，而个体在死亡
+    /// 当时就被移出了 <c>State.Enemies</c>，于是中间出现一个「没有活着的主要敌人、但马上会有」的
+    /// 窗口。在那个窗口里 <c>CheckWinCondition</c> 会把胜利戳永久锁死
+    /// （第一行就是 <c>if (TerminalStamp.HasValue) return true;</c>），之后补货生成出来也不复查。
+    ///
+    /// 实机后果：一条路线同时报 <c>combat_ended_turn=7</c> 和 <c>final_enemy_hp=95</c>，还拿了
+    /// 胜利加成，而玩家第 7 回合面对的是一只满血 95、力量 6 的新机器人。
+    ///
+    /// 三段都要有，缺一段这条用例就不成立：先证明没有补货时照常结束（基线），再证明有补货时
+    /// 不结束（本次修的），最后证明清扫之后仍然不结束——那时是因为替补真的站上来了。
+    /// 末尾再补一条库存为零的反向对照，防止改成「见到巨斧机器人就永不结束」的另一个错。
+    /// </remarks>
+    private static void AssertVictoryWaitsForStockRespawn(CombatState combat, Player player)
+    {
+        // 基线：把场上清空，没有任何补货，战斗应当判定为正在结束。
+        {
+            SimulatedCombatState simulatedCombat = new(combat);
+            CombatPredictionSimulator simulator = new(simulatedCombat);
+            simulator.Kill(simulatedCombat.Enemies.ToArray(), force: true);
+            if (!simulator.IsEnding)
+                throw new InvalidOperationException("清空场上敌人后战斗没有判定为正在结束。");
+        }
+
+        // 有补货：死亡效果还没清扫，不能判定结束。
+        {
+            SimulatedCombatState simulatedCombat = new(combat);
+            CombatPredictionSimulator simulator = new(simulatedCombat);
+            Creature axebot = InjectAxebot(simulator, simulatedCombat, player, stockAmount: 1);
+            if (simulatedCombat.GetAmount<StockPower>(axebot) != 1)
+                throw new InvalidOperationException("注入的巨斧机器人没有拿到补货。");
+            simulator.Kill(simulatedCombat.Enemies.ToArray(), force: true);
+            if (simulator.IsEnding)
+            {
+                throw new InvalidOperationException(
+                    "补货的死亡效果还没结算，战斗就被判定为正在结束；胜利戳会被永久锁死。");
+            }
+
+            HashSet<uint> processed = [];
+            if (!CorePowerSupport.ApplyEnemyDeathPowers(
+                    simulator, simulatedCombat, simulatedCombat.KnownEnemies, processed))
+            {
+                throw new InvalidOperationException("补货的死亡效果清扫报告挂起。");
+            }
+            if (simulator.IsEnding)
+                throw new InvalidOperationException("补货已经生成出替补，战斗仍被判定为正在结束。");
+        }
+
+        // 反向对照：库存为零的巨斧机器人不带补货，打死之后必须照常结束。
+        {
+            SimulatedCombatState simulatedCombat = new(combat);
+            CombatPredictionSimulator simulator = new(simulatedCombat);
+            Creature axebot = InjectAxebot(simulator, simulatedCombat, player, stockAmount: 0);
+            if (simulatedCombat.GetAmount<StockPower>(axebot) != 0)
+                throw new InvalidOperationException("库存为零的巨斧机器人不应拿到补货。");
+            simulator.Kill(simulatedCombat.Enemies.ToArray(), force: true);
+            if (!simulator.IsEnding)
+                throw new InvalidOperationException("库存用尽后战斗没有判定为正在结束。");
+        }
+    }
+
+    private static Creature InjectAxebot(
+        CombatPredictionSimulator simulator,
+        SimulatedCombatState combat,
+        Player player,
+        int stockAmount)
+    {
+        Creature axebot = MonsterSpawnSupport.Create<MegaCrit.Sts2.Core.Models.Monsters.Axebot>(
+            simulator,
+            combat,
+            MonsterSpawnSupport.NextSlot(combat),
+            configure: monster => monster.StockAmount = stockAmount);
+        MonsterSpawnSupport.AddCreated(simulator, combat, player.Creature, axebot);
+        return axebot;
     }
 
     private static void AssertWhisperingEarringOnlyRunsOnFirstTurn(
