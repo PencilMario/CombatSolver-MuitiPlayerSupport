@@ -1,4 +1,6 @@
 {
+  "不选": "Skip choice",
+  "（药水）": " (Potion)",
   "搜索初始化失败": "Search initialization failed",
   "计算失败": "Search failed",
   "自动执行中止": "Execution aborted",

@@ -302,6 +302,7 @@ for file in "${search_files[@]}"; do
         'SolverController' \
         'SolverOverlay' \
         'SolverText' \
+        'SolverRelicEffectText' \
         'SolvedRouteCache' \
         'UnattendedTestRunner'; do
         forbid_fixed "$file" "$reference" 'forbidden Search reference'

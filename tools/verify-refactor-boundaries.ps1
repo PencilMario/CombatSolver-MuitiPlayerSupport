@@ -10,6 +10,7 @@ $forbiddenSearchReferences = @(
     "SolverController",
     "SolverOverlay",
     "SolverText",
+    "SolverRelicEffectText",
     "SolvedRouteCache",
     "UnattendedTestRunner"
 )

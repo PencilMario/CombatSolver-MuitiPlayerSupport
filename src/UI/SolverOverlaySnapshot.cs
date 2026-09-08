@@ -314,25 +314,30 @@ internal sealed record SolverOverlaySnapshot(
             result.CombatEndedTurn == turn);
     }
 
-    private static SolverOverlayActionSnapshot CaptureAction(
+    internal static SolverOverlayActionSnapshot CaptureAction(
         PlanAction action,
         IReadOnlyList<string> kills,
         bool isDirectEndTurn = false)
     {
-        string? choiceText = action.Choice == null
-            ? null
-            : SolverText.Format($"选 {string.Join("、", action.Choice.Cards.Select(card => card.Title))}");
+        string[] choices = action.GetActionChoicesInExecutionOrder().Select(choice => choice.Cards.Count == 0
+            ? SolverText.Get("不选")
+            : SolverText.Format($"选 {string.Join("、", choice.Cards.Select(card => card.Title))}")).ToArray();
+        string? choiceText = choices.Length == 0 ? null : string.Join(" / ", choices);
         string[] relicLabels = action.RelicEffects?
-            .Select(effect => effect.RelicTitle + effect.Summary)
+            .Select(effect => effect.RelicTitle + SolverRelicEffectText.Format(effect.Summary))
             .ToArray()
             ?? [];
         string[] copiedKills = kills.ToArray();
-        string tooltip = SolverResult.Describe(action)
+        string title = action.Kind == PlanActionKind.EndTurn ? SolverText.Get("结束回合") : action.ActionTitle;
+        string tooltip = title + (action.Kind == PlanActionKind.UsePotion ? SolverText.Get("（药水）") : "")
+            + (string.IsNullOrEmpty(action.TargetName) ? "" : $"→{action.TargetName}")
+            + (relicLabels.Length > 0 ? $" [{string.Join("、", relicLabels)}]" : "")
+            + (choiceText == null ? "" : $"（{choiceText}）")
             + (copiedKills.Length > 0 ? SolverText.Format($"，击杀 {string.Join("、", copiedKills)}") : string.Empty);
         return new SolverOverlayActionSnapshot(
             action.Kind == PlanActionKind.EndTurn
                 ? isDirectEndTurn ? SolverText.Get("直接结束") : SolverText.Get("结束回合")
-                : action.ActionTitle,
+                : title,
             action.TargetName,
             choiceText,
             relicLabels,

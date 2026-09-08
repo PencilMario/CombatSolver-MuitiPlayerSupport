@@ -41,7 +41,7 @@ internal sealed partial class UnattendedTestRunner
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
             if (request.ScenarioId == "UI-LOCALIZATION")
             {
-                await runner.AssertUiLocalizationAsync();
+                await runner.AssertUiLocalizationAsync(combatState);
                 return Observation(combatEnded: false);
             }
             if (request.ScenarioId == "COMBAT-DIAGNOSTIC-LOG")

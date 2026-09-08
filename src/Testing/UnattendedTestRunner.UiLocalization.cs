@@ -3,13 +3,19 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Godot;
+using CombatSolver.Engine.InCombat.Simulation;
+using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Localization;
+using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.Orbs;
+using MegaCrit.Sts2.Core.Models.Powers;
 
 namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
-    private async Task AssertUiLocalizationAsync()
+    private async Task AssertUiLocalizationAsync(CombatState combat)
     {
         using Stream stream = typeof(SolverText).Assembly.GetManifestResourceStream("CombatSolver.UI.English.json")!;
         var catalog = JsonSerializer.Deserialize<Dictionary<string, string>>(stream)!;
@@ -31,6 +37,7 @@ internal sealed partial class UnattendedTestRunner
                 LocManager.Instance.SetLanguage(target);
                 await _host.ToSignal(_host.GetTree(), SceneTree.SignalName.ProcessFrame);
                 bool english = target == "eng";
+                await AssertActionAnnotationLocalizationAsync(combat, english);
                 foreach ((string source, string translated) in catalog)
                 {
                     if (SolverText.Get(source) != (english ? translated : source))
@@ -79,6 +86,61 @@ internal sealed partial class UnattendedTestRunner
             LocManager.Instance.SetLanguage(language);
             SolverOverlay.Hide();
         }
+    }
+
+    private async Task AssertActionAnnotationLocalizationAsync(CombatState combat, bool english)
+    {
+        SolverDisplayNames names = SolverDisplayNames.Capture(combat);
+        var sources = new[]
+        {
+            (CombatDamageSource.For(CombatDamageSourceKind.Poison), ModelDb.Power<PoisonPower>().Title.GetFormattedText()),
+            (CombatDamageSource.For(CombatDamageSourceKind.Thorns), ModelDb.Power<ThornsPower>().Title.GetFormattedText()),
+            (CombatDamageSource.For(CombatDamageSourceKind.Power, nameof(DoomPower)), ModelDb.Power<DoomPower>().Title.GetFormattedText()),
+            (CombatDamageSource.For(CombatDamageSourceKind.Power, ModelDb.Power<DoomPower>().Id.Entry), ModelDb.Power<DoomPower>().Title.GetFormattedText()),
+            (CombatDamageSource.For(CombatDamageSourceKind.Orb, nameof(LightningOrb)), ModelDb.Orb<LightningOrb>().Title.GetFormattedText()),
+            (CombatDamageSource.For(CombatDamageSourceKind.MonsterMove), english ? "Enemy move" : "敌方行动"),
+            (CombatDamageSource.Unknown, english ? "Unknown effect" : "未知效果"),
+        };
+        string language = LocManager.Instance.Language;
+        try
+        {
+            LocManager.Instance.SetLanguage(english ? "zhs" : "eng");
+            foreach (var (source, expected) in sources)
+                if (await Task.Run(() => names.DamageSource(source)) != expected)
+                    throw new InvalidOperationException("Damage-source names were not captured before worker execution.");
+        }
+        finally { LocManager.Instance.SetLanguage(language); }
+
+        var effects = new (string Source, string English)[]
+        {
+            ("：格挡+3", ": Block +3"), ("：格挡-1", ": Block -1"), ("：格挡×1.5", ": Block ×1.5"),
+            ("：抽1", ": Draw 1"), ("：敏捷+2", ": Dexterity +2"), ("：能量+1", ": Energy +1"),
+            ("：伤害4", ": Damage 4"), ("：伤害+4", ": Damage +4"), ("：伤害×2", ": Damage ×2"),
+            ("：全体伤害3", ": Damage to all 3"), ("：力量+1", ": Strength +1"),
+            ("：力量+1 敏捷+2", ": Strength +1 Dexterity +2"),
+            ("：手牌0费", ": Hand costs 0"), ("：复制到手牌", ": Copy to hand"), ("：升级", ": Upgrade"),
+            ("：额外回合", ": Extra turn"), ("：复活", ": Revive"), ("×2", "×2"), ("", ""),
+            ("第三方：力量宝珠", "第三方：力量宝珠"),
+        };
+        foreach (var (source, translated) in effects)
+        {
+            if (SolverRelicEffectText.Format(source) != (english ? translated : source))
+                throw new InvalidOperationException($"Relic effect translation failed: {source}");
+        }
+        PlanCardChoice skip = new(PlanChoiceEffect.Discard, PileType.Hand, []);
+        PlanCardChoice choose = skip with { Cards = [new("STRIKE_IRONCLAD", 0, "", 0, 0, "Strike")] };
+        PlanAction action = new(PlanActionKind.UsePotion, 1, PotionTitle: "Potion", TargetName: "Enemy",
+            Choice: skip, NestedChoices: [choose], NestedChoicesBeforePrimary: 1,
+            RelicEffects: [new("TEST_RELIC", "Relic", "：力量+1 敏捷+2")]);
+        string kill = $"Enemy（{names.DamageSource(CombatDamageSource.For(CombatDamageSourceKind.Poison))}）";
+        SolverOverlayActionSnapshot snapshot = SolverOverlaySnapshot.CaptureAction(action, [kill]);
+        if (snapshot.RelicLabels.Single() != "Relic" + (english ? ": Strength +1 Dexterity +2" : "：力量+1 敏捷+2")
+            || snapshot.ChoiceText != (english ? "Choose Strike / Skip choice" : "选 Strike / 不选")
+            || !snapshot.Tooltip.Contains(snapshot.RelicLabels[0], StringComparison.Ordinal)
+            || !snapshot.Tooltip.Contains(english ? "(Potion)" : "（药水）", StringComparison.Ordinal)
+            || snapshot.Kills.Single() != kill)
+            throw new InvalidOperationException("Secondary capsule labels and tooltips disagree.");
+        _completedChecks.Add($"ActionAnnotations:{language}:CapturedDamageSources:20RelicFormats:NestedChoices:Tooltip");
     }
 
     private static void AssertEnglishControls(Node node)

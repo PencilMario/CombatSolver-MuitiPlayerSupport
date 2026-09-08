@@ -18,6 +18,8 @@ internal sealed class SolverDisplayNames
     private readonly Dictionary<string, string> _potions;
     private readonly Dictionary<string, string> _relics;
     private readonly Dictionary<string, string> _powers;
+    private readonly Dictionary<string, string> _orbs;
+    private readonly bool _english;
     private readonly Dictionary<string, string> _monsters;
     private readonly Dictionary<uint, string> _creatures;
 
@@ -26,13 +28,17 @@ internal sealed class SolverDisplayNames
         Dictionary<string, string> potions,
         Dictionary<string, string> relics,
         Dictionary<string, string> powers,
+        Dictionary<string, string> orbs,
         Dictionary<string, string> monsters,
-        Dictionary<uint, string> creatures)
+        Dictionary<uint, string> creatures,
+        bool english)
     {
         _cards = cards;
         _potions = potions;
         _relics = relics;
         _powers = powers;
+        _orbs = orbs;
+        _english = english;
         _monsters = monsters;
         _creatures = creatures;
     }
@@ -88,8 +94,20 @@ internal sealed class SolverDisplayNames
             relicNames.TryAdd(relic.Id.Entry, relic.Title.GetFormattedText());
         Dictionary<string, string> powerNames = new(StringComparer.Ordinal);
         foreach (PowerModel power in ModelDb.AllPowers)
-            powerNames.TryAdd(power.Id.Entry, power.Title.GetFormattedText());
-        return new SolverDisplayNames(cardNames, potionNames, relicNames, powerNames, monsterNames, creatureNames);
+        {
+            string title = power.Title.GetFormattedText();
+            powerNames.TryAdd(power.Id.Entry, title);
+            powerNames.TryAdd(power.GetType().Name, title);
+        }
+        Dictionary<string, string> orbNames = new(StringComparer.Ordinal);
+        foreach (OrbModel orb in ModelDb.Orbs)
+        {
+            string title = orb.Title.GetFormattedText();
+            orbNames.TryAdd(orb.Id.Entry, title);
+            orbNames.TryAdd(orb.GetType().Name, title);
+        }
+        return new SolverDisplayNames(cardNames, potionNames, relicNames, powerNames, orbNames, monsterNames, creatureNames,
+            LocManager.Instance.Language is not ("zhs" or "zht"));
     }
 
     public string Card(CardModel card)
@@ -148,15 +166,15 @@ internal sealed class SolverDisplayNames
     public string DamageSource(CombatDamageSource source)
         => source.Kind switch
         {
-            CombatDamageSourceKind.Card => Card(source.Id ?? "卡牌"),
-            CombatDamageSourceKind.Potion => Potion(source.Id ?? "药水"),
-            CombatDamageSourceKind.Relic => Relic(source.Id ?? "遗物"),
-            CombatDamageSourceKind.Power => _powers.GetValueOrDefault(source.Id ?? string.Empty, source.Id ?? "能力"),
-            CombatDamageSourceKind.Poison => "毒",
-            CombatDamageSourceKind.Thorns => "荆棘",
-            CombatDamageSourceKind.Orb => $"球 {source.Id ?? string.Empty}".TrimEnd(),
-            CombatDamageSourceKind.MonsterMove => "敌方行动",
-            _ => "未知效果",
+            CombatDamageSourceKind.Card => Card(source.Id ?? (_english ? "Card" : "卡牌")),
+            CombatDamageSourceKind.Potion => Potion(source.Id ?? (_english ? "Potion" : "药水")),
+            CombatDamageSourceKind.Relic => Relic(source.Id ?? (_english ? "Relic" : "遗物")),
+            CombatDamageSourceKind.Power => _powers.GetValueOrDefault(source.Id ?? string.Empty, source.Id ?? (_english ? "Power" : "能力")),
+            CombatDamageSourceKind.Poison => _powers[nameof(PoisonPower)],
+            CombatDamageSourceKind.Thorns => _powers[nameof(ThornsPower)],
+            CombatDamageSourceKind.Orb => _orbs.GetValueOrDefault(source.Id ?? string.Empty, source.Id ?? (_english ? "Orb" : "球")),
+            CombatDamageSourceKind.MonsterMove => _english ? "Enemy move" : "敌方行动",
+            _ => _english ? "Unknown effect" : "未知效果",
         };
 
     public string Creature(Creature? creature)

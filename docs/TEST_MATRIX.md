@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：胶囊附加信息本地化（0.34.2）
+
+- `UI-LOCALIZATION` 扩展合同 `43bdbcdfc4eb4bf68c1bd65746412e44` Passed，24.58 秒；eng/zhs/zht 分别覆盖 321 条文案、20 个遗物摘要样本、毒/荆棘/能力规范 ID 与类型名/充能球/敌方行动/未知来源、嵌套选择与空选择、药水标记、遗物胶囊和 tooltip 一致性。
+- 捕获显示名后切换实时游戏语言，再在 Task.Run 中读取名称，验证 worker 输出仍使用已捕获语言。第三方自定义摘要样本与纯倍数保持原样。未重跑伤害模拟或整场搜索，改动只涉及显示。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId UI-LOCALIZATION -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance i18n-annotations -TimeoutSeconds 120 -ExitOnComplete`；Linux 使用对应 `.sh` 与同值长参数。
+- Release 行为构建 0 警告 / 0 错误，Windows 结构门禁通过。无实机交互/视觉验收或帧率测试。Steamworks 对 schinese、english 的两次描述更新各返回 EResult.OK；仅更新元数据，未上传二进制。
+
 ## 2026-09-08：简化中英双语 UI（0.34.1）
 
 - `UI-LOCALIZATION`：`5c12f39867df4f75beb28db5a593e840` Passed，23.72 秒。覆盖 319 条资源的占位符/数字格式、嵌入文本保持原样、eng/zhs/zht 语言选择、英文设置和上传弹窗控件/全部下拉选项无中文、设置切页、上传完成/取消状态、动态路线标题和失败引导。没有发送公网上传请求。
