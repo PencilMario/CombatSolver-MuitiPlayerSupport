@@ -139,7 +139,7 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 `BeamRetentionPolicy` 决定哪些中间候选继续活着；动作选牌、嵌套选牌和 `EndTurn.TurnStartChoices` 都以来源、效果、卡牌语义状态和上下文形成保路签名。`FinalPlanOrdering` 决定完整候选中最终采用哪条；完整胜利后比较扣除实际成长额度的战略战损，再比较已实现成长额度、收益次数和结束回合，药水、其他长线资源、敌方状态和分数作为后续尾键。两者不能合并成单一“总分排序”。`SearchFeatures` 是终局排序读取节点状态的只读投影。转置状态键中的九条战斗 RNG 必须包含完整内部状态；相同调用计数不能证明两个 RNG 后续等价。
 
-`GrowthPolicy.cs` 定义八类局外收益的不可变额度/次数向量。Runtime 在主线程冻结额度及当前牌组是否存在成长目标，交给 `SearchPolicySnapshot`；求解器在快照中计算额度，最终排序、阶段仲裁与 Pareto 保留共同消费。`SimulatedCombatState.LongTermResources` 只记录既有结算点产生的成功收益次数，Fork 按值复制，状态指纹保留各来源计数；额度属于搜索政策。计数从每个新根的零值开始，预测分支跨回合保留；续用仍核对原来的金币、最大生命和卡牌永久变量，计数本身不进入 live `ContinuationStamp`。有目标或非零配置时停用纯 HP 的提前终止和 incumbent 下界，沿用原时间/节点预算。
+`GrowthPolicy.cs` 定义八类局外收益的不可变额度/次数向量，另带 `GrowthExtras` 承载第三方来源那一半（按 id 序数升序、不存 0 值，空表为 `null`，登记表为空时行为与指纹与开这个口子之前逐位相同）。`GrowthSourceMirrors.cs` 是第三方登记表，只持有 id、延迟取牌函数与牌组判据；额度按 id 持久化，认不出的 id 原样保留并写回。Runtime 在主线程冻结额度及当前牌组是否存在成长目标，交给 `SearchPolicySnapshot`；求解器在快照中计算额度，最终排序、阶段仲裁与 Pareto 保留共同消费。`SimulatedCombatState.LongTermResources` 只记录既有结算点产生的成功收益次数，Fork 按值复制，状态指纹保留各来源计数；额度属于搜索政策。计数从每个新根的零值开始，预测分支跨回合保留；续用仍核对原来的金币、最大生命和卡牌永久变量，计数本身不进入 live `ContinuationStamp`。有目标或非零配置时停用纯 HP 的提前终止和 incumbent 下界，沿用原时间/节点预算。
 
 跨回合例外保路以各真实“直接 `EndTurn`”分支形成的 stand-pat Pareto 质量集为相对基准，不以绝对零进展或合成的逐坐标基线判定。候选一旦在通用质量向量上离开被 stand-pat 支配的区域，就退出例外探针；观察期、探针和保留数都有固定硬上限，且该上限不能被中途普通进展重置，从而让延迟收益有界探测、真正停滞不无限续期。
 
@@ -220,7 +220,7 @@ renderer 不得重新读取 `SolverResult`、`PlanAction`、`PlanCardChoice` 或
 
 `SolverPotionStrategyPanel` 是主界面右侧独立窄浮层的逐瓶药水策略控件所有者。它只在主线程按当前槽位读取图标、标题和可搜索性，紧凑按钮在智能、保护和强制使用间循环；`SolverController` 以槽位和药水 ID 捕获不可变 `PotionStrategySnapshot`，自动计算开启时策略变化会废弃旧 continuation 并启动新搜索。新进入槽位的药水没有旧身份覆盖，默认按智能使用处理。
 
-`SolverGrowthStrategyPanel` 拥有逐来源额外 HP 输入，与药水侧栏共享受视口约束的位置规则。“提前结束搜索的战损阈值”由 `SolverSettingsPanel.General` 管理，沿用 `AcceptableBattleHpLoss` 存储字段。两种面板在外部鼠标点击时释放其输入框焦点，沿用失焦提交；成长 SpinBox 显式应用待输入文本。成长面板在主线程读取卡牌图像与官方标题；`SolverController.SetGrowthPolicy` 只保存成长配置、废弃旧 continuation/完整路线比较基线，并在自动计算开启时重算。`SolverSettings`、路线缓存、问题包和战前 API 设置快照共同携带成长额度。
+`SolverGrowthStrategyPanel` 拥有逐来源额外 HP 输入，原版八行之后按登记顺序追加 `GrowthSourceMirrors` 的第三方行（取牌函数抛异常时该行退化为无图标、标题显示 id 并记 warn，不连带面板失败），发布额度时把设置里尚未登记的 id 原样并回。与药水侧栏共享受视口约束的位置规则。“提前结束搜索的战损阈值”由 `SolverSettingsPanel.General` 管理，沿用 `AcceptableBattleHpLoss` 存储字段。两种面板在外部鼠标点击时释放其输入框焦点，沿用失焦提交；成长 SpinBox 显式应用待输入文本。成长面板在主线程读取卡牌图像与官方标题；`SolverController.SetGrowthPolicy` 只保存成长配置、废弃旧 continuation/完整路线比较基线，并在自动计算开启时重算。`SolverSettings`、路线缓存、问题包和战前 API 设置快照共同携带成长额度。
 
 `PhysicalMemoryUsage` 从操作系统采样实时物理内存，`SolverMemoryUsageBar` 在底栏把系统及其他程序占用显示为灰色、当前游戏进程工作集显示为彩色，剩余部分表示可用余量；文字只显示游戏进程的“当前内存占用 / 动态上限”，动态上限等于 CLR 安全总量减去系统占用。Smart 用药梯度之间释放上一层搜索图，按同窗分配预测决定是否同步回收；最终梯度或普通搜索正常结束后保留战斗级 NoGC 区域，战斗结束时等待引用释放并延时 `3–5 秒` 清理。异常耗尽、搜索内检查点和手动回收继续在各自安全边界处理。
 

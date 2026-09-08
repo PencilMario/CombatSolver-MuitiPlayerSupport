@@ -25,6 +25,7 @@ internal sealed partial class UnattendedTestRunner
         }
         finally { SolverSettings.ApplyForTesting(original); }
         Check(await SolverOverlay.ExerciseGrowthPolicyUiForTesting(), "sidebar toggle, bounds and mutual exclusion");
+        AssertThirdPartyGrowthSources(combat);
 
         CombatPredictionSimulator simulator = new(new SimulatedCombatState(combat));
         SimulatedCombatState parent = (SimulatedCombatState)simulator.State.CombatState;
