@@ -45,7 +45,8 @@ internal static partial class CardChoiceSupport
     /// <c>9.6</c>。升级过的那张仍然更靠后移除。
     ///
     /// 只覆盖原版这十张具体的起手牌。其他来源的打击、防御——包括 mod 角色的——继续走通用估值，
-    /// 因为它们的强弱取决于各自的机制，这里没有依据替它们排序。
+    /// 因为它们的强弱取决于各自的机制，这里没有依据替它们排序。Mod 作者自己有这个依据，
+    /// 可以用 <see cref="CardRemovalValueMirrors"/> 声明类别，权重仍取这两个常量。
     /// </remarks>
     private const double BasicStrikeRemovalWeight = 2d / 3d;
 
@@ -906,6 +907,10 @@ internal static partial class CardChoiceSupport
                 $"候选={string.Join(',', cards.Select(ChoiceCardKey))}。");
     }
 
+    /// <summary>移除排序键，只给无人测试用。</summary>
+    internal static double RemovalPriorityForTesting(CardChoiceSpec spec, PredictedCard card)
+        => RemovalPriority(spec, card);
+
     private static double ChoicePriority(CardChoiceSpec spec, IReadOnlyList<PredictedCard> cards)
     {
         double value = cards.Sum(card => spec.Effect is PlanChoiceEffect.Transform or PlanChoiceEffect.Exhaust
@@ -993,6 +998,24 @@ internal static partial class CardChoiceSupport
             StrikeIronclad or StrikeSilent or StrikeDefect or StrikeNecrobinder or StrikeRegent
                 => DynamicVarBaseValue(card.DynamicVars, "Damage") * BasicStrikeRemovalWeight,
             DefendIronclad or DefendSilent or DefendDefect or DefendNecrobinder or DefendRegent
+                => DynamicVarBaseValue(card.DynamicVars, "Block") * BasicDefendRemovalWeight,
+            _ => ThirdPartyBasicCardRemovalValue(card),
+        };
+
+    /// <summary>
+    /// 第三方声明过的起手牌，按同一组权重估值；没登记过的照旧返回 <c>null</c> 走通用估值。
+    /// </summary>
+    /// <remarks>
+    /// 上面那张表只列原版十张，理由是求解器没有依据替 Mod 的牌排序。那个判断对求解器成立，
+    /// 对 Mod 作者不成立——他知道自己那张牌是不是起手牌。所以由他登记类别，权重仍在这一侧，
+    /// 见 <see cref="CardRemovalValueMirrors"/>。登记表为空时这里立刻返回 <c>null</c>。
+    /// </remarks>
+    private static double? ThirdPartyBasicCardRemovalValue(CardModel card)
+        => CardRemovalValueMirrors.Kind(card) switch
+        {
+            BasicCardRemovalKind.Strike
+                => DynamicVarBaseValue(card.DynamicVars, "Damage") * BasicStrikeRemovalWeight,
+            BasicCardRemovalKind.Defend
                 => DynamicVarBaseValue(card.DynamicVars, "Block") * BasicDefendRemovalWeight,
             _ => null,
         };

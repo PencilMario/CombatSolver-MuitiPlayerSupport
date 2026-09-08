@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 第三方起手牌移除估值登记入口（开发中）
+
+- Release 编译（`-p:CopyModOnBuild=false`）0 警告 0 错误，结构门禁通过。
+- 新增 `AssertThirdPartyBasicCardRemoval`，挂在既有卡牌选择挂起用例路径上：登记表初始为空、未登记的牌排序键高于原版起手打击、登记为起手打击后排序键真的下降、重复登记与未定义类别抛错、原版写死的表不被登记表改写、撤销登记后排序键复原。
+- **无人测试未跑**：相关脚本开头会 `Stop-Process SlayTheSpire2`，用户正在实机测试，不能执行。实机由用户验证（净化会不会开始优先烧观者打击）。
+- 未做 248 条原版回归、未执行完整发布门禁。
+
 ## 0.33.5 受伤历史与攻击次数
 
 - `TURN-START-DAMAGE-SPITE` / `THE_OBSCURA_NORMAL`：失败基线 `6fa9c33e5aca495cad4c1c0a8b662c95`，T2 怨恨后 E1.hp 预测 86、原生 81；最终 `18a3b15c05f94038a6cfb080fe41ef9c` Passed，28 秒。覆盖回合开始 Inferno 自伤后的双次攻击、召唤阵容、完整状态和 Fork，以及伤害记录不泄漏到敌方/额外玩家回合。

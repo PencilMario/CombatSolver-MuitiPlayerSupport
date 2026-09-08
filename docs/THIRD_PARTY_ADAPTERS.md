@@ -247,7 +247,38 @@ PowerHiddenStateMirrors.Register<TYourPower>(
 也就是下一回合总和的增量；它要根捕获加读取函数两条，登记一个 `InstanceCount` 就够了，不需要把
 整张表塞进去。
 
-### 2.7 还没有登记入口的地方
+### 2.7 起手牌的移除估值
+
+尚未发布，登记入口在下一版本。加载时登记一次即可。
+
+```csharp
+CardRemovalValueMirrors.Register<YourStrike>(BasicCardRemovalKind.Strike);
+CardRemovalValueMirrors.Register<YourDefend>(BasicCardRemovalKind.Defend);
+```
+
+净化、洗炼这类**移除**选择按 `CardChoiceSupport.RemovalPriority` 从低到高排序，估值低的先被
+移除。通用估值把伤害记满、格挡打八折，于是一张 6 伤害的起手打击得 `6.0`，比一张 5 格挡的起手
+防御（`4.0`）还高——按通用估值排，先被烧掉的会是防御。原版五个角色的实战优先级正相反，所以
+`BasicCardRemovalValue` 用一张按类型写死的表把这十张起手牌压回正确的相对位置。
+
+那张表**只列原版十张**。它的注释里写明了理由：其他来源的打击、防御「强弱取决于各自的机制，
+这里没有依据替它们排序」。这个判断对求解器成立，**对你不成立**——你知道自己那张牌是不是起手牌。
+所以这里开一个登记点，让你自己声明。
+
+**登记的是类别，不是数值。** 权重仍然是求解器那一侧的两个常量，你只说「这是我的起手打击」。
+升级差别照样保留（6 伤害与 9 伤害排序不同），也不会有人往里塞一个凭空编出来的移除价值。
+
+**不登记的后果是静默的。** 你的起手打击按通用估值算成一张有伤害的好攻击牌，于是净化永远不会
+先烧它——它不报错、不打红字，只是求解器再也不会替你压牌库。实测一场女王：玩家手打消耗掉三张
+观者打击、把全知与内心宁静留在牌库里；求解器反过来消耗了全知、内心宁静、痛击，把四张打击留着。
+两边同样有疾风连击 4，只有前者的牌库能持续转起来。
+
+**只登记起手牌。** 这个入口的语义是「这张牌和原版起手打击/防御在牌库里的地位相同」，不是
+「给这张牌调一个移除价值」。给一张真正有用的牌登记，等于让求解器优先把它烧掉。
+
+原版那张写死的表优先：已经列进去的类型不会被登记表改写。登记表为空时下游一行都不多走。
+
+### 2.8 还没有登记入口的地方
 
 见第 6 节。目前只能 Harmony 打补丁，或者等对应的扩展点合并。
 
@@ -367,6 +398,7 @@ PowerHiddenStateMirrors.Register<TYourPower>(
 | `PlayerTurnEndLifecycle.RunPhaseTwo`、`CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、`TurnStartPowerSupport.TriggerAfterPlayerTurnStart`、`SimulatedCombatState.TriggerRelicsAfterPlayerTurnStart` | 回合边界的效果没有注册表 | 待做 |
 | `SimulatedCombatState.TryPrepareExtraPlayerTurn` / `TryPrepareLiveExtraPlayerTurn` / `ConsumeExtraTurnSources` | 额外回合的来源硬编码，只认龙涎香和帕尔之眼 | 待做 |
 | `CombatPredictionSimulator.OnPlayWrapper` | 出牌后补抽没有挂载点 | 待做 |
+| `CardChoiceSupport.RemovalPriority` 的排序口径 | 移除类选择按**单卡**估值排，不看牌库其余部分；弃牌那一侧已经是「源牌堆平均值减本牌估值」的相对口径，消耗与转变没有。表现为求解器不会为了压出无限而主动烧牌。起手牌那一层已由 §2.7 打开，相对口径这一层仍然封闭 | 待做 |
 | `ContinuationStamp.AppendCard` 的 `private=` 段与 `CombatBeamSolver.CaptureCardStateFingerprintForTesting` 的 `switch (preview)` | **卡牌**的隐藏字段按原版类型写死（利爪、基因算法、巨锤、狂暴、镰刀、疯狂科学），第三方卡牌的私有计数进不了指纹。Power 那一侧已有 `PowerHiddenStateMirrors`，见 §2.6 | 待做 |
 | `SimulatedCombatState.AddTurnStartStates` 的 `switch (power)` | 原版 Power 隐藏计数按类型写死。第三方走 §2.6 的登记表进同一份指纹，本行只是记下原版那个 `switch` 本身仍然封闭 | 第三方已有入口 |
 | `GrowthSource` / `GrowthValues.HasTarget` 与 `SolverGrowthStrategyPanel.SourceCard` | 成长额度仅支持内置八类来源；第三方战略估值登记不会自动获得独立成长配置 | 0.32.0 已发布，尚无公开登记入口 |
