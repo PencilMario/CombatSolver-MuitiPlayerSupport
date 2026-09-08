@@ -39,6 +39,11 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId is "NORMALITY-AUTOPLAY" or "NORMALITY-AUTOPLAY-REPLAY")
+            {
+                await runner.AssertNormalityAutoPlayAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "UI-LOCALIZATION")
             {
                 await runner.AssertUiLocalizationAsync(combatState);

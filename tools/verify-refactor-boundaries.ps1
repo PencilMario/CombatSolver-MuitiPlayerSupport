@@ -19,6 +19,10 @@ $forbiddenSearchReferences = @(
 )
 
 $violations = [System.Collections.Generic.List[string]]::new()
+$normalityMirror = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot 'src/Engine/InCombat/Mirrors/Hooks/Card/ShouldPlayMirrors.cs'))
+if (-not $normalityMirror.Contains('registry.Register<Normality>(HandleNormality)')) {
+    $violations.Add('Normality must use the shared ShouldPlay mirror for manual and automatic cards.')
+}
 $playerTurnEndCallers = @(
     "src/Search/CombatBeamSolver.Expansion.cs",
     "src/Runtime/LiveEndTurnRiskEvaluator.cs",

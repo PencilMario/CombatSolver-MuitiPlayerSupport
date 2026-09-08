@@ -107,7 +107,7 @@ internal static class CalculatedVarSpecRegistry
             HelixDrill => Math.Max(0, combat.GetEnergySpentThisTurn(model.Owner)
                 - card.GetEnergyCostWithModifiers(simulator, playerState)),
             PullFromBelow => CountEtherealPlays(simulator, model.Owner),
-            Normality => Math.Min(3, combat.GetCardsPlayedThisTurn(owner)),
+            Normality => Math.Min(3, combat.GetCardPlayStartsThisTurn(owner)),
             Synchronize or CompileDriver => playerState.OrbQueue.Orbs.Select(orb => orb.Id).Distinct().Count(),
             Protector => simulator.State.GetOsty(model.Owner) is { } protectorOsty
                 && simulator.State.GetCreature(protectorOsty).IsAlive

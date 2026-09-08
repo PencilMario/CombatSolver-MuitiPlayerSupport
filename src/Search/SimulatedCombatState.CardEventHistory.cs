@@ -88,23 +88,29 @@ internal sealed partial class SimulatedCombatState
             && entry.CardPlay.Player == player
             && entry.CardPlay.Card.Type == CardType.Attack
             && entry.CardPlay.Resources.EnergyValue == 0);
-        AppendTurnCardHistory(text, statusCardsDrawn, zeroCostAttackStarts);
+        int cardPlayStarts = CombatManager.Instance.History.CardPlaysStarted.Count(entry =>
+            entry.HappenedThisTurn(combatState) && entry.CardPlay.Player == player);
+        AppendTurnCardHistory(text, statusCardsDrawn, zeroCostAttackStarts, cardPlayStarts);
     }
 
     public void AppendPredictedTurnCardHistory(StringBuilder text, Player player)
         => AppendTurnCardHistory(
             text,
             GetStatusCardsDrawnThisTurn(player),
-            GetZeroCostAttackStartsThisTurn(player.Creature));
+            GetZeroCostAttackStartsThisTurn(player.Creature),
+            GetCardPlayStartsThisTurn(player.Creature));
 
     private static void AppendTurnCardHistory(
         StringBuilder text,
         int statusCardsDrawn,
-        int zeroCostAttackStarts)
+        int zeroCostAttackStarts,
+        int cardPlayStarts)
         => text.Append(";Y=")
             .Append(statusCardsDrawn)
             .Append('/')
-            .Append(zeroCostAttackStarts);
+            .Append(zeroCostAttackStarts)
+            .Append('/')
+            .Append(cardPlayStarts);
 
     public void AfterCardEnteredCombat(CombatPredictionSimulator simulator, PredictedCard card)
     {

@@ -295,6 +295,10 @@ for legacy_loop_guard_path in "${legacy_loop_guard_paths[@]}"; do
         'retired named loop-payoff exception returned:'
 done
 
+require_fixed "$repository_root/src/Engine/InCombat/Mirrors/Hooks/Card/ShouldPlayMirrors.cs" \
+    'registry.Register<Normality>(HandleNormality)' \
+    'Normality must use the shared ShouldPlay mirror for manual and automatic cards.'
+
 for file in "${search_files[@]}"; do
     for reference in \
         'SolverSettings.Current' \

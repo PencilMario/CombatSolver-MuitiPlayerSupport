@@ -1,5 +1,14 @@
 # CombatSolver 测试清单
 
+## 2026-09-08：凡庸与自动打牌（0.34.4）
+
+- 原报告 `12f213c23ccd4a00abaf7a80c796273e` 的第 6 回合在发现、彼岸咆哮后打出倾泻，Normality 仍在手；原版结束回合复核为 25 HP，计划为 0 HP。日志定位后直接构造最小夹具，没有运行原包恢复。
+- `NORMALITY-AUTOPLAY` 失败基线 `b331a29d04dc4587a797ad2c5074eb78`，23.63 秒：两张防御后打倾泻，模拟格挡 27、原版 10。修复后 `5df3975b9e874fb1a34f5f966dc7f54d` Passed，25.97 秒，比较完整 MoveStateSnapshot/ContinuationStamp，包含有序牌堆、资源、能力和 RNG。
+- `NORMALITY-AUTOPLAY-REPLAY`：`21766a0d3d3149d485d09baf36885cf3` Passed，26.44 秒。第一张牌被回响形态重复打出，两次开始加倾泻开始达到三次；验证计数不以“手动动作数”或“已完成次数”代替开始次数。
+- 两组还比较：凡庸阻止的自动牌去向、诅咒离手后允许自动牌、预测/Fork/原版重捕获的开始次数、子分支回合清零及父分支保持。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId NORMALITY-AUTOPLAY -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance normality -TimeoutSeconds 120 -ExitOnComplete`；第二组替换 ScenarioId 为 `NORMALITY-AUTOPLAY-REPLAY`。Linux 使用同名 `.sh` 与对应长参数。
+- Release 行为构建、Windows 结构门禁及 CoverageCatalog 的 effective/state-fields/autoplay-sources 检查通过。未运行正式搜索、整场部署、原包恢复或可见 FPS/交互验收。
+
 ## 2026-09-08：卡牌语言往返刷新（0.34.3）
 
 - `UI-LOCALIZATION`：`1e7e7f53067f4c34a1732b6c5b63c033` Passed，24.96 秒。新增英文已保存 PlanAction / UI snapshot，构造一次真实胶囊，依次切 zhs / eng / zhs，断言标题、升级符号、选牌、tooltip 与游戏译名一致；JSON 往返及旧计划内容保持原样。

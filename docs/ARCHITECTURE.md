@@ -161,6 +161,7 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 - `DeathLifecycle.cs`：死亡、复活与阵容事务；
 - `ActionChoices.cs` / `TurnStartChoices.cs` / `AutoPlay.cs`：嵌套选择与自动出牌；
 - `CardLifecycle.cs` / `CardPowerHistory.cs` / `PowerLifecycle.cs`：卡牌和 Power 跨事件状态；
+- 凡庸在 `ShouldPlayMirrors` 使用同一分支手牌/开始次数入口约束手动与自动打牌。`_cardPlayStartsThisTurn` 包含重复播放和仍在执行的外层卡牌，根来自 CardPlaysStarted，随 Fork 复制、回合开始清零，进入 fingerprint 和 `CardEventHistory` 的 live/predicted 续用文本；不能以完成次数或手动系列数代替。
 - `Relics.cs`、`PowerRelics.cs`、`ReactiveRelics.cs` 等：遗物与组合事务；
 - `Potions.cs`：药水槽和使用状态。
 

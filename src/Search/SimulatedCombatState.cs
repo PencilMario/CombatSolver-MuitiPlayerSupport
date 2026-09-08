@@ -215,6 +215,7 @@ internal sealed partial class SimulatedCombatState
     private ForkableDictionary<Player, int>? _statusCardsDrawnThisTurn;
     private ForkableDictionary<Creature, int>? _cardPlaySeriesStartedThisTurn;
     private ForkableDictionary<Creature, int>? _zeroCostAttackStartsThisTurn;
+    private ForkableDictionary<Creature, int>? _cardPlayStartsThisTurn;
     private ForkableSet<Creature>? _enemiesIntendingAttack;
     private bool _hasPredictedEnemyIntents;
     private ForkableDictionary<Player, int>? _playerTurnNumbers;
@@ -1147,6 +1148,7 @@ internal sealed partial class SimulatedCombatState
         (_creatureAttacksThisTurn ??= [])[owner] = 0;
         (_cardPlaySeriesStartedThisTurn ??= [])[owner] = 0;
         (_zeroCostAttackStartsThisTurn ??= [])[owner] = 0;
+        (_cardPlayStartsThisTurn ??= [])[owner] = 0;
         if (owner.Player is { } ownerPlayer)
         {
             (_energySpentThisTurn ??= [])[ownerPlayer] = 0;
@@ -1863,6 +1865,7 @@ internal sealed partial class SimulatedCombatState
             _ = GetCardsPlayedThisTurn(creature);
             _ = GetCardPlaySeriesStartedThisTurn(creature);
             _ = GetZeroCostAttackStartsThisTurn(creature);
+            _ = GetCardPlayStartsThisTurn(creature);
             _ = GetAttacksPlayedThisTurn(creature);
             _ = GetShivsPlayedThisTurn(creature);
             _ = GetBlockCardsPlayedThisTurn(creature);
@@ -2002,6 +2005,7 @@ internal sealed partial class SimulatedCombatState
         AddPlayerIntMap(ref fingerprint, 's', _statusCardsDrawnThisTurn);
         AddCreatureIntMap(ref fingerprint, 'Q', _cardPlaySeriesStartedThisTurn);
         AddCreatureIntMap(ref fingerprint, 'q', _zeroCostAttackStartsThisTurn);
+        AddCreatureIntMap(ref fingerprint, 'J', _cardPlayStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'k', _knowledgeDemonCurseCounters);
         AddCreatureSet(ref fingerprint, 'i', _enemiesIntendingAttack);
         fingerprint.Add(_hasPredictedEnemyIntents);
