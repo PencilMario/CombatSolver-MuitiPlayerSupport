@@ -18,6 +18,11 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "HAND-POTENTIAL-COSTS")
+            {
+                runner.SetStage("hand_potential_costs");
+                runner.AssertHandPotentialCosts(scenario.CombatState, scenario.Player);
+            }
             if (request.ScenarioId == "KNOWN-GAMEPLAY-MOD-BOUNDARY")
             {
                 runner.SetStage("known_gameplay_mod_boundary");

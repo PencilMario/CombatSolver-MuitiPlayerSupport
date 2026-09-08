@@ -6,6 +6,8 @@
 
 ## 专题
 
+- [极高配置下的等质量热路径优化](veryhigh-quality-preserving-20260908.md)：当前上游 A/B、原版费用对照与可见 Steam 验证。
+
 - [Ritsu 目标类型查询缓存](metadata-target-type-cache-20260907.md)：PR #49 的合同、复现条件与性能证据范围。
 - [Issue #36 研究与首轮基线](gc-issue36-research.md)。
 - [Issue #36 固定工作量复现](gc-issue36-reproduce.md)。

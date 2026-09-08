@@ -3702,11 +3702,13 @@ internal sealed partial class CombatBeamSolver
 
         void Add(ActionCandidate candidate, bool allowOverflow = false)
         {
-            if ((!allowOverflow && selected.Count >= limit)
-                || selected.Any(current => ReferenceEquals(current.Node, candidate.Node)))
-            {
+            if (!allowOverflow && selected.Count >= limit)
                 return;
-            }
+            // A capturing predicate allocated once per admission attempt, including
+            // duplicate representatives. Keep the original reference-identity test.
+            for (int index = 0; index < selected.Count; index++)
+                if (ReferenceEquals(selected[index].Node, candidate.Node))
+                    return;
             selected.Add(candidate);
         }
 
@@ -3715,8 +3717,9 @@ internal sealed partial class CombatBeamSolver
         // the ordinary action-family quota fills the node.
         if (_theftPolicy == SolverTheftPolicy.PreserveResources)
         {
-            foreach (ActionCandidate candidate in candidates.Where(IsStolenResourceRecoveryTarget))
-                Add(candidate);
+            foreach (ActionCandidate candidate in candidates)
+                if (IsStolenResourceRecoveryTarget(candidate))
+                    Add(candidate);
         }
 
         // A resolved routing choice and a revival window are semantic branch boundaries. Preserve
@@ -3727,35 +3730,50 @@ internal sealed partial class CombatBeamSolver
             if (CurrentTurnRoutingChoice(candidate.Node) != null)
                 Add(candidate, allowOverflow: true);
         }
-        ActionCandidate? revivalWindowCandidate = candidates
-            .Where(candidate => candidate.Node.Snapshot.RevivingEnemyCount
-                > parent.Snapshot.RevivingEnemyCount)
-            .OrderByDescending(candidate => candidate.Node.Snapshot.RevivingEnemyCount)
-            .ThenBy(candidate => candidate.Node.Snapshot.RawEnemyHp)
-            .ThenBy(candidate => candidate.Node.Snapshot.MaxCurrentEnemyHp)
-            .ThenByDescending(candidate => candidate.Node.Snapshot.ProjectedPlayerHp)
-            .Select(candidate => (ActionCandidate?)candidate)
-            .FirstOrDefault();
+        ActionCandidate? revivalWindowCandidate = null;
+        foreach (ActionCandidate candidate in candidates)
+        {
+            SimulationSnapshot snapshot = candidate.Node.Snapshot;
+            if (snapshot.RevivingEnemyCount <= parent.Snapshot.RevivingEnemyCount)
+                continue;
+            if (revivalWindowCandidate is { } current)
+            {
+                SimulationSnapshot best = current.Node.Snapshot;
+                int comparison = best.RevivingEnemyCount.CompareTo(snapshot.RevivingEnemyCount);
+                if (comparison == 0)
+                    comparison = snapshot.RawEnemyHp.CompareTo(best.RawEnemyHp);
+                if (comparison == 0)
+                    comparison = snapshot.MaxCurrentEnemyHp.CompareTo(best.MaxCurrentEnemyHp);
+                if (comparison == 0)
+                    comparison = best.ProjectedPlayerHp.CompareTo(snapshot.ProjectedPlayerHp);
+                // Stable first minimum, matching OrderBy/ThenBy/FirstOrDefault.
+                if (comparison >= 0)
+                    continue;
+            }
+            revivalWindowCandidate = candidate;
+        }
         if (revivalWindowCandidate is { } revivalCandidate)
             Add(revivalCandidate, allowOverflow: true);
 
-        foreach (ActionOptionFamily family in new[]
-                 {
-                     ActionOptionFamily.ImmediateDefense,
-                     ActionOptionFamily.ImmediateOffense,
-                     ActionOptionFamily.ResourceAndCycle,
-                     ActionOptionFamily.PersistentSetup,
-                     ActionOptionFamily.Control,
-                     ActionOptionFamily.TargetRemoval,
-                     ActionOptionFamily.HpInvestment,
-                 })
+        ReadOnlySpan<ActionOptionFamily> families =
+        [
+            ActionOptionFamily.ImmediateDefense,
+            ActionOptionFamily.ImmediateOffense,
+            ActionOptionFamily.ResourceAndCycle,
+            ActionOptionFamily.PersistentSetup,
+            ActionOptionFamily.Control,
+            ActionOptionFamily.TargetRemoval,
+            ActionOptionFamily.HpInvestment,
+        ];
+        foreach (ActionOptionFamily family in families)
         {
-            ActionCandidate? representative = candidates
-                .Where(candidate => candidate.OptionFamilies.HasFlag(family))
-                .Select(candidate => (ActionCandidate?)candidate)
-                .FirstOrDefault();
-            if (representative is { } candidate)
+            foreach (ActionCandidate candidate in candidates)
+            {
+                if (!candidate.OptionFamilies.HasFlag(family))
+                    continue;
                 Add(candidate);
+                break;
+            }
         }
 
         foreach (IGrouping<uint, ActionCandidate> targetGroup in candidates

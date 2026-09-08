@@ -1426,10 +1426,19 @@ internal sealed partial class SimulatedCombatState
     }
 
     public bool CanPlayCard(CombatPredictionSimulator simulator, PredictedCard card)
+        => CanPlayCard(simulator, card, out _, out _);
+
+    public bool CanPlayCard(
+        CombatPredictionSimulator simulator,
+        PredictedCard card,
+        out int energyCost,
+        out int starCost)
     {
+        energyCost = 0;
+        starCost = 0;
         if (IsCardPlayPrevented(simulator, card))
             return false;
-        if (!simulator.CanPlay(card))
+        if (!simulator.CanPlay(card, out energyCost, out starCost))
             return false;
         return card.Preview.Affliction is not Smog;
     }
