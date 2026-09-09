@@ -53,3 +53,15 @@
 其余 20 份 / 18 场保持未处理。其中只有两组有重复表象：Lagavulin Matriarch 的敌方格挡 `expected=12 actual=0` 为 2 场（`38693964c78149a29afd20c5a17857b2`、`cee1db19012c47be828cb60e5470f62a`）；Exoskeletons 的 `E2.hp expected=9 actual=18` 是同一 session 重复导出的 3 份（`a0ab5a6647b64d5d9917cc963a05f812`、`5585bbcecdf8424183d2ce3e54ad0932`、`714d24b0bc48439bbd326b25214636b7`），只算 1 场。其他首差异分散在玩家/敌人生命、牌堆、Power、遗物计数、怪物行动、苦难层数和卡牌费用，每个触发点仅 1 场；本轮没有按字段硬合并。
 
 本批最终在最新 0.34.4 的 55 份 / 51 场中修复并归组 29 份 / 27 场，保留 26 份 / 24 场。查询时其他旧 Mod 版本另有 70 份未修复报告，本轮按“优先最新版本”没有展开，不能视为已覆盖。
+
+## 静默猎手指定接收窗口复查
+
+2026-09-09 续查先用 `reports.py filters` 确认稳定 ID，再执行 `list --filter issue=UnexpectedReplan --filter status=unresolved --filter version=0.34.4 --filter character=SILENT --limit 100`。接口返回 `total=17`、`nextPage=null`；这 17 份的 `receivedAt` 均显式携带 `+0800`，范围为北京时间 2026-09-09 04:01:38 至 13:12:33。
+
+按本轮指定的北京时间 `[2026-09-08 22:00:00, 2026-09-09 00:00:00)` 筛选，最终报告 ID 集合为空，session 集合为空。该结果是当前未解决视图，不能用上一批 26 份的历史总数代替，也不能将窗口外报告纳入本轮修复。
+
+本轮直接验证、静态根因归组、原包整场回放均为 0 份；没有新增语义修复、最小失败基线或行为通过结果，没有更新日志站备注及解决状态。已有发布和测试记录保持原口径。
+
+任务分支 `fix/silent-unexpected-replans` 从本地 `main` 的 `2c7bee5` 建立。访问远端时默认 TLS 后端及 schannel 均握手失败，因此未能确认远端最新 main；本轮只提交该筛选记录。
+
+本轮 L0 验证：`dotnet build CombatSolver.csproj -c Release` 成功（0 警告、0 错误）；`pwsh -NoProfile -File tools/verify-refactor-boundaries.ps1` 返回 `REFACTOR_BOUNDARIES_OK search_files=78`。无行为变化，开发笔记与测试矩阵没有新增修复或行为证据条目；未启动 headless 进程。
