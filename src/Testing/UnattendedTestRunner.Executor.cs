@@ -46,6 +46,9 @@ internal sealed partial class UnattendedTestRunner
             }
             if (request.ScenarioId == "UI-LOCALIZATION")
             {
+                RunStatistics.Start(MegaCrit.Sts2.Core.Nodes.NGame.Instance!);
+                if (MegaCrit.Sts2.Core.Nodes.NGame.Instance!.GetNodeOrNull("CombatSolverRunStatistics") != null)
+                    throw new InvalidOperationException("Headless statistics must remain inactive.");
                 await runner.AssertUiLocalizationAsync(combatState);
                 return Observation(combatEnded: false);
             }

@@ -40,7 +40,7 @@ public static class Entry
         SolverUiTokens.ConfigureTheme(SolverSettings.Current.OverlayTheme);
         SolverController.ApplyPersistentSettings(SolverSettings.Capture());
         ModTypeDiscoveryHub.RegisterModAssembly(ModId, Assembly.GetExecutingAssembly());
-        RitsuLibFramework.SubscribeLifecycle<CombatStartingEvent>(evt => SolverController.BeginCombat(evt.CombatState));
+        RitsuLibFramework.SubscribeLifecycle<CombatStartingEvent>(evt => { RunStatistics.Battle(evt.CombatState); SolverController.BeginCombat(evt.CombatState); });
         RitsuLibFramework.SubscribeLifecycle<CombatEndedEvent>(_ => SolverController.Reset("combat_ended"));
         CombatManager.Instance.TurnStarted += OnTurnStarted;
 
@@ -73,6 +73,9 @@ public static class Entry
         patcher.RegisterPatch<UnattendedTestIsolationPatch>();
         patcher.RegisterPatch<UnattendedHeadlessFtuePatch>();
         patcher.RegisterPatch<CombatReplayRecordingPatch>();
+        patcher.RegisterPatch<RunStatisticsNewRunPatch>();
+        patcher.RegisterPatch<RunStatisticsLaunchPatch>();
+        patcher.RegisterPatch<RunStatisticsEndPatch>();
         patcher.RegisterPatch<UnattendedCombatStartReplayPatch>();
         RitsuLibFramework.ApplyRequiredPatcher(patcher, DisableMod);
 

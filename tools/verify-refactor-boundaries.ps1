@@ -15,6 +15,7 @@ $forbiddenSearchReferences = @(
     "SolverActionTextIdentity",
     "SolverLocaleRefresh",
     "SolvedRouteCache",
+    "RunStatistics",
     "UnattendedTestRunner"
 )
 

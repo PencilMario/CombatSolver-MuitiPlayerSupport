@@ -27,7 +27,8 @@ Entry / turn hooks
 |---|---|---|
 | `src/Runtime/Entry.cs` | Mod 初始化、补丁安装、战斗与回合生命周期入口、无人请求循环启动 | 搜索策略和战斗语义 |
 | `src/Runtime/CombatSolverLog.cs` / `CombatDiagnosticJournal.cs` | 独立日志入口；生产线程入队不可变消息，复用后台事件文件；战斗切换摘要化、搜索日志绑定所属战斗、提交前缀冻结 | Godot 全局日志收集、搜索候选判定、后台读取 live 状态 |
-| `src/Runtime/OnlinePresence.cs` | 主线程在线标量采样、持久安装标识、可取消 HTTPS 心跳；无头和多人隔离 | 搜索策略、完整路线上传、服务端历史存储 |
+| `src/Runtime/OnlinePresence.cs` | 主线程在线标量采样、共享持久安装标识和证书固定的 HTTPS 客户端；无头和多人隔离 | 搜索策略、完整路线上传、服务端历史存储 |
+| `src/Runtime/RunStatistics.cs` / `RunStatisticsStore.cs` | 主线程跑局/战斗/设置/实际操作标量事件；独立有界队列，后台持久化、原生结算恢复与幂等补传；不可变提交时战绩快照 | 搜索状态键、模拟、游戏存档修改、历史求解器参与推断 |
 | `src/Runtime/SolverController.cs` | 主线程搜索/续用/部署/全自动编排，结果过期与重算审计 | Beam 内部算法和 UI 布局 |
 | `src/Runtime/SolverControllerSessions.cs` | combat/search/deployment 三类会话的状态与取消所有权 | 跨会话全局静态字段堆积 |
 | `src/Runtime/CombatRootSnapshot.cs` | 主线程捕获完整预测根，比较捕获前后 live 状态，并向 worker 提供 Fork 根 | worker 惰性读取 live 战斗 |

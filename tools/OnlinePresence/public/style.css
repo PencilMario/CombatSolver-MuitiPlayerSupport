@@ -17,3 +17,4 @@
 .pagination button:disabled{cursor:default;opacity:.4}
 #page-number{min-width:64px;text-align:center;font-variant-numeric:tabular-nums}
 #players-error{color:#ba3535;margin-bottom:12px}
+.run-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:.6rem;margin:1rem 0}.run-filters label{display:grid;gap:.3rem;min-width:0}.run-filters input,.run-filters select{width:100%;min-width:0;box-sizing:border-box}

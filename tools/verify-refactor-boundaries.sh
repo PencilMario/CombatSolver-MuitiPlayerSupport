@@ -311,6 +311,7 @@ for file in "${search_files[@]}"; do
         'SolverActionTextIdentity' \
         'SolverLocaleRefresh' \
         'SolvedRouteCache' \
+        'RunStatistics' \
         'UnattendedTestRunner'; do
         forbid_fixed "$file" "$reference" 'forbidden Search reference'
     done
