@@ -1128,6 +1128,7 @@ internal sealed partial class UnattendedTestRunner
         }
         if (check.TriggerPlayerSideTurnStartAfterMove)
         {
+            simulatedCombat.BeginSideTurn(player.Creature);
             if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(
                     simulator,
                     simulatedCombat,
@@ -1171,6 +1172,7 @@ internal sealed partial class UnattendedTestRunner
         }
         if (check.TriggerEnemySideTurnStartAfterMove)
         {
+            simulatedCombat.BeginSideTurn(enemy);
             simulatedCombat.SnapshotPowerAmountsAtTurnStart([enemy]);
             if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(
                     simulator,

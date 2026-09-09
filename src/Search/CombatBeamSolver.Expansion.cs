@@ -2533,6 +2533,7 @@ internal sealed partial class CombatBeamSolver
         ISet<uint> processedEnemyDeaths)
     {
         SimPlayerCombatState playerState = simulator.State.GetPlayerCombatState(_player);
+        simulatedCombat.BeginSideTurn(_player.Creature);
         if (PersistentRelicSupport.ShouldPlayerResetEnergy(simulatedCombat, _player))
             playerState.LoseEnergy(playerState.Energy);
         playerState.GainEnergy(PersistentPowerSupport.GetModifiedMaxEnergy(simulatedCombat, _player));
@@ -3299,6 +3300,8 @@ internal sealed partial class CombatBeamSolver
             {
                 using SearchMeasurementScope enemyStart = _run.Performance.Measure(SearchMetricPhase.RoundEnemyStart);
                 simulatedCombat.CurrentSide = CombatSide.Enemy;
+                foreach (Creature enemy in simulatedCombat.Enemies)
+                    simulatedCombat.BeginSideTurn(enemy);
                 simulatedCombat.SnapshotPowerAmountsAtTurnStart(simulatedCombat.Enemies);
                 // 怪物方开始回合时，上一怪物回合留下的格挡先清除。
                 if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(
@@ -3497,6 +3500,7 @@ internal sealed partial class CombatBeamSolver
             if (!takingExtraTurn)
                 simulatedCombat.RoundNumber++;
             simulatedCombat.AdvancePlayerTurn(_player);
+            simulatedCombat.BeginSideTurn(_player.Creature);
             simulatedCombat.SnapshotPowerAmountsAtTurnStart([_player.Creature]);
 
             if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(

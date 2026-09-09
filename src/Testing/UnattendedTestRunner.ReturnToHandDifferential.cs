@@ -175,6 +175,7 @@ internal sealed partial class UnattendedTestRunner
                 SimulatedCombatState predictedCombat = (SimulatedCombatState)lane.Simulator.State.CombatState;
                 if (predictedCombat.GetPlayerTurnNumber(player) != actualPlayer.TurnNumber)
                     throw new InvalidOperationException($"抽牌前 {lane.Name} 的模拟回合号被重复推进或遗漏。");
+                predictedCombat.BeginSideTurn(player.Creature);
                 if (predictedCombat.PrepareBeforeHandDraw(lane.Simulator, player, new TurnStartChoiceCursor(null)))
                     throw new InvalidOperationException("回手边界产生了未计划的模拟选择。");
                 if (!predictedCombat.TriggerSideTurnStart(lane.Simulator, CombatSide.Player, [player.Creature], decrementPlating: true))

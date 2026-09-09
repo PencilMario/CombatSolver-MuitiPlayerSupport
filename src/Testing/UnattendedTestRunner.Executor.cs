@@ -207,6 +207,12 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add(request.ScenarioId);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "HELLRAISER-TURN-START-HISTORY")
+            {
+                await runner.AssertHellraiserTurnStartHistoryAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "SUMMONED-ALLY-POWER-ORDER")
             {
                 await runner.AssertSummonedAllyPowerOrderAsync(combatState, player);

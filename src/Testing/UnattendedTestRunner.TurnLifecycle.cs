@@ -15,6 +15,42 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task AssertHellraiserTurnStartHistoryAsync(CombatState combat, Player player)
+    {
+        foreach (RelicModel relic in player.Relics.ToArray())
+            await RelicCmd.Remove(relic);
+        foreach (PowerModel power in combat.Creatures.SelectMany(creature => creature.Powers).ToArray())
+            await PowerCmd.Remove(power);
+        await ClearPlayerPilesAsync(player);
+        Creature enemy = combat.Enemies.Single();
+        await CreatureCmd.SetMaxHp(enemy, 100);
+        await CreatureCmd.SetCurrentHp(enemy, 100);
+        await InjectPowerAsync(combat, player, new UnattendedPowerInjection
+            { PowerId = "HELLRAISER_POWER", Target = "Player", Amount = 1 });
+        foreach (string cardId in new[]
+                 {
+                     "DEFEND_IRONCLAD", "STRIKE_IRONCLAD", "DEFEND_IRONCLAD",
+                     "DEFEND_IRONCLAD", "DEFEND_IRONCLAD"
+                 })
+        {
+            await InjectCardAsync(combat, player, new UnattendedCardInjection
+                { CardId = cardId, Pile = "Draw" });
+        }
+
+        CombatPredictionSimulator simulator = CombatRootSnapshot.Capture(combat).ForkSimulator();
+        SimulatedCombatState shadow = (SimulatedCombatState)simulator.State.CombatState;
+        TriggerSimulatedPlayerSetup(simulator, shadow, player, []);
+        await TriggerActualPlayerSetupAsync(combat, player, []);
+
+        if (shadow.GetCardPlayStartsThisTurn(player.Creature) != 1)
+            throw new InvalidOperationException("Hellraiser auto-play was not retained in simulated turn history.");
+        AssertSnapshotEqual(
+            CaptureSimulated(simulator, shadow, player, enemy),
+            CaptureActual(combat, player, enemy),
+            _request.ScenarioId,
+            "AfterTurnStartAutoPlay");
+    }
+
     private static async Task TriggerActualSideTurnStartAsync(
         CombatState combatState,
         CombatSide side,
@@ -104,6 +140,7 @@ internal sealed partial class UnattendedTestRunner
             });
         SimPlayerCombatState state = simulator.State.GetPlayerCombatState(player);
         combat.AdvancePlayerTurn(player);
+        combat.BeginSideTurn(player.Creature);
         combat.SnapshotPowerAmountsAtTurnStart([player.Creature]);
         if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(
                 simulator,
