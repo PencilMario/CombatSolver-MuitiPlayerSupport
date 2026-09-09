@@ -554,8 +554,6 @@ internal static class SolverController
             : null;
         if (state is CombatState activeCombat)
             ReconcilePersistedPotionDirectives(activeCombat);
-        if (IsMultiplayerSession && NGame.Instance is { } host)
-            SolverOverlay.ShowMultiplayerWaiting(host);
         Entry.Logger.Info(
             $"[CombatSolver/Test] THEFT_POLICY_INIT policy={_combat.TheftPolicy?.ToString() ?? "-"}");
     }
@@ -3301,8 +3299,7 @@ internal static class SolverController
             rejection = "求解器已在设置中禁用。";
         else if (!CombatManager.Instance.IsInProgress)
             rejection = "当前没有进行中的战斗。";
-        else if (player?.PlayerCombatState?.Phase != PlayerTurnPhase.Play
-            || !IsMultiplayerSession && state.CurrentSide != CombatSide.Player)
+        else if (state.CurrentSide != CombatSide.Player || player?.PlayerCombatState?.Phase != PlayerTurnPhase.Play)
             rejection = "当前不是玩家出牌阶段。";
         else if (CombatManager.Instance.PlayerActionsDisabled)
             rejection = "玩家操作当前被游戏禁用。";
