@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：可达手牌估值分配（开发中）
+
+- `dotnet run --project tools/ReachableHandValueChecks/ReachableHandValueChecks.csproj -c Release`：32,551 组与原二维 DP 精确相等，包含空手牌、免费牌、双资源、较大数组回退、负可用资源、重复牌和价值和溢出。测试直接链接生产纯计算源码，原递推作为对照。
+- 固定 100,000 次调用的局部分配检查：单资源受限 5,600,000 → 0 B；双资源受限 13,600,000 → 0 B；全部可负担 29,600,000 → 0 B。仅统计 DP 计算，不包含游戏模型、候选费用捕获和整个 Snapshot；不代表整场分配降幅或可见帧率收益。
+- 当前可见会话的一条 RESULT 记录：40,105 次总转移、约 2.00 GB 总 worker 分配、2,424 ms 总搜索时间、最大主线程帧间隔 24.6 ms，未记录超过 33 ms 的帧或 GC 暂停。这是在线观察，未作为隔离 A/B 基准。
+- 未启动额外游戏进程，未修改运行中会话；固定战斗搜索 A/B、增量回放和可见性能验收未执行。纯估值等价检查不代替这些项目。
+
 ## 2026-09-09：战前预测请求选项（开发中）
 
 - 独立回归入口：`dotnet run --project tools/PreCombatRequestChecks/PreCombatRequestChecks.csproj -c Release`，Windows / Linux 相同。直接链接实际 `PreCombatForecastApi` 与 contract 源码，替换游戏/进程边界，不启动游戏。
@@ -21,6 +28,7 @@
 - 关联回归 `NORMALITY-AUTOPLAY`：`f014ee4080bd4191805e67096eef7e8b` Passed，10.51 秒，覆盖同一出牌开始计数的根捕获、Fork 隔离、下一回合归零和被阻止自动牌的牌堆结果。
 - 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId HELLRAISER-TURN-START-HISTORY -HeadlessInstance unexpected-replan-power-order-final`；回归只替换 ScenarioId 为 `NORMALITY-AUTOPLAY` 并加 `-EnemyCurrentHp 100`。Release 构建 0 警告 / 0 错误。
 - 同组共 9 份 / 7 场；代表报告仅日志直接核验，其余按同一 `Y` 首差异与抽牌自动出牌路径归组。没有把正常 `manual_divergence` 纳入修复数，也没有运行正式搜索或逐包整场部署。
+
 
 
 ## 2026-09-08：凡庸与自动打牌（0.34.4）

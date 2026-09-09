@@ -564,9 +564,11 @@ internal sealed partial class CombatBeamSolver
         SimulatedCombatState combat,
         SimPlayerCombatState playerState)
     {
-        List<(int Energy, int Stars, int Value)> playable = [];
-        int totalEnergyCost = 0;
-        int totalStarCost = 0;
+        int handCount = playerState.Hand.Cards.Count;
+        Span<(int Energy, int Stars, int Value)> playable = handCount <= 64
+            ? stackalloc (int, int, int)[handCount]
+            : new (int, int, int)[handCount];
+        int playableCount = 0;
         int zeroCostPlayableCount = 0;
         foreach (PredictedCard card in playerState.Hand)
         {
@@ -579,9 +581,7 @@ internal sealed partial class CombatBeamSolver
                 ? Math.Max(0, playerState.Stars)
                 : Math.Max(0, card.GetStarCostWithModifiers(simulator, playerState));
             int value = Math.Max(1, (int)Math.Ceiling(CardChoiceSupport.CardValue(card.Preview)));
-            playable.Add((energyCost, starCost, value));
-            totalEnergyCost += energyCost;
-            totalStarCost += starCost;
+            playable[playableCount++] = (energyCost, starCost, value);
             if (energyCost == 0
                 && starCost == 0
                 && !card.Preview.EnergyCost.CostsX
@@ -591,20 +591,8 @@ internal sealed partial class CombatBeamSolver
             }
         }
 
-        int energyCapacity = Math.Min(Math.Max(0, playerState.Energy), totalEnergyCost);
-        int starCapacity = Math.Min(Math.Max(0, playerState.Stars), totalStarCost);
-        int[,] best = new int[energyCapacity + 1, starCapacity + 1];
-        foreach ((int energyCost, int starCost, int value) in playable)
-        {
-            for (int energy = energyCapacity; energy >= energyCost; energy--)
-            for (int stars = starCapacity; stars >= starCost; stars--)
-            {
-                best[energy, stars] = Math.Max(
-                    best[energy, stars],
-                    best[energy - energyCost, stars - starCost] + value);
-            }
-        }
-        return (best[energyCapacity, starCapacity], zeroCostPlayableCount);
+        return (ReachableHandValue.Calculate(playable[..playableCount], playerState.Energy, playerState.Stars),
+            zeroCostPlayableCount);
     }
 
     /// <summary>
