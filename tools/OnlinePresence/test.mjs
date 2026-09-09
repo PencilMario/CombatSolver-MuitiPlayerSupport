@@ -20,6 +20,7 @@ test('strict payload: rejects extra fields, invalid loss, oversized strings',()=
 test('collector privacy, login, deduplication, expiry and durable aggregate history',async()=>{
   let time=1_800_000_000_000;const dir=mkdtempSync(join(tmpdir(),'cs-presence-'));const database=join(dir,'history.sqlite');
   const app=createApp({database,password,now:()=>time});
+  time+=Math.ceil(TTL/60000)*60000; // Begin steady-state sampling on a minute boundary after recovery.
   const collector=http.createServer(app.collector).listen(0,'127.0.0.1');
   const admin=http.createServer(app.admin).listen(0,'127.0.0.1');
   await Promise.all([once(collector,'listening'),once(admin,'listening')]);

@@ -38,6 +38,8 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   db.exec('CREATE TABLE IF NOT EXISTS admin_sessions (token_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL) STRICT;');
   // Player nicknames and combat details stay in memory. Admin sessions persist separately.
   const players = new Map(), buckets = new Map();
+  // A fresh in-memory roster is incomplete until one full presence lease has elapsed.
+  const samplingReadyAt = now() + TTL;
   const sessionKey = token => createHmac('sha256', password).update(token).digest('hex');
   const sessionRead = db.prepare('SELECT expires_at FROM admin_sessions WHERE token_hash=?');
   const sessionWrite = db.prepare('INSERT INTO admin_sessions(token_hash,expires_at) VALUES (?,?)');
@@ -59,7 +61,8 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   }
   function sample() {
     expire();
-    historyInsert.run(Math.floor(now()/60000)*60000, players.size);
+    if (now() >= samplingReadyAt)
+      historyInsert.run(Math.floor(now()/60000)*60000, players.size);
     historyDelete.run(now() - 90*86400000);
   }
   function limit(key, max) {
@@ -174,7 +177,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
         if (![1,24,168,720].includes(hours) || !Number.isInteger(maxPoints) || maxPoints < 32 || maxPoints > 240) return send(res,400);
         const at = now();
         const history = aggregateHistory(historyRead.all(at-hours*3600000),hours,maxPoints);
-        return send(res,200,{now:at,ttl:TTL,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.inCombat).length,inRunCount:[...players.values()].filter(player=>player.inRun === true).length,runStatusUnknownCount:[...players.values()].filter(player=>player.inRun === null).length,...history});
+        return send(res,200,{now:at,ttl:TTL,samplingReady:at>=samplingReadyAt,samplingReadyAt,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.inCombat).length,inRunCount:[...players.values()].filter(player=>player.inRun === true).length,runStatusUnknownCount:[...players.values()].filter(player=>player.inRun === null).length,...history});
       }
       if (req.method === 'GET' && url.pathname === '/api/players') {
         expire();

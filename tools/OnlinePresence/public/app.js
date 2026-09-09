@@ -726,12 +726,15 @@ function renderOverview(data) {
   $("logout").hidden = false;
   $("refresh-controls").hidden = false;
   setText($("connection"), "已连接");
-  setText($("online"), data.onlineCount);
-  setText($("live-count"), data.onlineCount);
-  setText($("in-combat"), data.fightingCount);
-  setText($("in-run"), data.inRunCount);
-  setText($("peak"), Math.max(data.onlineCount, data.historyPeak));
-  setText($("unknown-run"), `跑局状态未知：${data.runStatusUnknownCount} 人`);
+  const recovering = data.samplingReady === false;
+  setText($("online"), recovering ? "恢复中" : data.onlineCount);
+  setText($("live-count"), recovering ? "恢复中" : data.onlineCount);
+  setText($("in-combat"), recovering ? "恢复中" : data.fightingCount);
+  setText($("in-run"), recovering ? "恢复中" : data.inRunCount);
+  setText($("peak"), recovering ? (data.history.length ? data.historyPeak : "—") : Math.max(data.onlineCount, data.historyPeak));
+  setText($("unknown-run"), recovering
+    ? `心跳恢复中，约 ${Math.max(0, Math.ceil((data.samplingReadyAt - data.now) / 1000))} 秒后恢复采样`
+    : `跑局状态未知：${data.runStatusUnknownCount} 人`);
   setText($("updated"), new Date(data.now).toLocaleTimeString());
   setText(
     $("trend-caption"),

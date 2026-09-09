@@ -142,3 +142,13 @@ test('trend bridges missing samples smoothly while preserving zero and measured 
     await f.page.screenshot({path:resolve(screenshots,'trend-smooth.png'),fullPage:true});assert.deepEqual(f.errors,[]);
   }finally{await f.context.close();}
 });
+test('startup recovery does not present an incomplete roster as zero online users',async()=>{
+  const f=await setup();try{
+    await f.page.locator('#rows tr').first().waitFor();
+    await f.page.evaluate(()=>renderOverview({...overviewData,samplingReady:false,samplingReadyAt:overviewData.now+90000,onlineCount:0,fightingCount:0,inRunCount:0}));
+    assert.equal(await f.page.locator('#online').textContent(),'恢复中');assert.equal(await f.page.locator('#in-combat').textContent(),'恢复中');
+    assert.ok((await f.page.locator('#unknown-run').textContent()).includes('90 秒'));
+    await f.page.evaluate(()=>renderOverview({...overviewData,samplingReady:true,onlineCount:0,fightingCount:0,inRunCount:0}));
+    assert.equal(await f.page.locator('#online').textContent(),'0');assert.deepEqual(f.errors,[]);
+  }finally{await f.context.close();}
+});
