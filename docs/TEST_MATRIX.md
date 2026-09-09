@@ -2201,7 +2201,7 @@ pwsh -NoProfile -File tools\run-unattended-test.ps1 -ScenarioId MONSTER-MOVES-BA
 | Power、遗物、药水、充能球 | 通过 | 当前游戏 `0.111.0` 的单人战斗行为目录无未分类、无静态行为证据缺口、无原生重扫边界 |
 | 怪物行动、死亡、复活、召唤 | 通过 | 57 个补偿行动全量分片复跑；结构性复活、召唤、替换、特殊移除另有整战与定向生命周期回归 |
 | 跨回合算到底 | 通过 | 同族、实验体、花园鳗、旧日雕像、女王、双小啃兽等整战在预算覆盖范围内逐回合复用；生产搜索只允许时间和节点预算终止，回合上限只用于增量验证模式 |
-| 多人模式当前回合 | 开发中 | 自动识别 Host/Client；Overlay 在战斗开始及队友回合显示等待状态；本地玩家回合按 `PlayerCombatState.Phase=Play` 判断并触发搜索、手动计算和部署，单人仍按全局 `CurrentSide=Player` 校验；不保留跨回合 continuation，不介入其他玩家回合；多人专属选择、队友死亡后的 Hook 活性和多人卡牌仍不支持 |
+| 多人模式当前回合 | 开发中 | 自动识别 Host/Client；Overlay 在战斗开始及队友回合显示等待状态，本地玩家 `Start` 阶段继续等待原生回合准备；本地玩家回合按 `PlayerCombatState.Phase=Play` 判断并触发搜索、手动计算和部署，单人仍按全局 `CurrentSide=Player` 校验；不保留跨回合 continuation，不介入其他玩家回合；多人专属选择、队友死亡后的 Hook 活性和多人卡牌仍不支持 |
 
 ## 人工待测
 

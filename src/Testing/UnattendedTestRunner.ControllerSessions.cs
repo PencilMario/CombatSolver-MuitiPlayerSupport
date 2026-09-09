@@ -83,6 +83,24 @@ internal sealed partial class UnattendedTestRunner
         {
             throw new InvalidOperationException("多人本地玩家回合判断没有区分全局方和本地玩家阶段。");
         }
+        if (SolverController.ShouldWaitForMultiplayerTurnForTesting(
+                isMultiplayer: true,
+                localPlayerPhase: PlayerTurnPhase.Start)
+            || SolverController.ShouldWaitForMultiplayerTurnForTesting(
+                isMultiplayer: true,
+                localPlayerPhase: PlayerTurnPhase.Play)
+            || !SolverController.ShouldWaitForMultiplayerTurnForTesting(
+                isMultiplayer: true,
+                localPlayerPhase: null)
+            || !SolverController.ShouldWaitForMultiplayerTurnForTesting(
+                isMultiplayer: true,
+                localPlayerPhase: PlayerTurnPhase.End)
+            || SolverController.ShouldWaitForMultiplayerTurnForTesting(
+                isMultiplayer: false,
+                localPlayerPhase: null))
+        {
+            throw new InvalidOperationException("多人回合开始时错误地把本地玩家的原生阶段过渡当作队友回合。");
+        }
 
         AssertInvalidMultiplayerSearchTurnLimit(0);
         AssertInvalidMultiplayerSearchTurnLimit(13);

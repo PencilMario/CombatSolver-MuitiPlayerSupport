@@ -3337,6 +3337,17 @@ internal static class SolverController
         PlayerTurnPhase? localPlayerPhase)
         => IsPlayableTurn(isMultiplayer, currentSide, localPlayerPhase);
 
+    internal static bool ShouldWaitForMultiplayerTurn(
+        bool isMultiplayer,
+        PlayerTurnPhase? localPlayerPhase)
+        => isMultiplayer
+            && localPlayerPhase is not PlayerTurnPhase.Start and not PlayerTurnPhase.Play;
+
+    internal static bool ShouldWaitForMultiplayerTurnForTesting(
+        bool isMultiplayer,
+        PlayerTurnPhase? localPlayerPhase)
+        => ShouldWaitForMultiplayerTurn(isMultiplayer, localPlayerPhase);
+
     private static bool IsPlayableTurn(
         bool isMultiplayer,
         CombatSide currentSide,

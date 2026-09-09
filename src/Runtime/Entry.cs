@@ -100,7 +100,9 @@ public static class Entry
             return;
         bool isMultiplayer = SolverController.IsMultiplayerSession;
         Player? localPlayer = LocalContext.GetMe(state);
-        if (isMultiplayer && localPlayer?.PlayerCombatState?.Phase != PlayerTurnPhase.Play)
+        if (SolverController.ShouldWaitForMultiplayerTurn(
+                isMultiplayer,
+                localPlayer?.PlayerCombatState?.Phase))
         {
             SolverOverlay.ShowMultiplayerWaiting(NGame.Instance);
             return;
