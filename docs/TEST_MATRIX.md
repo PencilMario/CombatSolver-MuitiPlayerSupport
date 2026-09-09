@@ -2448,6 +2448,9 @@ pwsh -NoProfile -File tools\run-unattended-test.ps1 -ScenarioId MONSTER-MOVES-BA
 - `RID/resources still in use at exit` 当前记录为 Godot 退出噪音；任何 `CombatSolver/Unattended FAILED`、`SEARCH_FAILURE`、`DEPLOY_FAILURE` 或状态断言失败均判定场景失败。
 # 0.34.7 跑局战绩验证
 
+- 合入已定版 v0.34.6 后，Release `870e897` 零警告/错误，结构门禁通过；UI-LOCALIZATION `cd3d888760f240c3afdf83192bcc7792` Passed，24.52 秒。复用未变化的独立统计/服务端测试，不重复已发布搜索性能验证。
+- miaovps 在线统计与日志后端已部署；真实 TLS＋管理登录下新战绩列表/筛选返回 200，旧心跳无效请求仍返回 400。日志站战绩筛选和健康检查通过；没有向生产库注入测试战绩。
+
 - `dotnet run --project tools/RunStatisticsTests -c Release` 通过：胜负/放弃、空胜率、连续段中断、重复事件、离线收据与重启、原生结算恢复、历史快照隔离。
 - 在线服务 14 项测试通过，包含旧心跳、管理鉴权、持久登录、统计加权、筛选和战绩数据库重启恢复。
 - 日志服务 19 项测试通过，包含提交时战绩快照及小数百分比筛选；Windows 测试进程退出仍有原有 SQLite 临时文件清理占用提示。
