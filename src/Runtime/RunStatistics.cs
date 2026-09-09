@@ -49,6 +49,7 @@ internal sealed partial class RunStatistics : Node
         NewRunPrepared = false;
         if (_instance != null) { _instance._run = null; _instance._snapshot = null; }
         if (OnlinePresence.IsHeadless() || UnattendedTestRunner.IsActive || !manager.ShouldSave || manager.State == null
+            || manager.NetService.Type != MegaCrit.Sts2.Core.Multiplayer.Game.NetGameType.Singleplayer
             || manager.State.Players.Count != 1 || manager.State.GameMode != GameMode.Standard) return;
         Start(NGame.Instance!);
         var instance = _instance!;
