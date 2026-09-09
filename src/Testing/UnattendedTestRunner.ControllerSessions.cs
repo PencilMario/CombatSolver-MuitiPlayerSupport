@@ -102,6 +102,20 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidOperationException("多人回合开始时错误地把本地玩家的原生阶段过渡当作队友回合。");
         }
 
+        if (!SolverController.IsPlayableTurnForTesting(
+                isMultiplayer: true,
+                currentSide: CombatSide.Enemy,
+                localPlayerPhase: PlayerTurnPhase.End,
+                playerActionsDisabled: false)
+            || SolverController.IsPlayableTurnForTesting(
+                isMultiplayer: true,
+                currentSide: CombatSide.Player,
+                localPlayerPhase: PlayerTurnPhase.Play,
+                playerActionsDisabled: true))
+        {
+            throw new InvalidOperationException("多人可操作回合没有以原版操作锁状态为准。");
+        }
+
         AssertInvalidMultiplayerSearchTurnLimit(0);
         AssertInvalidMultiplayerSearchTurnLimit(13);
 

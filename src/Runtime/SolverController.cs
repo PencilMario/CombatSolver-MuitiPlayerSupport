@@ -3296,7 +3296,6 @@ internal static class SolverController
 
     private static bool CanSolve(CombatState state, out string rejection)
     {
-        Player? player = LocalContext.GetMe(state);
         if (_solverDisabled)
             rejection = "求解器已在设置中禁用。";
         else if (!CombatManager.Instance.IsInProgress)
@@ -3328,14 +3327,16 @@ internal static class SolverController
         return IsPlayableTurn(
             IsMultiplayerSession,
             state.CurrentSide,
-            player?.PlayerCombatState?.Phase);
+            player?.PlayerCombatState?.Phase,
+            CombatManager.Instance.PlayerActionsDisabled);
     }
 
     internal static bool IsPlayableTurnForTesting(
         bool isMultiplayer,
         CombatSide currentSide,
-        PlayerTurnPhase? localPlayerPhase)
-        => IsPlayableTurn(isMultiplayer, currentSide, localPlayerPhase);
+        PlayerTurnPhase? localPlayerPhase,
+        bool playerActionsDisabled = false)
+        => IsPlayableTurn(isMultiplayer, currentSide, localPlayerPhase, playerActionsDisabled);
 
     internal static bool ShouldWaitForMultiplayerTurn(
         bool isMultiplayer,
@@ -3354,9 +3355,12 @@ internal static class SolverController
     private static bool IsPlayableTurn(
         bool isMultiplayer,
         CombatSide currentSide,
-        PlayerTurnPhase? localPlayerPhase)
-        => localPlayerPhase == PlayerTurnPhase.Play
-            && (isMultiplayer || currentSide == CombatSide.Player);
+        PlayerTurnPhase? localPlayerPhase,
+        bool playerActionsDisabled)
+        => isMultiplayer
+            ? !playerActionsDisabled
+            : localPlayerPhase == PlayerTurnPhase.Play
+              && currentSide == CombatSide.Player;
 
     private static void AssertMainThread()
     {

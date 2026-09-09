@@ -100,13 +100,8 @@ public static class Entry
             return;
         bool isMultiplayer = SolverController.IsMultiplayerSession;
         Player? localPlayer = LocalContext.GetMe(state);
-        if (SolverController.ShouldWaitForMultiplayerTurn(
-                isMultiplayer,
-                localPlayer?.PlayerCombatState?.Phase))
-        {
+        if (isMultiplayer && !SolverController.IsPlayableTurn(state))
             SolverOverlay.ShowMultiplayerWaiting(NGame.Instance);
-            return;
-        }
         if (!isMultiplayer && state.CurrentSide != CombatSide.Player)
             return;
         if (SolverController.SolverDisabled)
@@ -118,8 +113,11 @@ public static class Entry
             return;
         if (PlayerTurnSetupCoordinator.IsManaging(state))
         {
+            if (isMultiplayer)
+                SolverOverlay.ShowMultiplayerWaiting(NGame.Instance);
             Logger.Info("[CombatSolver/Test] TURN_STARTED_DEFERRED_TO_SETUP reason=native_choice_pending");
-            return;
+            if (!isMultiplayer)
+                return;
         }
         if (!UnattendedTestRunner.AutomaticTurnSearchEnabled)
             return;
@@ -140,22 +138,27 @@ public static class Entry
         NGame? host = NGame.Instance;
         if (host == null)
             return;
-        for (int frame = 0; frame < 60; frame++)
+        for (int frame = 0; frame < 180; frame++)
         {
             await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
             token.ThrowIfCancellationRequested();
-            if (frame >= 2 && LocalContext.GetMe(state)?.PlayerCombatState?.Phase == PlayerTurnPhase.Play)
+            if (frame >= 2
+                && SolverController.IsPlayableTurn(state)
+                && LocalContext.GetMe(state)?.PlayerCombatState != null)
                 break;
         }
 
         await RunManager.Instance.ActionExecutor.FinishedExecutingActions().WaitAsync(token);
         await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
         token.ThrowIfCancellationRequested();
-        await UnattendedTestRunner.ApplyScheduledStateDriftAsync(state, turn).WaitAsync(token);
+        PlayerCombatState? observedState = LocalContext.GetMe(state)?.PlayerCombatState;
+        int observedTurn = observedState?.TurnNumber ?? turn;
+        await UnattendedTestRunner.ApplyScheduledStateDriftAsync(state, observedTurn).WaitAsync(token);
 
         if (SolverController.FullAutoEnabled)
             await SolverController.WaitForTurnStartDeploymentDelayAsync(host, turn, token);
 
+        PlayerCombatState? localState = LocalContext.GetMe(state)?.PlayerCombatState;
         if (!Enabled
             || SolverController.SolverDisabled
             || !UnattendedTestRunner.AutomaticTurnSearchEnabled
@@ -164,8 +167,8 @@ public static class Entry
             || !CombatManager.Instance.IsInProgress
             || !ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), state)
             || !SolverController.IsPlayableTurn(state)
-            || LocalContext.GetMe(state)?.PlayerCombatState?.Phase != PlayerTurnPhase.Play
-            || LocalContext.GetMe(state)?.PlayerCombatState?.TurnNumber != turn)
+            || localState == null
+            || (turn >= 0 && localState.TurnNumber != turn))
         {
             return;
         }
