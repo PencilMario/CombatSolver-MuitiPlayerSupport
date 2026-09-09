@@ -62,6 +62,8 @@ if (PreCombatForecastApi.IsAvailable)
 
 当前 API 版本为 `6`，仅支持 Windows、单人跑局和未处于战斗中的状态。首次请求需要建立隔离游戏镜像并启动进程，适合由地图信息类 Mod 异步调用。相同状态与目标的确定请求会复用运行中任务或已完成结果；显式假设样本和规划快照模拟不进入确定结果缓存。`SetWorkerIdleTimeoutAsync()` 与请求选项中的 `WorkerIdleTimeoutMilliseconds` 控制当前及后续 worker 的空闲期限，`null` 表示不自动关闭。
 
+确定预测的 `ForceRefresh=true` 同时绕过已完成结果缓存与正在运行的同参数任务；是否取消 worker 仍由 `CancelWorkerWhenCallerCancels` 独立控制。正在运行的请求仅在关闭标志与空闲期限一致时共享任务。已完成结果仍可跨生命周期选项复用，但缓存命中也会落实本次关闭/空闲设置；需要等待其他请求释放 worker 时，在安全空闲边界处理，不取消其他调用方的搜索。
+
 ## 第三方角色适配
 
 `0.31.3` 合入 PR #50–#55，提供第三方 Power 战略估值、药水玩家选择与牌堆可选弃牌入口，并补充未镜像可打出条件的覆盖提示。使用这些入口的适配 Mod 应将 CombatSolver 最低依赖设为 `0.31.3`。

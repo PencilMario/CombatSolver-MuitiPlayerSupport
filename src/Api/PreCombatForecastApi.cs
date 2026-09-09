@@ -444,10 +444,18 @@ public static class PreCombatForecastApi
 
         if (!effectiveOptions.ForceRefresh
             && Completed.TryGetValue(key, out PreCombatForecastResult? completed))
-            return CompleteAfterLiveValidation(snapshot, completed, cancellationToken);
+            return CompleteAfterLiveValidation(
+                snapshot,
+                ApplyCachedRequestLifetimeAsync(completed, effectiveOptions, cancellationToken),
+                cancellationToken);
+
+        // Running requests can only share a worker when their lifetime requirements agree.
+        // Completed results remain keyed solely by forecast inputs.
+        string activeKey = string.Join('|', key, effectiveOptions.CloseWorkerAfterRequest,
+            effectiveOptions.WorkerIdleTimeoutMilliseconds?.ToString() ?? "keep-alive");
 
         Task<PreCombatForecastResult> worker;
-        if (effectiveOptions.CancelWorkerWhenCallerCancels)
+        if (effectiveOptions.ForceRefresh || effectiveOptions.CancelWorkerWhenCallerCancels)
         {
             worker = Task.Run(
                 () => PreCombatForecastWorker.RunAsync(
@@ -459,13 +467,13 @@ public static class PreCombatForecastApi
                     mapPointKind,
                     isSecondBoss,
                     effectiveOptions,
-                    cancellationToken),
+                    effectiveOptions.CancelWorkerWhenCallerCancels ? cancellationToken : CancellationToken.None),
                 CancellationToken.None);
         }
         else
         {
             worker = Active.GetOrAdd(
-                key,
+                activeKey,
                 _ => Task.Run(
                     () => PreCombatForecastWorker.RunAsync(
                         snapshot,
@@ -479,7 +487,7 @@ public static class PreCombatForecastApi
                         CancellationToken.None),
                     CancellationToken.None));
         }
-        _ = CacheCompletionAsync(key, worker);
+        _ = CacheCompletionAsync(key, activeKey, worker);
         return CompleteAfterLiveValidation(
             snapshot,
             worker,
@@ -487,7 +495,20 @@ public static class PreCombatForecastApi
             effectiveOptions.CancelWorkerWhenCallerCancels);
     }
 
-    private static async Task CacheCompletionAsync(string key, Task<PreCombatForecastResult> worker)
+    private static async Task<PreCombatForecastResult> ApplyCachedRequestLifetimeAsync(
+        PreCombatForecastResult result,
+        PreCombatForecastOptions options,
+        CancellationToken cancellationToken)
+    {
+        await PreCombatForecastWorker.ApplyCachedRequestLifetimeAsync(
+            options.CloseWorkerAfterRequest,
+            options.WorkerIdleTimeoutMilliseconds,
+            cancellationToken).ConfigureAwait(false);
+        return result;
+    }
+
+    private static async Task CacheCompletionAsync(
+        string key, string activeKey, Task<PreCombatForecastResult> worker)
     {
         try
         {
@@ -505,7 +526,7 @@ public static class PreCombatForecastApi
         }
         finally
         {
-            Active.TryRemove(new KeyValuePair<string, Task<PreCombatForecastResult>>(key, worker));
+            Active.TryRemove(new KeyValuePair<string, Task<PreCombatForecastResult>>(activeKey, worker));
         }
     }
 

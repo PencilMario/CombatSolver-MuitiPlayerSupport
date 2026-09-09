@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：战前预测请求选项（开发中）
+
+- 独立回归入口：`dotnet run --project tools/PreCombatRequestChecks/PreCombatRequestChecks.csproj -c Release`，Windows / Linux 相同。直接链接实际 `PreCombatForecastApi` 与 contract 源码，替换游戏/进程边界，不启动游戏。
+- 覆盖强制重算绕过运行中/已完成结果、同选项去重、不同关闭/空闲要求分开请求、缓存命中应用关闭/有限或无限空闲期限、脱离式取消、独占取消等待清理、已取消缓存命中不改变设置以及 live 状态过期。
+- 上述 10 项独立检查通过，Linux 结构门禁返回 `REFACTOR_BOUNDARIES_OK search_files=78`。同一测试链接修复前 API 时，强制重算用例因没有第二个 worker 请求而超时，缓存生命周期用例因未调用生命周期入口而失败。
+- 完整 Mod 构建尝试返回 32 个 `CS0246` 缺失游戏类型错误（包含 `CombatTurnState`、`CardLocation`）；Windows worker 进程回收未验证：本机游戏为 `0.107.1`，仓库要求 `0.111.0`。独立 API 检查不代表游戏模拟或进程生命周期验收。
+
 ## 2026-09-09：历史敏感 Power 顺序（0.34.5）
 
 - `MIXED-POWER-ACQUISITION-ORDER` 失败基线 `6eba58023b214ead8829ed5effbad6ee`：旧逻辑在已有小刀/攻击/格挡历史后临时停用并恢复 Power，首个差异为 `P[1] expected Strength actual PhantomBlades`。
@@ -14,6 +21,7 @@
 - 关联回归 `NORMALITY-AUTOPLAY`：`f014ee4080bd4191805e67096eef7e8b` Passed，10.51 秒，覆盖同一出牌开始计数的根捕获、Fork 隔离、下一回合归零和被阻止自动牌的牌堆结果。
 - 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId HELLRAISER-TURN-START-HISTORY -HeadlessInstance unexpected-replan-power-order-final`；回归只替换 ScenarioId 为 `NORMALITY-AUTOPLAY` 并加 `-EnemyCurrentHp 100`。Release 构建 0 警告 / 0 错误。
 - 同组共 9 份 / 7 场；代表报告仅日志直接核验，其余按同一 `Y` 首差异与抽牌自动出牌路径归组。没有把正常 `manual_divergence` 纳入修复数，也没有运行正式搜索或逐包整场部署。
+
 
 ## 2026-09-08：凡庸与自动打牌（0.34.4）
 
