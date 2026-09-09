@@ -1,5 +1,17 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：温柔与出牌效果内自动牌（开发中）
+
+- `TENDER-DISCARD-ALL-SLY`：基线 `289cb0270eeb48d7b4ac81e3247c85e3` Failed，23.96 秒，首差异力量预测 -3 / 原生 -2；最终 `94c01fe41a564329a15f54ae62d66dc4` Passed，16.63 秒，验证精密计算与内层 FLICK_FLACK 各触发一次、Fork 完整状态及 T2 属性恢复和计数归零。
+- `TENDER-NESTED-SLY` 手动选牌相邻对照最终 `45bf88eef731446cbe7d11d279b2a792` Passed，16.25 秒。旧源码该对照 `fe4d41bbc2ba4e29b9bceb72890c5e80` 已通过，说明错误发生在出牌效果内自动牌历史被父牌扫描的路径。最初 `c77511470ae4469d80038ce74ef7cca3` 因夹具漏放准备而建局失败，只作输入错误记录，不作语义失败基线。
+- 两项均比较完整 MoveStateSnapshot/ContinuationStamp、逐实例卡牌、有序牌堆与 Power、敌人状态和 RNG，无正式搜索或整包回放。
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId TENDER-DISCARD-ALL-SLY -CharacterId SILENT -EncounterId FUZZY_WURM_CRAWLER_WEAK -EnemyCurrentHp 100 -ClearAllPowers -ClearPlayerPiles -CardsJson '[{"CardId":"CALCULATED_GAMBLE","Pile":"Hand"},{"CardId":"FLICK_FLACK","Pile":"Hand"},{"CardId":"DEFEND_SILENT","Pile":"Draw","Count":7}]' -PowersJson '[{"PowerId":"TENDER_POWER","Target":"Player","Amount":1}]' -HeadlessInstance silent-replans -TimeoutSeconds 120
+```
+
+相邻对照使用 `TENDER-NESTED-SLY`，把手牌换成 PREPARED 和 UNTOUCHABLE，其他参数相同。
+
 ## 2026-09-09：补货原报告 RNG 边界修复（开发中）
 
 - `STOCK-REPORT-RESPAWN-HP` 从报告 `835b630a...` T9 检查点注入 Niche counter=54 及四段内部状态，以旧个体最大生命 96、当前生命 3、ONE_TWO_MOVE 和 3 点荆棘构造两回合边界。基线 `416f94d9708746018de96cb3a37efb26` Failed，26.64 秒，首差异 `E0.hp expected=103 actual=104`；最终 `70aa5edb08e34137b61fc3d2c75d7978` Passed，27.71 秒。

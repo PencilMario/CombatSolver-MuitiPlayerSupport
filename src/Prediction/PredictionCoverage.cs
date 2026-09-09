@@ -41,7 +41,6 @@ internal static class PredictionCoverage
             DecimillipedeSegment when method == "AfterDeath" => true,
             ConcoctPower when method == "AfterDamageGiven" => true,
             CorrosiveWavePower when method == "AfterCardDrawn" => true,
-            TenderPower when method == "AfterCardPlayed" => true,
             CardModel card when method == "OnPlay"
                 && (CardOnPlayCompensationCatalog.Contains(card) || CardEffectSpecRegistry.Contains(card)) => true,
             Inky when method == "OnPlay" => true,

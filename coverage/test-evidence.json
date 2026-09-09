@@ -1,4 +1,12 @@
 {
+  "TENDER-DISCARD-ALL-SLY": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "温柔状态下精密计算弃掉 FLICK_FLACK 并自动打出，比较行动结束与下一玩家回合；准备手动选择 UNTOUCHABLE 作为相邻对照。",
+    "expected": "外层与内层各扣一次力量和敏捷，回合末按相同计数恢复，Fork 保持完整状态。",
+    "observed": "基线289cb0270eeb48d7b4ac81e3247c85e3力量预测-3/原生-2；最终94c01fe41a564329a15f54ae62d66dc4 Passed，16.63秒。手动选牌相邻对照45bf88eef731446cbe7d11d279b2a792 Passed，16.25秒。",
+    "evidence": "src/Testing/UnattendedTestRunner.TenderNested.cs；docs/TEST_MATRIX.md；2026-09-09。"
+  },
   "STOCK-REPORT-RESPAWN-HP": {
     "status": "Passed",
     "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",

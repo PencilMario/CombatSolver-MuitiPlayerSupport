@@ -27,9 +27,6 @@ internal static class TriggeredPowerSupport
                     case CombatPredictionDamageReceivedEntry damage:
                         CompensateWakeAndBurrow(simulator, combat, damage);
                         break;
-                    case CombatPredictionCardPlayFinishedEntry played:
-                        CompensateTender(combat, played);
-                        break;
                 }
             }
             PowerLifecycleSupport.ResolvePowerAmountChanges(simulator, combat);
@@ -78,17 +75,4 @@ internal static class TriggeredPowerSupport
         }
     }
 
-    private static void CompensateTender(
-        SimulatedCombatState combat,
-        CombatPredictionCardPlayFinishedEntry entry)
-    {
-        Creature owner = entry.Card.Owner.Creature;
-        TenderPower? tender = combat.GetPower<TenderPower>(owner);
-        if (tender is not { Amount: > 0 })
-            return;
-
-        combat.RecordTenderCardPlayed(owner);
-        combat.Apply<StrengthPower>(owner, -1, tender.Applier);
-        combat.Apply<DexterityPower>(owner, -1, tender.Applier);
-    }
 }

@@ -714,10 +714,10 @@
     "testId": "MONSTER-MOVES-BATCH-033"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.TenderPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterCardPlayed(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
-    "status": "SolverCompensation",
-    "source": "src/Prediction/TriggeredPowerSupport.cs + src/Search/SimulatedCombatState.cs",
-    "notes": "After every owner card play, records one card and applies negative Strength and Dexterity. RF's explicit handler only records incomplete-mirror risk.",
-    "testId": "MONSTER-MOVES-BATCH-033"
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Card/AfterCardPlayedMirrors.cs + src/Search/SimulatedCombatState.cs",
+    "notes": "Each native AfterCardPlayed dispatch increments the existing branch counter once and applies Strength/Dexterity loss at that hook; parent history scans do not reapply nested plays.",
+    "testId": "TENDER-DISCARD-ALL-SLY"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.TenderPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterSideTurnEnd(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Combat.CombatSide,System.Collections.Generic.IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature>)": {
     "status": "SolverCompensation",
