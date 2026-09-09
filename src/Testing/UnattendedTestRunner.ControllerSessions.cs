@@ -149,6 +149,15 @@ internal sealed partial class UnattendedTestRunner
         VerifyMultiplayerDeathOutcomeNotice();
         NGame host = NGame.Instance
             ?? throw new InvalidOperationException("控制器会话测试找不到 NGame。");
+        SolverOverlay.ShowMultiplayerWaiting(host);
+        if (SolverOverlay.PresentationForTesting != SolverOverlayPresentation.MultiplayerWaiting
+            || SolverOverlay.SearchSummaryTextForTesting is not { Length: > 0 } waitingText
+            || !waitingText.Contains(
+                SolverText.Get("多人模式下仅在本地玩家回合计算和执行路线。"),
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("多人回合等待状态没有显示 Overlay。");
+        }
         if (SolverController.SolverDisabled)
             throw new InvalidOperationException("控制器会话测试要求求解器初始启用。");
         Player player = LocalContext.GetMe(combat)

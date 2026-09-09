@@ -11,6 +11,7 @@ internal enum SolverOverlayPresentation
     Deploying,
     ExecutedHistory,
     Searching,
+    MultiplayerWaiting,
 }
 
 internal static class SolverOverlay
@@ -535,6 +536,25 @@ internal static class SolverOverlay
         SetBossHpStrategyHint(BossHpRelief.None);
         SetReviewText(null);
         SetMessageContent(SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]自动搜索和路线执行已暂停。[/color]"));
+        ShowLayer();
+        RefreshControls();
+    }
+
+    public static void ShowMultiplayerWaiting(Node host)
+    {
+        _presentation = SolverOverlayPresentation.MultiplayerWaiting;
+        _lastSnapshot = null;
+        _searchBestSnapshot = null;
+        _lastMessageText = null;
+        EnsureCreated(host);
+        _deployQueued = false;
+        SetStatus(SolverText.Get("等待本地玩家回合"), TextMuted);
+        SetSearchLimitHint(null);
+        SetPerformanceHintVisible(false);
+        SetBossHpStrategyHint(BossHpRelief.None);
+        SetReviewText(null);
+        SetMessageContent(SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]多人模式下仅在本地玩家回合计算和执行路线。[/color]"));
+        SetRouteVisibility(false);
         ShowLayer();
         RefreshControls();
     }

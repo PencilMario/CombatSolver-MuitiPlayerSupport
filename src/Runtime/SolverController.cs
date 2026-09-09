@@ -554,6 +554,8 @@ internal static class SolverController
             : null;
         if (state is CombatState activeCombat)
             ReconcilePersistedPotionDirectives(activeCombat);
+        if (IsMultiplayerSession && NGame.Instance is { } host)
+            SolverOverlay.ShowMultiplayerWaiting(host);
         Entry.Logger.Info(
             $"[CombatSolver/Test] THEFT_POLICY_INIT policy={_combat.TheftPolicy?.ToString() ?? "-"}");
     }

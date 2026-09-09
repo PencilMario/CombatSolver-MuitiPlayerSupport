@@ -58,6 +58,8 @@
   "第 {0} 回合": "Turn {0}",
   "[color={0}]正在计算当前回合，等待可存活候选…[/color]": "[color={0}]Searching this turn for a survivable candidate…[/color]",
   "等待当前回合候选…": "Waiting for a candidate…",
+  "等待本地玩家回合": "Waiting for local player's turn",
+  "[color={0}]多人模式下仅在本地玩家回合计算和执行路线。[/color]": "[color={0}]In multiplayer, routes are calculated and executed only on the local player's turn.[/color]",
   "推荐路线": "Recommended route",
   "预计用{0}瓶药": "Potions: {0}",
   "路线回血  {0} HP": "Route healing  {0} HP",

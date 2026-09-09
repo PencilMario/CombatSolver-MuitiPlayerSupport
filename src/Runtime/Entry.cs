@@ -96,9 +96,14 @@ public static class Entry
 
     private static void OnTurnStarted(CombatState state)
     {
-        if (!Enabled
-            || state.CurrentSide != CombatSide.Player
-            || NGame.Instance == null)
+        if (!Enabled || NGame.Instance == null)
+            return;
+        if (SolverController.IsMultiplayerSession && state.CurrentSide != CombatSide.Player)
+        {
+            SolverOverlay.ShowMultiplayerWaiting(NGame.Instance);
+            return;
+        }
+        if (state.CurrentSide != CombatSide.Player)
             return;
         if (SolverController.SolverDisabled)
         {
