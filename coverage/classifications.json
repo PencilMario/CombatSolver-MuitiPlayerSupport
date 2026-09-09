@@ -5622,10 +5622,10 @@
     "testId": "POWER-DEATH-BATCH-050"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.StockPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterDeath(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Boolean,System.Single)": {
-    "status": "SolverCompensation",
-    "source": "src/Prediction/DeathPowerSupport.cs; src/Search/CombatBeamSolver.cs",
-    "notes": "该行为现由分支内状态完整结算，不再触发原生重扫；精确语义与跨回合一致性见关联测试证据。",
-    "testId": "NO-NATIVE-RESCAN-244"
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Death/AfterDeathMirrors.cs; src/Search/SimulatedCombatState.DeathLifecycle.cs",
+    "notes": "AfterDeath 在旧个体移出阵容前生成替补，生命判重包含旧个体最大生命，Niche 完整状态与原生一致。",
+    "testId": "STOCK-REPORT-RESPAWN-HP"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.StockPower|MegaCrit.Sts2.Core.Models.AbstractModel.ShouldStopCombatFromEnding()": {
     "status": "SolverCompensation",

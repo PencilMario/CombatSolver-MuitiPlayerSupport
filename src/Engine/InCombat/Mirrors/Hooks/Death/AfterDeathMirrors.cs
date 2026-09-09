@@ -3,6 +3,7 @@ using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Cards;
 using MegaCrit.Sts2.Core.Models.Monsters;
+using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.Models.Relics;
 using CombatSolver.Engine.Common;
 using CombatSolver.Engine.Common.Mirrors;
@@ -47,8 +48,19 @@ internal static class AfterDeathMirrors
 
         registry.Register<GremlinHorn>(HandleGremlinHorn);
         registry.Register<Melancholy>(HandleMelancholy);
+        registry.Register<StockPower>(HandleStock);
 
         return registry;
+    }
+
+    private static void HandleStock(StockPower power, AfterDeathMirrorContext context)
+    {
+        if (!context.WasRemovalPrevented && context.Creature == power.Owner && power.Amount > 0)
+        {
+            if (context.CombatState is not ICombatPredictionEffectSink effects)
+                throw new InvalidOperationException("补货效果缺少可写的预测状态。");
+            effects.SpawnStockReplacement(context.Simulator, power);
+        }
     }
 
     private static void HandleGremlinHorn(GremlinHorn relic, AfterDeathMirrorContext context)

@@ -1,4 +1,12 @@
 {
+  "STOCK-REPORT-RESPAWN-HP": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "注入报告 835b630a T9 的 Niche 完整状态，旧巨斧机器人 3/96、补货1，被荆棘反伤击杀后进入第二回合。",
+    "expected": "替补生命、阵容、行动、有序牌堆、Power、卡牌实例、RNG、ContinuationStamp 与原版一致。",
+    "observed": "失败基线 416f94d9708746018de96cb3a37efb26 预测103/原生104；最终70aa5edb08e34137b61fc3d2c75d7978 Passed，27.71秒。直接击杀相邻路径403c3b881b8c45f2a4168ced84cdf54a Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.StockRespawn.cs；docs/TEST_MATRIX.md；2026-09-09，代表包日志加等价最小夹具，未整场回放。"
+  },
   "NORMALITY-AUTOPLAY": {
     "status": "Passed",
     "level": "HeadlessStrictNativeCardDifferentialAndForkLifecycle",

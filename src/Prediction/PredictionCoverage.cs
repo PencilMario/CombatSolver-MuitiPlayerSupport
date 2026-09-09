@@ -33,7 +33,7 @@ internal static class PredictionCoverage
             Armaments => true,
             AdaptablePower or CrabRagePower or DampenPower or IllusionPower or InfestedPower
                 or PossessSpeedPower or PossessStrengthPower or RavenousPower or ReattachPower
-                or StockPower or SurprisePower or SurroundedPower when method == "AfterDeath" => true,
+                or SurprisePower or SurroundedPower when method == "AfterDeath" => true,
             SteamEruptionPower when method == "AfterDeath" => true,
             ConstrictPower when method == "AfterDeath" => true,
             HexPower when method == "AfterDeath" => true,

@@ -12,10 +12,20 @@ internal sealed partial class UnattendedTestRunner
     {
         var killed = combat.Enemies.Single();
         int turn = player.PlayerCombatState!.TurnNumber;
+        if (_request.ScenarioId == "STOCK-REPORT-RESPAWN-HP")
+        {
+            // Report 835b630a T9: exact Niche state before the replacement is rolled.
+            var niche = combat.RunState.Rng.Niche;
+            niche._counter = 54;
+            niche._random._s0 = 8740133261244141179UL;
+            niche._random._s1 = 9651599535138124467UL;
+            niche._random._s2 = 1850010101246481511UL;
+            niche._random._s3 = 2495404468890984412UL;
+        }
         CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
         CombatBeamSolver driver = new(root, SolverDisplayNames.Capture(combat), BattleDamageTracker.Observe(combat),
             SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
-        bool thorns = _request.ScenarioId == "STOCK-THORNS-RESPAWN-HP";
+        bool thorns = _request.ScenarioId is "STOCK-THORNS-RESPAWN-HP" or "STOCK-REPORT-RESPAWN-HP";
         PlanAction strike = thorns ? new(PlanActionKind.EndTurn, turn) : new(PlanActionKind.PlayCard, turn,
             CardId: "STRIKE_SILENT", TargetCombatId: killed.CombatId);
         SimulationSnapshot first = InvokeForcedTerminalReplay(driver, [strike], null, 0, null);

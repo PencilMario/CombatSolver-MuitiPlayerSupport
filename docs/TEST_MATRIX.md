@@ -1,5 +1,11 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：补货原报告 RNG 边界修复（开发中）
+
+- `STOCK-REPORT-RESPAWN-HP` 从报告 `835b630a...` T9 检查点注入 Niche counter=54 及四段内部状态，以旧个体最大生命 96、当前生命 3、ONE_TWO_MOVE 和 3 点荆棘构造两回合边界。基线 `416f94d9708746018de96cb3a37efb26` Failed，26.64 秒，首差异 `E0.hp expected=103 actual=104`；最终 `70aa5edb08e34137b61fc3d2c75d7978` Passed，27.71 秒。
+- 相邻直接击杀 `STOCK-RESPAWN-HP` 最终 `403c3b881b8c45f2a4168ced84cdf54a` Passed，12.87 秒。使用下方已有命令；报告 RNG 场景使用荆棘命令并将 ScenarioId 改为 `STOCK-REPORT-RESPAWN-HP`。
+- 严格比较死亡后及下一玩家回合的完整 MoveStateSnapshot/ContinuationStamp，包括有序牌堆、卡牌实例、Power、敌人阵容和 AI、九条 RNG；预测 Fork 保持相同快照。未正式搜索、未整包回放。旧通用种子探针的通过只属于旧输入，不能代替本次失败基线。
+
 ## 2026-09-09：静默猎手补货最小分诊（开发中）
 
 - 两个夹具均运行在未改生产语义的 `2c7bee5` 基础上，完整 MoveStateSnapshot 比较包含有序牌堆、逐实例卡牌状态、Power、怪物状态、RNG 和 ContinuationStamp，另比较预测结果与 Fork。没有启动正式搜索，不使用增量搜索开关。

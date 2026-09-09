@@ -77,6 +77,8 @@ XxxMirrors.Registry.Register<TYourType>(handler);
 
 44 张注册表按域分布在 `src/Engine/InCombat/Mirrors/` 下：
 
+死亡后生成单位的镜像应保持原生生成时点。例如补货由 `AfterDeathMirrors` 调用分支生成入口，旧个体仍在阵容中，其最大生命参与替补生命判重。把生成延后到阵容清理后，即使 RNG 调用次数相同也会改变抽样结果；登记镜像时应同步移除原领域补偿中的同一生成动作。
+
 | 目录 | 注册表数 | 覆盖什么 | 你多半要用的 |
 |---|---|---|---|
 | `Hooks/` | 37 | 战斗 hook：攻击、格挡、伤害、死亡、卡牌、球体、回合边界 | 按你重写了哪个 hook 挑，例如 `AfterDamageGivenMirrors` |
