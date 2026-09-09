@@ -1128,6 +1128,7 @@ internal sealed partial class UnattendedTestRunner
         }
         if (check.TriggerPlayerSideTurnStartAfterMove)
         {
+            simulatedCombat.BeginSideTurn(player.Creature);
             if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(
                     simulator,
                     simulatedCombat,
@@ -1171,6 +1172,7 @@ internal sealed partial class UnattendedTestRunner
         }
         if (check.TriggerEnemySideTurnStartAfterMove)
         {
+            simulatedCombat.BeginSideTurn(enemy);
             simulatedCombat.SnapshotPowerAmountsAtTurnStart([enemy]);
             if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(
                     simulator,
@@ -2173,7 +2175,6 @@ internal sealed partial class UnattendedTestRunner
         IReadOnlyList<string>? choiceCardIds = null,
         IReadOnlyList<string>? expectedExcludedChoiceCardIds = null)
     {
-        CardPlayPowerSuppression suppression = combat.SuppressHistorySensitiveCardModifiers(card);
         HashSet<uint> processedEnemyDeaths = [];
         IReadOnlyList<string> requestedChoiceCardIds = choiceCardIds ?? [];
         TurnStartChoiceCursor choices = choiceCardIds == null
@@ -2204,7 +2205,6 @@ internal sealed partial class UnattendedTestRunner
         }
         finally
         {
-            combat.RestoreHistorySensitiveCardModifiers(suppression);
             combat.EndActionChoices();
         }
         combat.NormalizeAeonglassWithers(simulator);

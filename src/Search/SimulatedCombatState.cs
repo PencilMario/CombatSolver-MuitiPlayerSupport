@@ -573,7 +573,6 @@ internal sealed partial class SimulatedCombatState
         (_playerTurnNumbers ??= [])[player] = nextTurn;
         // History's turn window changes before turn-start damage and draw effects run.
         _unblockedDamageThisTurn = null;
-        (_statusCardsDrawnThisTurn ??= [])[player] = 0;
     }
 
     public void SnapshotPowerAmountsAtTurnStart(IEnumerable<Creature> participants)
@@ -1134,10 +1133,7 @@ internal sealed partial class SimulatedCombatState
         return !HasPendingChoice;
     }
 
-    private void TriggerBaseSideTurnStart(
-        CombatPredictionSimulator simulator,
-        Creature owner,
-        bool decrementPlating)
+    public void BeginSideTurn(Creature owner)
     {
         ResetCardLifecycleTurn(owner);
         (_attacksPlayedThisTurn ??= [])[owner] = 0;
@@ -1155,6 +1151,7 @@ internal sealed partial class SimulatedCombatState
             (_energySpentThisTurn ??= [])[ownerPlayer] = 0;
             (_starsGainedThisTurn ??= [])[ownerPlayer] = 0;
             (_nonHandDrawsThisTurn ??= [])[ownerPlayer] = 0;
+            (_statusCardsDrawnThisTurn ??= [])[ownerPlayer] = 0;
             // Osty is never a turn-start participant but acts during the player turn; reset its counters here.
             if (ownerPlayer.Osty is { } osty)
             {
@@ -1164,6 +1161,13 @@ internal sealed partial class SimulatedCombatState
         }
         _doomAppliersThisTurn?.Remove(owner);
         RemovePoweredAttackHitsDealtBy(owner);
+    }
+
+    private void TriggerBaseSideTurnStart(
+        CombatPredictionSimulator simulator,
+        Creature owner,
+        bool decrementPlating)
+    {
         TickDuration<BlurPower>(owner);
         if (GetAmount<DrawCardsNextTurnPower>(owner) > 0)
             SetAmount<DrawCardsNextTurnPower>(owner, 0);

@@ -118,6 +118,8 @@ internal static class LiveEndTurnRiskEvaluator
 
         combat.CurrentSide = CombatSide.Enemy;
         combat.SetActionChoiceTiming(PlanChoiceTiming.EnemyTurn);
+        foreach (Creature enemy in combat.Enemies)
+            combat.BeginSideTurn(enemy);
         combat.SnapshotPowerAmountsAtTurnStart(combat.Enemies);
         if (!TurnStartRelicSupport.TriggerBeforeSideTurnStart(simulator, combat, combat.Enemies))
             return BuildProjection(hpBefore, simulatedPlayer, []);

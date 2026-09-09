@@ -25,6 +25,7 @@ internal sealed partial class UnattendedTestRunner
         CombatPredictionSimulator resetBranch = simulator.Fork();
         SimulatedCombatState resetState = (SimulatedCombatState)resetBranch.State.CombatState;
         SlowPower power = resetState.GetPower<SlowPower>(enemy)!;
+        resetState.BeginSideTurn(enemy);
         resetState.SnapshotPowerAmountsAtTurnStart([enemy]);
         if (!resetState.TriggerSideTurnStart(resetBranch, CombatSide.Enemy, [enemy], false))
             throw new InvalidOperationException("Slow reset encountered a pending choice.");
