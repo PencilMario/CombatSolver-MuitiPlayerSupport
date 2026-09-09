@@ -1,4 +1,4 @@
-#requires -Version 7.4
+﻿#requires -Version 7.4
 
 param(
     [string]$ScenarioId = "SMOKE-001",
@@ -726,10 +726,12 @@ $request = [ordered]@{
     targetRoomType = $TargetRoomType
     targetMapPointType = $TargetMapPointType
     preCombatPlayerCurrentHpOverride = if ($PreCombatPlayerCurrentHpOverride -gt 0) { $PreCombatPlayerCurrentHpOverride } else { $null }
+    # 逗号是必须的：脚本块里以 @() 结尾会输出零个对象，赋进哈希表就变成 $null，
+    # 序列化出去是 preCombatInterveningMapPoints: null，C# 那边 foreach 空引用。
     preCombatInterveningMapPoints = if ([string]::IsNullOrWhiteSpace($PreCombatInterveningMapPointsJson)) {
-        @()
+        ,@()
     } else {
-        @($PreCombatInterveningMapPointsJson | ConvertFrom-Json -NoEnumerate)
+        ,@($PreCombatInterveningMapPointsJson | ConvertFrom-Json -NoEnumerate)
     }
     replayStatePath = $resolvedReplayStatePath
     checkpointArchivePath = if ($CheckpointArchivePath) { $CheckpointArchivePath } else { $null }
