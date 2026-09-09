@@ -14,6 +14,7 @@
 | 上一轮性能目标与逐轮证据 | [回合结束探针与元数据热路径](performance/standpat-and-metadata-20260909.md) |
 | 无人测试环境与请求协议 | [无头测试](HEADLESS_TESTING.md) |
 | 在线状态、隐私设置与管理后台 | [在线统计](ONLINE_STATISTICS.md) |
+| 监控页签、筛选、排序与刷新交互 | [监控工作台改版](ONLINE_WORKBENCH.md) |
 | 跑局胜负、连胜、历史快照与筛选 | [跑局战绩](RUN_STATISTICS.md) |
 | 创意工坊中英文介绍与语言字段 | [创意工坊介绍](workshop/README.md) |
 | 玩家问题包、检查点恢复与回放 | [检查点回放](CHECKPOINT_REPLAY.md) |

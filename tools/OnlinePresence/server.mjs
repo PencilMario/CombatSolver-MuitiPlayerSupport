@@ -180,6 +180,9 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
         expire();
         const pageValue = url.searchParams.get('page') ?? '1';
         const query = (url.searchParams.get('q') ?? '').trim();
+        const sort = url.searchParams.get('sort') || 'online';
+        const order = url.searchParams.get('order') || 'desc';
+        if (!['online','floor','hpLoss','lastSeen'].includes(sort) || !['asc','desc'].includes(order)) return send(res,400);
         if (!/^[1-9]\d*$/.test(pageValue) || !Number.isSafeInteger(Number(pageValue)) || query.length > 128)
           return send(res,400);
         const term = query.toLocaleLowerCase();
@@ -187,6 +190,11 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
           .sort((a,b)=>b.totalMs-a.totalMs || a.sessionId.localeCompare(b.sessionId))
           .map(({totalMs,...player},index)=>({...player,rank:index+1,onlineSeconds:Math.floor(totalMs/1000)}));
         const matching = term ? ranked.filter(player=>[player.name,player.character,player.encounter].some(value=>value.toLocaleLowerCase().includes(term))) : ranked;
+        const key=sort==='online'?'onlineSeconds':sort;
+        matching.sort((a,b)=>{
+          if(a[key]===null || b[key]===null)return (a[key]===null)-(b[key]===null) || a.sessionId.localeCompare(b.sessionId);
+          return (order==='asc'?1:-1)*(a[key]-b[key]) || a.sessionId.localeCompare(b.sessionId);
+        });
         const total = matching.length;
         const totalPages = Math.max(1,Math.ceil(total/PAGE_SIZE));
         const page = Math.min(Number(pageValue),totalPages);

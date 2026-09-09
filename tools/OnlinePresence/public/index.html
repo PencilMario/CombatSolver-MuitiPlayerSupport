@@ -1,26 +1,298 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Combat Solver · 在线监控</title><link rel="stylesheet" href="/style.css"><script defer src="/chart.js"></script><script defer src="/app.js"></script></head>
-<body>
-<header><div class="brand"><span class="mark" aria-hidden="true">CS</span><div><strong>Combat Solver</strong><span class="subtitle">在线监控</span></div></div><div class="header-right"><span id="connection">正在恢复登录…</span><button id="logout" hidden>退出登录</button></div></header>
-<main>
-<section id="session-loading" role="status"><p id="session-message">正在恢复登录…</p><button id="session-retry" hidden>重试</button></section>
-<section id="login" hidden><h1>管理后台</h1><form id="login-form"><label for="password">管理密码</label><input id="password" type="password" autocomplete="current-password" required maxlength="256"><button type="submit" class="primary">登录</button><p id="login-error" role="alert"></p></form></section>
-<div id="dashboard" hidden>
-<section class="summary"><div><span class="label">当前在线</span><strong id="online">0</strong></div><div><span class="label">跑局中</span><strong id="fighting">0</strong></div><div><span class="label">区间峰值</span><strong id="peak">0</strong></div><div class="updated"><span class="label">最后更新</span><span id="updated">-</span></div></section>
-<section class="history"><div class="section-bar"><h1>在线人数</h1><select id="range" aria-label="统计时间范围"><option value="1">最近 1 小时</option><option value="24" selected>最近 24 小时</option><option value="168">最近 7 天</option><option value="720">最近 30 天</option></select></div><div class="chart"><canvas id="chart" role="img" aria-label="历史在线人数折线图"></canvas></div><p id="history-empty" hidden>暂无历史记录</p></section>
-<section class="players"><div class="section-bar"><h2>在线时长排行榜 <span id="row-count">0</span></h2><input type="search" id="search" placeholder="搜索昵称、角色或战斗" aria-label="搜索在线玩家" maxlength="128"></div><p id="error" role="alert" hidden></p><p id="players-error" role="alert" hidden></p><div class="table-scroll"><table><thead><tr><th>排名</th><th>玩家</th><th>累计在线 ↓</th><th>角色</th><th>楼层</th><th>最近已计算战斗</th><th>预计战损</th><th>版本</th><th>最近心跳</th></tr></thead><tbody id="rows"></tbody></table></div><p id="empty">当前没有在线玩家</p><nav class="pagination" aria-label="在线玩家分页"><span id="page-range">0 位玩家</span><div><button id="previous-page" type="button" aria-label="上一页" title="上一页" disabled>←</button><span id="page-number" aria-live="polite">1 / 1</span><button id="next-page" type="button" aria-label="下一页" title="下一页" disabled>→</button></div></nav></section>
-<section class="players"><div class="section-bar"><h2>跑局战绩</h2><span id="run-summary">暂无数据</span></div>
-<p>求解器战绩来自更新后的单人标准跑局；放弃计负。历史快照与求解器成绩分开。跨过未参与或未知跑局会中断连续段。数据由客户端自报。</p>
-<form id="run-filters" class="run-filters">
-<label>来源<select name="source"><option value="solver">求解器战绩</option><option value="historical">游戏历史快照</option></select></label>
-<label>参与<select name="participation"><option value="full">全程开启</option><option value="partial">部分参与</option><option value="none">未参与</option><option value="all">全部</option></select></label>
-<label>实际使用<select name="activity"><option value="">全部</option><option value="solve">求解过</option><option value="execute">执行过</option><option value="auto">使用过全自动</option></select></label>
-<label>角色 ID<input name="character" placeholder="如 SILENT"></label><label>Mod 版本<input name="version" placeholder="不限"></label><label>进阶<input name="ascension" type="number" min="0" max="100"></label>
-<label>当前连胜 ≥<input name="streak_min" type="number" min="0"></label><label>当前连胜 ≤<input name="streak_max" type="number" min="0"></label>
-<label>最高连胜 ≥<input name="best_min" type="number" min="0"></label><label>最高连胜 ≤<input name="best_max" type="number" min="0"></label>
-<label>胜率 % ≥<input name="rate_min" type="number" min="0" max="100" step="any"></label><label>胜率 % ≤<input name="rate_max" type="number" min="0" max="100" step="any"></label>
-<label>胜场 ≥<input name="wins_min" type="number" min="0"></label><label>负场 ≥<input name="losses_min" type="number" min="0"></label><label>放弃 ≥<input name="abandoned_min" type="number" min="0"></label><label>至少完成局数<input name="runs_min" type="number" min="0"></label>
-<label>结算起始<input name="from" type="datetime-local"></label><label>结算截止<input name="to" type="datetime-local"></label>
-<label>排序<select name="sort"><option value="streak">当前连胜</option><option value="best">最高连胜</option><option value="rate">胜率</option><option value="wins">胜场</option><option value="losses">负场</option></select></label><button>筛选</button><button type="reset">重置</button></form>
-<p id="run-error" role="alert" hidden></p><div class="table-scroll"><table><thead><tr><th>玩家 / 档案</th><th>当前連胜</th><th>最高连胜</th><th>胜场</th><th>负场（放弃）</th><th>胜率</th></tr></thead><tbody id="run-rows"></tbody></table></div><nav class="pagination"><button id="run-prev">上一页</button><span id="run-page">1 / 1</span><button id="run-next">下一页</button></nav></section>
-</div></main><footer>COMBAT SOLVER <span>运行状态</span></footer></body></html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Combat Solver · 监控工作台</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script defer src="/chart.js"></script>
+    <script defer src="/app.js"></script>
+  </head>
+  <body>
+    <header class="app-header">
+      <a class="brand" href="/"
+        >CS <span>Combat Solver <small>监控工作台</small></span></a
+      >
+      <div class="header-actions">
+        <span id="connection" role="status">正在恢复登录…</span
+        ><span id="refresh-controls" hidden
+          ><button id="auto-refresh" type="button" aria-pressed="true">
+            暂停刷新</button
+          ><button id="refresh-now" type="button">立即刷新</button></span
+        ><button id="logout" hidden>退出</button>
+      </div>
+    </header>
+    <main>
+      <section id="session-loading" class="auth-card" role="status">
+        <h1>正在恢复登录</h1>
+        <p id="session-message">正在连接监控服务…</p>
+        <button id="session-retry" hidden>重试连接</button>
+      </section>
+      <section id="login" class="auth-card" hidden>
+        <h1>管理登录</h1>
+        <p>查看实时在线状态与跑局战绩</p>
+        <form id="login-form">
+          <label
+            >管理密码<input
+              id="password"
+              type="password"
+              autocomplete="current-password"
+              required
+              maxlength="256" /></label
+          ><button class="primary" type="submit">登录</button>
+          <p id="login-error" class="error" role="alert"></p>
+        </form>
+      </section>
+      <div id="dashboard" hidden>
+        <section class="metrics" aria-label="当前在线概览">
+          <div><span>当前在线</span><strong id="online">—</strong></div>
+          <div><span>战斗中</span><strong id="in-combat">—</strong></div>
+          <div><span>跑局中</span><strong id="in-run">—</strong></div>
+          <div><span>所选时段在线峰值</span><strong id="peak">—</strong></div>
+          <div class="metric-note">
+            <span id="unknown-run">—</span
+            ><span>概览更新于 <time id="updated">—</time></span>
+          </div>
+        </section>
+        <p id="error" class="error" role="alert" hidden></p>
+        <details id="trend" class="trend">
+          <summary>
+            在线趋势 <span id="trend-caption">最近 24 小时 · 点击展开</span>
+          </summary>
+          <div class="trend-toolbar">
+            <span>间隔断开表示缺少采样</span
+            ><select id="range" aria-label="趋势时间范围">
+              <option value="1">最近 1 小时</option>
+              <option value="24" selected>最近 24 小时</option>
+              <option value="168">最近 7 天</option>
+              <option value="720">最近 30 天</option>
+            </select>
+          </div>
+          <div class="chart">
+            <canvas id="chart" role="img" aria-label="历史在线人数"></canvas>
+          </div>
+          <p id="history-empty" hidden>暂无历史采样</p>
+        </details>
+        <nav class="tabs" role="tablist" aria-label="工作台">
+          <button
+            id="tab-live"
+            role="tab"
+            aria-selected="true"
+            aria-controls="panel-live"
+          >
+            实时在线 <span id="live-count">—</span></button
+          ><button
+            id="tab-runs"
+            role="tab"
+            aria-selected="false"
+            aria-controls="panel-runs"
+            tabindex="-1"
+          >
+            跑局战绩</button
+          ><span id="refresh-status" role="status">等待数据</span>
+        </nav>
+        <section id="panel-live" role="tabpanel" aria-labelledby="tab-live">
+          <form id="live-filters" class="toolbar">
+            <label class="search-label"
+              >搜索在线玩家<input
+                type="search"
+                id="search"
+                name="q"
+                maxlength="128"
+                placeholder="昵称、角色或战斗" /></label
+            ><button class="primary">搜索</button
+            ><button id="live-reset" type="button">清除</button
+            ><span class="subtle">表头可排序 · 名次始终按累计在线时长计算</span>
+          </form>
+          <p id="players-error" class="error" role="alert" hidden></p>
+          <div class="table-scroll">
+            <table class="live-table" id="live-table">
+              <colgroup>
+                <col class="col-rank" />
+                <col class="col-player" />
+                <col class="col-state" />
+                <col class="col-time" />
+                <col class="col-role" />
+                <col class="col-floor" />
+                <col class="col-battle" />
+                <col class="col-loss" />
+                <col class="col-version" />
+                <col class="col-heartbeat" />
+                <col class="col-action" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>名次</th>
+                  <th>玩家</th>
+                  <th>当前状态</th>
+                  <th aria-sort="descending">
+                    <button data-live-sort="online">
+                      累计在线 <span>↓</span>
+                    </button>
+                  </th>
+                  <th>角色</th>
+                  <th>
+                    <button data-live-sort="floor">楼层 <span>↕</span></button>
+                  </th>
+                  <th>最近已计算战斗</th>
+                  <th>
+                    <button data-live-sort="hpLoss">
+                      预计战损 <span>↕</span>
+                    </button>
+                  </th>
+                  <th>版本</th>
+                  <th>
+                    <button data-live-sort="lastSeen">
+                      心跳 <span>↕</span>
+                    </button>
+                  </th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <p id="empty" class="empty" hidden>当前没有在线玩家</p>
+          <div class="pagination">
+            <span id="page-range">等待数据</span>
+            <div>
+              <button id="previous-page" disabled>上一页</button
+              ><span id="page-number">1 / 1</span
+              ><button id="next-page" disabled>下一页</button>
+            </div>
+          </div>
+        </section>
+        <section
+          id="panel-runs"
+          role="tabpanel"
+          aria-labelledby="tab-runs"
+          hidden
+        >
+          <form id="run-filters">
+            <div class="toolbar core-filters">
+              <label
+                >战绩来源<select name="source">
+                  <option value="solver">求解器参与战绩</option>
+                  <option value="historical">游戏历史快照</option>
+                </select></label
+              ><label data-solver-only
+                >运行覆盖<select name="participation">
+                  <option value="full">全程开启（允许手动出牌）</option>
+                  <option value="partial">部分参与</option>
+                  <option value="none">未参与</option>
+                  <option value="all">全部覆盖类型</option>
+                </select></label
+              ><label
+                >角色<select name="character">
+                  <option value="">全部角色</option>
+                  <option value="IRONCLAD">铁甲战士</option>
+                  <option value="SILENT">静默猎手</option>
+                  <option value="DEFECT">故障机器人</option>
+                  <option value="NECROBINDER">亡灵契约师</option>
+                  <option value="REGENT">储君</option>
+                </select></label
+              ><label
+                >至少完成局数<input
+                  name="runs_min"
+                  type="number"
+                  min="0"
+                  value="5"
+                  placeholder="不限" /></label
+              ><button type="submit" class="primary" id="apply-filters">
+                应用筛选</button
+              ><button type="reset">重置</button>
+            </div>
+            <div id="historical-note" class="scope-note" hidden>
+              原生存档的首次历史快照，非求解器战绩。只支持角色和已有累计指标；跨角色连胜、放弃次数未知。
+            </div>
+            <details id="advanced-filters" class="advanced">
+              <summary>更多筛选 <span id="advanced-count"></span></summary>
+              <div class="filter-groups" id="filter-groups"></div>
+            </details>
+            <div class="filter-status">
+              <span id="dirty-note" hidden>筛选条件有改动，尚未应用</span
+              ><span class="subtle">默认至少 5 局，可清空或移除该条件</span>
+            </div>
+          </form>
+          <div id="active-filters" class="chips" aria-label="已应用筛选"></div>
+          <div class="results-summary">
+            <h1>当前筛选范围 <span id="run-summary">等待数据</span></h1>
+            <span class="subtle"
+              >战绩更新于 <time id="runs-updated">—</time> · 自动更新间隔 60
+              秒</span
+            >
+          </div>
+          <p id="statistics-semantics" class="subtle scope-caption">
+            运行覆盖不等于 AI
+            独立通关。连续段受筛选条件约束；被排除的跑局会打断连续段。总胜率按胜负总和计算。
+          </p>
+          <p id="run-error" class="error" role="alert" hidden></p>
+          <div class="table-scroll">
+            <table class="run-table" id="run-table">
+              <colgroup>
+                <col class="col-identity" />
+                <col class="col-streak" />
+                <col class="col-streak" />
+                <col class="col-wins" />
+                <col class="col-losses" />
+                <col class="col-rate" />
+                <col class="col-details" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>玩家 / 档案</th>
+                  <th>
+                    <button data-run-sort="streak">
+                      当前连续段 <span>↓</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button data-run-sort="best">
+                      最高连续段 <span>↕</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button data-run-sort="wins">胜场 <span>↕</span></button>
+                  </th>
+                  <th>
+                    <button data-run-sort="losses">
+                      负场（含放弃）<span>↕</span>
+                    </button>
+                  </th>
+                  <th>
+                    <button data-run-sort="rate">
+                      胜率 / 样本量 <span>↕</span>
+                    </button>
+                  </th>
+                  <th>详情</th>
+                </tr>
+              </thead>
+              <tbody id="run-rows"></tbody>
+            </table>
+          </div>
+          <p id="run-empty" class="empty" hidden>
+            没有符合条件的战绩。可清除样本门槛或调整筛选。
+          </p>
+          <div class="pagination">
+            <span id="run-range">等待数据</span>
+            <div>
+              <button id="run-prev" disabled>上一页</button
+              ><span id="run-page">1 / 1</span
+              ><button id="run-next" disabled>下一页</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+    <dialog id="details-dialog">
+      <div class="dialog-header">
+        <h2 id="details-title">详情</h2>
+        <button id="close-details" aria-label="关闭详情">关闭</button>
+      </div>
+      <dl id="details-content"></dl>
+      <p id="copy-status" role="status"></p>
+      <button id="copy-identity">复制完整标识</button>
+    </dialog>
+    <footer>Combat Solver · 客户端自报数据 · 预计战损不是实测战损</footer>
+  </body>
+</html>
