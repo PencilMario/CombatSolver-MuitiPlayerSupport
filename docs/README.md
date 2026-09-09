@@ -9,7 +9,8 @@
 | 组件职责、状态所有权和调用链 | [架构与职责地图](ARCHITECTURE.md) |
 | 本批未发布改动、版本演进与开发记录 | [开发笔记](DEVELOPMENT_NOTES.md) |
 | 已执行测试、复跑方式和未验证范围 | [测试矩阵](TEST_MATRIX.md) |
-| 当前极高配置性能与合入证据 | [perf-2 选择性合入与后续热点试验](performance/perf2-integration-20260909.md) |
+| 最新快照/重放复查与 PR 验证 | [快照与重放热点复查](performance/snapshot-replay-followup-20260909.md) |
+| 保路元数据合入证据 | [perf-2 选择性合入与后续热点试验](performance/perf2-integration-20260909.md) |
 | 上一轮性能目标与逐轮证据 | [回合结束探针与元数据热路径](performance/standpat-and-metadata-20260909.md) |
 | 无人测试环境与请求协议 | [无头测试](HEADLESS_TESTING.md) |
 | 在线状态、隐私设置与管理后台 | [在线统计](ONLINE_STATISTICS.md) |
