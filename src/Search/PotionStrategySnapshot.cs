@@ -63,7 +63,8 @@ internal sealed class PotionStrategySnapshot
 
     public ForcedPotionUseEvaluation EvaluateForcedUses(
         IReadOnlyList<PlanAction> actions,
-        bool renewablePotionShapedRock)
+        bool renewablePotionShapedRock,
+        PotionStrategicCostLookup? strategicCosts = null)
     {
         PotionSlotDirective[] forced = Directives
             .Where(directive => directive.Directive == SolverPotionDirective.Force)
@@ -80,9 +81,9 @@ internal sealed class PotionStrategySnapshot
             if (!used)
                 continue;
             count++;
-            strategicCost += PotionUsePolicy.StrategicHpCost(
-                directive.PotionId,
-                renewablePotionShapedRock);
+            strategicCost += strategicCosts != null
+                ? strategicCosts.Get(directive.PotionId, renewablePotionShapedRock)
+                : PotionUsePolicy.StrategicHpCost(directive.PotionId, renewablePotionShapedRock);
             if (string.Equals(directive.PotionId, "AMBERGRIS", StringComparison.Ordinal))
                 ambergrisCount++;
         }

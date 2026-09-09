@@ -31,3 +31,19 @@ for (int sample = 0; sample < 10_000; sample++)
         throw new InvalidOperationException("Admission failed to use a safe smaller wave.");
 }
 Console.WriteLine("PASS: remaining-budget admission, partial waves, zero capacity, overflow, 10000 bounded cases.");
+
+Equal(16, SearchWaveMemoryPolicy.MaximumQueuedParents(8));
+Equal(2, SearchWaveMemoryPolicy.MaximumQueuedParents(1));
+Equal(0, SearchWaveMemoryPolicy.GrowCapacity(0, 1));
+Equal(6, SearchWaveMemoryPolicy.GrowCapacity(3, 7));
+Equal(7, SearchWaveMemoryPolicy.GrowCapacity(4, 7));
+Equal(64, SearchWaveMemoryPolicy.GrowCapacity(48, 64));
+Equal(int.MaxValue, SearchWaveMemoryPolicy.GrowCapacity(int.MaxValue, int.MaxValue));
+Equal(1, SearchWaveMemoryPolicy.GrowCapacity(1, 1));
+for (int sample = 0; sample < 10_000; sample++)
+{
+    int maximum = random.Next(1, int.MaxValue);
+    int current = random.Next(0, int.MaxValue);
+    Equal(Math.Min(maximum, 2L * current), SearchWaveMemoryPolicy.GrowCapacity(current, maximum));
+}
+Console.WriteLine("PASS: parent reservation cap, exact saturating growth, odd caps, zero and overflow.");

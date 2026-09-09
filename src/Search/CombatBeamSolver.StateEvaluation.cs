@@ -228,11 +228,18 @@ internal sealed partial class CombatBeamSolver
         }
         ThreatFocus focus = BuildThreatFocus(simulator, combat);
         IReadOnlyList<PowerModel> effectivePowers = combat.EffectivePowers();
+        // Requirements and evaluation inspect the same immutable snapshot. Native
+        // GetTypeForAmount boxes its enum comparisons, so keep this one-pass decision
+        // instead of asking Contributes again for every power during evaluation.
+        Span<bool> contributes = effectivePowers.Count <= 64
+            ? stackalloc bool[effectivePowers.Count]
+            : new bool[effectivePowers.Count];
         StrategicEffectRequirements strategicRequirements = StrategicEffectRequirements.None;
         for (int powerIndex = 0; powerIndex < effectivePowers.Count; powerIndex++)
         {
             PowerModel power = effectivePowers[powerIndex];
-            if (!StrategicEffectMirrors.Contributes(power, _player.Creature))
+            contributes[powerIndex] = StrategicEffectMirrors.Contributes(power, _player.Creature);
+            if (!contributes[powerIndex])
                 continue;
             strategicRequirements |= StrategicEffectModel.Requirements(power);
         }
@@ -243,7 +250,7 @@ internal sealed partial class CombatBeamSolver
         for (int powerIndex = 0; powerIndex < effectivePowers.Count; powerIndex++)
         {
             PowerModel power = effectivePowers[powerIndex];
-            if (!StrategicEffectMirrors.Contributes(power, _player.Creature))
+            if (!contributes[powerIndex])
                 continue;
             strategicContext ??= StrategicEffectContext.Build(
                 liveCards,
@@ -572,14 +579,10 @@ internal sealed partial class CombatBeamSolver
         int zeroCostPlayableCount = 0;
         foreach (PredictedCard card in playerState.Hand)
         {
-            if (!combat.CanPlayCard(simulator, card))
+            if (!combat.CanPlayCard(simulator, card, out int energyCost, out int starCost))
                 continue;
-            int energyCost = card.Preview.EnergyCost.CostsX
-                ? Math.Max(0, playerState.Energy)
-                : Math.Max(0, card.GetEnergyCostWithModifiers(simulator, playerState));
-            int starCost = card.Preview.HasStarCostX
-                ? Math.Max(0, playerState.Stars)
-                : Math.Max(0, card.GetStarCostWithModifiers(simulator, playerState));
+            energyCost = Math.Max(0, energyCost);
+            starCost = Math.Max(0, starCost);
             int value = Math.Max(1, (int)Math.Ceiling(CardChoiceSupport.CardValue(card.Preview)));
             playable[playableCount++] = (energyCost, starCost, value);
             if (energyCost == 0

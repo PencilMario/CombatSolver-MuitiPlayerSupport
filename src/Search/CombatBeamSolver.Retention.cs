@@ -1952,22 +1952,34 @@ internal sealed partial class CombatBeamSolver
     {
         if (_run.StandPatCache.TryGetValue(node.StateKey, out StandPatEvaluation cached))
             return cached;
-        SimulationSnapshot end = ReplayAction(node, new PlanAction(PlanActionKind.EndTurn, node.Turn));
-        StandPatEvaluation evaluation = new(
-            end.AllEnemiesDead,
-            Math.Max(0, node.Snapshot.EnemyHp - end.EnemyHp),
-            end.ProjectedPlayerHp,
-            end.Energy * 16
-                + end.Stars * 8
-                + end.HandCount
-                + end.ReachableHandValue
-                + end.FutureResourceValue
-                + end.OstyHp * 16
-                + end.OstyMaxHp * 4);
-        end.ReleaseSimulator();
+        StandPatEvaluation evaluation = ComputeStandPat(node);
         _run.StandPatCache.Add(node.StateKey, evaluation);
         _run.StandPatProbes++;
         return evaluation;
+    }
+
+    private StandPatEvaluation ComputeStandPat(SearchNode node)
+    {
+        SimulationSnapshot end = ReplayAction(node, new PlanAction(PlanActionKind.EndTurn, node.Turn));
+        try
+        {
+            ObserveSearchPath(node, SearchPathObservationStage.StandPatProbe, "stand_pat_replayed");
+            return new StandPatEvaluation(
+                end.AllEnemiesDead,
+                Math.Max(0, node.Snapshot.EnemyHp - end.EnemyHp),
+                end.ProjectedPlayerHp,
+                end.Energy * 16
+                    + end.Stars * 8
+                    + end.HandCount
+                    + end.ReachableHandValue
+                    + end.FutureResourceValue
+                    + end.OstyHp * 16
+                    + end.OstyMaxHp * 4);
+        }
+        finally
+        {
+            end.ReleaseSimulator();
+        }
     }
 
     private static int PolicyBoundaryRank(SearchBoundaryReason reason)

@@ -1,5 +1,151 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：PR #67 / #68 / #72 的 Windows 合并验证（下一版本开发中）
+
+- 集成基线 `2c7bee5`，PR heads 分别为 `0baaf74`、`3c9edc9`、`e9e6103`。两个背包检查工具均链接最终唯一生产实现 `ReachableHandValue`。
+- `dotnet run --project tools/PreCombatRequestChecks -c Release`：10 项通过；这是替换进程边界的 API 合同，未运行真实战前 worker 关闭/空闲期限测试。
+- `ReachableHandValueChecks`：32,551 组原二维递推精确对照通过；`ReachableHandPotentialChecks`：10,000 组子集 oracle、溢出/大数组、零分配通过。三类常见 DP 各 100,000 次调用新增托管分配均为 0 B，仅代表纯计算。
+- `PowerAmountComparisonChecks`：8 项通过，包括 1,568 组原生输出及 getter 顺序、实际 Harmony 重写、未知 IL 保留、100,000 次调用装箱分配 9,600,000 → 0 B。`ExpansionBatchChecks` 8 项及 `CombatSolver.WavePolicyChecks` 容量/溢出/10,000 组边界检查通过。
+- `StateFingerprintChecks`：200,005 个混合/边界输入的原 128 位输出一致；`RitsuTargetTypeLookupChecks` 23 项通过，含程序集加载、动态类型后创建、可回收程序集、并发与 live 查询保留。
+- Release 构建 0 警告 / 0 错误，使用 `-p:CopyModOnBuild=false`；首次因未配置 .NET 4.8 引用路径失败，指定本机已有引用包的 `TargetFrameworkRootPath` 后通过。Power 检查工具显式传入当前游戏及 RitsuLib 路径。Windows 结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`。
+- 私有实例 `pr-merge-20260909` 复用同一 DLL，每请求期限 120 秒。下表均为本次直接运行；证据保留在集成工作区 `.local/merge-evidence/`。
+
+| 场景 | runId | 结果与范围 |
+| --- | --- | --- |
+| STAND-PAT-PROBE-BATCHES | `a8b90d9a00894ff2b941af088221c33f` | Passed，59.94 秒；原投影死灵药水 fixture，Deep 1,000 节点及 Short 250 节点 DOP1/2 动作、评分与非时序计数等价，实际并行、取消/异常排空、复用、257 槽位、Fork 边界 |
+| MIRRORED-HOOK-FILTER | `1af13fe1b62f462abb717b86794de11d` | Passed，9.22 秒；1,670 模型 / 55 回调，顺序、重复、外部类型、Fork、失效、补丁刷新、共享布局和监听分段 |
+| HAND-POTENTIAL-COSTS | `47ebddc7b39745648eaa754f7c31cc25` | Passed，6.64 秒；REGENT、能量/星能各 3、专用牌组，5 项原生与重复查询费用相等，完整根与分支状态保持 |
+| MIXED-POWER-ACQUISITION-ORDER | `5c39acf4594146b8ba4e39874ffe0da3` | Passed，11.34 秒；0.34.5 的有序 Power、牌堆、资源、ContinuationStamp 和 Fork 严格差分 |
+| HELLRAISER-TURN-START-HISTORY | `1e91f087d1aa48bb94e0545aacefaf7a` | Passed，9.74 秒；0.34.5 的第 1 → 2 回合抽牌自动出牌历史及完整状态差分 |
+| BACKEND-SWORD-SAGE-ROOT | `9f39cb7d612c46628e719fd96c556d4b` | Passed，5.50 秒；REGENT / SOVEREIGN_BLADE / SWORD_SAGE_POWER=2，冻结根、分支增减、生成牌、重复归一和 Fork 隔离 |
+
+- 并行场景沿用 `docs/performance/perf2-integration-20260909.md` 的最小合同命令并加 `-VerifyForkBoundaries`；监听和费用合同在首根断言后停止。两个 0.34.5 回归使用其原场景参数，Power 顺序场景指定 `-EnemyCurrentHp 100`。
+- 未运行新一轮整场性能 A/B、可见 Steam / FPS、完整发布门禁；其他章节的作者历史测量不能计入本轮测试。
+- 所有请求结束后已停止该私有实例，使用 `Remove-HeadlessOwnedGameTree` 精确清理其带所有权标记的 `game` 快照；Steam 游戏目录未写入，诊断证据保留。
+
+## 2026-09-09：快照/重放复查与上游合并
+
+- 投影洗牌原型预定 B–C–C–B：8 个 Short/normal 测量请求 Passed，90 项原始结果及各 59/64 条动作一致；normal 均值变化 −0.216% 小于 3.190% 基线漂移，原型已撤回。
+- 合并 `7ac005e` 后 Release 0 警告/0 错误，两端结构门禁通过（84 个 Search 文件）。只改提示文案的双语部分做资源键、CPU/DOP 档位和占位符 L0 检查。
+- 合并版 `STAND-PAT-PROBE-BATCHES`：`4286e80ab6b145ca8e778c03ddb3a7e5` Passed；257 槽位、取消/失败排空、复用及 235,536 字节记账，Deep 1,000 节点 DOP1/2 结果一致、587 次待命探针。
+- 上游语义与分支所有权交叉验证：`NORMALITY-AUTOPLAY-REPLAY` / `4c8a33fd786144e5aa57f6d56185d646` 与 `SLOW-TURN-RESET-FORK` / `f876d91c61a04a54aeaa7cb7a2f89157` Passed；前者含完整原生状态与开始次数、父子隔离、回合清零。
+- 最新上游/合并版目标 `bdf47f6589014329997f292485c07025` / `ebb2fce7ed124f79a13cd14ad798ec39` 均 Passed：主搜索 10,000/144,276/101,420、评分和战损/药水、57 条完整动作相同；6 项物理调度字段与 3 项共享时限累计工作字段不同。哨兵 `c065f7cf7b9847da967e022940036c0d` / `d8437a044f4242909b42cf20328d6b9f` 的全部 90 字段、9 条动作一致。
+- 独立缓冲日志通过正常战斗退役后读取已持有的只读文件句柄取得。首次战后问题包采集在未修改上游 `45f433b9306e4545b22ed18af4a0951d` 的导出阶段失败，未写为通过；后续正常首结果请求不带该不适用的导出断言。详细 runId、原始差异、复跑及未验证范围见[报告](performance/snapshot-replay-followup-20260909.md)。
+
+## 2026-09-09：perf-2 选择性合入与保路作业
+
+- 最终固定 VeryHigh/DOP8/NoGC16GB，预定 B1–C1–C2–B2–B3–C3–C4–B4，八个独立进程各预热一次再测 Short/正常。正常均值 23.6271→23.2887 秒（−1.43%），Short −2.98%；全部16个正式结果 Passed，88项非时序 RESULT 字段（含7项 deferred-round）与59/64条动作逐项相等。原90字段比较也全部无差异。保留慢样本和GC暂停，原配置与实际申请分开记录。
+- 最终政策合同 `2cfdd334274942abbe817d1c670faa07` Passed：两个真实固定lane、257槽位各一次、原始取消token/异常、在途排空、失败后复用及235,536字节成功/失败分配；Deep1000节点/641待命探针的DOP1/2完整结果/评分/动作/非时序指标相等，原根可复用。
+- 短搜哨兵 `e7bae27e545942799fe3335c9673c6a6` Passed，与 `a85f3e7` 既有 `9664c01a18084c92afe111f9d47ce7e8` 的90字段/9动作一致。1GB NoGC `3f2ab070c3fa4f88bfe29f0cbe1ae173` Passed：52次重启、0丢失，与既有 `2345c8785fac4c8fb6d9b81e72aa43ae` 的90字段/64动作一致；请求39.96秒，未用跨批次时间计算提速。
+- 最终Release零警告/错误；纯容量合同涵盖部分wave、零、奇数上限和精确饱和溢出算术；Bash/PowerShell门禁均 `REFACTOR_BOUNDARIES_OK search_files=83`。本轮没有最终Engine语义改动，Hook索引原型已撤回，未执行的索引专属合同未列为通过。
+- 复跑使用现有 `STAND-PAT-PROBE-BATCHES` 政策合同、固定Short哨兵和正常首结果参数，详见[报告](performance/perf2-integration-20260909.md)及[结构化结果](performance/perf2-integration-20260909.json)。Profiler不进入倍率；未做本轮可见Steam、Windows游戏、完整部署或增量性能。
+
+## 2026-09-09：回合结束探针与元数据热路径
+
+- 第二组固定 VeryHigh/DOP8/NoGC16GB、B1–C1–C2–B2–B3–C3–C4–B4 全部八个正式结果 Passed：37.6927→25.4926 秒，平均耗时−32.37%，分配−17.14%，采样峰值 RSS−16.10%。全部90项逐项比较；唯一差异为 C2 的 `phase/deep_triggered`，源码证明由20秒耗时检查点派生，原比较和分类修正均保留。其余88项非时序字段与64条完整预测动作全部一致；正常 Deep 预算、主搜索/恢复工作量和选择数相同。第一组−24.74%的失败结果完整保留，未删慢样本；候选仍有约2.1秒GC长暂停。
+- 当前候选 `5d194a22bcc8496c998ba396f9873e83` Passed：55 回调/1,670 Model、ForkBoundaries，包含完整类型/接收者顺序、碰撞与并发替换、默认关键字原生对照、无前段锚点回退、Fork 后卡牌变更、有效前段及 Power 投影保留和父分支隔离。新候选 Release 零警告/错误。
+- 最终候选 Deep 固定1000节点 `8effcf7a2e804c52867335cf32e636aa` Passed（请求56.99秒）：实际641次探针，DOP1/2全结果/动作/评分/续用/非时序指标相同，双lane同步屏障、取消/异常身份和在途排空、部分工作唯一记账、原根复用。
+- Knights Short 哨兵 `9664c01a18084c92afe111f9d47ce7e8` Passed，与基线 `a4683db7ba964e259533372424f94250` 的90项字段/9条动作一致。正常Deep1GB NoGC 基线/候选 `591767d49821417d90d7134ce000d764` / `2345c8785fac4c8fb6d9b81e72aa43ae` 均 Passed：90字段/64动作一致，63/52次回收后保持46,239展开、636,428转移；搜索56.9968/42.4920秒，请求81.80/67.33秒，均在120秒内。
+- `dotnet run --project tools/RitsuTargetTypeLookupChecks -c Release` 23项通过：实际生产回调、AssemblyLoad/动态晚建失效、失败不发布、live旁路、弱所有权。`dotnet run --project tools/PowerAmountComparisonChecks -c Release` 8项通过：1,568组实际原生方法对照、getter调用顺序、未知IL/内部标签旁路，10万次分配9.6MB→0。
+- 最终源码 Release 构建4.07秒，零警告/错误；Bash和PowerShell结构门禁均输出 `REFACTOR_BOUNDARIES_OK search_files=82`。
+- 复跑命令、全部runId、撤回原型、线程/GC口径和未验证范围见[报告](performance/standpat-and-metadata-20260909.md)及JSON。性能只来自正常headless，未运行本轮整场原生部署或可见Steam；增量回放不用于性能测量。
+
+## 2026-09-09：已准入父节点内的动作与选择作业
+
+- 固定 VeryHigh/DOP8/NoGC设置16GB、首结果停止、每请求120秒；预定A–B–C–C–B–A独立进程，每进程短搜预热一次后测短搜/正常配置。最终正常搜索39.4485/42.2771→36.0760/36.7188秒，均值−10.93%；原版首尾漂移7.17%，仅headless样本。32组探索及正式结果的83项非时序/非物理调度字段和59/64条预测动作一致。
+- 最终 `d31a5136765943cda47a5200337310e5`：`SearchPolicySnapshot`、`ForkBoundaries` Passed。覆盖固定节点DOP1/DOP2动作/选择/评分/续用/工作与剪枝等价、DOP2实际并发≥2、根/分支隔离、512回放上限和首层准入保证；新取消/异常注入确认排空、原始token/异常身份、部分工作只记一次，随后复用原根完成求解。
+- Release零警告/错误；`ExpansionBatchChecks` 8项通过，包含药水移交顺序、失败所有权和旧租约隔离；最终Linux结构门禁81个Search文件通过，Windows规则同步但未执行。完整配置、所有runId、原型、GC/RSS口径和复跑方法见[报告](performance/admitted-expansion-jobs-20260908.md)及JSON。未运行本轮整场原生部署、增量性能或可见Steam。
+
+- 最终机甲骑士短搜哨兵 `a4683db7ba964e259533372424f94250` 与本轮原版对照 Passed：83项字段及9条动作一致，3448展开/8796转移。1GB NoGC目标压力 `8fa51a5571924f4d9a888188ad2574fd` 与本轮原版对照 Passed：83项字段及59条动作一致，10000展开/144368转移/101808选择；两版均14次NoGC建立、13次回收后重启、0区域丢失，实际并发8。
+
+## 2026-09-08：CPU 微架构与指纹计算
+
+- 生产基线 DOP8/1/2/4/8 曲线同 10,000 展开/144,368 转移/101,808 选择；正常配置 PMU 请求 `e304caaff9954817ae0e07ca6969277d` Passed，40.3314 秒、平均约 3.02 搜索相关核，仍仅死亡路线。PMU 为含游戏/GC/JIT 的进程用户态窗口，非纯搜索。
+- 指纹改写 ABBA 正式请求：`246844f6fc7b44a0b3f7487fe0ea68c5` / `b3c12fffa86246559cf99069e9500466` / `e9b9f16df72442a0ad0e67c045be0463` / `f84d9e08202049338620882443e4bcb8`，全部 Passed；90 项非耗时/非并发调度字段及 59 步预测动作一致，均值约 −1.91%，每版两个样本，不作显著提速结论。
+- `dotnet run --project tools/StateFingerprintChecks -c Release`：200,005 个边界/混合输入逐步对照旧 128 位公式，通过。相同本地 FullOpts 标量体 107→83 字节；Release 零警告/错误。未测候选正常配置性能、整场原生部署、可见 Steam、Windows 或 IBS/DRAM/伪共享归因。完整配置与局限见[报告](performance/cpu-microarchitecture-20260908.md)及 JSON。
+
+## 2026-09-08：较大范围后端性能实验（全部撤回）
+
+- 基线及五项原型均独立进程预热后正式短搜一次，12 个请求 Passed；正式同 10,000 展开/144,368 转移/101,808 选择及投影战损 3。基线 5.6707 秒，候选 5.7442–6.6062 秒；单样本没有明确提速，全部撤回，不计完整状态等价。
+- 单条目与三条目 COW 字典各通过原生 Dictionary 对照：9 万次随机操作、32 分支、顺序/异常/枚举/比较器/键身份；三条目最终包含 Keys/Values 枚举失效时机。RNG 与无序牌堆合同草稿未构建或运行。
+- 所有原型 Release 编译通过；恢复原生产源码后重新 Release 构建。没有保留行为变更，未追加正常配置 A/B、DOP/原生差分/整场/可见/Windows 测试。全部 runId、指标、范围和复跑输入见[报告](performance/bold-backend-experiments-20260908.md)及 JSON。
+
+## 2026-09-08：实测CPU热点驱动的路由聚合优化
+
+- 正常配置A/B：`0c7c5b59ab2542ffa06ca40680856281` → `5a64a1d297cf4dcb8060aa69a0ded3cc`，均Passed；41.1816→40.6614秒，同46,239展开/636,428转移/431,140选择、90项非耗时/非并发调度字段及64步完整预测动作，仍仅死亡路线。短搜5.8670→5.6931秒；只有单组正式样本，GC差异明显，不保证倍率。
+- 最终策略合同 `9eb710f1f0e44877aa4fd3bdae084ee7` Passed：250节点DOP1/DOP2动作、评分、续用、非时序工作/剪枝等价，并发至少2，取消与冻结策略通过。
+- 最终整场 `1e8dec2b7eda4d83b2b851ddd7babd5e` Passed：Instant/0秒、战损8/57HP/T7/无药/零重算，27条实际动作与上一轮一致。最终Release零警告/错误、Bash/PowerShell结构门禁通过。
+- 其余九项原型撤回；额外聚合缓存虽更快但4项内部指标不同，本轮未归因，不计等价通过。没有可见、Windows游戏、增量或发布验证。完整请求、输入、指标、撤回理由见[报告](performance/backend-hotspot-optimization-20260908.md)与JSON。
+
+## 2026-09-08：真实CPU热点与SwordSage根合同
+
+- 根失败基线`08fae83abbc3476ab75c4c6ff6afdd84`确认捕获后live层数影响worker；仅根修复`630b137688304d3196be5c10a874c6bc`通过，最终`97c88a05ed9342528dda268da91836d6`通过首次移除、从零获得、分叉隔离、生成与幂等性，Release零警告/错误。
+- Linux perf与EventPipe分开解释CPU、分配、GC和锁等待。正常极高两个诊断请求同46,239/636,428/431,140工作量，CPU调用链23,915个搜索样本；诊断耗时不作A/B，纠正旧线程采样口径。两个Hook索引原型撤回，零加成跳过未证明明显加速。
+- 完整runId、最小合同命令、各原型数字、符号缺口和未验证范围见[报告](performance/backend-cpu-hotspots-20260908.md)及JSON。没有新整场质量或翻倍结论。
+
+## 2026-09-08：现有后端架构审查（诊断，不更换后端）
+
+- 临时线程计数版单请求`ba7606885e0a4de4814747b5b22452c1` Passed：极高/DOP8，10,000展开/144,368转移/101,808选择、Short/NodeLimit、投影战损3。统计1.69亿过滤Hook位置检查、362万成员交出、三段归一化4380万牌访问。冷运行且有计数开销，耗时不与生产性能比较，不据此声称完整状态等价。
+- 离线重分析已有25秒分配采样，区分Fork/回放/快照等互斥类别，非墙钟比例。临时Release通过后已恢复全部生产源码并停止独立实例；最终只提交审计文档。源码锚点、计数定义、后续最小合同及未验证事项见[架构审查](performance/backend-architecture-audit-20260908.md)及JSON。
+
+## 2026-09-08：极高配置状态与缓存实验（全部撤回）
+
+- 基线及四项原型各独立进程冷预热后正式短搜一次：均Passed，10,000展开/144,368转移/101,808选择，投影战损3；正式5.9322/6.1887/5.9039/5.8503/5.8670秒。只有单样本，未证明明显加速或完整语义等价，全部撤回。
+- 另做基线采样及一次完整回放重复率诊断，均不计性能倍率。没有保留行为变更，因此没有追加整场/DOP/可见回归；本次只提交记录。全部runId、输入、局限和固定工作量命令见[报告](performance/veryhigh-state-experiments-20260908.md)及JSON。
+
+## 2026-09-08：极高配置有界父节点队列
+
+- 同一极高药水输入，两版新进程各一次短搜预热后测正常配置。基线`adc1976b425041a291e8e5989f132a0b`与最终`b160b6539cd44ed39ea8aa937b7e89c9`均Passed，45.660→39.915秒、RSS16.735→18.323GB；46,239/636,428/431,140工作量、64步动作/目标/选择及非时序搜索字段一致，仍仅死亡路线。单组正式数据，GC暂停不同，不宣称两倍。
+- 最终`SearchPolicySnapshot`：`5eb810366694428eb44d15e7427c63ca` Passed；250节点DOP1/DOP2动作/评分/续用/非时序工作剪枝等价、实际并发≥2，取消记账和冻结设置合同通过。
+- 最终完整哨兵`f272c7ba66994d93b811a9001237a709` Passed：战损8/57HP/T7/无药/零计划外重算，27条实际部署动作与上一轮一致，Instant/0秒。Release与两端结构门禁通过；没有可见、Windows游戏或增量性能。撤回实验、复跑命令和所有runId见[报告](performance/veryhigh-parent-queue-20260908.md)及JSON。
+
+## 2026-09-08：极高配置路由去重优化
+
+- 目标 `a053d59f19074cac8a83644734fe62a0`：与压力基线同46,239展开/636,428转移/431,140选择、Deep/战损投影9/仅死亡路线；58.531→51.219秒、35.810→35.623GB。单样本且GC/短暂后台活动不同，未宣称严格倍率。
+- 整场哨兵 `f4007c4a2da645e3b3cbbb22c4687eca`：Passed，战损8/57HP/T7/无药/零计划外重算，27条实际出牌与上一轮一致。
+- Fork/路由合同合集最终通过（`7ae66da70a944340b8b1abcc3ad1cc9c`）；初次fixture缺牌组身份，补齐后遇到旧Power重获身份断言，原始基线同样失败。仅修正测试按既有规则要求新实例唯一注册和隔离，未改生产能力语义。Release零警告/错误及两端结构门禁通过。具体runId、输入、峰值和限制见[本轮报告](performance/veryhigh-routing-order-20260908.md)及JSON。没有跑可见、Windows游戏或增量性能。
+
+## 2026-09-08：极高配置其他战斗压力筛查
+
+- 在`56165ed`上跑10组不同遭遇/牌组的极高短搜层，另对药水组合和灵魂枢纽各跑一次允许深搜的完整配置，共12个有效请求。固定DOP8/NoGC16GB，单请求120秒、首结果停止；按用户要求不测可见会话。本轮没有改生产代码。
+- 死灵药水组合正常配置 `0f0f6eaee52b4967a39a771bc8026671`：Passed但仅死亡路线；58.531秒、35.810GB分配、独立峰值RSS16.845GB，636,428转移/431,140选择，3次NoGC重启，观测最长GC暂停1,745.901ms。
+- 灵魂枢纽正常配置 `3635c085260f4d97b0254646ae93a284`：Passed，返回Short且未触发Deep；10.948秒、7.856GB分配、独立峰值9.473GB，预测战损6/T9/无药。
+- 2305张牌堆 `955b322152c94c4383efad630bf34c6a`：Passed/TimeLimit，搜索50.210秒（请求94.679秒），277展开/3,390转移，12.381GB分配，约3.65MB/转移。女王生成/选牌 `06304b105d6c41978b61ed3c52765d52`：18.950秒/18.136GB，预测有风险，仅作压力探针。
+- 同一30张牌组的感染棱柱/花园幽灵鳗/灵魂枢纽/外骨骼虫保留原生敌人HP与开局，短搜约3.586/0.152/3.200/1.470秒。初次错误使用runner默认1HP的四条`screen-*`数据全部排除；旧死灵白名单快照缺角色身份而建局失败，也不计性能。
+- 新增明确注入的死灵牌/遗物/药水三个JSON，通过数量、字段与原投影一致性检查；原有启动器无需改动。没有做新一轮A/B、整场部署/原生差分、增量或Windows/可见性能验证。全部runId、指标、修正输入与复跑命令见[压力报告](performance/veryhigh-pressure-survey-20260908.md)及其JSON。
+
+
+## 2026-09-08：极高配置第二轮空回调与并行度优化（开发中）
+
+| 验证 | 本轮直接证据 |
+|---|---|
+| 原版默认 Hook 分发合同 | `7c156ff511cd4581ad7a2748e3ddf7a2` Passed；54回调/1,670 Model，顺序、重复、外部类型、Fork模型身份、能力移除/重获、生成牌、根只读与补丁刷新 |
+| 原生费用查询与嵌套选择 | 普通 `b3b157be5c204d51a887fbae08ee31e4` / 虚空形态 `6334a021b90e4387b056e864567cf28c` / pending `4fc3f48112b846f3889d6e99097b7f7b`，均Passed |
+| DOP1/DOP2等价 | `63106d5c5894456ca03801bb485288ae` 的 SearchPolicySnapshot 完成：250节点、完整动作/评分/续用/非时序剪枝一致、实际并发≥2；随后原UI尺寸持久化失败，整个请求Failed，不计控制器合同通过 |
+| 自动并行度与显式设置优先 | `4dfa3c784aae4241b7e6b8c4889a980e` Passed，CPU默认1/2/4/8及自动/显式设置解析 |
+| 最终候选整场原生部署 | `39fae73f72f2477ba0663d511fab8ccb` Passed；46.75秒，战损8/57HP/T7/无药/零重算，Instant/0秒；27条实际出牌与上一轮同基线可见部署一致（仅质量对照） |
+| 固定构建性能 | VeryHigh、DOP4→8、NoGC16GB；机甲骑士各预热一次+3正式样本，中位数13.3008→6.1037秒，34动作与83项非时序/非调度日志字段一致；大牌组压力/小啃兽42/14动作及相同字段一致 |
+
+- 机甲骑士同战损8/T7/无药；压力场景仍是死亡边界，小啃兽零损/T3。压力/小啃兽速度2.69/1.79倍。机甲骑士分配+4.10%，每次峰值RSS中位数+10.79%，整批随后的小啃兽复用进程峰值+12.47%，不将分配量当成内存占用。冷搜索只有1.71倍；同4线程的代码收益约1.67倍。
+- 启动器在首批未固定artifact的后续请求中切回默认DLL，`formal-a-*`作废；本轮正式表使用每次显式指定artifact的`verified-*`。构建0警告/0错误，两端结构门禁通过。合同复跑参数与全部runId见[第二轮报告](performance/veryhigh-hook-dispatch-20260908.md)和结构化记录。
+- 用户明确暂不测可见会话；本轮可见启动未得到性能结果，临时安装/原生设置已恢复。未跑Windows游戏、完整覆盖/发布门禁、逐转移增量搜索；上面的DOP等价使用固定节点生产搜索，不是增量模式性能。
+
+
+## 2026-09-08：极高配置等质量性能优化（下一版本开发中）
+
+| 验证 | 基线 → 候选 runId / 结果 |
+|---|---|
+| 双资源背包独立 oracle | `dotnet run --project tools/ReachableHandPotentialChecks -c Release` Passed：10,000随机子集最优解、原递推溢出/大容量边界、常见规模零分配 |
+| HAND-POTENTIAL-COSTS 普通 | `be17b695fd114333baa185bc8e21ba1c` Passed：5张可打出牌费用与原生/重复查询相同，含X费用、条件/不可打出卡，根与分支完整状态不变 |
+| HAND-POTENTIAL-COSTS 虚空形态 | `6bfe3e401e3e4a0b8b8dea7d259bdcc2` Passed：相同查询只读合同 |
+| Steam 可见机甲骑士完整部署 | `2375d506a3ac455e94b6ccf9cefbed96` → `c2c1e8f6ee584fd1bbb5066b1bd98d83`，均Passed，战损8/T7/无药/零重算，27条实际出牌完全相同；初次搜索19.5643→18.7779秒 |
+| Steam 可见小啃兽独立进程内存 | `eb56a536a72a4b1a904153f35eafbbc6` → `60f65ab1bddb410da8de39dcfe26fe12`，均Passed，预测零损/T3/14步路线一致；首结果停止，峰值RSS2,957,713,408→2,932,641,792B |
+
+- 所有性能请求仅VeryHigh，固定DOP4/NoGC16GB，未调搜索预算，未启用增量或详细阶段诊断。Headless机甲骑士各预热一次后各取3次，中位数耗时−4.76%/分配−1.80%；大牌组压力与小啃兽各一组同工作量哨兵，非时序指标/动作完全相同。压力场景仍为死亡边界，不是胜利证明。全部runId及数值见[性能报告](performance/veryhigh-quality-preserving-20260908.md)与其结构化记录。
+- Release编译0警告0错误；Bash/PowerShell结构门禁Passed（`search_files=78`）；两端可见脚本语法检查Passed。PowerShell本轮仅语法及结构检查，未在Windows启动Steam。
+- 费用合同的100ms收尾搜索不计性能，复现牌组为 `coverage/unattended/hand-potential-cost-cards.json`；命令见性能报告。可见基准新增 `--request-fixture-path` / `-RequestFixturePath`，完整请求为 `coverage/unattended/performance-veryhigh-mecha-native.json`，同报告记录首结果与整场部署两种断言。
+- 完整Mod组合的基线在搜索前因未支持的AveMujica subscriber失败（`cd8e58d396344dec8e0b2362f216879b`，120秒超时）。成功可见结果只覆盖原版+RitsuLib+CombatSolver，未延长超时。基线整场采样器在退出时失败而缺少峰值文件，测试结果有效；其整场结束RSS已高于候选记录的VmHWM。Headless复用进程小啃兽曾有+0.07%峰值反向样本，独立可见进程对照未复现；不作全场景逐样本内存保证。
+
 ## 2026-09-09：可达手牌估值分配（开发中）
 
 - `dotnet run --project tools/ReachableHandValueChecks/ReachableHandValueChecks.csproj -c Release`：32,551 组与原二维 DP 精确相等，包含空手牌、免费牌、双资源、较大数组回退、负可用资源、重复牌和价值和溢出。测试直接链接生产纯计算源码，原递推作为对照。
@@ -28,6 +174,7 @@
 - 关联回归 `NORMALITY-AUTOPLAY`：`f014ee4080bd4191805e67096eef7e8b` Passed，10.51 秒，覆盖同一出牌开始计数的根捕获、Fork 隔离、下一回合归零和被阻止自动牌的牌堆结果。
 - 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId HELLRAISER-TURN-START-HISTORY -HeadlessInstance unexpected-replan-power-order-final`；回归只替换 ScenarioId 为 `NORMALITY-AUTOPLAY` 并加 `-EnemyCurrentHp 100`。Release 构建 0 警告 / 0 错误。
 - 同组共 9 份 / 7 场；代表报告仅日志直接核验，其余按同一 `Y` 首差异与抽牌自动出牌路径归组。没有把正常 `manual_divergence` 纳入修复数，也没有运行正式搜索或逐包整场部署。
+
 
 
 

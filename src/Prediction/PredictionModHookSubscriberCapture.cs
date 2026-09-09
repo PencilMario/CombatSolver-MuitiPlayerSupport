@@ -28,6 +28,7 @@ internal sealed class PredictionModHookSubscriberCapture
     public IReadOnlyDictionary<Player, int> MaxHandSizes { get; }
     public IReadOnlySet<Player> EveryCardFreePlayers { get; }
     public bool HasBaseLibCardModifiers { get; }
+    public MirroredHookListenerFilter MirroredHookFilter { get; } = MirroredHookListenerFilter.Capture();
 
     private PredictionModHookSubscriberCapture(
         AbstractModel[] runSubscribers,

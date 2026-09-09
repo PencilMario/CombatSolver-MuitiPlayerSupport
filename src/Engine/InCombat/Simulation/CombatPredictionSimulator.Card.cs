@@ -178,24 +178,33 @@ internal sealed partial class CombatPredictionSimulator
     /// already rejects null or dead ally targets.
     /// </remarks>
     public bool CanPlay(PredictedCard card)
+        => CanPlay(card, out _, out _);
+
+    // Return the queried costs before excess-energy conversion. Search valuation uses the
+    // unconverted prices too, and must not invoke the same read-only cost hooks a second time.
+    public bool CanPlay(PredictedCard card, out int energyCost, out int starCost)
     {
+        energyCost = 0;
+        starCost = 0;
         if (card.HasKeyword(State, CardKeyword.Unplayable))
         {
             return false;
         }
 
         var ownerState = State.GetPlayerCombatState(card.Preview.Owner);
-        var energyCost = card.GetEnergyCostWithModifiers(this, ownerState);
-        var starCost = card.GetStarCostWithModifiers(this, ownerState);
+        energyCost = card.GetEnergyCostWithModifiers(this, ownerState);
+        starCost = card.GetStarCostWithModifiers(this, ownerState);
+        int payableEnergy = energyCost;
+        int payableStars = starCost;
 
-        if (energyCost > ownerState.Energy &&
+        if (payableEnergy > ownerState.Energy &&
             Hook.ShouldPayExcessEnergyCostWithStars(State.CombatState, card.Preview.Owner))
         {
-            starCost += 2 * (energyCost - ownerState.Energy);
-            energyCost = ownerState.Energy;
+            payableStars += 2 * (payableEnergy - ownerState.Energy);
+            payableEnergy = ownerState.Energy;
         }
 
-        if (energyCost > ownerState.Energy || starCost > ownerState.Stars)
+        if (payableEnergy > ownerState.Energy || payableStars > ownerState.Stars)
         {
             return false;
         }

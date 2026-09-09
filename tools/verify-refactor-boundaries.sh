@@ -468,6 +468,7 @@ done
 
 expected_beam_files=(
     CombatBeamSolver.cs
+    CombatBeamSolver.AdmittedExpansion.cs
     CombatBeamSolver.BeamRetentionPolicy.cs
     CombatBeamSolver.CrossTurnPlanning.cs
     CombatBeamSolver.CyclePlanning.cs
@@ -480,8 +481,11 @@ expected_beam_files=(
     CombatBeamSolver.ParallelExpansion.cs
     CombatBeamSolver.PathDiagnostics.cs
     CombatBeamSolver.Phases.cs
+    CombatBeamSolver.PrimaryChoiceReplay.cs
     CombatBeamSolver.Retention.cs
+    CombatBeamSolver.RetentionJobs.cs
     CombatBeamSolver.StateEvaluation.cs
+    CombatBeamSolver.StandPatJobs.cs
     CombatBeamSolver.Terminal.cs
 )
 mapfile -t actual_beam_names < <(
@@ -509,11 +513,50 @@ CombatBeamSolver.cs	private BeamRetentionPolicy Retention =>
 CombatBeamSolver.cs	private FinalPlanOrdering FinalOrdering =>
 CombatBeamSolver.BeamRetentionPolicy.cs	private sealed class BeamRetentionPolicy(
 CombatBeamSolver.BeamRetentionPolicy.cs	public List<SearchNode> RankBest(
+CombatBeamSolver.BeamRetentionPolicy.cs	private sealed class RoutingChoiceNodes(SearchNode first) : List<SearchNode>
+CombatBeamSolver.BeamRetentionPolicy.cs	public void Clear() => NodesByChoice.Clear();
+CombatBeamSolver.BeamRetentionPolicy.cs	routingNodes = new RoutingChoiceNodes(node);
+CombatBeamSolver.BeamRetentionPolicy.cs	ReturnRoutingChoiceScratch(scratch);
 CombatBeamSolver.Models.cs	private readonly record struct TranspositionLabel(
 CombatBeamSolver.Models.cs	private sealed class SearchRunContext(
 CombatBeamSolver.Models.cs	private readonly record struct SearchFeatures(
-CombatBeamSolver.ParallelExpansion.cs	private sealed class ParallelExpansionExecutor : IDisposable
+CombatBeamSolver.ParallelExpansion.cs	private sealed partial class ParallelExpansionExecutor : IDisposable
 CombatBeamSolver.ParallelExpansion.cs	public ExpansionWorkerOutcome[] Evaluate(
+CombatBeamSolver.ParallelExpansion.cs	public int MaximumQueuedParents => SearchWaveMemoryPolicy.MaximumQueuedParents(DegreeOfParallelism);
+CombatBeamSolver.ParallelExpansion.cs	List<ExpansionLane> lanes = new(DegreeOfParallelism);
+CombatBeamSolver.AdmittedExpansion.cs	private ExpansionWorkerOutcome[] EvaluateQueuedParents(
+CombatBeamSolver.AdmittedExpansion.cs	private sealed class AdmittedParent(
+CombatBeamSolver.AdmittedExpansion.cs	public object ForkGate { get; } = new();
+CombatBeamSolver.AdmittedExpansion.cs	_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);
+CombatBeamSolver.AdmittedExpansion.cs	wave.BackgroundCompleted.Wait();
+CombatBeamSolver.AdmittedExpansion.cs	while (committed < parents.Length && parents[committed]!.TailCompleted)
+CombatBeamSolver.AdmittedExpansion.cs	_completedActions == Actions.Count && _completedPotions == Potions.Count
+CombatBeamSolver.AdmittedExpansion.cs	ready.TransferPotionTo(Aggregate!, candidate);
+CombatBeamSolver.PrimaryChoiceReplay.cs	private sealed class PrimaryChoiceReplayFrontier : IDisposable
+CombatBeamSolver.PrimaryChoiceReplay.cs	=> branches >= 2 && finals >= branches && attempts >= branches;
+CombatBeamSolver.PrimaryChoiceReplay.cs	public bool CanDispatchContinuation => CompletedReplays == Actions.Length
+CombatBeamSolver.PrimaryChoiceReplay.cs	if (!budget.TrySpendReplayAttempt())
+CombatBeamSolver.PrimaryChoiceReplay.cs	frontier.AssertConsumed();
+CombatBeamSolver.PrimaryChoiceReplay.cs	if (index != NextReplay || count < 1 || count > 4 || index + count > Actions.Length)
+CombatBeamSolver.Models.cs	public ParallelExpansionExecutor? ActiveParallelExpansion;
+CombatBeamSolver.ParallelExpansion.cs	_coordinator._run.ActiveParallelExpansion = null;
+CombatBeamSolver.StandPatJobs.cs	private void PrepareStandPatProbes(IEnumerable<SearchNode> nodes)
+CombatBeamSolver.StandPatJobs.cs	seen.Add(node.StateKey)
+CombatBeamSolver.StandPatJobs.cs	_run.StandPatCache.Add(pending[index].StateKey, evaluations[index]);
+CombatBeamSolver.StandPatJobs.cs	ExpansionLane[] lanes = EnsureBackgroundLanes();
+CombatBeamSolver.StandPatJobs.cs	_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);
+CombatBeamSolver.StandPatJobs.cs	wave.Completed.Wait();
+CombatBeamSolver.RetentionJobs.cs	public void EvaluateRetentionIndices(
+CombatBeamSolver.RetentionJobs.cs	ExpansionLane[] lanes = EnsureBackgroundLanes();
+CombatBeamSolver.RetentionJobs.cs	wave.Completed.Wait();
+CombatBeamSolver.RetentionJobs.cs	_coordinator._run.OffThreadAllocatedBytes += job.AllocatedBytes;
+CombatBeamSolver.RetentionJobs.cs	wave.Error?.Throw();
+CombatBeamSolver.BeamRetentionPolicy.cs	_run.RoutingChoiceSummaryBuilds += summaryGroups.Length;
+CombatBeamSolver.BeamRetentionPolicy.cs	RequestOrderedMutationObservation(candidate);
+SearchWaveMemoryPolicy.cs	return checked(degreeOfParallelism * 2);
+SearchWaveMemoryPolicy.cs	current >= maximum - current ? maximum : current * 2
+CombatBeamSolver.Phases.cs	SearchWaveMemoryPolicy.GrowCapacity(
+CombatBeamSolver.Retention.cs	end.ReleaseSimulator();
 CombatBeamSolver.ParallelExpansion.cs	private void CommitExpansionBatch(
 CombatBeamSolver.Phases.cs	public SolverResult Solve()
 CombatBeamSolver.Expansion.cs	private IEnumerable<SearchNode> Expand(SearchNode node)
@@ -872,6 +915,52 @@ forbid_fixed \
 for rule in 'ConditionalWeakTable<Assembly, Resolution>' 'SimulationNotificationIsolation.IsActive' '__0.IsDynamic' 'callbacks.Length != 1'; do
     require_fixed "$repository_root/src/Runtime/RitsuBaseLibTargetTypeLookupPatch.cs" "$rule" 'missing metadata cache boundary'
 done
+
+while IFS=$'\t' read -r relative_path text; do
+    require_fixed "$repository_root/$relative_path" "$text" 'missing exact metadata reuse boundary'
+done <<'EOF'
+src/Runtime/PowerAmountComparisonPatch.cs	Enum.GetUnderlyingType(typeof(PowerStackType)) != typeof(int)
+src/Runtime/PowerAmountComparisonPatch.cs	if (matches.Count != 2
+src/Runtime/PowerAmountComparisonPatch.cs	code[i].labels.Count != 0 || code[i].blocks.Count != 0
+src/Runtime/AssemblyTypeAbsenceCache.cs	WeakReference<Assembly>[] DynamicAssemblies
+src/Runtime/AssemblyTypeAbsenceCache.cs	AppDomain.CurrentDomain.AssemblyLoad
+src/Runtime/AssemblyTypeAbsenceCache.cs	absence.Generation == Volatile.Read(ref _assemblyGeneration)
+src/Runtime/AssemblyTypeAbsenceCache.cs	assembly.GetType(markerTypeName, throwOnError: false)
+src/Runtime/RitsuBaseLibTargetTypeResolutionPatches.cs	!SimulationNotificationIsolation.IsActive
+src/Runtime/RitsuBaseLibTargetTypeResolutionPatches.cs	MissingType.ObserveResult(__state, __result)
+src/Search/SimulatedCombatState.cs	IReadOnlyList<PowerModel>? powers = effectivePrefix is not null ? _effectivePowers : null;
+src/Search/SimulatedCombatState.cs	_effectiveHookListenerPrefix = null;
+src/Search/SimulatedCombatState.Fork.cs	ReferenceEquals(_activeHookListenerPrefix, _effectiveHookListenerPrefix)
+src/Search/SimulatedCombatState.cs	private IReadOnlyList<AbstractModel> GetBaseHookListenerPrefix()
+src/Search/SimulatedCombatState.cs	if (insertionIndex < 0 && requirePrefixAnchor)
+src/Search/SimulatedCombatState.cs	_baseHookListenerPrefix = null;
+src/Search/SimulatedCombatState.cs	private void InvalidateCardAndOrbHookListeners()
+src/Search/SimulatedCombatState.Fork.cs	fork._baseHookListenerPrefix = RemapCachedModels(_baseHookListenerPrefix, context);
+src/Search/CombatBeamSolver.BeamRetentionPolicy.cs	group.RankSummary = new(
+src/Search/CombatBeamSolver.BeamRetentionPolicy.cs	ComputeRoutingParentRetentionRank(group)
+src/Engine/Common/MirroredHookListenerFilter.cs	shared.Matches(source)
+src/Engine/Common/MirroredHookListenerFilter.cs	Volatile.Write(ref _sharedLayouts[slot], layout)
+src/Engine/Common/MirroredHookListenerFilter.cs	source.Count <= MaxSharedLayoutLength
+src/Engine/Common/MirroredHookListenerFilter.cs	BaseHooks.Append(NativeKeywordHook)
+src/Engine/InCombat/Simulation/CombatPredictedCardExtensions.cs	!listeners.HasAny(MirroredHookMask.TryModifyKeywordsInCombat)
+EOF
+
+for file in CombatBeamSolver.RetentionJobs.cs CombatBeamSolver.BeamRetentionPolicy.cs; do
+    forbid_fixed "$search_root/$file" 'Parallel.For(' 'retention work bypassed fixed lanes:'
+    forbid_fixed "$search_root/$file" 'Task.Run(' 'retention work bypassed fixed lanes:'
+done
+
+# A new facade/default-hook callback must join the dispatch layout before it can be skipped.
+mirrored_filter_path="$repository_root/src/Engine/Common/MirroredHookListenerFilter.cs"
+while IFS= read -r mirrored_hook_name; do
+    require_fixed "$mirrored_filter_path" "nameof(AbstractModel.$mirrored_hook_name)" 'missing mirrored hook participation metadata'
+done < <(
+    {
+        printf '%s\n' 'TryModifyKeywordsInCombat'
+        rg --no-filename -o 'nameof\(AbstractModel\.[A-Za-z][A-Za-z0-9]*\)' "$repository_root/src/Engine/InCombat/Mirrors" | sed -E 's/nameof\(AbstractModel\.([A-Za-z0-9]+)\)/\1/'
+        rg --no-filename -o '(listener|modifier)\.[A-Za-z][A-Za-z0-9]*\(' "$repository_root/src/Engine/InCombat/Mirrors/HookMirrors.cs" | sed -E 's/(listener|modifier)\.([A-Za-z0-9]+)\(/\2/'
+    } | sort -u
+)
 
 if ((${#violations[@]} > 0)); then
     printf '%s\n' "${violations[@]}" >&2
