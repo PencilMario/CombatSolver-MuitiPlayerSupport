@@ -81,6 +81,8 @@ XxxMirrors.Registry.Register<TYourType>(handler);
 
 逐次出牌完成效果也应由 `AfterCardPlayedMirrors` 的对应分派独占。温柔在该 Hook 更新计数并扣除属性，回合末仍使用既有领域计数恢复；父牌的历史扫描可能包含已经结算的内层自动牌，不能再通过该范围给内层牌重复施加效果。属性施加需遵守每次原生命令的战斗结束条件。
 
+历史敏感计算变量需要冻结根历史并加上分支新增事件。谋杀的实现读取 `RootCombatHistorySnapshot.CardsDrawn` 与模拟器抽牌事件；原生完成初始抽牌或后续动作后，旧预测根的倍率仍保持不变。只在实机停住时做一次差分会漏掉这类问题，验证时应包含根捕获后的实机推进与 Fork 隔离。
+
 | 目录 | 注册表数 | 覆盖什么 | 你多半要用的 |
 |---|---|---|---|
 | `Hooks/` | 37 | 战斗 hook：攻击、格挡、伤害、死亡、卡牌、球体、回合边界 | 按你重写了哪个 hook 挑，例如 `AfterDamageGivenMirrors` |

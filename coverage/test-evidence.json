@@ -1,4 +1,12 @@
 {
+  "MURDER-ROOT-HISTORY": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnRootHistoryAndForkDifferential",
+    "procedure": "冻结根后只在子分支抽一张牌，推进原生相同抽牌，再打出谋杀并进入第二回合；检查父分支与子分支计算值。",
+    "expected": "原生抽牌只影响 live 历史，谋杀读取冻结根与分支事件之和；出牌和跨回合完整状态符合原版。",
+    "observed": "基线40301c95dd4b4bfba22aa1abb4e3fa96在实机抽牌后父分支8变9、子分支9变10；最终11ea828e2e69419fa522008201fb5e5e Passed，28.14秒，实际伤害、完整状态、Fork隔离及两回合边界一致。",
+    "evidence": "src/Testing/UnattendedTestRunner.MurderHistory.cs；docs/TEST_MATRIX.md；2026-09-09。"
+  },
   "TENDER-DISCARD-ALL-SLY": {
     "status": "Passed",
     "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",

@@ -1,5 +1,14 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：谋杀根历史隔离（开发中）
+
+- `MURDER-ROOT-HISTORY` 基线 `40301c95dd4b4bfba22aa1abb4e3fa96` Failed，21.22 秒：实机抽一张牌后，冻结父分支倍率从 8 变 9、已抽一张的 Fork 从 9 变 10。最终 `11ea828e2e69419fa522008201fb5e5e` Passed，28.14 秒。
+- 最终夹具覆盖原生抽牌前后的父分支/Fork 隔离、实际打出谋杀的伤害与完整状态、T1 至 T2 全量状态和下一回合抽牌后的倍率稳定。完整比较包括有序牌堆、卡牌实例、Power、怪物状态、RNG、ContinuationStamp；未正式搜索、未整场回放。
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId MURDER-ROOT-HISTORY -CharacterId SILENT -EncounterId FUZZY_WURM_CRAWLER_WEAK -EnemyCurrentHp 100 -ClearAllPowers -ClearPlayerPiles -CardsJson '[{"CardId":"MURDER","Pile":"Hand"},{"CardId":"DEFEND_SILENT","Pile":"Draw","Count":7}]' -HeadlessInstance silent-replans -TimeoutSeconds 120
+```
+
 ## 2026-09-09：温柔与出牌效果内自动牌（开发中）
 
 - `TENDER-DISCARD-ALL-SLY`：基线 `289cb0270eeb48d7b4ac81e3247c85e3` Failed，23.96 秒，首差异力量预测 -3 / 原生 -2；最终 `94c01fe41a564329a15f54ae62d66dc4` Passed，16.63 秒，验证精密计算与内层 FLICK_FLACK 各触发一次、Fork 完整状态及 T2 属性恢复和计数归零。

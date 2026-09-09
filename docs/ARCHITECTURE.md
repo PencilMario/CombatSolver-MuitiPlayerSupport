@@ -202,6 +202,8 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 `src/Prediction/` 处理基础命令和单个 mirror 不能独立表达的领域语义：
 
+谋杀的抽牌历史倍率由 `CalculatedVarSpecRegistry` 读取 `SimulatedCombatState.GetCardsDrawnBeforePrediction` 的冻结根计数与模拟器新增抽牌事件。根计数来自已有 `RootCombatHistorySnapshot.CardsDrawn`，随根不可变共享；实机完成回合准备或继续抽牌后，旧根和 Fork 仍使用捕获时的历史。
+
 - 卡牌/Power/遗物/药水/球的跨 Hook 生命周期；
 - 怪物行动图、随机分支、私有 AI 与召唤；
 - 死亡、复活、自动出牌和嵌套选牌；
