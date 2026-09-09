@@ -3341,7 +3341,10 @@ internal static class SolverController
         bool isMultiplayer,
         PlayerTurnPhase? localPlayerPhase)
         => isMultiplayer
-            && localPlayerPhase is not PlayerTurnPhase.Start and not PlayerTurnPhase.Play;
+            // TurnStarted can fire before the local player is attached. Defer
+            // in that transient state so the polling operation can reach Play.
+            && localPlayerPhase is { } phase
+            && phase is not PlayerTurnPhase.Start and not PlayerTurnPhase.Play;
 
     internal static bool ShouldWaitForMultiplayerTurnForTesting(
         bool isMultiplayer,

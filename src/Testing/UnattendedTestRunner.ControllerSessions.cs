@@ -89,7 +89,7 @@ internal sealed partial class UnattendedTestRunner
             || SolverController.ShouldWaitForMultiplayerTurnForTesting(
                 isMultiplayer: true,
                 localPlayerPhase: PlayerTurnPhase.Play)
-            || !SolverController.ShouldWaitForMultiplayerTurnForTesting(
+            || SolverController.ShouldWaitForMultiplayerTurnForTesting(
                 isMultiplayer: true,
                 localPlayerPhase: null)
             || !SolverController.ShouldWaitForMultiplayerTurnForTesting(
