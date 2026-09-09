@@ -240,6 +240,12 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("ReplayStartHistory");
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId is "STOCK-RESPAWN-HP" or "STOCK-THORNS-RESPAWN-HP")
+            {
+                await runner.AssertStockRespawnAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "DEATH-EFFECTS-ONCE")
             {
                 runner.SetStage("death_effects_once");
