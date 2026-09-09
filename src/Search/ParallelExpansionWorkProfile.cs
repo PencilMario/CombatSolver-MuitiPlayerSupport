@@ -7,7 +7,12 @@ namespace CombatSolver;
 /// <summary>Coordinator-owned elapsed-time distributions, never CPU-time estimates.</summary>
 internal sealed class ParallelExpansionWorkProfile
 {
-    internal enum Kind { Parent, Prepare, Action, Choice, PrimaryReplay, Tail, Potion, EndTurn, Wave, Wait, Commit, StandPat, StandPatWave }
+    internal enum Kind
+    {
+        Parent, Prepare, Action, Choice, PrimaryReplay, Tail, Potion, EndTurn, Wave, Wait, Commit,
+        StandPat, StandPatWave, RoutingSignature, RoutingSummary, RoutingPareto,
+        ContinuationPacket, RetentionWave,
+    }
 
     private sealed class Distribution
     {

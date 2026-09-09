@@ -474,6 +474,7 @@ expected_beam_files=(
     CombatBeamSolver.Phases.cs
     CombatBeamSolver.PrimaryChoiceReplay.cs
     CombatBeamSolver.Retention.cs
+    CombatBeamSolver.RetentionJobs.cs
     CombatBeamSolver.StateEvaluation.cs
     CombatBeamSolver.StandPatJobs.cs
     CombatBeamSolver.Terminal.cs
@@ -512,7 +513,7 @@ CombatBeamSolver.Models.cs	private sealed class SearchRunContext(
 CombatBeamSolver.Models.cs	private readonly record struct SearchFeatures(
 CombatBeamSolver.ParallelExpansion.cs	private sealed partial class ParallelExpansionExecutor : IDisposable
 CombatBeamSolver.ParallelExpansion.cs	public ExpansionWorkerOutcome[] Evaluate(
-CombatBeamSolver.ParallelExpansion.cs	public int MaximumQueuedParents => checked(DegreeOfParallelism * 2);
+CombatBeamSolver.ParallelExpansion.cs	public int MaximumQueuedParents => SearchWaveMemoryPolicy.MaximumQueuedParents(DegreeOfParallelism);
 CombatBeamSolver.ParallelExpansion.cs	List<ExpansionLane> lanes = new(DegreeOfParallelism);
 CombatBeamSolver.AdmittedExpansion.cs	private ExpansionWorkerOutcome[] EvaluateQueuedParents(
 CombatBeamSolver.AdmittedExpansion.cs	private sealed class AdmittedParent(
@@ -536,6 +537,16 @@ CombatBeamSolver.StandPatJobs.cs	_run.StandPatCache.Add(pending[index].StateKey,
 CombatBeamSolver.StandPatJobs.cs	ExpansionLane[] lanes = EnsureBackgroundLanes();
 CombatBeamSolver.StandPatJobs.cs	_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);
 CombatBeamSolver.StandPatJobs.cs	wave.Completed.Wait();
+CombatBeamSolver.RetentionJobs.cs	public void EvaluateRetentionIndices(
+CombatBeamSolver.RetentionJobs.cs	ExpansionLane[] lanes = EnsureBackgroundLanes();
+CombatBeamSolver.RetentionJobs.cs	wave.Completed.Wait();
+CombatBeamSolver.RetentionJobs.cs	_coordinator._run.OffThreadAllocatedBytes += job.AllocatedBytes;
+CombatBeamSolver.RetentionJobs.cs	wave.Error?.Throw();
+CombatBeamSolver.BeamRetentionPolicy.cs	_run.RoutingChoiceSummaryBuilds += summaryGroups.Length;
+CombatBeamSolver.BeamRetentionPolicy.cs	RequestOrderedMutationObservation(candidate);
+SearchWaveMemoryPolicy.cs	return checked(degreeOfParallelism * 2);
+SearchWaveMemoryPolicy.cs	current >= maximum - current ? maximum : current * 2
+CombatBeamSolver.Phases.cs	SearchWaveMemoryPolicy.GrowCapacity(
 CombatBeamSolver.Retention.cs	end.ReleaseSimulator();
 CombatBeamSolver.ParallelExpansion.cs	private void CommitExpansionBatch(
 CombatBeamSolver.Phases.cs	public SolverResult Solve()
@@ -913,6 +924,11 @@ src/Engine/Common/MirroredHookListenerFilter.cs	source.Count <= MaxSharedLayoutL
 src/Engine/Common/MirroredHookListenerFilter.cs	BaseHooks.Append(NativeKeywordHook)
 src/Engine/InCombat/Simulation/CombatPredictedCardExtensions.cs	!listeners.HasAny(MirroredHookMask.TryModifyKeywordsInCombat)
 EOF
+
+for file in CombatBeamSolver.RetentionJobs.cs CombatBeamSolver.BeamRetentionPolicy.cs; do
+    forbid_fixed "$search_root/$file" 'Parallel.For(' 'retention work bypassed fixed lanes:'
+    forbid_fixed "$search_root/$file" 'Task.Run(' 'retention work bypassed fixed lanes:'
+done
 
 # A new facade/default-hook callback must join the dispatch layout before it can be skipped.
 mirrored_filter_path="$repository_root/src/Engine/Common/MirroredHookListenerFilter.cs"

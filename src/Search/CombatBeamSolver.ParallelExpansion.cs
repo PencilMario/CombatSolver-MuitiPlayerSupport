@@ -143,7 +143,7 @@ internal sealed partial class CombatBeamSolver
 
         public int DegreeOfParallelism { get; }
 
-        public int MaximumQueuedParents => checked(DegreeOfParallelism * 2);
+        public int MaximumQueuedParents => SearchWaveMemoryPolicy.MaximumQueuedParents(DegreeOfParallelism);
 
         public ExpansionWorkerOutcome[] Evaluate(
             IReadOnlyList<SearchNode> nodes,

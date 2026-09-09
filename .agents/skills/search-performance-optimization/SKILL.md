@@ -14,6 +14,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - `Expansion` 产生候选；
 - `ParallelExpansion` 准备并物化原始候选；`AdmittedExpansion` 用固定 lane 调度已准入父节点内的动作/选择/药水作业，`PrimaryChoiceReplay` 保存原预算必经的首层回放，再按输入顺序提交；
 - `StandPatJobs` 复用当前 lane 评估保路必经的 EndTurn 探针，原序缓存与选择仍由 coordinator 完成；
+- `RetentionJobs` 复用已排空的 lane 计算保路只读元数据，按索引交回独占结果，观察请求及计数仍串行写入；
 - `StateEvaluation` 计算快照、威胁和评分特征；
 - `BeamRetentionPolicy` 决定中间候选保留；
 - `FinalPlanOrdering` 决定终局路线；
@@ -76,6 +77,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - `SearchRunContext` 是单次运行可变指标、转置和缓存的所有者；不要把这些字段退回 solver 入口或静态全局。
 - 并行 worker 只能拥有 lane-local 模拟、缓存、节流和原始候选；transposition、dominance、fallback、预算与最终接收顺序仍由 coordinator 独占。固定 lane 应在一次 `Solve` 内复用，禁止回到每父节点 `Task.Run` / 新建 solver。
 - 外层最多预约 `2×DOP` 父节点，已准入作业内同时模拟最多 DOP；自然 singleton 也使用同一调度器。准备动作表后，每父节点独立 Fork gate 串行生成 seed，lane 在 gate 外独占模拟。动态选择预算及 occurrence collector 属于一条完整动作链，不并发消费同一个预算。药水/目标是独立作业，全部卡牌/选择/药水完成后才执行 EndTurn 并发布父节点 stand-pat 基线。coordinator 归并 worker 指标后才能复用 lane，按动作/药水原序聚合，只提交完成父节点的连续前缀。内部不能新准入父节点或做 GC checkpoint；原父节点高水位预约覆盖所有在途结果，数量界不当作硬字节界。异常停止派发、排空全部 lane 后才释放 probe/batch/root；高分支场景必须同时看峰值图和分配。
+- 保路元数据并行必须冻结本次候选、父排名、已选集合和 lease 账本，逐索引或逐组独占写回；分组与最终拼接不得按完成次序进行。观察请求先收集、再按原组序应用，不能让 worker 修改共享统计或保留账本。复用已经排空的固定 lane，不使用未限并发的 `Parallel.For`；取消和错误也须等待所有已派发作业，完整记入其分配并传播原 token/异常。合同覆盖双 lane、逐槽一次写入、失败后复用和实际 NoGC 回收边界。
 - 待命探针并行只覆盖原保路会访问的未缓存状态，保留首次原代表；不扩大候选集合。复用同一固定 lane，coordinator 独占缓存，worker 只交出标量；临时快照在发布前释放，失败和取消必须排空。最终 Deep 固定节点合同同时覆盖 DOP1/DOP2、在途取消/失败和原根复用，普通 Short 合同不能代替这一边界。
 - 只有容器进入 `SearchRunContext` 的有界空闲池；每个发布批次必须持有独立 lease，归还前清空引用，旧 Dispose 不得触碰后来租户。不得池化 simulator/model。
 - 首层回放并行必须先证明原动态预算必定覆盖这些物理回放：N≥2 且语义最终额度和回放额度都≥N、选择非空时，原 ceil 租约递推保证每个兄弟的第一次回放必经。frontier 只暂存这 N 次结果，原序续接消费逻辑额度；嵌套选择与实例补充不并发。不能把各兄弟预先固定为平均总配额，也不能在预算不足时猜测准入；合同覆盖饱和、无效、混合消耗与512上限。

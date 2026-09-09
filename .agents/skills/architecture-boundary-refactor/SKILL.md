@@ -34,6 +34,7 @@ description: 重构 CombatSolver 的 Search、Runtime 会话、UI snapshot、无
 - 单次搜索可变状态属于 `SearchRunContext`；中间候选属于 `BeamRetentionPolicy`；终局政策属于 `FinalPlanOrdering`。
 - `AdmittedExpansion` 只调度已预约父节点内的作业，固定 lane 排空并归并后才复用；提交仍按父节点和动作原序。`PrimaryChoiceReplayFrontier` 独占必经首层回放的暂存快照，所有生产作业结束后才移交一个续接消费者；动态预算和 occurrence collector 不跨 lane 共享修改。异常先排空，再释放 probe、frontier、batch 与根。
 - `StandPatJobs` 只预计算原保路规则必经的未缓存探针，复用当前固定 lane；worker 释放完整回放的临时快照后只回传标量，缓存按首个原代表和原序由 coordinator 写入。Prune 根在全部作业排空前保持所有权，批内没有新准入或内存检查点；executor Dispose 清除 `SearchRunContext` 的活动引用。
+- `RetentionJobs` 只在展开已排空后复用相同 lane 计算本次保路只读输入，索引结果和组内摘要独占；coordinator 统一应用观察请求、更新共享计数并计入包括失败作业在内的后台分配。不得把这个入口用于模拟、准入或与 Prune 重叠的推测展开。
 - `RoutingChoiceNodes` 只持有本次 RankBest 的有序组和派生统计；分组完成后冻结排名摘要，在本次排名赋值前消费完毕，不把可变父排名放入跨调用缓存。监听分段属于 `SimulatedCombatState` 的分支派生视图；前段/后段均以不可变形式发布，完整路径保留无锚点与不透明 CardModifier 语义。 有效/活动前段与 Power 投影的保留只适用于卡牌/球失效，完整失效清空全部派生段；前段独立存活时仍由同一 Fork 上下文重映射。
 - controller 状态属于 combat/search/deployment session，不回退为并列静态字段。
 - 跨 SL 路线记录由 Runtime 的 `SolvedRouteCache` 持有磁盘协议；在普通根捕获和回合开始选择根捕获后按状态与策略匹配。结果中的 Forecast 从新根重新绑定，磁盘和跨会话所有者均不得保留旧 Creature/MoveState。Search 不读取路线文件。

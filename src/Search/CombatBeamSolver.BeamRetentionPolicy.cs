@@ -428,6 +428,18 @@ internal sealed partial class CombatBeamSolver
         Func<SearchNode, StandPatEvaluation> _evaluateStandPat,
         Action<IEnumerable<SearchNode>>? _prepareStandPat = null)
     {
+        private void ForEachRetentionIndex(
+            int count,
+            ParallelExpansionWorkProfile.Kind kind,
+            Action<int> evaluate)
+        {
+            if (count >= 4 && _run.ActiveParallelExpansion is { } executor)
+                executor.EvaluateRetentionIndices(count, kind, evaluate);
+            else
+                for (int index = 0; index < count; index++)
+                    evaluate(index);
+        }
+
         private const int PersistentRoutingContextRounds = 8;
         private const int RoutingChoiceLimit = 96;
         private const int AmbiguousCompressedChoiceLimit = 48;
@@ -986,13 +998,41 @@ internal sealed partial class CombatBeamSolver
                 .GroupBy(BuildOrderedMutationContinuationLineageSignature)
                 .ToList();
             List<OrderedMutationContinuationPacket> rawContinuationPackets = [];
-            foreach (IGrouping<OrderedMutationContinuationLineageSignature, SearchNode> group in
-                     rawContinuationGroups)
+            if (rawContinuationGroups.Count >= 4)
             {
-                foreach (OrderedMutationContinuationPacket packet in
-                         BuildOrderedMutationContinuationPackets(group, selectedSet))
+                // The per-group packet build is read-only except for the deferred observation
+                // requests, which are applied serially afterwards in group order. Packets are
+                // written back by group index, so the flattened order is the input order.
+                IReadOnlyList<OrderedMutationContinuationPacket>[] groupPackets =
+                    new IReadOnlyList<OrderedMutationContinuationPacket>[rawContinuationGroups.Count];
+                List<SearchNode>[] groupObservations = new List<SearchNode>[rawContinuationGroups.Count];
+                ForEachRetentionIndex(rawContinuationGroups.Count,
+                    ParallelExpansionWorkProfile.Kind.ContinuationPacket, index =>
                 {
-                    rawContinuationPackets.Add(packet);
+                    List<SearchNode> observations = [];
+                    groupPackets[index] = BuildOrderedMutationContinuationPackets(
+                        rawContinuationGroups[index],
+                        selectedSet,
+                        observations);
+                    groupObservations[index] = observations;
+                });
+                for (int index = 0; index < rawContinuationGroups.Count; index++)
+                {
+                    foreach (SearchNode candidate in groupObservations[index])
+                        RequestOrderedMutationObservation(candidate);
+                    rawContinuationPackets.AddRange(groupPackets[index]);
+                }
+            }
+            else
+            {
+                foreach (IGrouping<OrderedMutationContinuationLineageSignature, SearchNode> group in
+                         rawContinuationGroups)
+                {
+                    foreach (OrderedMutationContinuationPacket packet in
+                             BuildOrderedMutationContinuationPackets(group, selectedSet))
+                    {
+                        rawContinuationPackets.Add(packet);
+                    }
                 }
             }
             List<OrderedMutationHandoffCohort> boundaryHandoffCohorts =
@@ -2577,9 +2617,24 @@ internal sealed partial class CombatBeamSolver
                 }
                 RoutingChoiceScratch scratch = RentRoutingChoiceScratch();
                 Dictionary<RoutingChoiceSignature, List<SearchNode>> nodesByRoutingChoice = scratch.NodesByChoice;
-                foreach (SearchNode node in ranked)
+                // The routing signature is a pure walk of the node's parent chain, so it can be
+                // computed off-thread; grouping stays serial to preserve insertion order.
+                RoutingChoiceSignature?[] signatureByIndex = new RoutingChoiceSignature?[ranked.Count];
+                if (ranked.Count >= 64)
                 {
-                    RoutingChoiceSignature? signature = RetainedRoutingChoice(node);
+                    ForEachRetentionIndex(ranked.Count,
+                        ParallelExpansionWorkProfile.Kind.RoutingSignature, index =>
+                        signatureByIndex[index] = RetainedRoutingChoice(ranked[index]));
+                }
+                else
+                {
+                    for (int index = 0; index < ranked.Count; index++)
+                        signatureByIndex[index] = RetainedRoutingChoice(ranked[index]);
+                }
+                for (int rankedIndex = 0; rankedIndex < ranked.Count; rankedIndex++)
+                {
+                    SearchNode node = ranked[rankedIndex];
+                    RoutingChoiceSignature? signature = signatureByIndex[rankedIndex];
                     if (signature == null)
                         continue;
                     if (observedRoutingSignatures != null)
@@ -2610,14 +2665,18 @@ internal sealed partial class CombatBeamSolver
                 // The ordered groups are now complete. Parent ranks and score inputs remain
                 // unchanged until AssignRetentionRanks, after this entire routing block.
                 // Use the original reductions once, including their NaN behavior.
-                foreach (RoutingChoiceNodes group in nodesByRoutingChoice.Values)
+                RoutingChoiceNodes[] summaryGroups = nodesByRoutingChoice.Values
+                    .Cast<RoutingChoiceNodes>().ToArray();
+                ForEachRetentionIndex(summaryGroups.Length,
+                    ParallelExpansionWorkProfile.Kind.RoutingSummary, index =>
                 {
+                    RoutingChoiceNodes group = summaryGroups[index];
                     group.RankSummary = new(
                         group.Max(BeamRankScore),
                         ComputeRoutingParentScore(group),
                         ComputeRoutingParentRetentionRank(group));
-                    _run.RoutingChoiceSummaryBuilds++;
-                }
+                });
+                _run.RoutingChoiceSummaryBuilds += summaryGroups.Length;
                 List<IReadOnlyList<SearchNode>> paretoByRoutingChoice = [];
                 List<IReadOnlyList<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>>> routingFamilies =
                     nodesByRoutingChoice
@@ -2656,8 +2715,10 @@ internal sealed partial class CombatBeamSolver
                     }
                     routingContextRound++;
                 }
-                foreach ((RoutingChoiceSignature signature, List<SearchNode> routingNodes) in orderedRoutingContexts)
+                List<SearchNode>[] paretoByContext = new List<SearchNode>[orderedRoutingContexts.Count];
+                void BuildContextPareto(int contextIndex)
                 {
+                    List<SearchNode> routingNodes = orderedRoutingContexts[contextIndex].Value;
                     RoutingChoiceNodes group = (RoutingChoiceNodes)routingNodes;
                     SearchNode? bestDeckCuration = FindBestDeckCuration(routingNodes);
                     SearchNode? bestTargetPressure = PreferMostVulnerableTargetVariant(
@@ -2681,13 +2742,20 @@ internal sealed partial class CombatBeamSolver
                     AddRoutingCandidate(candidates, group.BestOffense);
                     AddRoutingCandidate(candidates, group.BestDefense);
                     AddRoutingCandidate(candidates, group.BestPileOrder);
-                    List<SearchNode> pareto = candidates
+                    paretoByContext[contextIndex] = candidates
                         .Where(candidate => !candidates.Any(other =>
                             !ReferenceEquals(candidate, other)
                             && MultiObjectiveDominates(other, candidate)))
                         .ToList();
-                    paretoByRoutingChoice.Add(pareto);
                 }
+                if (orderedRoutingContexts.Count >= 8)
+                    ForEachRetentionIndex(orderedRoutingContexts.Count,
+                        ParallelExpansionWorkProfile.Kind.RoutingPareto, BuildContextPareto);
+                else
+                    for (int contextIndex = 0; contextIndex < orderedRoutingContexts.Count; contextIndex++)
+                        BuildContextPareto(contextIndex);
+                foreach (List<SearchNode> pareto in paretoByContext)
+                    paretoByRoutingChoice.Add(pareto);
                 foreach (IReadOnlyList<KeyValuePair<RoutingChoiceSignature, List<SearchNode>>> family in routingFamilies)
                 {
                     IReadOnlyList<SearchNode> familyNodes = family
@@ -3714,7 +3782,8 @@ internal sealed partial class CombatBeamSolver
         private IReadOnlyList<OrderedMutationContinuationPacket>
             BuildOrderedMutationContinuationPackets(
             IEnumerable<SearchNode> candidates,
-            HashSet<SearchNode> selectedSet)
+            HashSet<SearchNode> selectedSet,
+            List<SearchNode>? deferredObservations = null)
         {
             List<OrderedMutationContinuationPacket> packets = [];
             foreach (IGrouping<OrderedMutationContinuationSourceFamilySignature, SearchNode>
@@ -3758,7 +3827,10 @@ internal sealed partial class CombatBeamSolver
                         // Only an outcome which actually suppresses an equivalent backup has
                         // spent coverage credit. Record that dependency explicitly; a real
                         // final survivor below must repay it with one observed edge.
-                        RequestOrderedMutationObservation(selectedCandidate);
+                        if (deferredObservations == null)
+                            RequestOrderedMutationObservation(selectedCandidate);
+                        else
+                            deferredObservations.Add(selectedCandidate);
                     }
                 }
                 List<SearchNode> representatives = unselectedCandidates

@@ -431,6 +431,7 @@ $expectedBeamFiles = @(
     "CombatBeamSolver.Phases.cs",
     "CombatBeamSolver.PrimaryChoiceReplay.cs",
     "CombatBeamSolver.Retention.cs",
+    "CombatBeamSolver.RetentionJobs.cs",
     "CombatBeamSolver.StateEvaluation.cs",
     "CombatBeamSolver.StandPatJobs.cs",
     "CombatBeamSolver.Terminal.cs"
@@ -508,7 +509,7 @@ $beamStructureChecks = @(
     @{ File = "CombatBeamSolver.Models.cs"; Text = "private readonly record struct SearchFeatures(" },
     @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "private sealed partial class ParallelExpansionExecutor : IDisposable" },
     @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "public ExpansionWorkerOutcome[] Evaluate(" },
-    @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "public int MaximumQueuedParents => checked(DegreeOfParallelism * 2);" },
+    @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "public int MaximumQueuedParents => SearchWaveMemoryPolicy.MaximumQueuedParents(DegreeOfParallelism);" },
     @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "List<ExpansionLane> lanes = new(DegreeOfParallelism);" },
     @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "private ExpansionWorkerOutcome[] EvaluateQueuedParents(" },
     @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "private sealed class AdmittedParent(" },
@@ -532,6 +533,16 @@ $beamStructureChecks = @(
     @{ File = "CombatBeamSolver.StandPatJobs.cs"; Text = "ExpansionLane[] lanes = EnsureBackgroundLanes();" },
     @{ File = "CombatBeamSolver.StandPatJobs.cs"; Text = "_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);" },
     @{ File = "CombatBeamSolver.StandPatJobs.cs"; Text = "wave.Completed.Wait();" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "public void EvaluateRetentionIndices(" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "ExpansionLane[] lanes = EnsureBackgroundLanes();" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "wave.Completed.Wait();" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "_coordinator._run.OffThreadAllocatedBytes += job.AllocatedBytes;" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "wave.Error?.Throw();" },
+    @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "_run.RoutingChoiceSummaryBuilds += summaryGroups.Length;" },
+    @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "RequestOrderedMutationObservation(candidate);" },
+    @{ File = "SearchWaveMemoryPolicy.cs"; Text = "return checked(degreeOfParallelism * 2);" },
+    @{ File = "SearchWaveMemoryPolicy.cs"; Text = "current >= maximum - current ? maximum : current * 2" },
+    @{ File = "CombatBeamSolver.Phases.cs"; Text = "SearchWaveMemoryPolicy.GrowCapacity(" },
     @{ File = "CombatBeamSolver.Retention.cs"; Text = "end.ReleaseSimulator();" },
     @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "private void CommitExpansionBatch(" },
     @{ File = "CombatBeamSolver.Phases.cs"; Text = "public SolverResult Solve()" },
@@ -1116,6 +1127,14 @@ foreach ($check in $metadataReuseChecks) {
 }
 
 # Keep the no-op dispatch metadata complete when callbacks are added to the facade.
+foreach ($file in @("CombatBeamSolver.RetentionJobs.cs", "CombatBeamSolver.BeamRetentionPolicy.cs")) {
+    foreach ($forbidden in @("Parallel.For(", "Task.Run(")) {
+        if (Select-String -LiteralPath (Join-Path $searchRoot $file) -SimpleMatch $forbidden -Quiet) {
+            $violations.Add("$($file): retention work bypassed fixed lanes '$forbidden'")
+        }
+    }
+}
+
 $mirroredFilterText = Get-Content -LiteralPath (Join-Path $repositoryRoot "src/Engine/Common/MirroredHookListenerFilter.cs") -Raw
 $mirroredHookNames = [System.Collections.Generic.HashSet[string]]::new()
 [void]$mirroredHookNames.Add('TryModifyKeywordsInCombat')

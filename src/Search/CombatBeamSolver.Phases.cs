@@ -199,7 +199,10 @@ internal sealed partial class CombatBeamSolver
         SolverRouteAdoptionSeed? requestedRouteAdoptionSeed = null;
         IReadOnlyList<SearchNode>? interruptedActive = null;
         int routePreviewVersion = 0;
-        long lastRoutePreviewAt = System.Environment.TickCount64 - 100;
+        // 路线预览要重排一次完整 RankFinal；与进度 UI 用同一个刷新间隔，避免每 100ms
+        // 就重算一次比进度本身还重的排序。
+        long lastRoutePreviewAt =
+            System.Environment.TickCount64 - SolverWeights.ProgressUiIntervalMilliseconds;
         bool adoptionReached = false;
         bool currentTurnAdoptionReached = false;
         int initialHp = root.InitialPlayerHp;
@@ -820,7 +823,7 @@ internal sealed partial class CombatBeamSolver
             if (progressCallback == null)
                 return;
             long now = System.Environment.TickCount64;
-            if (!force && now - lastRoutePreviewAt < 100)
+            if (!force && now - lastRoutePreviewAt < SolverWeights.ProgressUiIntervalMilliseconds)
                 return;
             IEnumerable<SearchNode> pool = additional == null
                 ? retained
@@ -1676,7 +1679,9 @@ internal sealed partial class CombatBeamSolver
                             // back to two lanes after a single heavy wave left most of the user's
                             // requested lanes idle for the following waves.
                             parallelWaveCapacity = waveStayedWithinReserve
-                                ? Math.Min(maximumQueuedParents, parallelWaveCapacity * 2)
+                                ? SearchWaveMemoryPolicy.GrowCapacity(
+                                    parallelWaveCapacity,
+                                    maximumQueuedParents)
                                 : Math.Max(
                                     Math.Min(2, expansionParallelism),
                                     parallelWaveCapacity / 2);

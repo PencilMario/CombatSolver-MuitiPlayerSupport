@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：perf-2 选择性合入与保路作业
+
+- 最终固定 VeryHigh/DOP8/NoGC16GB，预定 B1–C1–C2–B2–B3–C3–C4–B4，八个独立进程各预热一次再测 Short/正常。正常均值 23.6271→23.2887 秒（−1.43%），Short −2.98%；全部16个正式结果 Passed，88项非时序 RESULT 字段（含7项 deferred-round）与59/64条动作逐项相等。原90字段比较也全部无差异。保留慢样本和GC暂停，原配置与实际申请分开记录。
+- 最终政策合同 `2cfdd334274942abbe817d1c670faa07` Passed：两个真实固定lane、257槽位各一次、原始取消token/异常、在途排空、失败后复用及235,536字节成功/失败分配；Deep1000节点/641待命探针的DOP1/2完整结果/评分/动作/非时序指标相等，原根可复用。
+- 短搜哨兵 `e7bae27e545942799fe3335c9673c6a6` Passed，与 `a85f3e7` 既有 `9664c01a18084c92afe111f9d47ce7e8` 的90字段/9动作一致。1GB NoGC `3f2ab070c3fa4f88bfe29f0cbe1ae173` Passed：52次重启、0丢失，与既有 `2345c8785fac4c8fb6d9b81e72aa43ae` 的90字段/64动作一致；请求39.96秒，未用跨批次时间计算提速。
+- 最终Release零警告/错误；纯容量合同涵盖部分wave、零、奇数上限和精确饱和溢出算术；Bash/PowerShell门禁均 `REFACTOR_BOUNDARIES_OK search_files=83`。本轮没有最终Engine语义改动，Hook索引原型已撤回，未执行的索引专属合同未列为通过。
+- 复跑使用现有 `STAND-PAT-PROBE-BATCHES` 政策合同、固定Short哨兵和正常首结果参数，详见[报告](performance/perf2-integration-20260909.md)及[结构化结果](performance/perf2-integration-20260909.json)。Profiler不进入倍率；未做本轮可见Steam、Windows游戏、完整部署或增量性能。
+
 ## 2026-09-09：回合结束探针与元数据热路径
 
 - 第二组固定 VeryHigh/DOP8/NoGC16GB、B1–C1–C2–B2–B3–C3–C4–B4 全部八个正式结果 Passed：37.6927→25.4926 秒，平均耗时−32.37%，分配−17.14%，采样峰值 RSS−16.10%。全部90项逐项比较；唯一差异为 C2 的 `phase/deep_triggered`，源码证明由20秒耗时检查点派生，原比较和分类修正均保留。其余88项非时序字段与64条完整预测动作全部一致；正常 Deep 预算、主搜索/恢复工作量和选择数相同。第一组−24.74%的失败结果完整保留，未删慢样本；候选仍有约2.1秒GC长暂停。

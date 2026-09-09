@@ -116,6 +116,7 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 | `CombatBeamSolver.AdmittedExpansion.cs` | 已准入父节点的准备、动作探测、选择准备/回放/续接、药水/目标与回合尾部作业；有界派发、快照移交、取消/异常排空 |
 | `CombatBeamSolver.PrimaryChoiceReplay.cs` | 原预算保证必经的首层回放、唯一快照暂存与原序消费；动态预算和实例补充仍由一个续接作业独占 |
 | `CombatBeamSolver.StandPatJobs.cs` | 对原保路规则必经的 EndTurn 探针批量求值，复用固定 lane、回传标量，缓存和选择仍由 coordinator 原序完成 |
+| `CombatBeamSolver.RetentionJobs.cs` | 剪枝只读索引作业；复用空闲固定 lane，按原索引收集输出，排空后统一记账并传播取消/错误 |
 | `ParallelExpansionWorkProfile.cs` | coordinator 所有的作业经过时间分布与 wave/等待/提交计时；不代表 CPU 时间 |
 | `CombatBeamSolver.PathDiagnostics.cs` | 可选路径观察的值复制与边界配对；分别记录生成、两类转置、实际展开、动作准入、完整保留及回合注释，不写搜索策略或账本 |
 | `CombatBeamSolver.DeferredFrontier.cs` | 失败窄搜实验中的同回合落选元数据、有限队列与逐动作有预算回放；不持有独立 live/simulator 根，不重建调度账本 |
@@ -142,7 +143,7 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 普通搜索按进程可用逻辑处理器数量选择初始展开 lane：至少 16 个时默认 DOP8，4–15 个时默认 DOP4，2–3 个时默认 DOP2，只有 1 个时使用 DOP1；用户显式设置始终优先。设置中的“关闭（单线程）”映射 DOP1，数值项为 `2..16`，实际值还会按进程可用逻辑处理器钳制。DOP>1 时，同一组最多 DOP 个低优先级后台 lane 消费已准入父节点的作业，coordinator 只归并和提交。自然单父节点也使用这套调度器，没有嵌套线程池或另一套 action wave。lane 在一次 `Solve` 内复用 solver、缓存和 `SearchWorkPacer`；详细诊断和增量严格回放强制 DOP1。
 
-父节点外层 wave 不按手牌数强制拆成 singleton。系统余量受限时从最多 2 个父节点开始，其他情况从最多 `2×DOP` 个已预约父节点开始；已完成的 multi-parent wave 未超出预约时容量倍增，超出预约时容量减半，在 `2..2×DOP` 内动态调整，singleton 不会替尚未观测的宽 wave 提前放大容量。Runtime 把玩家配置视为区域上限，并按 CLR 高内存阈值的 `95%` 安全线动态缩小实际 NoGC 申请；安全准入同时使用本轮分配余量和“区域建立时系统内存负载 + 本轮分配”的预测余量。全搜索已观测的最坏父节点分配量另加 `1.5×` 余量，并为 wave 中每个并发父节点完整预约。`SearchWaveMemoryPolicy` 先按实际剩余容量缩小 wave（包括 3、1 个父节点）；只有单个 parent 也不能预约时，才在已提交边界释放可重建缓存并回收。出牌深度结束先完成剪枝，清空被剪节点容器且仍有下一次准入时再检查回收；连单个父节点都无法放入预约时退回纯串行，不借 inner replay 冒险。CLR 仅因区域尺寸不受支持而拒绝 NoGC 时，Runtime 逐次减半申请，最低尝试 `512 MB`；平台不支持或区域尺寸仍无法建立时回退常规 GC，并继续按用户配置的 DOP 搜索。只有系统余量不足时才启用最多两个 lane 的保守并发限制。用户主动关闭 NoGC 时同样不施加该限制。每个已准入父节点的整体预约覆盖其全部动作/选择/药水结果及在途 seed；作业只在这个固定窗口内派发，内部不新建内存检查点。连单个 parent 都不能预约时仍走既有纯串行分支。
+父节点外层 wave 不按手牌数强制拆成 singleton。系统余量受限时从最多 2 个父节点开始，其他情况从最多 `2×DOP` 个已预约父节点开始；已完成的 multi-parent wave 未超出预约时容量倍增，超出预约时容量减半，在 `2..2×DOP` 内动态调整，singleton 不会替尚未观测的宽 wave 提前放大容量。Runtime 把玩家配置视为区域上限，并按 CLR 高内存阈值的 `95%` 安全线动态缩小实际 NoGC 申请；安全准入同时使用本轮分配余量和“区域建立时系统内存负载 + 本轮分配”的预测余量。全搜索已观测的最坏父节点分配量另加 `1.5×` 余量，并为 wave 中每个并发父节点完整预约。`SearchWaveMemoryPolicy` 统一拥有 `2×DOP` 预约上限与精确饱和倍增算术，先按实际剩余容量缩小 wave（包括 3、1 个父节点）；只有单个 parent 也不能预约时，才在已提交边界释放可重建缓存并回收。出牌深度结束先完成剪枝，清空被剪节点容器且仍有下一次准入时再检查回收；连单个父节点都无法放入预约时退回纯串行，不借 inner replay 冒险。CLR 仅因区域尺寸不受支持而拒绝 NoGC 时，Runtime 逐次减半申请，最低尝试 `512 MB`；平台不支持或区域尺寸仍无法建立时回退常规 GC，并继续按用户配置的 DOP 搜索。只有系统余量不足时才启用最多两个 lane 的保守并发限制。用户主动关闭 NoGC 时同样不施加该限制。每个已准入父节点的整体预约覆盖其全部动作/选择/药水结果及在途 seed；作业只在这个固定窗口内派发，内部不新建内存检查点。连单个 parent 都不能预约时仍走既有纯串行分支。
 
 准备作业先冻结父节点的卡牌 action/target 与药水/target 表。各父节点轮流派发，已完成的 PendingChoice probe 优先作为独立选择链作业续接；药水完整选择链也作为独立作业运行，避免绑在回合尾部串行等待。首层回放每份作业合并 `clamp(N/DOP, 1, 4)` 次、末份截短，N≥DOP 的 singleton 仍至少有 DOP 份可派发作业，减少细碎结果反复进出邮箱。每个父节点有自己的窄 Fork gate，worker 在 gate 内串行生成 seed，离开后独占自己的分支模拟器；不同父节点不共享这个 gate。卡牌和药水在各自原序数组中归并，只有该父节点全部卡牌/选择/药水完成后，尾部作业才独占 aggregate 执行 EndTurn 并发布 stand-pat 基线。最终 TT、dominance、fallback 与接受顺序仍由 coordinator 按父节点连续前缀提交。
 
@@ -152,7 +153,11 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 保路中的待命评估只预先收集原规则会访问、尚未命中 `StandPatCache` 的状态键，保留首次出现的原代表；不合并额外候选或改变窗口。至少两个待评估状态时，`StandPatJobs` 复用当前 executor 的固定 lane，worker 执行完整 EndTurn 回放，释放临时快照后只交出 `StandPatEvaluation` 标量。coordinator 归并 worker 指标后复用 lane，全部成功后按原序写缓存并执行原选择器。DOP1 沿用逐项路径。Prune 持有候选根，批内不准入新父节点或触发 GC checkpoint；取消/异常先排空所有 lane，再传播原错误。executor 的活动引用属于 `SearchRunContext`，Dispose 清除，避免运行上下文延长 lane 的生命周期。
 
-`parallel_waves / work_items` 记录已准入父 wave/parent，`parallel_action_*` 记录卡牌探测作业，`parallel_round_choice_*` 合计选择准备、首层回放、续接与完整链回退作业；不能解释为所有选择叶子并行。药水准备与首层回放的数量分别见 `SEARCH_PARALLEL_WORK kind=Potion/PrimaryReplay`，后者还记录实际 `max_concurrency`。`deferred_round_choice_*` 是命中层的调度诊断，改变调度后允许变化。`SEARCH_PARALLEL_WORK kind=StandPat/StandPatWave` 分别记录待命探针作业及其批次跨度，不增加已准入父节点计数。`ParallelExpansionWorkProfile` 在 coordinator 归并每个作业的 Stopwatch 经过时间，输出计数、总量、对数桶 p50/p95 上界和精确最大值；Parent 是准备派发至尾部接收的跨度，包含排队，Wave 包含等待与提交，Wait 是 coordinator 等待结果的时间。它们均不是 CPU 时间、也不能相互相加；实际用核来自线程调度运行时间或 on-CPU 采样。节点预算截断仍由 coordinator 释放未展开父节点及不会进入下一层的候选，`node_limit_snapshots_released` 记录实际释放数。
+剪枝的路由签名、完成分组的排名摘要、逐上下文 Pareto 与有序变异 continuation 包可以在已排空的固定 lane 上计算。`RetentionJobs` 只调度本次输入中的索引，不展开模拟或预约新父节点；节点、父排名、已选集合和 lease 账本在整批完成前只读，各作业只写自己的结果槽位或独占组。coordinator 保持字典插入、拼接及观察请求的原顺序，摘要计数也统一归并；DOP1 和小集合走串行路径。成功、取消和失败都先等待全部已派发作业，完整计入后台分配后才使用结果或传播原异常。它与 `StandPatJobs` 顺序复用同一 executor，不允许同剪枝推测展开重叠或另开线程池。
+
+路线预览继续保存并还原候选排名，刷新间隔复用 `SolverWeights.ProgressUiIntervalMilliseconds`（200ms）；强制发布和最终结果不受节流影响。
+
+`parallel_waves / work_items` 记录已准入父 wave/parent，`parallel_action_*` 记录卡牌探测作业，`parallel_round_choice_*` 合计选择准备、首层回放、续接与完整链回退作业；不能解释为所有选择叶子并行。药水准备与首层回放的数量分别见 `SEARCH_PARALLEL_WORK kind=Potion/PrimaryReplay`，后者还记录实际 `max_concurrency`。`deferred_round_choice_*` 是命中层的调度诊断，改变调度后允许变化。`SEARCH_PARALLEL_WORK kind=StandPat/StandPatWave` 分别记录待命探针作业及其批次跨度，不增加已准入父节点计数。`SEARCH_PARALLEL_WORK kind=RoutingSignature/RoutingSummary/RoutingPareto/ContinuationPacket` 记录纯保路作业，`RetentionWave` 记录整批跨度，不增加准入父节点数。`ParallelExpansionWorkProfile` 在 coordinator 归并每个作业的 Stopwatch 经过时间，输出计数、总量、对数桶 p50/p95 上界和精确最大值；Parent 是准备派发至尾部接收的跨度，包含排队，Wave 包含等待与提交，Wait 是 coordinator 等待结果的时间。它们均不是 CPU 时间、也不能相互相加；实际用核来自线程调度运行时间或 on-CPU 采样。节点预算截断仍由 coordinator 释放未展开父节点及不会进入下一层的候选，`node_limit_snapshots_released` 记录实际释放数。
 
 `BeamRetentionPolicy` 决定哪些中间候选继续活着；动作选牌、嵌套选牌和 `EndTurn.TurnStartChoices` 都以来源、效果、卡牌语义状态和上下文形成保路签名。`FinalPlanOrdering` 决定完整候选中最终采用哪条；完整胜利后比较扣除实际成长额度的战略战损，再比较已实现成长额度、收益次数和结束回合，药水、其他长线资源、敌方状态和分数作为后续尾键。两者不能合并成单一“总分排序”。`SearchFeatures` 是终局排序读取节点状态的只读投影。转置状态键中的九条战斗 RNG 必须包含完整内部状态；相同调用计数不能证明两个 RNG 后续等价。
 

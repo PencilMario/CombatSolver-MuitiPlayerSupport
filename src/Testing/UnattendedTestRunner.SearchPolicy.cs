@@ -84,6 +84,8 @@ internal sealed partial class UnattendedTestRunner
             capturedPolicy);
         if (verifyStandPatBatches)
         {
+            await AssertRetentionWorkerBatchesAsync(
+                rootSnapshot, displayNames, battleDamage, capturedPolicy);
             await AssertStandPatProbeBatchesAsync(
                 rootSnapshot,
                 displayNames,
