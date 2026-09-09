@@ -33,7 +33,9 @@ internal static class CalculatedVarSpecRegistry
     ];
 
     public static IReadOnlyDictionary<Type, string> EvidenceByType { get; }
-        = SupportedTypes.ToDictionary(type => type, _ => "CALCULATED-CARD-BATCH-136");
+        = SupportedTypes.ToDictionary(type => type, type => type == typeof(Murder)
+            ? "MURDER-ROOT-HISTORY"
+            : "CALCULATED-CARD-BATCH-136");
 
     public static bool TryCalculate(
         CalculatedVar calculatedVar,
@@ -175,8 +177,7 @@ internal static class CalculatedVarSpecRegistry
            + simulator.History.OfType<CombatPredictionCardPlayFinishedEntry>().Count();
 
     private static int CountDrawnCards(CombatPredictionSimulator simulator, Player player)
-        => CombatManager.Instance.History.Entries.OfType<CardDrawnEntry>()
-               .Count(entry => entry.Actor.Player == player)
+        => ((SimulatedCombatState)simulator.State.CombatState).GetCardsDrawnBeforePrediction(player)
            + simulator.History.OfType<CombatPredictionCardDrawnEntry>()
                .Count(entry => entry.Card.Owner == player);
 }

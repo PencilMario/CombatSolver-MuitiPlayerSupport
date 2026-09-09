@@ -215,6 +215,10 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 `src/Engine/InCombat/Mirrors/` 精确实现原版 Hook、卡牌、药水、附魔和球方法。Facade 保持原版调用时序，registry 按运行时类型与方法分派。
 
+补货在 `AfterDeathMirrors` 按原版 Hook 时点调用领域生成入口：旧个体仍在阵容中，替补生命判重读取分支最大生命和 Niche RNG；`DeathPowerSupport` 的后续清理保留死亡生命周期，生成替补由该镜像独占。
+
+温柔在 `AfterCardPlayedMirrors` 中按每次真实分派更新既有分支计数并施加力量/敏捷损失。`TriggeredPowerSupport` 的历史扫描保留伤害补偿，温柔由镜像独占；外层出牌扫描包含内层自动牌历史时也只结算各自的 Hook。回合末恢复继续由 `EndTurnPowerSupport` 消费该计数。
+
 苦无、手里剑和彩虹戒指的属性施加在各自 `AfterCardPlayed` 镜像内完成：在原版 `IsInProgress` 门内更新计数，按每次 `PowerCmd.Apply` 的 `IsEnding` 门决定是否施加，不能延到其他监听器之后。彩虹戒指的领域生命周期仅同步既有激活投影，不再施加属性；末击不会提前中断整组监听器。
 
 `MethodMirrorRegistry` 同时实现 `IMethodMirrorRegistryDescriptorProvider`。`MethodMirrorRegistryDescriptor` 描述基础方法、receiver、显式 Handled/Ignored 注册和当前 inferrer；CoverageCatalog 只消费该描述符，不读取 registry 私有字段或 `MirrorMethodSpec` 内部布局。
@@ -222,6 +226,8 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 ## 5. Prediction 领域补偿
 
 `src/Prediction/` 处理基础命令和单个 mirror 不能独立表达的领域语义：
+
+谋杀的抽牌历史倍率由 `CalculatedVarSpecRegistry` 读取 `SimulatedCombatState.GetCardsDrawnBeforePrediction` 的冻结根计数与模拟器新增抽牌事件。根计数来自已有 `RootCombatHistorySnapshot.CardsDrawn`，随根不可变共享；实机完成回合准备或继续抽牌后，旧根和 Fork 仍使用捕获时的历史。
 
 - 卡牌/Power/遗物/药水/球的跨 Hook 生命周期；
 - 怪物行动图、随机分支、私有 AI 与召唤；

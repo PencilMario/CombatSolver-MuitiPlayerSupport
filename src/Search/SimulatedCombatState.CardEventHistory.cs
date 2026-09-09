@@ -15,6 +15,9 @@ namespace CombatSolver;
 
 internal sealed partial class SimulatedCombatState
 {
+    public int GetCardsDrawnBeforePrediction(Player player)
+        => _rootHistory.CardsDrawn.Count(entry => entry.Actor.Player == player);
+
     public void RecordCardExhausted(Creature actor)
         => (_cardsExhaustedThisTurn ??= [])[actor] = GetCardsExhaustedThisTurn(actor) + 1;
 

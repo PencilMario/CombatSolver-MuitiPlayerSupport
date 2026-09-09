@@ -1,5 +1,60 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：0.34.6 静默猎手修复合并验证（待审核）
+
+- 将 `fix/silent-unexpected-replans` 的 `7f5a984` 合入包含 PR #67 / #68 / #72 的源码。合并后的 Release 构建 0 警告 / 0 错误；`CopyModOnBuild=false`，使用本机现有 .NET 4.8 引用包。结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`；CoverageCatalog `--verify-effective --verify-roster-sources` 通过。
+- 以下为本次合并后的直接结果，均完成 T1 → T2 严格差分，比较有序牌堆、逐实例卡牌、Power、怪物状态、RNG、ContinuationStamp 和相关 Fork 状态。它们验证新监听器过滤与既有修复的组合，不代表原报告整场回放。
+
+| 场景 | runId | 结果 |
+| --- | --- | --- |
+| MURDER-ROOT-HISTORY | `c40bf06fe6d34e669ba6faf6f77fee68` | Passed，28.13 秒；根捕获后实机抽牌、父子分支倍率隔离、原生出牌及下一回合 |
+| TENDER-DISCARD-ALL-SLY | `c8492cd07e864f47a7c5cfb1b06c23a2` | Passed，16.59 秒；精密计算与内层狡猾自动牌各结算一次、属性与回合末恢复 |
+| STOCK-REPORT-RESPAWN-HP | `9452a1f11d5a4143a7fd383fd4699054` | Passed，12.45 秒；原报告 Niche RNG 边界、反伤死亡与下一回合替补完整状态 |
+
+- 使用下方原场景命令，私有实例改为 `silent-release-0346`，每请求期限 120 秒；证据位于集成工作区 `.local/silent-merge-evidence/`。结束后已停止该实例并精确删除其拥有的 `game` 快照，Steam 游戏目录未写入。
+- 本次未重复已通过的无关纯计算/并行调度检查，未运行整场性能 A/B 或可见 FPS 测试；发布动作等待玩家更新日志审核。
+
+本次静默猎手三项根因最终共 5 个最小行为场景通过（3 项根因 + 2 项相邻回归）；Release 构建 0 警告 / 0 错误，结构门禁 `REFACTOR_BOUNDARIES_OK search_files=78`，CoverageCatalog `--verify-effective --verify-roster-sources` 通过。以下分别保留失败基线、最终结果及未整场回放的范围。
+
+## 2026-09-09：谋杀根历史隔离（开发中）
+
+- `MURDER-ROOT-HISTORY` 基线 `40301c95dd4b4bfba22aa1abb4e3fa96` Failed，21.22 秒：实机抽一张牌后，冻结父分支倍率从 8 变 9、已抽一张的 Fork 从 9 变 10。最终 `11ea828e2e69419fa522008201fb5e5e` Passed，28.14 秒。
+- 最终夹具覆盖原生抽牌前后的父分支/Fork 隔离、实际打出谋杀的伤害与完整状态、T1 至 T2 全量状态和下一回合抽牌后的倍率稳定。完整比较包括有序牌堆、卡牌实例、Power、怪物状态、RNG、ContinuationStamp；未正式搜索、未整场回放。
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId MURDER-ROOT-HISTORY -CharacterId SILENT -EncounterId FUZZY_WURM_CRAWLER_WEAK -EnemyCurrentHp 100 -ClearAllPowers -ClearPlayerPiles -CardsJson '[{"CardId":"MURDER","Pile":"Hand"},{"CardId":"DEFEND_SILENT","Pile":"Draw","Count":7}]' -HeadlessInstance silent-replans -TimeoutSeconds 120
+```
+
+## 2026-09-09：温柔与出牌效果内自动牌（开发中）
+
+- `TENDER-DISCARD-ALL-SLY`：基线 `289cb0270eeb48d7b4ac81e3247c85e3` Failed，23.96 秒，首差异力量预测 -3 / 原生 -2；最终 `94c01fe41a564329a15f54ae62d66dc4` Passed，16.63 秒，验证精密计算与内层 FLICK_FLACK 各触发一次、Fork 完整状态及 T2 属性恢复和计数归零。
+- `TENDER-NESTED-SLY` 手动选牌相邻对照最终 `45bf88eef731446cbe7d11d279b2a792` Passed，16.25 秒。旧源码该对照 `fe4d41bbc2ba4e29b9bceb72890c5e80` 已通过，说明错误发生在出牌效果内自动牌历史被父牌扫描的路径。最初 `c77511470ae4469d80038ce74ef7cca3` 因夹具漏放准备而建局失败，只作输入错误记录，不作语义失败基线。
+- 两项均比较完整 MoveStateSnapshot/ContinuationStamp、逐实例卡牌、有序牌堆与 Power、敌人状态和 RNG，无正式搜索或整包回放。
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId TENDER-DISCARD-ALL-SLY -CharacterId SILENT -EncounterId FUZZY_WURM_CRAWLER_WEAK -EnemyCurrentHp 100 -ClearAllPowers -ClearPlayerPiles -CardsJson '[{"CardId":"CALCULATED_GAMBLE","Pile":"Hand"},{"CardId":"FLICK_FLACK","Pile":"Hand"},{"CardId":"DEFEND_SILENT","Pile":"Draw","Count":7}]' -PowersJson '[{"PowerId":"TENDER_POWER","Target":"Player","Amount":1}]' -HeadlessInstance silent-replans -TimeoutSeconds 120
+```
+
+相邻对照使用 `TENDER-NESTED-SLY`，把手牌换成 PREPARED 和 UNTOUCHABLE，其他参数相同。
+
+## 2026-09-09：补货原报告 RNG 边界修复（开发中）
+
+- `STOCK-REPORT-RESPAWN-HP` 从报告 `835b630a...` T9 检查点注入 Niche counter=54 及四段内部状态，以旧个体最大生命 96、当前生命 3、ONE_TWO_MOVE 和 3 点荆棘构造两回合边界。基线 `416f94d9708746018de96cb3a37efb26` Failed，26.64 秒，首差异 `E0.hp expected=103 actual=104`；最终 `70aa5edb08e34137b61fc3d2c75d7978` Passed，27.71 秒。
+- 相邻直接击杀 `STOCK-RESPAWN-HP` 最终 `403c3b881b8c45f2a4168ced84cdf54a` Passed，12.87 秒。使用下方已有命令；报告 RNG 场景使用荆棘命令并将 ScenarioId 改为 `STOCK-REPORT-RESPAWN-HP`。
+- 严格比较死亡后及下一玩家回合的完整 MoveStateSnapshot/ContinuationStamp，包括有序牌堆、卡牌实例、Power、敌人阵容和 AI、九条 RNG；预测 Fork 保持相同快照。未正式搜索、未整包回放。旧通用种子探针的通过只属于旧输入，不能代替本次失败基线。
+
+## 2026-09-09：静默猎手补货最小分诊（开发中）
+
+- 两个夹具均运行在未改生产语义的 `2c7bee5` 基础上，完整 MoveStateSnapshot 比较包含有序牌堆、逐实例卡牌状态、Power、怪物状态、RNG 和 ContinuationStamp，另比较预测结果与 Fork。没有启动正式搜索，不使用增量搜索开关。
+- `STOCK-RESPAWN-HP`：`a32c5e203ed54ca281ef9d961c78789e` Passed，28.12 秒，比较直接击杀后的替补状态及 T2 边界。
+- `STOCK-THORNS-RESPAWN-HP`：`d2d88c43f8f84e35a4b89f427e5654b4` Passed，27.56 秒，比较敌方攻击被荆棘击杀后 T2 的替补状态。
+- 这些是未复现的最小探针；没有失败基线，不能视为 `835b630a19a44c7c897d63dfc56d9a49` 已修复或原包回放通过。
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId STOCK-RESPAWN-HP -CharacterId SILENT -EncounterId AXEBOTS_NORMAL -Ascension 10 -EnemyCurrentHp 1 -InitialEnemyMaxHpsJson '[96]' -ClearAllPowers -ClearPlayerPiles -CardId STRIKE_SILENT -PowersJson '[{"PowerId":"STOCK_POWER","Target":"Enemy","Amount":1}]' -HeadlessInstance silent-replans -TimeoutSeconds 120
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId STOCK-THORNS-RESPAWN-HP -CharacterId SILENT -EncounterId AXEBOTS_NORMAL -Ascension 10 -EnemyCurrentHp 3 -InitialEnemyMaxHpsJson '[96]' -InitialEnemyMoveIdsJson '["ONE_TWO_MOVE"]' -InitialPlayerBlock 20 -ClearAllPowers -ClearPlayerPiles -CardId STRIKE_SILENT -PowersJson '[{"PowerId":"STOCK_POWER","Target":"Enemy","Amount":1},{"PowerId":"THORNS_POWER","Target":"Player","Amount":3}]' -HeadlessInstance silent-replans -TimeoutSeconds 120
+```
+
 ## 2026-09-09：PR #67 / #68 / #72 的 Windows 合并验证（下一版本开发中）
 
 - 集成基线 `2c7bee5`，PR heads 分别为 `0baaf74`、`3c9edc9`、`e9e6103`。两个背包检查工具均链接最终唯一生产实现 `ReachableHandValue`。

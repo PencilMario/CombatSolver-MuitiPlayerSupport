@@ -1,4 +1,28 @@
 {
+  "MURDER-ROOT-HISTORY": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnRootHistoryAndForkDifferential",
+    "procedure": "冻结根后只在子分支抽一张牌，推进原生相同抽牌，再打出谋杀并进入第二回合；检查父分支与子分支计算值。",
+    "expected": "原生抽牌只影响 live 历史，谋杀读取冻结根与分支事件之和；出牌和跨回合完整状态符合原版。",
+    "observed": "基线40301c95dd4b4bfba22aa1abb4e3fa96在实机抽牌后父分支8变9、子分支9变10；最终11ea828e2e69419fa522008201fb5e5e Passed，28.14秒，实际伤害、完整状态、Fork隔离及两回合边界一致。",
+    "evidence": "src/Testing/UnattendedTestRunner.MurderHistory.cs；docs/TEST_MATRIX.md；2026-09-09。"
+  },
+  "TENDER-DISCARD-ALL-SLY": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "温柔状态下精密计算弃掉 FLICK_FLACK 并自动打出，比较行动结束与下一玩家回合；准备手动选择 UNTOUCHABLE 作为相邻对照。",
+    "expected": "外层与内层各扣一次力量和敏捷，回合末按相同计数恢复，Fork 保持完整状态。",
+    "observed": "基线289cb0270eeb48d7b4ac81e3247c85e3力量预测-3/原生-2；最终94c01fe41a564329a15f54ae62d66dc4 Passed，16.63秒。手动选牌相邻对照45bf88eef731446cbe7d11d279b2a792 Passed，16.25秒。",
+    "evidence": "src/Testing/UnattendedTestRunner.TenderNested.cs；docs/TEST_MATRIX.md；2026-09-09。"
+  },
+  "STOCK-REPORT-RESPAWN-HP": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "注入报告 835b630a T9 的 Niche 完整状态，旧巨斧机器人 3/96、补货1，被荆棘反伤击杀后进入第二回合。",
+    "expected": "替补生命、阵容、行动、有序牌堆、Power、卡牌实例、RNG、ContinuationStamp 与原版一致。",
+    "observed": "失败基线 416f94d9708746018de96cb3a37efb26 预测103/原生104；最终70aa5edb08e34137b61fc3d2c75d7978 Passed，27.71秒。直接击杀相邻路径403c3b881b8c45f2a4168ced84cdf54a Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.StockRespawn.cs；docs/TEST_MATRIX.md；2026-09-09，代表包日志加等价最小夹具，未整场回放。"
+  },
   "NORMALITY-AUTOPLAY": {
     "status": "Passed",
     "level": "HeadlessStrictNativeCardDifferentialAndForkLifecycle",
