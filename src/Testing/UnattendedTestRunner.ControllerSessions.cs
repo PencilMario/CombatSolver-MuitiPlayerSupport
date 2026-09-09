@@ -60,6 +60,30 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidOperationException("多人模式搜索范围没有保持单人/多人边界。");
         }
 
+        if (!SolverController.IsPlayableTurnForTesting(
+                isMultiplayer: true,
+                currentSide: CombatSide.Enemy,
+                localPlayerPhase: PlayerTurnPhase.Play)
+            || !SolverController.IsPlayableTurnForTesting(
+                isMultiplayer: true,
+                currentSide: CombatSide.Player,
+                localPlayerPhase: PlayerTurnPhase.Play)
+            || SolverController.IsPlayableTurnForTesting(
+                isMultiplayer: true,
+                currentSide: CombatSide.Player,
+                localPlayerPhase: PlayerTurnPhase.Start)
+            || !SolverController.IsPlayableTurnForTesting(
+                isMultiplayer: false,
+                currentSide: CombatSide.Player,
+                localPlayerPhase: PlayerTurnPhase.Play)
+            || SolverController.IsPlayableTurnForTesting(
+                isMultiplayer: false,
+                currentSide: CombatSide.Enemy,
+                localPlayerPhase: PlayerTurnPhase.Play))
+        {
+            throw new InvalidOperationException("多人本地玩家回合判断没有区分全局方和本地玩家阶段。");
+        }
+
         AssertInvalidMultiplayerSearchTurnLimit(0);
         AssertInvalidMultiplayerSearchTurnLimit(13);
 

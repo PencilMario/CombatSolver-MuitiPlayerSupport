@@ -98,7 +98,14 @@ public static class Entry
     {
         if (!Enabled || NGame.Instance == null)
             return;
-        if (state.CurrentSide != CombatSide.Player)
+        bool isMultiplayer = SolverController.IsMultiplayerSession;
+        Player? localPlayer = LocalContext.GetMe(state);
+        if (isMultiplayer && localPlayer?.PlayerCombatState?.Phase != PlayerTurnPhase.Play)
+        {
+            SolverOverlay.ShowMultiplayerWaiting(NGame.Instance);
+            return;
+        }
+        if (!isMultiplayer && state.CurrentSide != CombatSide.Player)
             return;
         if (SolverController.SolverDisabled)
         {
@@ -114,7 +121,7 @@ public static class Entry
         }
         if (!UnattendedTestRunner.AutomaticTurnSearchEnabled)
             return;
-        int turn = LocalContext.GetMe(state)?.PlayerCombatState?.TurnNumber ?? -1;
+        int turn = localPlayer?.PlayerCombatState?.TurnNumber ?? -1;
         Logger.Info($"[CombatSolver/Test] AUTO_SEARCH_DEFERRED turn={turn} frames=3");
         Task deferredSearch = SolverController.StartCombatDeferredOperation(
             token => RequestAutoSearchAfterVisualSetup(state, turn, token));
@@ -154,7 +161,7 @@ public static class Entry
             || SolverController.AutomaticSearchPaused
             || !CombatManager.Instance.IsInProgress
             || !ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), state)
-            || state.CurrentSide != CombatSide.Player
+            || !SolverController.IsPlayableTurn(state)
             || LocalContext.GetMe(state)?.PlayerCombatState?.Phase != PlayerTurnPhase.Play
             || LocalContext.GetMe(state)?.PlayerCombatState?.TurnNumber != turn)
         {

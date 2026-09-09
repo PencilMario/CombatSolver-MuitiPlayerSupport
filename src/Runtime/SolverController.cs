@@ -122,8 +122,8 @@ internal static class SolverController
 
     /// <summary>
     /// True whenever the current run is a networked multiplayer session (host or client).
-    /// The solver must stay fully inert in this case: the game's own multiplayer turn
-    /// synchronization has no concept of a client silently auto-planning another player's turn.
+    /// Multiplayer searches are limited to the local player's current turn and never
+    /// take over another player's turn.
     /// </summary>
     public static bool IsMultiplayerSession
         => RunManager.Instance.IsInProgress && RunManager.Instance.NetService.Type.IsMultiplayer();
@@ -554,6 +554,8 @@ internal static class SolverController
             : null;
         if (state is CombatState activeCombat)
             ReconcilePersistedPotionDirectives(activeCombat);
+        if (IsMultiplayerSession && NGame.Instance is { } host)
+            SolverOverlay.ShowMultiplayerWaiting(host);
         Entry.Logger.Info(
             $"[CombatSolver/Test] THEFT_POLICY_INIT policy={_combat.TheftPolicy?.ToString() ?? "-"}");
     }
@@ -580,7 +582,7 @@ internal static class SolverController
             || _solverDisabled
             || _combat.AutomaticSearchPaused
             || !CombatManager.Instance.IsInProgress
-            || state.CurrentSide != CombatSide.Player
+            || !IsPlayableTurn(state)
             || player?.PlayerCombatState?.Phase != PlayerTurnPhase.Play
             || result.TurnSetupPlayState is not { } expected
             || ContinuationStamp.CaptureLive(state) != expected)
@@ -1323,7 +1325,7 @@ internal static class SolverController
             return;
         }
         Player? turnStartPlayer = LocalContext.GetMe(state);
-        if (state.CurrentSide == CombatSide.Player
+        if ((IsMultiplayerSession || state.CurrentSide == CombatSide.Player)
             && turnStartPlayer?.PlayerCombatState?.Phase == PlayerTurnPhase.Start)
         {
             _combat.DeployAfterTurnSetupTurn = turnStartPlayer.PlayerCombatState.TurnNumber;
@@ -3299,7 +3301,7 @@ internal static class SolverController
             rejection = "求解器已在设置中禁用。";
         else if (!CombatManager.Instance.IsInProgress)
             rejection = "当前没有进行中的战斗。";
-        else if (state.CurrentSide != CombatSide.Player || player?.PlayerCombatState?.Phase != PlayerTurnPhase.Play)
+        else if (!IsPlayableTurn(state))
             rejection = "当前不是玩家出牌阶段。";
         else if (CombatManager.Instance.PlayerActionsDisabled)
             rejection = "玩家操作当前被游戏禁用。";
@@ -3315,10 +3317,32 @@ internal static class SolverController
     {
         Player? player = LocalContext.GetMe(state);
         return ReferenceEquals(CombatManager.Instance.DebugOnlyGetState(), state)
-            && state.CurrentSide == CombatSide.Player
+            && IsPlayableTurn(state)
             && player?.PlayerCombatState?.TurnNumber == turn
             && player.PlayerCombatState.Phase == PlayerTurnPhase.Play;
     }
+
+    internal static bool IsPlayableTurn(CombatState state)
+    {
+        Player? player = LocalContext.GetMe(state);
+        return IsPlayableTurn(
+            IsMultiplayerSession,
+            state.CurrentSide,
+            player?.PlayerCombatState?.Phase);
+    }
+
+    internal static bool IsPlayableTurnForTesting(
+        bool isMultiplayer,
+        CombatSide currentSide,
+        PlayerTurnPhase? localPlayerPhase)
+        => IsPlayableTurn(isMultiplayer, currentSide, localPlayerPhase);
+
+    private static bool IsPlayableTurn(
+        bool isMultiplayer,
+        CombatSide currentSide,
+        PlayerTurnPhase? localPlayerPhase)
+        => localPlayerPhase == PlayerTurnPhase.Play
+            && (isMultiplayer || currentSide == CombatSide.Player);
 
     private static void AssertMainThread()
     {
