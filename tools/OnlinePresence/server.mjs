@@ -1,7 +1,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import { readFileSync, mkdirSync } from 'node:fs';
-import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
@@ -10,6 +10,8 @@ import { aggregateHistory } from './history.mjs';
 const root = fileURLToPath(new URL('.', import.meta.url));
 export const TTL = 90_000;
 export const PAGE_SIZE = 30;
+const SESSION_SECONDS = 14 * 86400;
+const SESSION_COOKIE = 'cs_presence_session';
 export function validate(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) return false;
   const fields = ['sessionId','name','character','floor','encounter','hpLoss','version'];
@@ -30,8 +32,14 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   const db = new DatabaseSync(database);
   db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS history (time INTEGER PRIMARY KEY, count INTEGER NOT NULL) STRICT;');
   db.exec('CREATE TABLE IF NOT EXISTS durations (session_id TEXT PRIMARY KEY, total_ms INTEGER NOT NULL, last_seen INTEGER NOT NULL) STRICT;');
-  // Nicknames and combat details stay in memory; only installation IDs and durations persist.
-  const players = new Map(), sessions = new Map(), buckets = new Map();
+  db.exec('CREATE TABLE IF NOT EXISTS admin_sessions (token_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL) STRICT;');
+  // Player nicknames and combat details stay in memory. Admin sessions persist separately.
+  const players = new Map(), buckets = new Map();
+  const sessionKey = token => createHmac('sha256', password).update(token).digest('hex');
+  const sessionRead = db.prepare('SELECT expires_at FROM admin_sessions WHERE token_hash=?');
+  const sessionWrite = db.prepare('INSERT INTO admin_sessions(token_hash,expires_at) VALUES (?,?)');
+  const sessionDelete = db.prepare('DELETE FROM admin_sessions WHERE token_hash=?');
+  const sessionExpire = db.prepare('DELETE FROM admin_sessions WHERE expires_at<=?');
   const salt = randomBytes(32), passwordHash = scryptSync(password, salt, 32);
   const allowedHosts = new Set(['127.0.0.1', 'localhost', '[::1]']);
   if (publicHost) allowedHosts.add(publicHost);
@@ -43,7 +51,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   function expire() {
     const t = now();
     for (const [key,p] of players) if (p.lastSeen <= t - TTL) players.delete(key);
-    for (const [key,s] of sessions) if (s <= t) sessions.delete(key);
+    sessionExpire.run(t);
     for (const [key,b] of buckets) if (b.until <= t) buckets.delete(key);
   }
   function sample() {
@@ -129,16 +137,16 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
       if (typeof body?.password !== 'string' || body.password.length > 256) return send(res,400);
       if (!timingSafeEqual(scryptSync(body.password,salt,32),passwordHash)) return send(res,401);
       const token = randomBytes(32).toString('hex');
-      sessions.set(token,now()+8*3600000);
-      res.setHeader('Set-Cookie',`session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${secureCookie || req.socket.encrypted?'; Secure':''}`);
+      sessionWrite.run(sessionKey(token),now()+SESSION_SECONDS*1000);
+      res.setHeader('Set-Cookie',`${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${SESSION_SECONDS}${secureCookie || req.socket.encrypted?'; Secure':''}`);
       return send(res,200,{ok:true});
     }
-    const token = /(?:^|;\s*)session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
+    const token = /(?:^|;\s*)cs_presence_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
     if (url.pathname.startsWith('/api/')) {
-      if (!token || (sessions.get(token) || 0) <= now()) return send(res,401);
+      if (!token || (sessionRead.get(sessionKey(token))?.expires_at ?? 0) <= now()) return send(res,401);
       if (req.method === 'POST' && url.pathname === '/api/logout') {
-        sessions.delete(token);
-        res.setHeader('Set-Cookie',`session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookie || req.socket.encrypted?'; Secure':''}`);
+        sessionDelete.run(sessionKey(token));
+        res.setHeader('Set-Cookie',`${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookie || req.socket.encrypted?'; Secure':''}`);
         return send(res,204);
       }
       if (req.method === 'GET' && url.pathname === '/api/overview') {

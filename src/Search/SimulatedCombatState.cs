@@ -219,6 +219,7 @@ internal sealed partial class SimulatedCombatState
     private ForkableDictionary<Player, int>? _statusCardsDrawnThisTurn;
     private ForkableDictionary<Creature, int>? _cardPlaySeriesStartedThisTurn;
     private ForkableDictionary<Creature, int>? _zeroCostAttackStartsThisTurn;
+    private ForkableDictionary<Creature, int>? _cardPlayStartsThisTurn;
     private ForkableSet<Creature>? _enemiesIntendingAttack;
     private bool _hasPredictedEnemyIntents;
     private ForkableDictionary<Player, int>? _playerTurnNumbers;
@@ -1118,7 +1119,7 @@ internal sealed partial class SimulatedCombatState
         if (HasPendingChoice)
             return false;
         foreach (Creature owner in participants)
-            TriggerBaseSideTurnStart(owner, decrementPlating);
+            TriggerBaseSideTurnStart(simulator, owner, decrementPlating);
         if (!PersistentPowerSupport.TriggerAfterSideTurnStart(
                 simulator,
                 this,
@@ -1137,6 +1138,7 @@ internal sealed partial class SimulatedCombatState
     }
 
     private void TriggerBaseSideTurnStart(
+        CombatPredictionSimulator simulator,
         Creature owner,
         bool decrementPlating)
     {
@@ -1150,6 +1152,7 @@ internal sealed partial class SimulatedCombatState
         (_creatureAttacksThisTurn ??= [])[owner] = 0;
         (_cardPlaySeriesStartedThisTurn ??= [])[owner] = 0;
         (_zeroCostAttackStartsThisTurn ??= [])[owner] = 0;
+        (_cardPlayStartsThisTurn ??= [])[owner] = 0;
         if (owner.Player is { } ownerPlayer)
         {
             (_energySpentThisTurn ??= [])[ownerPlayer] = 0;
@@ -1177,18 +1180,14 @@ internal sealed partial class SimulatedCombatState
             }
         }
 
-        SlowPower? slow = GetPower<SlowPower>(owner);
+        SlowPower? slow = GetMutablePower<SlowPower>(owner);
         if (slow != null)
         {
-            SlowPower reset = PredictionUtils.CloneModelForSimulation(slow);
-            reset._owner = owner;
-            reset._applier = slow.Applier;
-            reset._target = slow.Target;
-            reset._amount = slow.Amount;
-            reset.DynamicVars["SlowAmount"].BaseValue = 0;
-            reset.DynamicVars["DisplayAmount"].BaseValue = 0;
-            (_powers ??= [])[(owner, typeof(SlowPower))] = reset;
-            InvalidateHookListeners();
+            // Native Slow keeps its acquired instance across turns. Reset both the
+            // displayed state and the damage mirror's counter on that branch instance.
+            slow.DynamicVars["SlowAmount"].BaseValue = 0;
+            slow.DynamicVars["DisplayAmount"].BaseValue = 0;
+            simulator.StateStore.Get(slow, () => new CounterPredictionState(0)).Value = 0;
         }
 
     }
@@ -1977,6 +1976,7 @@ internal sealed partial class SimulatedCombatState
             _ = GetCardsPlayedThisTurn(creature);
             _ = GetCardPlaySeriesStartedThisTurn(creature);
             _ = GetZeroCostAttackStartsThisTurn(creature);
+            _ = GetCardPlayStartsThisTurn(creature);
             _ = GetAttacksPlayedThisTurn(creature);
             _ = GetShivsPlayedThisTurn(creature);
             _ = GetBlockCardsPlayedThisTurn(creature);
@@ -2135,6 +2135,7 @@ internal sealed partial class SimulatedCombatState
         AddPlayerIntMap(ref fingerprint, 's', _statusCardsDrawnThisTurn);
         AddCreatureIntMap(ref fingerprint, 'Q', _cardPlaySeriesStartedThisTurn);
         AddCreatureIntMap(ref fingerprint, 'q', _zeroCostAttackStartsThisTurn);
+        AddCreatureIntMap(ref fingerprint, 'J', _cardPlayStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'k', _knowledgeDemonCurseCounters);
         AddCreatureSet(ref fingerprint, 'i', _enemiesIntendingAttack);
         fingerprint.Add(_hasPredictedEnemyIntents);

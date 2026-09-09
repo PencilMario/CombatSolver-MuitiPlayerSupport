@@ -22,7 +22,7 @@ internal sealed partial class SolverDetailsButton : Button
         layout.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         layout.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
         layout.AddChild(SolverUiTokens.CreateLabel(
-            "状态详情",
+            SolverText.Get("状态详情"),
             SolverUiTokens.Type.Body,
             SolverUiTokens.Palette.TextPrimary,
             MegaCrit.Sts2.Core.Localization.Fonts.FontType.Bold));

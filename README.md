@@ -4,7 +4,11 @@ Combat Solver 是一个面向《杀戮尖塔 2》单人模式的战斗路线求�
 
 玩家可以只查看建议，也可以让求解器执行当前回合，或连续接管整场战斗。搜索不会修改游戏 RNG，也不会在后台操作真实战斗状态。
 
-当前版本为 **0.33.6**：限制局外收益评分，增加成长总开关、第三方适配入口及战前规划 API，修复死亡补货的胜利判定。详见 [更新日志](docs/releases/0.33.6-RELEASE_NOTES.md)。
+当前本地版本为 **0.34.4**：修复凡庸与倾泻等自动打牌效果的预测偏差。详见 [更新日志](docs/releases/0.34.4-RELEASE_NOTES.md)。
+
+**English UI:** Set the game language to English and restart the game. CombatSolver provides a recommended route; use **Play turn** for one turn or **Auto: On** for continuous play. Configure potions, growth and search budgets in the overlay. **Settings > Reports > Upload report** submits a bug report. Logs, raw errors and some detailed diagnostics retain their original text. Single-player only.
+
+界面跟随游戏语言：简体/繁体中文使用现有中文文案，其他语言使用英文。简化版不提供独立语言开关；卡牌胶囊、选牌和相关悬停说明支持运行中切换语言，其他既有窗口可通过重启统一刷新。
 
 ## 主要功能
 

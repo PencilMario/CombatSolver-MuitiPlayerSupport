@@ -15,6 +15,7 @@ internal sealed class AppendOnlyEventLog<T> : IDisposable
     private readonly Func<T, byte[]> _serialize;
     private readonly long _maximumPendingBytes;
     private readonly long _maximumFileBytes;
+    private readonly string? _outputPath;
     private long _pendingBytes;
     private long _peakPendingBytes;
     private int _pendingSnapshots;
@@ -23,11 +24,12 @@ internal sealed class AppendOnlyEventLog<T> : IDisposable
     public Task Completion { get; }
 
     public AppendOnlyEventLog(Func<T, byte[]> serialize, long maximumPendingBytes = 8L * 1024 * 1024,
-        long maximumFileBytes = 32L * 1024 * 1024)
+        long maximumFileBytes = 32L * 1024 * 1024, string? outputPath = null)
     {
         _serialize = serialize;
         _maximumPendingBytes = maximumPendingBytes;
         _maximumFileBytes = maximumFileBytes;
+        _outputPath = outputPath;
         Completion = Task.Run(WriteAsync);
     }
 
@@ -74,8 +76,10 @@ internal sealed class AppendOnlyEventLog<T> : IDisposable
         {
             try
             {
-                file = new FileStream(Path.Combine(Path.GetTempPath(), "CombatSolver-events-" + Guid.NewGuid().ToString("N") + ".jsonl"),
-                    FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 65536, FileOptions.DeleteOnClose);
+                if (_outputPath != null) Directory.CreateDirectory(Path.GetDirectoryName(_outputPath)!);
+                file = new FileStream(_outputPath ?? Path.Combine(Path.GetTempPath(), "CombatSolver-events-" + Guid.NewGuid().ToString("N") + ".jsonl"),
+                    FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read | FileShare.Delete, 65536,
+                    _outputPath == null ? FileOptions.DeleteOnClose : FileOptions.None);
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException)
             { SetError("event_file_open_failed:" + error.Message); }

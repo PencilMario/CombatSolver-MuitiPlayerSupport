@@ -33,20 +33,22 @@ internal sealed partial class SolverGrowthStrategyPanel : PanelContainer
         layout.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
         HBoxContainer ignoreRow = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         Label ignoreLabel = SolverUiTokens.CreateLabel(
-            "不考虑局外收益", SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary);
+            SolverText.Get("不考虑局外收益"), SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary);
         ignoreLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         ignoreLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         ignoreRow.AddChild(ignoreLabel);
         _ignoreLongTermRewards = SolverSettingsPanel.CreateToggle();
         _ignoreLongTermRewards.Name = "IgnoreLongTermRewards";
         _ignoreLongTermRewards.TooltipText =
-            "打开后，金币、永久升级这类只在战斗之外兑现的收益一律不参与打分：既不付出任何战损去换，"
-            + "也不再靠它们在搜索里保留路线。白拿的收益照样拿——最终选择里它仍然排在战损之后当平局的分先手。"
-            + "后期没有商店、不需要这些收益时打开它；下面每一项额度在打开期间不生效。";
+            SolverText.Get("打开后，金币、永久升级这类只在战斗之外兑现的收益一律不参与打分：既不付出任何战损去换，")
+            + SolverText.Get("也不再靠它们在搜索里保留路线。白拿的收益照样拿——最终选择里它仍然排在战损之后当平局的分先手。")
+            + SolverText.Get("后期没有商店、不需要这些收益时打开它；下面每一项额度在打开期间不生效。");
         ignoreRow.AddChild(_ignoreLongTermRewards);
         layout.AddChild(ignoreRow);
         layout.AddChild(new HSeparator());
-        layout.AddChild(SolverUiTokens.CreateLabel("每次收益允许的额外战损", SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary));
+        Label allowanceLabel = SolverUiTokens.CreateLabel(SolverText.Get("每次收益允许的额外战损"), SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary);
+        allowanceLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        layout.AddChild(allowanceLabel);
         layout.AddChild(new HSeparator());
         ScrollContainer scroll = new()
         {
@@ -61,10 +63,12 @@ internal sealed partial class SolverGrowthStrategyPanel : PanelContainer
         foreach (GrowthSource source in Enum.GetValues<GrowthSource>())
         {
             CardModel card = SourceCard(source);
-            string title = source == GrowthSource.Goopy ? ModelDb.Enchantment<Goopy>().Title.GetFormattedText() + "防御" : card.Title;
+            string title = source == GrowthSource.Goopy
+                ? ModelDb.Enchantment<Goopy>().Title.GetFormattedText() + (SolverText.IsEnglish ? " " : "") + card.Title
+                : card.Title;
             SpinBox input = AddBudgetRow(rows, title, card.Portrait, 1000);
             input.Name = source.ToString();
-            input.TooltipText = $"{title}：每次实际获得局外收益允许的额外战损（HP）。0 仍优先获取同等战损下的收益；多次成功触发逐次累计。";
+            input.TooltipText = SolverText.Format($"{title}：每次实际获得局外收益允许的额外战损（HP）。0 仍优先获取同等战损下的收益；多次成功触发逐次累计。");
             _budgets.Add(source, input);
             input.ValueChanged += _ => Publish();
         }
@@ -74,7 +78,7 @@ internal sealed partial class SolverGrowthStrategyPanel : PanelContainer
             (string title, Texture2D? portrait) = ResolveThirdPartyRow(entry);
             SpinBox input = AddBudgetRow(rows, title, portrait, 1000);
             input.Name = entry.Id;
-            input.TooltipText = $"{title}：每次实际获得局外收益允许的额外战损（HP）。0 仍优先获取同等战损下的收益；多次成功触发逐次累计。";
+            input.TooltipText = SolverText.Format($"{title}：每次实际获得局外收益允许的额外战损（HP）。0 仍优先获取同等战损下的收益；多次成功触发逐次累计。");
             _extraBudgets.Add((new GrowthSourceHandle(entry.Id), input));
             input.ValueChanged += _ => Publish();
         }

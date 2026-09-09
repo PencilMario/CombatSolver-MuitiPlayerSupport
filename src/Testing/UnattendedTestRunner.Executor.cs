@@ -39,6 +39,52 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId is "NORMALITY-AUTOPLAY" or "NORMALITY-AUTOPLAY-REPLAY")
+            {
+                await runner.AssertNormalityAutoPlayAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "UI-LOCALIZATION")
+            {
+                await runner.AssertUiLocalizationAsync(combatState);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "COMBAT-DIAGNOSTIC-LOG")
+            {
+                await runner.AssertCombatDiagnosticLogAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "REPORT-V2-CONTRACT")
+            {
+                await runner.AssertBugReportUploadBoundariesAsync();
+                string reportId = Guid.NewGuid().ToString("N");
+                string archivePath = await CombatBugReportExporter.ExportCurrentAsync(
+                    playerDescription: "结构化问题包验证", submissionId: reportId);
+                using (ZipArchive archive = ZipFile.OpenRead(archivePath))
+                    AssertBugReportArchive(archive, "current", "solver_only");
+                string metadata = CombatBugReportUploader.ReadMetadata(archivePath, reportId, "结构化问题包验证");
+                using var document = System.Text.Json.JsonDocument.Parse(metadata);
+                var combat = document.RootElement.GetProperty("combat");
+                if (combat.GetProperty("encounterId").GetString() != combatState.Encounter!.Id.Entry
+                    || combat.GetProperty("characterId").GetString() != player.Character.Id.Entry
+                    || combat.GetProperty("monsters").GetArrayLength() == 0
+                    || document.RootElement.GetProperty("hpLoss").ValueKind != System.Text.Json.JsonValueKind.Null)
+                    throw new InvalidDataException("结构化问题包身份或未知战损不正确。");
+                foreach (int after in new[] { 3, 10, 14 })
+                {
+                    using var compared = System.Text.Json.JsonDocument.Parse(CombatBugReportMetadata.Serialize(
+                        reportId, string.Empty, null, new CombatBugReportClassificationSnapshot(0, 0, 0, 0, 0, []),
+                        new ManualProjectionComparison(1, 2, 10, after, "test")));
+                    if (compared.RootElement.GetProperty("hpLoss").GetProperty("reduction").GetInt32() != 10 - after)
+                        throw new InvalidDataException("战损下降值的符号不正确。");
+                }
+                runner._completedChecks.Add($"ReportV2UploadAndArchive:{archivePath}");
+                CombatBugReportUploadReceipt receipt = await CombatBugReportUploader.UploadAsync(
+                    archivePath, "结构化问题包验证", string.Empty, reportId);
+                if (receipt.ReportId != reportId) throw new InvalidDataException("V2 服务端未确认问题包身份。");
+                runner._completedChecks.Add($"ReportV2ProductionTlsUpload:{reportId}");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "SUMMON-DEATH-POWER-ORDER")
             {
                 await runner.AssertSummonDeathPowerOrderAsync(combatState, player);
@@ -153,6 +199,12 @@ internal sealed partial class UnattendedTestRunner
                 runner.SetStage("galvanic_generated_power");
                 await runner.AssertGalvanicGeneratedPowerAsync(combatState, player);
                 runner._completedChecks.Add("GalvanicGeneratedPower");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "SLOW-TURN-RESET-FORK")
+            {
+                await runner.AssertSlowTurnResetForkAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
                 return Observation(combatEnded: false);
             }
             if (request.ScenarioId == "SUMMONED-ALLY-POWER-ORDER")

@@ -500,13 +500,15 @@ internal static class SolverOverlay
         _lastMessageText = text;
         EnsureCreated(host);
         _deployQueued = false;
-        SetStatus("求解器消息", TextMuted);
+        SetStatus(SolverText.Get("求解器消息"), TextMuted);
         SetSearchLimitHint(null);
         SetPerformanceHintVisible(false);
         SetCurrentBossHpStrategyHint();
         SetReviewText(null);
         const string legacyTitle = "[b]战斗路线求解器[/b]\n";
-        SetMessageContent(text.StartsWith(legacyTitle, StringComparison.Ordinal) ? text[legacyTitle.Length..] : text);
+        const string englishTitle = "[b]CombatSolver[/b]\n";
+        SetMessageContent(text.StartsWith(legacyTitle, StringComparison.Ordinal) ? text[legacyTitle.Length..]
+            : text.StartsWith(englishTitle, StringComparison.Ordinal) ? text[englishTitle.Length..] : text);
         ShowLayer();
         RefreshControls();
     }
@@ -517,12 +519,12 @@ internal static class SolverOverlay
         _lastMessageText = null;
         EnsureCreated(host);
         _deployQueued = false;
-        SetStatus("求解器已禁用", TextMuted);
+        SetStatus(SolverText.Get("求解器已禁用"), TextMuted);
         SetSearchLimitHint(null);
         SetPerformanceHintVisible(false);
         SetBossHpStrategyHint(BossHpRelief.None);
         SetReviewText(null);
-        SetMessageContent($"[color={SolverUiTokens.Palette.TextSecondaryHex}]自动搜索和路线执行已暂停。[/color]");
+        SetMessageContent(SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]自动搜索和路线执行已暂停。[/color]"));
         ShowLayer();
         RefreshControls();
     }
@@ -532,7 +534,7 @@ internal static class SolverOverlay
         _lastMessageText = null;
         EnsureCreated(host);
         _deployQueued = false;
-        SetStatus("计算已停止", Danger);
+        SetStatus(SolverText.Get("计算已停止"), Danger);
         SetSearchLimitHint(null);
         SetPerformanceHintVisible(false);
         SetCurrentBossHpStrategyHint();
@@ -540,13 +542,13 @@ internal static class SolverOverlay
         if (_searchBestSnapshot == null && _lastSnapshot == null)
         {
             SetMessageContent(
-                $"[color={SolverUiTokens.Palette.DangerHex}]本回合计算已停止。可手动开始计算；进入下一回合后是否自动计算由设置决定。[/color]");
+                SolverText.Format($"[color={SolverUiTokens.Palette.DangerHex}]本回合计算已停止。可手动开始计算；进入下一回合后是否自动计算由设置决定。[/color]"));
         }
         else if (_summaryText != null)
         {
             _summaryText.Visible = true;
             _summaryText.Text =
-                $"[color={SolverUiTokens.Palette.WarningHex}]计算已停止；下方保留停止时已经得到的当前候选路线。[/color]";
+                SolverText.Format($"[color={SolverUiTokens.Palette.WarningHex}]计算已停止；下方保留停止时已经得到的当前候选路线。[/color]");
         }
         ShowLayer();
         RefreshControls();
@@ -559,13 +561,13 @@ internal static class SolverOverlay
         _lastMessageText = null;
         EnsureCreated(host);
         _deployQueued = false;
-        SetStatus("等待手动计算", TextMuted);
+        SetStatus(SolverText.Get("等待手动计算"), TextMuted);
         SetSearchLimitHint(null);
         SetPerformanceHintVisible(false);
         SetCurrentBossHpStrategyHint();
         SetReviewText(null);
         SetMessageContent(
-            $"[color={SolverUiTokens.Palette.TextSecondaryHex}]自动计算已关闭。点击“{(hasPreviousCalculation ? "重新计算" : "开始计算")}”生成当前回合路线。[/color]");
+            SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]自动计算已关闭。点击“{(hasPreviousCalculation ? SolverText.Get("重新计算") : SolverText.Get("开始计算"))}”生成当前回合路线。[/color]"));
         ShowLayer();
         RefreshControls();
     }
@@ -589,32 +591,34 @@ internal static class SolverOverlay
             PopulateRoute(bestSnapshot, resetScroll: false);
         }
         string routeContext = _searchBestSnapshot is { Turns.Count: > 0 } routeSnapshot
-            ? $"已规划至第 {routeSnapshot.Turns[^1].Turn} 回合"
-            : "等待候选路线";
+            ? SolverText.Format($"已规划至第 {routeSnapshot.Turns[^1].Turn} 回合")
+            : SolverText.Get("等待候选路线");
         bool reclaimingMemory = progress.Phase.EndsWith("正在整理内存", StringComparison.Ordinal);
         bool changingPotionGradient = progress.Phase.StartsWith(
             "切换用药路线",
             StringComparison.Ordinal);
         SetStatus(
             reclaimingMemory
-                ? changingPotionGradient ? "切换用药路线" : "正在整理内存"
-                : "后台计算中",
+                ? changingPotionGradient ? SolverText.Get("切换用药路线") : SolverText.Get("正在整理内存")
+                : SolverText.Get("后台计算中"),
             reclaimingMemory ? Warning : Accent,
-            deployWhenReady ? $"{routeContext}    已排队执行" : routeContext);
+            deployWhenReady ? SolverText.Format($"{routeContext}    已排队执行") : routeContext);
         if (_routeHeadingLabel != null)
-            _routeHeadingLabel.Text = "求解器当前考虑（尚未验证）";
+            _routeHeadingLabel.Text = SolverText.Get("求解器当前考虑（尚未验证）");
         if (_progressText != null)
         {
             _progressText.Visible = true;
-            _progressText.Text = $"已用 {progress.ElapsedMilliseconds / 1000d:F1} s";
+            _progressText.Text = SolverText.Format($"已用 {progress.ElapsedMilliseconds / 1000d:F1} s");
         }
         string potionSearchPhase = progress.Phase.StartsWith("正在搜索", StringComparison.Ordinal)
             || reclaimingMemory
                 ? progress.Phase
                 : string.Empty;
         string reviewedWorldlinesText =
-            $"已查阅 {reviewedWorldlinesBeforeSearch + progress.ReviewedWorldlines:N0} 条世界线";
-        SetReviewText(potionSearchPhase);
+            SolverText.Format($"已查阅 {reviewedWorldlinesBeforeSearch + progress.ReviewedWorldlines:N0} 条世界线");
+        SetReviewText(SolverText.IsEnglish && potionSearchPhase.Length > 0
+            ? reclaimingMemory ? SolverText.Get("正在整理内存") : SolverText.Get("后台计算中")
+            : potionSearchPhase);
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
@@ -658,15 +662,15 @@ internal static class SolverOverlay
         SetCurrentBossHpStrategyHint();
         _deployQueued = deployWhenReady;
         SetStatus(
-            "后台计算中",
+            SolverText.Get("后台计算中"),
             Accent,
-            deployWhenReady ? $"第 {turn} 回合    已排队执行" : $"第 {turn} 回合");
+            deployWhenReady ? SolverText.Format($"第 {turn} 回合    已排队执行") : SolverText.Format($"第 {turn} 回合"));
         if (_routeHeadingLabel != null)
-            _routeHeadingLabel.Text = "求解器当前考虑（尚未验证）";
+            _routeHeadingLabel.Text = SolverText.Get("求解器当前考虑（尚未验证）");
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = $"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在计算当前回合，等待可存活候选…[/color]";
+            _summaryText.Text = SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在计算当前回合，等待可存活候选…[/color]");
         }
         if (_progressText != null)
             _progressText.Visible = false;
@@ -692,8 +696,8 @@ internal static class SolverOverlay
             SetRouteRowVisible(index, index == 0);
             if (index != 0)
                 continue;
-            RouteRows[index].TurnLabel.Text = $"第 {turn} 回合";
-            RouteRows[index].ShowStatus("等待当前回合候选…");
+            RouteRows[index].TurnLabel.Text = SolverText.Format($"第 {turn} 回合");
+            RouteRows[index].ShowStatus(SolverText.Get("等待当前回合候选…"));
             RouteRows[index].SetOutcome(string.Empty, TextMuted);
         }
         if (_routeScroll != null)
@@ -727,8 +731,8 @@ internal static class SolverOverlay
             _ => Accent,
         };
         string routeContext = snapshot.Turns.Count > 0
-            ? $"已规划至第 {snapshot.Turns[^1].Turn} 回合"
-            : $"第 {snapshot.StartTurnNumber} 回合";
+            ? SolverText.Format($"已规划至第 {snapshot.Turns[^1].Turn} 回合")
+            : SolverText.Format($"第 {snapshot.StartTurnNumber} 回合");
         SetStatus(snapshot.StatusText, statusColor, routeContext);
         if (_summaryPanel != null)
             _summaryPanel.Visible = true;
@@ -750,7 +754,7 @@ internal static class SolverOverlay
             _searchProgressBar.Visible = false;
 
         if (_routeHeadingLabel != null)
-            _routeHeadingLabel.Text = "推荐路线";
+            _routeHeadingLabel.Text = SolverText.Get("推荐路线");
         PopulateRoute(snapshot, resetScroll: true);
         if (_detailsButton != null)
             _detailsButton.Visible = hasRouteDetails;
@@ -770,7 +774,7 @@ internal static class SolverOverlay
         if (_potionOutcomeLabel != null)
         {
             _potionOutcomeLabel.Visible = snapshot.ProjectedBattlePotionCount > 0;
-            _potionOutcomeLabel.Text = $"预计用{snapshot.ProjectedBattlePotionCount}瓶药";
+            _potionOutcomeLabel.Text = SolverText.Format($"预计用{snapshot.ProjectedBattlePotionCount}瓶药");
         }
         if (_hpOutcomeLabel != null)
             _hpOutcomeLabel.Visible = true;
@@ -783,10 +787,10 @@ internal static class SolverOverlay
             _hpRecoveredOutcomeLabel.Text =
                 (snapshot.RouteHpRecovered, snapshot.RoutePostCombatRelicHeal) switch
                 {
-                    ( > 0, > 0) => $"路线回血  {snapshot.RouteHpRecovered} HP" +
-                        $"　战后遗物  {snapshot.RoutePostCombatRelicHeal} HP",
-                    ( > 0, _) => $"路线回血  {snapshot.RouteHpRecovered} HP",
-                    (_, > 0) => $"战后遗物回血  {snapshot.RoutePostCombatRelicHeal} HP",
+                    ( > 0, > 0) => SolverText.Format($"路线回血  {snapshot.RouteHpRecovered} HP") +
+                        SolverText.Format($"　战后遗物  {snapshot.RoutePostCombatRelicHeal} HP"),
+                    ( > 0, _) => SolverText.Format($"路线回血  {snapshot.RouteHpRecovered} HP"),
+                    (_, > 0) => SolverText.Format($"战后遗物回血  {snapshot.RoutePostCombatRelicHeal} HP"),
                     _ => string.Empty,
                 };
         }
@@ -798,22 +802,22 @@ internal static class SolverOverlay
             if (index >= snapshot.Turns.Count)
                 continue;
             SolverOverlayTurnSnapshot turn = snapshot.Turns[index];
-            RouteRows[index].TurnLabel.Text = $"第 {turn.Turn} 回合";
+            RouteRows[index].TurnLabel.Text = SolverText.Format($"第 {turn.Turn} 回合");
             RouteRows[index].Populate(turn);
             // Damage alone reads wrong on a turn that also heals: the player wants the number the
             // turn actually leaves them at, not the hits they took on the way there.
             int netHpChange = turn.HpRecovered - turn.HpLoss;
             string outcome = turn.CombatEnded
-                ? "战斗结束"
+                ? SolverText.Get("战斗结束")
                 : netHpChange != 0
                     ? $"{HpChangeText.Signed(netHpChange)} HP"
                     : "0 HP";
             RouteRows[index].SetOutcome(
                 outcome,
                 turn.CombatEnded ? Success : netHpChange < 0 ? Danger : netHpChange > 0 ? Success : TextMuted,
-                energyText: $"余 {turn.EnergyLeft} 费",
+                energyText: SolverText.Format($"余 {turn.EnergyLeft} 费"),
                 enemyDamageText: turn.EnemyHpDamageLost is { } damage
-                    ? $"对敌伤害 {damage}"
+                    ? SolverText.Format($"对敌伤害 {damage}")
                     : string.Empty);
         }
         if (resetScroll && _routeScroll != null)
@@ -841,15 +845,15 @@ internal static class SolverOverlay
         _lastDeploymentEndedTurn = false;
         EnsureCreated(host);
         _deployQueued = false;
-        SetStatus("正在执行", Warning, $"第 {turn} 回合");
+        SetStatus(SolverText.Get("正在执行"), Warning, SolverText.Format($"第 {turn} 回合"));
         if (_routeHeadingLabel != null)
-            _routeHeadingLabel.Text = "正在执行的路线";
+            _routeHeadingLabel.Text = SolverText.Get("正在执行的路线");
         if (_summaryPanel != null)
             _summaryPanel.Visible = true;
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = $"[color={SolverUiTokens.Palette.TextSecondaryHex}]按推荐顺序执行 [b]{actionCount}[/b] 张牌，完成后结束本回合。[/color]";
+            _summaryText.Text = SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]按推荐顺序执行 [b]{actionCount}[/b] 张牌，完成后结束本回合。[/color]");
         }
         if (_progressText != null)
             _progressText.Visible = false;
@@ -879,7 +883,7 @@ internal static class SolverOverlay
         if (_summaryText != null && completedActions < actionCount && currentCardTitle != null)
         {
             _summaryText.Text =
-                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在执行 [b]{completedActions + 1}/{actionCount}[/b]：[/color][color={SolverUiTokens.Palette.WarningHex}] {currentCardTitle}[/color]";
+                SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在执行 [b]{completedActions + 1}/{actionCount}[/b]：[/color][color={SolverUiTokens.Palette.WarningHex}] {currentCardTitle}[/color]");
         }
         Entry.Logger.Info(
             $"[CombatSolver/Test] UI_DEPLOYMENT_STEP completed={completedActions} " +
@@ -894,8 +898,8 @@ internal static class SolverOverlay
         if (_summaryText != null)
         {
             _summaryText.Text =
-                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在执行：[/color]" +
-                $"[color={SolverUiTokens.Palette.WarningHex}] 结束回合[/color]";
+                SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]正在执行：[/color]") +
+                SolverText.Format($"[color={SolverUiTokens.Palette.WarningHex}] 结束回合[/color]");
         }
         Entry.Logger.Info("[CombatSolver/Test] UI_DEPLOYMENT_END_TURN state=active");
     }
@@ -911,17 +915,17 @@ internal static class SolverOverlay
         ShowDeploymentStep(actionCount, actionCount, null);
         RouteRows[0].SetEndTurnDeploymentState(active: false, completed: endedTurn);
         _deployQueued = false;
-        SetStatus("执行完成", Accent, $"第 {turn} 回合");
+        SetStatus(SolverText.Get("执行完成"), Accent, SolverText.Format($"第 {turn} 回合"));
         if (_routeHeadingLabel != null)
-            _routeHeadingLabel.Text = "已执行路线（后续回合待校验）";
+            _routeHeadingLabel.Text = SolverText.Get("已执行路线（后续回合待校验）");
         if (_summaryPanel != null)
             _summaryPanel.Visible = true;
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
             _summaryText.Text = endedTurn
-                ? $"已按推荐路线打出 [b]{actionCount}[/b] 张牌，并提交结束回合动作。"
-                : $"已打出 [b]{actionCount}[/b] 张牌；战斗或当前回合已在执行期间结束。";
+                ? SolverText.Format($"已按推荐路线打出 [b]{actionCount}[/b] 张牌，并提交结束回合动作。")
+                : SolverText.Format($"已打出 [b]{actionCount}[/b] 张牌；战斗或当前回合已在执行期间结束。");
         }
         if (_progressText != null)
             _progressText.Visible = false;
@@ -936,19 +940,19 @@ internal static class SolverOverlay
         _waitingForNextTurnPlan = true;
         if (_lastSnapshot == null)
         {
-            Show(host, "[b]战斗路线求解器[/b]\n等待下一回合方案。");
+            Show(host, SolverText.Get("[b]战斗路线求解器[/b]\n等待下一回合方案。"));
             return;
         }
 
         EnsureCreated(host);
-        SetStatus("等待下一回合方案", TextMuted, $"第 {_lastDeploymentTurn} 回合已执行");
+        SetStatus(SolverText.Get("等待下一回合方案"), TextMuted, SolverText.Format($"第 {_lastDeploymentTurn} 回合已执行"));
         if (_routeHeadingLabel != null)
-            _routeHeadingLabel.Text = "已执行路线（后续回合待校验）";
+            _routeHeadingLabel.Text = SolverText.Get("已执行路线（后续回合待校验）");
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
             _summaryText.Text =
-                $"[color={SolverUiTokens.Palette.TextSecondaryHex}]当前路线已经执行；等待下一回合方案就绪。[/color]";
+                SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]当前路线已经执行；等待下一回合方案就绪。[/color]");
         }
         ShowLayer();
         RefreshControls();
@@ -956,21 +960,21 @@ internal static class SolverOverlay
 
     public static void ShowFullAutoStoppedAtCombatEnd(int turn)
     {
-        SetStatus("方案就绪", Success, $"第 {turn} 回合    全自动已暂停");
+        SetStatus(SolverText.Get("方案就绪"), Success, SolverText.Format($"第 {turn} 回合    全自动已暂停"));
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = $"[color={SolverUiTokens.Palette.SuccessHex}]当前方案预计结束战斗，操作权已交还。[/color]";
+            _summaryText.Text = SolverText.Format($"[color={SolverUiTokens.Palette.SuccessHex}]当前方案预计结束战斗，操作权已交还。[/color]");
         }
     }
 
     public static void ShowFullAutoStoppedAtDeathTurn(int turn)
     {
-        SetStatus("已暂停执行", Danger, $"第 {turn} 回合    预计死亡");
+        SetStatus(SolverText.Get("已暂停执行"), Danger, SolverText.Format($"第 {turn} 回合    预计死亡"));
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
-            _summaryText.Text = $"[color={SolverUiTokens.Palette.DangerHex}]当前方案预计本回合死亡，操作权已交还。[/color]";
+            _summaryText.Text = SolverText.Format($"[color={SolverUiTokens.Palette.DangerHex}]当前方案预计本回合死亡，操作权已交还。[/color]");
         }
     }
 
@@ -979,13 +983,13 @@ internal static class SolverOverlay
         int? previousProjectedBattleHpLost,
         int projectedBattleHpLost)
     {
-        SetStatus("已暂停执行", Danger, $"第 {turn} 回合    重算后战损上升");
+        SetStatus(SolverText.Get("已暂停执行"), Danger, SolverText.Format($"第 {turn} 回合    重算后战损上升"));
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
             _summaryText.Text =
-                $"[color={SolverUiTokens.Palette.DangerHex}]完整路线原预计 {previousProjectedBattleHpLost} HP，" +
-                $"重算后为 {projectedBattleHpLost} HP；全自动已暂停。[/color]\n" +
+                SolverText.Format($"[color={SolverUiTokens.Palette.DangerHex}]完整路线原预计 {previousProjectedBattleHpLost} HP，") +
+                SolverText.Format($"重算后为 {projectedBattleHpLost} HP；全自动已暂停。[/color]\n") +
                 SolverUiTokens.BugReportUploadInstructionRichText;
         }
     }
@@ -997,17 +1001,17 @@ internal static class SolverOverlay
         bool playerDead)
     {
         SetStatus(
-            "已暂停执行",
+            SolverText.Get("已暂停执行"),
             Danger,
             playerDead
-                ? $"第 {turn} 回合    实机复核将死亡"
-                : $"第 {turn} 回合    实机复核战损上升");
+                ? SolverText.Format($"第 {turn} 回合    实机复核将死亡")
+                : SolverText.Format($"第 {turn} 回合    实机复核战损上升"));
         if (_summaryText != null)
         {
             _summaryText.Visible = true;
             _summaryText.Text =
-                $"[color={SolverUiTokens.Palette.DangerHex}]路线预计掉血 {plannedHpLoss} HP，" +
-                $"结束回合前实机复核为 {liveHpLoss} HP；全自动未提交结束回合。[/color]\n" +
+                SolverText.Format($"[color={SolverUiTokens.Palette.DangerHex}]路线预计掉血 {plannedHpLoss} HP，") +
+                SolverText.Format($"结束回合前实机复核为 {liveHpLoss} HP；全自动未提交结束回合。[/color]\n") +
                 SolverUiTokens.BugReportUploadInstructionRichText;
         }
     }
@@ -1028,13 +1032,13 @@ internal static class SolverOverlay
         bool canExecuteCurrentTurn = SolverController.CanExecuteCurrentTurn;
         _recalculateButton.Text = !SolverController.AutomaticCalculationEnabled
             && !SolverController.HasCalculatedThisCombat
-                ? "开始计算"
-                : "重新计算";
+                ? SolverText.Get("开始计算")
+                : SolverText.Get("重新计算");
         _recalculateButton.Disabled = solverDisabled || searching
             || SolverController.IsDeploying || adoptingRoute;
         _stopSearchButton.Disabled = solverDisabled || !searching || SolverController.IsStoppingSearch;
         _adoptRouteButton.Disabled = solverDisabled || !canAdoptRoute || adoptingRoute;
-        _adoptRouteButton.Text = adoptingRoute ? "正在采用…" : "采用当前路线";
+        _adoptRouteButton.Text = adoptingRoute ? SolverText.Get("正在采用…") : SolverText.Get("采用当前路线");
         SolverButtonStyle adoptRouteStyle = canAdoptRoute && !adoptingRoute
             ? SolverButtonStyle.Positive
             : SolverButtonStyle.Secondary;
@@ -1050,18 +1054,18 @@ internal static class SolverOverlay
             || searching && !canApplyCurrentTurn
             || !searching && !canExecuteCurrentTurn;
         if (SolverController.IsDeploying)
-            _executeButton.Text = "执行中…";
+            _executeButton.Text = SolverText.Get("执行中…");
         else if (SolverController.IsApplyingCurrentTurn)
-            _executeButton.Text = "正在应用…";
+            _executeButton.Text = SolverText.Get("正在应用…");
         else if (searching)
-            _executeButton.Text = "应用当前回合";
+            _executeButton.Text = SolverText.Get("应用当前回合");
         else if (_deployQueued)
-            _executeButton.Text = "已排队执行";
+            _executeButton.Text = SolverText.Get("已排队执行");
         else if (_presentation == SolverOverlayPresentation.ExecutedHistory
                  && !canExecuteCurrentTurn)
-            _executeButton.Text = "等待下一回合";
+            _executeButton.Text = SolverText.Get("等待下一回合");
         else
-            _executeButton.Text = "执行本回合";
+            _executeButton.Text = SolverText.Get("执行本回合");
         SolverButtonStyle executeStyle = canApplyCurrentTurn
             ? SolverButtonStyle.Positive
             : SolverButtonStyle.Primary;
@@ -1071,7 +1075,7 @@ internal static class SolverOverlay
             _renderedExecuteButtonStyle = executeStyle;
         }
 
-        _fullAutoButton.Text = SolverController.FullAutoEnabled ? "全自动：开" : "全自动：关";
+        _fullAutoButton.Text = SolverController.FullAutoEnabled ? SolverText.Get("全自动：开") : SolverText.Get("全自动：关");
         _fullAutoButton.Disabled = solverDisabled || adoptingRoute;
         if (_renderedFullAutoStyle != SolverController.FullAutoEnabled)
         {
@@ -1245,7 +1249,7 @@ internal static class SolverOverlay
         }
         else
         {
-            Show(host, _lastMessageText ?? "界面主题已应用。");
+            Show(host, _lastMessageText ?? SolverText.Get("界面主题已应用。"));
         }
 
         _settingsVisible = wasSettingsVisible;
@@ -1368,32 +1372,32 @@ internal static class SolverOverlay
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
         _routeHeadingLabel = CreateTextLabel(
-            "推荐路线",
+            SolverText.Get("推荐路线"),
             SolverUiTokens.Type.Body,
             TextPrimary,
             FontType.Bold);
         _routeHeadingLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _routeHeadingRow.AddChild(_routeHeadingLabel);
         _deathOutcomeLabel = CreateTextLabel(
-            "未找到生还路线",
+            SolverText.Get("未找到生还路线"),
             SolverUiTokens.Type.Body,
             Danger,
             FontType.Bold);
         _deathOutcomeLabel.Visible = false;
         _deathOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         _routeHeadingRow.AddChild(_deathOutcomeLabel);
-        _potionOutcomeLabel = CreateTextLabel("预计用1瓶药", SolverUiTokens.Type.Body, Warning, FontType.Bold);
+        _potionOutcomeLabel = CreateTextLabel(SolverText.Get("预计用1瓶药"), SolverUiTokens.Type.Body, Warning, FontType.Bold);
         _potionOutcomeLabel.Visible = false;
         _potionOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _potionOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         _routeHeadingRow.AddChild(_potionOutcomeLabel);
-        _hpOutcomeLabel = CreateTextLabel("本局扣血  0 HP", SolverUiTokens.Type.Body, Success, FontType.Bold);
+        _hpOutcomeLabel = CreateTextLabel(SolverText.Get("本局扣血  0 HP"), SolverUiTokens.Type.Body, Success, FontType.Bold);
         _hpOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _hpOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         _routeHeadingRow.AddChild(_hpOutcomeLabel);
         // Healing keeps its own label so it stays green while the loss label turns red.
         _hpRecoveredOutcomeLabel = CreateTextLabel(
-            "路线回血  0 HP",
+            SolverText.Get("路线回血  0 HP"),
             SolverUiTokens.Type.Body,
             Success,
             FontType.Bold);
@@ -1527,7 +1531,7 @@ internal static class SolverOverlay
         }
         header.AddChild(marker);
 
-        Label title = CreateTextLabel("战斗路线求解器", SolverUiTokens.Type.Title, TextPrimary, FontType.Bold);
+        Label title = CreateTextLabel(SolverText.Get("战斗路线求解器"), SolverUiTokens.Type.Title, TextPrimary, FontType.Bold);
         title.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         header.AddChild(title);
 
@@ -1538,14 +1542,14 @@ internal static class SolverOverlay
         };
         header.AddChild(spacer);
 
-        _potionStrategyButton = CreateHeaderButton("药水策略", 76);
+        _potionStrategyButton = CreateHeaderButton(SolverText.Get("药水策略"), 76);
         _potionStrategyButton.Pressed += TogglePotionStrategy;
         header.AddChild(_potionStrategyButton);
-        _growthStrategyButton = CreateHeaderButton("成长策略", 76);
+        _growthStrategyButton = CreateHeaderButton(SolverText.Get("成长策略"), 76);
         _growthStrategyButton.Pressed += ToggleGrowthStrategy;
         header.AddChild(_growthStrategyButton);
 
-        _settingsButton = CreateHeaderButton("设置", 54);
+        _settingsButton = CreateHeaderButton(SolverText.Get("设置"), 54);
         _settingsButton.Pressed += ToggleSettings;
         if (SolverUiTokens.IsLightTheme)
         {
@@ -1555,7 +1559,7 @@ internal static class SolverOverlay
         }
         header.AddChild(_settingsButton);
 
-        _collapseButton = CreateHeaderButton("−  收起", 54);
+        _collapseButton = CreateHeaderButton(SolverText.Get("−  收起"), 54);
         _collapseButton.Pressed += ToggleCollapsed;
         if (SolverUiTokens.IsLightTheme)
         {
@@ -1622,7 +1626,7 @@ internal static class SolverOverlay
     private static Control CreatePerformanceHint()
     {
         _performanceHintButton = SolverUiTokens.CreateButton(
-            "本场战斗出现战损，若对结果不满意可以前往 设置 > 性能，将性能预设调为高或极高后重试。点击本消息之后不再提示",
+            SolverText.Get("本场战斗出现战损，若对结果不满意可以前往 设置 > 性能，将性能预设调为高或极高后重试。点击本消息之后不再提示"),
             SolverButtonStyle.Secondary);
         _performanceHintButton.Name = "PerformanceHint";
         _performanceHintButton.Visible = false;
@@ -1719,7 +1723,7 @@ internal static class SolverOverlay
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin,
         };
         _summaryStateLabel = CreateTextLabel(
-            "等待战斗状态",
+            SolverText.Get("等待战斗状态"),
             SolverUiTokens.Type.Metric,
             TextMuted,
             FontType.Bold);
@@ -1820,39 +1824,39 @@ internal static class SolverOverlay
             MouseFilter = Control.MouseFilterEnum.Pass,
         };
         _theftPolicyControls.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
-        _preserveResourcesButton = CreateButton("保牌/保钱", false);
+        _preserveResourcesButton = CreateButton(SolverText.Get("保牌/保钱"), false);
         _preserveResourcesButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
         _preserveResourcesButton.Pressed += () => OnTheftPolicyPressed(SolverTheftPolicy.PreserveResources);
         _theftPolicyControls.AddChild(_preserveResourcesButton);
-        _letEscapeButton = CreateButton("放走", false);
+        _letEscapeButton = CreateButton(SolverText.Get("放走"), false);
         _letEscapeButton.CustomMinimumSize = new Vector2(72, SolverUiTokens.Size.ButtonHeight);
         _letEscapeButton.Pressed += () => OnTheftPolicyPressed(SolverTheftPolicy.LetEscape);
         _theftPolicyControls.AddChild(_letEscapeButton);
         footer.AddChild(_theftPolicyControls);
 
-        _recalculateButton = CreateButton("重新计算", false);
+        _recalculateButton = CreateButton(SolverText.Get("重新计算"), false);
         _recalculateButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
         _recalculateButton.Pressed += OnRecalculatePressed;
         footer.AddChild(_recalculateButton);
 
-        _stopSearchButton = CreateButton("停止计算", false);
+        _stopSearchButton = CreateButton(SolverText.Get("停止计算"), false);
         SolverUiTokens.ApplyButtonStyle(_stopSearchButton, SolverButtonStyle.Danger);
         _stopSearchButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
         _stopSearchButton.Pressed += OnStopSearchPressed;
         footer.AddChild(_stopSearchButton);
 
-        _adoptRouteButton = CreateButton("采用当前路线", false);
+        _adoptRouteButton = CreateButton(SolverText.Get("采用当前路线"), false);
         _adoptRouteButton.CustomMinimumSize = new Vector2(132, SolverUiTokens.Size.ButtonHeight);
         _adoptRouteButton.Pressed += OnAdoptRoutePressed;
         footer.AddChild(_adoptRouteButton);
 
-        _executeButton = CreateButton("执行本回合", true);
+        _executeButton = CreateButton(SolverText.Get("执行本回合"), true);
         _renderedExecuteButtonStyle = SolverButtonStyle.Primary;
         _executeButton.CustomMinimumSize = new Vector2(132, SolverUiTokens.Size.ButtonHeight);
         _executeButton.Pressed += OnExecutePressed;
         footer.AddChild(_executeButton);
 
-        _fullAutoButton = CreateButton("全自动：关", false);
+        _fullAutoButton = CreateButton(SolverText.Get("全自动：关"), false);
         SolverUiTokens.ApplyButtonStyle(_fullAutoButton, SolverButtonStyle.Secondary);
         _renderedFullAutoStyle = false;
         _fullAutoButton.CustomMinimumSize = new Vector2(124, SolverUiTokens.Size.ButtonHeight);
@@ -1865,15 +1869,15 @@ internal static class SolverOverlay
         };
         footer.AddChild(_memoryUsageBar);
 
-        _systemMemoryReleaseButton = CreateButton("强制释放内存", false);
+        _systemMemoryReleaseButton = CreateButton(SolverText.Get("强制释放内存"), false);
         SolverUiTokens.ApplyButtonStyle(_systemMemoryReleaseButton, SolverButtonStyle.Secondary);
         _systemMemoryReleaseButton.Name = "SystemMemoryReleaseButton";
         _systemMemoryReleaseButton.CustomMinimumSize = new Vector2(
             144,
             SolverUiTokens.Size.ButtonHeight);
         _systemMemoryReleaseButton.TooltipText =
-            "等待搜索退出并回收求解器内存后，请求 Windows 管理员权限，" +
-            "清空系统工作集与待机列表。其他程序之后重新载入页面时可能短暂卡顿。";
+            SolverText.Get("等待搜索退出并回收求解器内存后，请求 Windows 管理员权限，") +
+            SolverText.Get("清空系统工作集与待机列表。其他程序之后重新载入页面时可能短暂卡顿。");
         _systemMemoryReleaseButton.Pressed += OnSystemMemoryReleasePressed;
         footer.AddChild(_systemMemoryReleaseButton);
 
@@ -1887,21 +1891,21 @@ internal static class SolverOverlay
 
         button.Disabled = true;
         Entry.Logger.Info("[CombatSolver/Test] UI_ACTION action=manual_system_memory_release");
-        SetStatus("系统内存释放已安排，搜索退出后将请求管理员权限", Success);
+        SetStatus(SolverText.Get("系统内存释放已安排，搜索退出后将请求管理员权限"), Success);
         try
         {
             await SystemMemoryReleaseService.ReleaseAsync();
-            SetStatus("系统内存释放完成", Success);
+            SetStatus(SolverText.Get("系统内存释放完成"), Success);
         }
         catch (OperationCanceledException)
         {
-            SetStatus("已取消管理员授权", TextMuted);
+            SetStatus(SolverText.Get("已取消管理员授权"), TextMuted);
         }
         catch (Exception ex)
         {
             Entry.Logger.Error(
                 $"[CombatSolver/Test] SYSTEM_MEMORY_RELEASE_FAILED exception={ex}");
-            SetStatus("系统内存释放失败，详情已写入日志", Danger);
+            SetStatus(SolverText.Get("系统内存释放失败，详情已写入日志"), Danger);
         }
         finally
         {
@@ -2001,20 +2005,20 @@ internal static class SolverOverlay
         Color tone;
         if (SolverController.ManualRouteImprovementDetected)
         {
-            text = "你打出了比求解器更好的世界线。" +
+            text = SolverText.Get("你打出了比求解器更好的世界线。") +
                    SolverUiTokens.BugReportUploadInstruction +
-                   "这可以更好地推动算法进步！";
+                   SolverText.Get("这可以更好地推动算法进步！");
             tone = Success;
         }
         else if (SolverController.UnexpectedReplanCount > 0)
         {
-            text = "出现计划外重算，可能是模拟或算法问题。" +
+            text = SolverText.Get("出现计划外重算，可能是模拟或算法问题。") +
                    SolverUiTokens.BugReportUploadInstruction;
             tone = Danger;
         }
         else if (SolverController.BugReportUploadRecommended)
         {
-            text = "求解器记录到需要反馈的异常。" +
+            text = SolverText.Get("求解器记录到需要反馈的异常。") +
                    SolverUiTokens.BugReportUploadInstruction;
             tone = Danger;
         }
@@ -2180,14 +2184,14 @@ internal static class SolverOverlay
         {
             BossHpRelief.ActClearHeal when settings.ActTransitionBossHpStrategy
                 == BossHpStrategy.MinimizeHpLoss
-                => "本场为第一、二幕的幕末 Boss 战。当前选择最低战损，不折算战后回复；可在 设置 > 常规 > 幕末 Boss 中切换，重新计算后生效。点击本消息后不再提示",
+                => SolverText.Get("本场为第一、二幕的幕末 Boss 战。当前选择最低战损，不折算战后回复；可在 设置 > 常规 > 幕末 Boss 中切换，重新计算后生效。点击本消息后不再提示"),
             BossHpRelief.ActClearHeal
-                => "本场为第一、二幕的幕末 Boss 战。当前选择通关优先，按战后回复 80% 折算血量并优先保留药水；可在 设置 > 常规 > 幕末 Boss 中切换，重新计算后生效。点击本消息后不再提示",
+                => SolverText.Get("本场为第一、二幕的幕末 Boss 战。当前选择通关优先，按战后回复 80% 折算血量并优先保留药水；可在 设置 > 常规 > 幕末 Boss 中切换，重新计算后生效。点击本消息后不再提示"),
             BossHpRelief.RunEnding when settings.FinalBossHpStrategy
                 == BossHpStrategy.MinimizeHpLoss
-                => "本场为最终 Boss 战。当前选择最低战损，会继续比较路线剩余血量；可在 设置 > 常规 > 幕末 Boss 中切换，重新计算后生效。点击本消息后不再提示",
+                => SolverText.Get("本场为最终 Boss 战。当前选择最低战损，会继续比较路线剩余血量；可在 设置 > 常规 > 幕末 Boss 中切换，重新计算后生效。点击本消息后不再提示"),
             BossHpRelief.RunEnding
-                => "本场为最终 Boss 战。当前选择通关优先，路线存活后优先保留资源；可在 设置 > 常规 > 幕末 Boss 中切换，重新计算后生效。点击本消息后不再提示",
+                => SolverText.Get("本场为最终 Boss 战。当前选择通关优先，路线存活后优先保留资源；可在 设置 > 常规 > 幕末 Boss 中切换，重新计算后生效。点击本消息后不再提示"),
             _ => string.Empty,
         };
         bool changed = _bossHpStrategyHintButton.Visible != visible
@@ -2279,7 +2283,7 @@ internal static class SolverOverlay
     {
         _collapsed = collapsed;
         if (_collapseButton != null)
-            _collapseButton.Text = collapsed ? "+  展开" : "−  收起";
+            _collapseButton.Text = collapsed ? SolverText.Get("+  展开") : SolverText.Get("−  收起");
         ApplyContentVisibility();
         ApplyResponsiveLayout();
     }
@@ -2307,7 +2311,7 @@ internal static class SolverOverlay
         RefreshBossHpStrategyHint();
         if (_settingsButton != null)
         {
-            _settingsButton.Text = _settingsVisible ? "返回" : "设置";
+            _settingsButton.Text = _settingsVisible ? SolverText.Get("返回") : SolverText.Get("设置");
             _settingsButton.AddThemeColorOverride(
                 "font_color",
                 _settingsVisible || SolverUiTokens.IsLightTheme
@@ -2601,7 +2605,7 @@ internal static class SolverOverlay
         if (host == null || state == null || !CombatManager.Instance.IsInProgress)
         {
             if (host != null)
-                Show(host, "当前没有进行中的战斗。");
+                Show(host, SolverText.Get("当前没有进行中的战斗。"));
             return;
         }
         SolverController.RequestSearch(host, state, SearchReason.Manual);
@@ -2636,7 +2640,7 @@ internal static class SolverOverlay
         if (host == null || state == null || !CombatManager.Instance.IsInProgress)
         {
             if (host != null)
-                Show(host, "当前没有进行中的战斗。");
+                Show(host, SolverText.Get("当前没有进行中的战斗。"));
             return;
         }
         SolverController.RequestDeploy(host, state);
@@ -2651,7 +2655,7 @@ internal static class SolverOverlay
         if (host == null || state == null || !CombatManager.Instance.IsInProgress)
         {
             if (host != null)
-                Show(host, "当前没有进行中的战斗。");
+                Show(host, SolverText.Get("当前没有进行中的战斗。"));
             return;
         }
         SolverController.SetFullAuto(host, state, !SolverController.FullAutoEnabled);

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.IO.Compression;
 using Godot;
 using NetHttpClient = System.Net.Http.HttpClient;
 
@@ -15,11 +16,19 @@ internal sealed partial class UnattendedTestRunner
         string directory = ProjectSettings.GlobalizePath("user://combat-solver-test-upload");
         Directory.CreateDirectory(directory);
         string path = Path.Combine(directory, $"upload-{_request.RunId}.zip");
-        const int archiveBytes = 200 * 1024;
-        File.WriteAllBytes(path, new byte[archiveBytes]);
+        string submissionId = Guid.NewGuid().ToString("N");
+        const string description = "玩家描述";
+        using (ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create))
+        {
+            using (Stream data = archive.CreateEntry("diagnostics/test.bin", CompressionLevel.NoCompression).Open())
+                data.Write(new byte[200 * 1024]);
+            using StreamWriter metadata = new(archive.CreateEntry("report.json").Open());
+            metadata.Write(CombatBugReportMetadata.Serialize(submissionId, description, null,
+                new CombatBugReportClassificationSnapshot(0, 0, 0, 0, 0, []), null));
+        }
+        int archiveBytes = checked((int)new FileInfo(path).Length);
         try
         {
-            string submissionId = Guid.NewGuid().ToString("N");
             List<CombatBugReportUploadProgress> progress = [];
             using FakeUploadHandler successHandler = new(
                 HttpStatusCode.Created,
@@ -28,7 +37,7 @@ internal sealed partial class UnattendedTestRunner
             CombatBugReportUploadReceipt receipt = await CombatBugReportUploader.UploadForTestingAsync(
                 successClient,
                 path,
-                "玩家描述\n\n【CombatSolver 提交编号】" + submissionId,
+                description,
                 "123456",
                 submissionId,
                 new DirectTestProgress<CombatBugReportUploadProgress>(progress.Add));
@@ -41,6 +50,8 @@ internal sealed partial class UnattendedTestRunner
                 || !successHandler.SawMultipartReport
                 || !successHandler.SawDescription
                 || !successHandler.SawContact
+                || !successHandler.SawMetadata
+                || !successHandler.SawSubmissionId
                 || !successHandler.SawUploadToken)
             {
                 throw new InvalidOperationException(
@@ -66,7 +77,7 @@ internal sealed partial class UnattendedTestRunner
                 await CombatBugReportUploader.UploadForTestingAsync(
                     numericIdClient,
                     path,
-                    "测试\n\n【CombatSolver 提交编号】" + submissionId,
+                    description,
                     string.Empty,
                     submissionId);
                 throw new InvalidOperationException("无效服务端编号被误报为上传成功。");
@@ -82,7 +93,7 @@ internal sealed partial class UnattendedTestRunner
                 await CombatBugReportUploader.UploadForTestingAsync(
                     arrayResponseClient,
                     path,
-                    "测试\n\n【CombatSolver 提交编号】" + submissionId,
+                    description,
                     string.Empty,
                     submissionId);
                 throw new InvalidOperationException("非对象服务端响应被误报为上传成功。");
@@ -100,7 +111,7 @@ internal sealed partial class UnattendedTestRunner
                 await CombatBugReportUploader.UploadForTestingAsync(
                     wrongSizeClient,
                     path,
-                    "测试\n\n【CombatSolver 提交编号】" + submissionId,
+                    description,
                     string.Empty,
                     submissionId);
                 throw new InvalidOperationException("服务端文件大小不一致仍被误报为上传成功。");
@@ -119,7 +130,7 @@ internal sealed partial class UnattendedTestRunner
                 await CombatBugReportUploader.UploadForTestingAsync(
                     failureClient,
                     path,
-                    "测试\n\n【CombatSolver 提交编号】" + submissionId,
+                    description,
                     string.Empty,
                     submissionId);
                 throw new InvalidOperationException("服务端错误响应没有终止上传。");
@@ -159,7 +170,7 @@ internal sealed partial class UnattendedTestRunner
                 CombatBugReportUploader.UploadForTestingAsync(
                     bodyCancellationClient,
                     path,
-                    "取消文件传输",
+                    description,
                     string.Empty,
                     submissionId,
                     new DirectTestProgress<CombatBugReportUploadProgress>(value =>
@@ -181,7 +192,7 @@ internal sealed partial class UnattendedTestRunner
                 CombatBugReportUploader.UploadForTestingAsync(
                     confirmationClient,
                     path,
-                    "等待服务端确认",
+                    description,
                     string.Empty,
                     submissionId,
                     new DirectTestProgress<CombatBugReportUploadProgress>(confirmationProgress.Add),
@@ -232,6 +243,8 @@ internal sealed partial class UnattendedTestRunner
         public bool SawDescription { get; private set; }
         public bool SawContact { get; private set; }
         public bool SawUploadToken { get; private set; }
+        public bool SawMetadata { get; private set; }
+        public bool SawSubmissionId { get; private set; }
 
         protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -249,6 +262,8 @@ internal sealed partial class UnattendedTestRunner
                 SawMultipartReport = names.Contains("report", StringComparer.Ordinal);
                 SawDescription = names.Contains("description", StringComparer.Ordinal);
                 SawContact = names.Contains("contact", StringComparer.Ordinal);
+                SawMetadata = names.Contains("metadata", StringComparer.Ordinal);
+                SawSubmissionId = names.Contains("submissionId", StringComparer.Ordinal);
             }
             using MemoryStream serialized = new();
             if (request.Content != null)

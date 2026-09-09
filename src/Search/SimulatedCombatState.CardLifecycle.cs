@@ -181,6 +181,7 @@ internal sealed partial class SimulatedCombatState
     void ICombatPredictionCardExecutionSink.RecordCardPlayStarted(PredictedCard card, CardPlay cardPlay)
     {
         Creature owner = card.Preview.Owner.Creature;
+        (_cardPlayStartsThisTurn ??= [])[owner] = GetCardPlayStartsThisTurn(owner) + 1;
         if (card.Preview.Type == CardType.Attack && cardPlay.Resources.EnergyValue == 0)
         {
             (_zeroCostAttackStartsThisTurn ??= [])[owner] =
@@ -365,8 +366,7 @@ internal sealed partial class SimulatedCombatState
         {
             return true;
         }
-        return player.Hand.Cards.Any(candidate => candidate.Preview is Normality)
-            && GetCardsPlayedThisTurn(card.Preview.Owner.Creature) >= 3;
+        return false;
     }
 
     public bool PrepareBeforeHandDraw(
@@ -532,6 +532,16 @@ internal sealed partial class SimulatedCombatState
             && entry.CardPlay.IsFirstInSeries
             && entry.CardPlay.Player.Creature == owner);
         (_cardsPlayedThisTurn ??= [])[owner] = value;
+        return value;
+    }
+
+    public int GetCardPlayStartsThisTurn(Creature owner)
+    {
+        if (_cardPlayStartsThisTurn?.TryGetValue(owner, out int value) == true)
+            return value;
+        value = _rootHistory.CardPlaysStarted.Count(entry =>
+            entry.HappenedThisTurn(this) && entry.CardPlay.Player.Creature == owner);
+        (_cardPlayStartsThisTurn ??= [])[owner] = value;
         return value;
     }
 

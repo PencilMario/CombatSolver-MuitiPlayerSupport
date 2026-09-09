@@ -7,6 +7,8 @@ internal static class SolverActionPill
 {
     public static Control Create(SolverOverlayActionSnapshot action)
     {
+        action = SolverActionTextIdentity.Refresh(action);
+        List<Action<SolverOverlayActionSnapshot>> refreshers = [];
         bool killed = action.Kills.Count > 0;
         (Color border, Color background) = ActionColors(action.VisualKind);
         if (killed)
@@ -43,18 +45,22 @@ internal static class SolverActionPill
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
             MouseFilter = Control.MouseFilterEnum.Ignore,
         });
-        content.AddChild(SolverUiTokens.CreateLabel(
+        Label titleLabel = SolverUiTokens.CreateLabel(
             action.Title,
             SolverUiTokens.Type.Metric,
             killed ? SolverUiTokens.Palette.Success : SolverUiTokens.Palette.TextPrimary,
-            FontType.Bold));
+            FontType.Bold);
+        content.AddChild(titleLabel);
+        refreshers.Add(updated => titleLabel.Text = updated.Title);
         if (action.ReplayCount > 0)
         {
-            content.AddChild(SolverUiTokens.CreateLabel(
-                $"重放×{action.ReplayCount}",
+            Label replayLabel = SolverUiTokens.CreateLabel(
+                SolverText.Format($"重放×{action.ReplayCount}"),
                 SolverUiTokens.Type.Caption,
                 SolverUiTokens.Palette.Warning,
-                FontType.Bold));
+                FontType.Bold);
+            content.AddChild(replayLabel);
+            refreshers.Add(updated => replayLabel.Text = SolverText.Format($"重放×{updated.ReplayCount}"));
         }
         if (!string.IsNullOrEmpty(action.TargetName))
         {
@@ -65,21 +71,26 @@ internal static class SolverActionPill
         }
         if (action.ChoiceText != null)
         {
-            content.AddChild(SolverUiTokens.CreateLabel(
+            Label choiceLabel = SolverUiTokens.CreateLabel(
                 action.ChoiceText,
                 SolverUiTokens.Type.Body,
-                SolverUiTokens.Palette.Accent));
+                SolverUiTokens.Palette.Accent);
+            content.AddChild(choiceLabel);
+            refreshers.Add(updated => choiceLabel.Text = updated.ChoiceText);
         }
         if (action.RelicLabels.Count > 0)
         {
             const int maxVisibleRelics = 2;
-            foreach (string relicLabel in action.RelicLabels.Take(maxVisibleRelics))
+            for (int index = 0; index < Math.Min(action.RelicLabels.Count, maxVisibleRelics); index++)
             {
-                content.AddChild(SolverUiTokens.CreateLabel(
-                    relicLabel,
+                int relicIndex = index;
+                Label relicLabel = SolverUiTokens.CreateLabel(
+                    action.RelicLabels[index],
                     SolverUiTokens.Type.Caption,
                     SolverUiTokens.Palette.Warning,
-                    FontType.Bold));
+                    FontType.Bold);
+                content.AddChild(relicLabel);
+                refreshers.Add(updated => relicLabel.Text = updated.RelicLabels[relicIndex]);
             }
             if (action.RelicLabels.Count > maxVisibleRelics)
             {
@@ -92,13 +103,21 @@ internal static class SolverActionPill
         }
         if (killed)
         {
-            content.AddChild(SolverUiTokens.CreateLabel(
-                $"击杀：{string.Join("、", action.Kills)}",
+            Label killsLabel = SolverUiTokens.CreateLabel(
+                SolverText.Format($"击杀：{string.Join("、", action.Kills)}"),
                 SolverUiTokens.Type.Caption,
                 SolverUiTokens.Palette.Success,
-                FontType.Bold));
+                FontType.Bold);
+            content.AddChild(killsLabel);
+            refreshers.Add(updated => killsLabel.Text = SolverText.Format($"击杀：{string.Join("、", updated.Kills)}"));
         }
         pill.AddChild(content);
+        SolverLocaleRefresh.Bind(pill, () =>
+        {
+            SolverOverlayActionSnapshot updated = SolverActionTextIdentity.Refresh(action);
+            pill.TooltipText = updated.Tooltip;
+            foreach (Action<SolverOverlayActionSnapshot> refresh in refreshers) refresh(updated);
+        });
         return pill;
     }
 

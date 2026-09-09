@@ -512,7 +512,8 @@ internal sealed partial class CombatBeamSolver
                     displayNames.Creature(target),
                     ReplayCount: Math.Max(0, card.Preview.GetEnchantedReplayCount()),
                     CardStateKey: cardStateKey,
-                    CardStateOccurrence: cardStateOccurrence);
+                    CardStateOccurrence: cardStateOccurrence,
+                        CardUpgradeLevel: card.Preview.CurrentUpgradeLevel);
                 actions.Add(new PreparedCardAction(
                     planAction,
                     card.Preview.Type,

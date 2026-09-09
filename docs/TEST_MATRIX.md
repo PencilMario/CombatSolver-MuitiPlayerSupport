@@ -114,6 +114,66 @@
 - 费用合同的100ms收尾搜索不计性能，复现牌组为 `coverage/unattended/hand-potential-cost-cards.json`；命令见性能报告。可见基准新增 `--request-fixture-path` / `-RequestFixturePath`，完整请求为 `coverage/unattended/performance-veryhigh-mecha-native.json`，同报告记录首结果与整场部署两种断言。
 - 完整Mod组合的基线在搜索前因未支持的AveMujica subscriber失败（`cd8e58d396344dec8e0b2362f216879b`，120秒超时）。成功可见结果只覆盖原版+RitsuLib+CombatSolver，未延长超时。基线整场采样器在退出时失败而缺少峰值文件，测试结果有效；其整场结束RSS已高于候选记录的VmHWM。Headless复用进程小啃兽曾有+0.07%峰值反向样本，独立可见进程对照未复现；不作全场景逐样本内存保证。
 
+## 2026-09-08：凡庸与自动打牌（0.34.4）
+
+- 原报告 `12f213c23ccd4a00abaf7a80c796273e` 的第 6 回合在发现、彼岸咆哮后打出倾泻，Normality 仍在手；原版结束回合复核为 25 HP，计划为 0 HP。日志定位后直接构造最小夹具，没有运行原包恢复。
+- `NORMALITY-AUTOPLAY` 失败基线 `b331a29d04dc4587a797ad2c5074eb78`，23.63 秒：两张防御后打倾泻，模拟格挡 27、原版 10。修复后 `5df3975b9e874fb1a34f5f966dc7f54d` Passed，25.97 秒，比较完整 MoveStateSnapshot/ContinuationStamp，包含有序牌堆、资源、能力和 RNG。
+- `NORMALITY-AUTOPLAY-REPLAY`：`21766a0d3d3149d485d09baf36885cf3` Passed，26.44 秒。第一张牌被回响形态重复打出，两次开始加倾泻开始达到三次；验证计数不以“手动动作数”或“已完成次数”代替开始次数。
+- 两组还比较：凡庸阻止的自动牌去向、诅咒离手后允许自动牌、预测/Fork/原版重捕获的开始次数、子分支回合清零及父分支保持。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId NORMALITY-AUTOPLAY -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance normality -TimeoutSeconds 120 -ExitOnComplete`；第二组替换 ScenarioId 为 `NORMALITY-AUTOPLAY-REPLAY`。Linux 使用同名 `.sh` 与对应长参数。
+- Release 行为构建、Windows 结构门禁及 CoverageCatalog 的 effective/state-fields/autoplay-sources 检查通过。未运行正式搜索、整场部署、原包恢复或可见 FPS/交互验收。
+
+## 2026-09-08：卡牌语言往返刷新（0.34.3）
+
+- `UI-LOCALIZATION`：`1e7e7f53067f4c34a1732b6c5b63c033` Passed，24.96 秒。新增英文已保存 PlanAction / UI snapshot，构造一次真实胶囊，依次切 zhs / eng / zhs，断言标题、升级符号、选牌、tooltip 与游戏译名一致；JSON 往返及旧计划内容保持原样。
+- 同时验证销毁控件后订阅数量恢复、语言切换不改变搜索状态或计划外重算计数，并继续通过 eng/zhs/zht 的 321 条文案和 20 类遗物摘要等既有合同。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId UI-LOCALIZATION -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance i18n-refresh -TimeoutSeconds 120 -ExitOnComplete`；Linux 使用对应 `.sh` 与同值长参数。
+- Release 行为构建 0 警告 / 0 错误；Windows 结构门禁通过。没有启动真实搜索或整场部署，没有可见交互/排版/帧率验收；只新增显示元数据，不改变模拟结算。
+
+## 2026-09-08：胶囊附加信息本地化（0.34.2）
+
+- `UI-LOCALIZATION` 扩展合同 `43bdbcdfc4eb4bf68c1bd65746412e44` Passed，24.58 秒；eng/zhs/zht 分别覆盖 321 条文案、20 个遗物摘要样本、毒/荆棘/能力规范 ID 与类型名/充能球/敌方行动/未知来源、嵌套选择与空选择、药水标记、遗物胶囊和 tooltip 一致性。
+- 捕获显示名后切换实时游戏语言，再在 Task.Run 中读取名称，验证 worker 输出仍使用已捕获语言。第三方自定义摘要样本与纯倍数保持原样。未重跑伤害模拟或整场搜索，改动只涉及显示。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId UI-LOCALIZATION -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance i18n-annotations -TimeoutSeconds 120 -ExitOnComplete`；Linux 使用对应 `.sh` 与同值长参数。
+- Release 行为构建 0 警告 / 0 错误，Windows 结构门禁通过。无实机交互/视觉验收或帧率测试。Steamworks 对 schinese、english 的两次描述更新各返回 EResult.OK；仅更新元数据，未上传二进制。
+
+## 2026-09-08：简化中英双语 UI（0.34.1）
+
+- `UI-LOCALIZATION`：`5c12f39867df4f75beb28db5a593e840` Passed，23.72 秒。覆盖 319 条资源的占位符/数字格式、嵌入文本保持原样、eng/zhs/zht 语言选择、英文设置和上传弹窗控件/全部下拉选项无中文、设置切页、上传完成/取消状态、动态路线标题和失败引导。没有发送公网上传请求。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId UI-LOCALIZATION -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance i18n -TimeoutSeconds 120 -ExitOnComplete`。Linux 使用对应 `.sh` 与 `--scenario-id UI-LOCALIZATION --encounter-id BYGONE_EFFIGY_ELITE --headless-instance i18n --timeout-seconds 120 --exit-on-complete`。
+- 行为构建 0 警告 / 0 错误，Windows 结构门禁通过，双平台门禁同步禁止 Search 引用 SolverText；之后仅同步版本、文档和结构门禁。没有执行可见布局/交互验收、帧率测量或整场搜索，headless 合同不代表这些项目通过。
+
+## 2026-09-08：战斗独立日志（0.34.0）
+
+- `dotnet run --project tools/DiagnosticLogTests/DiagnosticLogTests.csproj -c Release` 通过：冻结提交前缀、跨战斗摘要化、旧 worker 会话隔离、跑局摘要隔离、积压上限与显式不完整状态。1 万次入队调用约 6.91 ms、93.4 B/次，峰值待写计费 2,817,000 B；仅进程内微基准，不代表实机帧率。
+- `COMBAT-DIAGNOSTIC-LOG` 验证正常增量/根回放完整状态相等、人为注入 5 HP 差异后的首个动作定位、Damage/Heal 原生严格差分、失败候选日志与异常传播、独立日志 ZIP。`a5abab57628642d584802ba2d275bfce` Passed，23.23 秒；初次运行因旧归档测试仍要求最多一份全局日志而失败，更新到独立日志合同后通过。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId COMBAT-DIAGNOSTIC-LOG -EncounterId BYGONE_EFFIGY_ELITE -HeadlessInstance diagnostic-log -TimeoutSeconds 120 -ExitOnComplete`；Linux 用对应 `.sh`、`--scenario-id`、`--encounter-id`、`--headless-instance`、`--timeout-seconds`、`--exit-on-complete`。
+- Windows 结构门禁通过。未做可见游戏帧率验收、整场部署或公网上传测试；提交协议未变，此场只导出本地问题包。
+- 最终合同 `6a1ff383efa84437a87b8eafc92843d1` Passed，23.37 秒，另覆盖正式搜索的最终路线物化；随后仅同步版本和文档。行为验证构建仍标记 0.33.9，发布构建统一为 0.34.0。
+
+## 2026-09-08：在线监控登录持久化
+
+- `node --test tools/OnlinePresence/test.mjs tools/OnlinePresence/pagination.test.mjs tools/OnlinePresence/history.test.mjs tools/OnlinePresence/session.test.mjs`：10 项通过。
+- 会话接口验证同 IP 日志 Cookie 共存、重启后复用、14 天过期、退出撤销、修改密码失效；前端 VM 事件验证首次等待鉴权、成功直达后台、401 显示登录、网络失败重试。
+- 未做交互级验收，未启动游戏；独立服务更新不需要 Mod 构建。
+
+## 2026-09-08：旧日雕像缓慢跨回合分叉（0.33.9）
+
+- `SLOW-TURN-RESET-FORK` 失败基线 `21070eeed4b84c628ae7ac7f6ebe1cdf`：敌方回合开始后 Fork 抛出 `SlowPower has no fork mapping`；最终 `2602bde5ac1c45f7af0344dc7cd6153a` Passed，24 秒。
+- 严格比较完整 MoveStateSnapshot / ContinuationStamp：两次打击累积、敌方阶段清零、清零后分叉、再次打击伤害和动态变量；同时断言能力实例身份、状态指纹相等，以及清零和再次出牌均保持父分支隔离。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId SLOW-TURN-RESET-FORK -EncounterId BYGONE_EFFIGY_ELITE -ClearAllPowers -ClearPlayerPiles -CardsPath coverage/unattended/slow-turn-reset-fork-0339-cards.json -EnemyCurrentHp 500 -InitialPlayerEnergy 10 -TimeoutSeconds 120 -ExitOnComplete`。Linux 使用同名 `.sh` 和对应长参数。
+- 51 份报告 / 40 场战斗的异常详情全部相同，只下载代表包 `c6e67f18952f4d1d9c9d3a4ac304b095`。Preflight 为 materials_valid；原生回放尝试 `0b29cb9ed6044ac9b702e53599111f18` 因 `environment_mismatch:mods` 被拒绝，restorationVerified=false。一次夹具启动使用了不存在的 BigDummy 遭遇名，修正为旧日雕像后取得上述基线。
+- 行为源码 Release 构建 0 警告 / 0 错误。本轮没有运行整场自动部署、增量搜索、可见 Steam 或完整发布门禁；最小生命周期差分未启动搜索。
+
+## 2026-09-08：问题包 v2 与 miaovps（0.33.8）
+
+- `REPORT-V2-CONTRACT` 最终 `932296db26ac4e4ebb7b1432e823fddd` Passed，23 秒。覆盖真实 ZIP 导出、新目录与检查点材料、主线程战斗/角色/怪物元数据、未知和正/零/负战损下降值、multipart 字段、响应与取消边界、正式 HTTPS 证书校验上传及回执。命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId REPORT-V2-CONTRACT -HeadlessInstance report-v2 -TimeoutSeconds 120 -PreserveNativeCombatStateForTest -ForceShortSearchOnly`。
+- 前一轮 `2a434cb1ea244452993488ee635f89b8` 上传合同通过；状态注入包预检明确返回 diagnostic_only:test_fixture_state_injection，不算恢复有效。改用保留原生状态后，新包 `bc43f15bc9234456a1d82ddf52eaa8d8` 的 preflight 为 materials_valid / restorationVerified=false。
+- `CheckpointTool self-test` 29 项通过，覆盖旧目录、无索引、材料配对、路径拒绝和批量去重；新实际包路径由上述 preflight 验证。没有执行整场恢复或可见游戏交互。
+- 独立后端 `python -m unittest -v test_reports_v2` 6 组通过：单次及并发去重、身份冲突、元数据与 ZIP 一致性、非法包清理、旧上传与管理鉴权、组合筛选及批量清单/删除一致性、未知/零/负差值和范围校验。
+- 公网后台按真实 Mod 包元数据组合筛选及鉴权下载字节一致通过，测试报告删除。后端用户服务已更新；结构门禁 `REFACTOR_BOUNDARIES_OK search_files=77`，行为源码 Release 编译 0 警告 / 0 错误。
+- 列表按后续要求移除接收时间、联系、大小、已解决和备注列，改为横向元数据列、全宽页面与两行描述。新增列结构测试，并重跑受影响的组合筛选/批量和旧包鉴权测试，共 3 项通过；公网 HTML 已确认更新。未执行浏览器交互或像素验收。
+
 ## 2026-09-08：高频计划外重算（0.33.7）
 
 | 场景 | 失败基线 runId / 差异 | 最终 runId / 结果 |

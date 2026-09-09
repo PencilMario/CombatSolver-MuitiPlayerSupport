@@ -34,6 +34,8 @@ Linux：
 
 兼容旧 v1 索引、无索引 ZIP、已解压包和汇总 ZIP。保持 metadata、replay-state、native-state、run-state 原有目录，分别校验，不再同名覆盖。旧开战包从原生跑局存档加载，在首次抽牌前恢复检查点，到原始导出生命周期再对账。
 
+0.33.8 起外层问题包采用 [报告协议 v2](BUG_REPORT_PROTOCOL.md)：根目录 report.json、diagnostics/、replay/。索引入口为 replay/checkpoint.json，旧包仍从 combat-solver/checkpoint.json 读取。检查点索引自身仍为 schemaVersion 2；路径变化不改变原生事件或恢复语义。批量下载含 index.json、反馈汇总.csv 和 reports/<报告ID>.zip；CheckpointTool 同时接受新旧汇总包与解压目录。
+
 旧包没有完整输入记录时 `ReplayRecorded` 返回 `missing_native_event_recording`，仍可尝试 RestoreOnly、SearchOnly、DeploySolver。缺失的历史或复杂内部状态不能凭计数补造；导入不一致时保留首个差异。旧包兼容不代表所有历史包都已逐包验证。
 
 旧包政策从 settings 和 searchProfiles 恢复。`missingPolicyFields` 列明缺项，搜索/部署需用 `-ReplayPolicyOverridePath <JSON>` / `--policy <JSON>` 明确补齐。允许字段：`potionPolicy`、`potionDirectives`、`actTransitionBossHpStrategy`、`finalBossHpStrategy`、`acceptableBattleHpLoss`、`searchMaxDegreeOfParallelism`、`shortProfile`、`deepProfile`、`forceShortOnly`。覆盖文件保留在结果目录；原值、覆盖值和实际执行值分别记录。

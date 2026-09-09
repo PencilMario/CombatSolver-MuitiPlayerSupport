@@ -295,12 +295,21 @@ for legacy_loop_guard_path in "${legacy_loop_guard_paths[@]}"; do
         'retired named loop-payoff exception returned:'
 done
 
+require_fixed "$repository_root/src/Engine/InCombat/Mirrors/Hooks/Card/ShouldPlayMirrors.cs" \
+    'registry.Register<Normality>(HandleNormality)' \
+    'Normality must use the shared ShouldPlay mirror for manual and automatic cards.'
+
 for file in "${search_files[@]}"; do
     for reference in \
         'SolverSettings.Current' \
         'Entry.Logger' \
         'SolverController' \
         'SolverOverlay' \
+        'SolverText' \
+        'SolverRelicEffectText' \
+        'SolverUiModelNames' \
+        'SolverActionTextIdentity' \
+        'SolverLocaleRefresh' \
         'SolvedRouteCache' \
         'UnattendedTestRunner'; do
         forbid_fixed "$file" "$reference" 'forbidden Search reference'
@@ -818,6 +827,7 @@ for renderer_path in "${overlay_renderer_paths[@]}"; do
 done
 
 bug_report_exporter_path="$repository_root/src/Runtime/CombatBugReportExporter.cs"
+diagnostic_journal_path="$repository_root/src/Runtime/CombatDiagnosticJournal.cs"
 bug_report_uploader_path="$repository_root/src/Runtime/CombatBugReportUploader.cs"
 solver_settings_panel_path="$repository_root/src/UI/SolverSettingsPanel.cs"
 solver_settings_general_path="$repository_root/src/UI/SolverSettingsPanel.General.cs"
@@ -827,10 +837,17 @@ solver_settings_controls_path="$repository_root/src/UI/SolverSettingsPanel.Contr
 while IFS=$'\t' read -r path text; do
     require_fixed "$path" "$text" 'missing bug-report ownership boundary'
 done <<EOF
+$diagnostic_journal_path	AppendOnlyEventLog<CombatLogEntry>
+$diagnostic_journal_path	_session?.Log.CaptureAsync()
+$bug_report_exporter_path	Entry.Logger.Journal.CaptureAsync()
+$bug_report_exporter_path	WriteDiagnosticLogs(archive, diagnosticLogs)
 $bug_report_exporter_path	private static readonly BlockingCollection<Action> BackgroundOperations = new();
 $bug_report_exporter_path	QueueCheckpointWrite(session, capture);
 $bug_report_exporter_path	Task<ForensicArchiveBundle> forensicsTask = QueueBackground(
 $bug_report_exporter_path	ForensicArchiveBundle forensics = await forensicsTask.ConfigureAwait(false);
+$bug_report_exporter_path	CombatBugReportMetadata.CaptureCombat
+$bug_report_uploader_path	ReadMetadata(zipPath, submissionId, description)
+$bug_report_uploader_path	AllowAutoRedirect = false
 $bug_report_uploader_path	IProgress<CombatBugReportUploadProgress>
 $bug_report_uploader_path	HttpCompletionOption.ResponseHeadersRead
 $bug_report_uploader_path	CancellationToken requestCancellationToken
@@ -843,6 +860,9 @@ $solver_settings_bug_reports_path	TryApplyUploadCompletion()
 $solver_settings_bug_reports_path	等待服务器确认
 EOF
 forbid_fixed "$bug_report_uploader_path" 'using Godot' 'uploader must not own Godot UI state:'
+for legacy_log_read in 'AddFileTail(' 'CaptureLogStarts(' '"*.log"'; do
+    forbid_fixed "$bug_report_exporter_path" "$legacy_log_read" 'global log collection must stay out of report exports:'
+done
 
 search_completion_notifier_path="$repository_root/src/Runtime/SearchCompletionNotifier.cs"
 while IFS=$'\t' read -r path text; do

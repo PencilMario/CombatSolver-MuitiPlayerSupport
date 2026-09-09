@@ -489,8 +489,8 @@ internal static class SolverController
             settings.FinalBossHpStrategy,
             settings.AcceptableBattleHpLoss,
             new SearchDiagnosticsSink(
-                message => Entry.Logger.Info(message),
-                message => Entry.Logger.Debug(message)),
+                Entry.Logger.Journal.Bind("info"),
+                Entry.Logger.Journal.Bind("debug")),
             FramePressureSignal,
             new SearchMemoryPressureSignal())
         {
@@ -1037,7 +1037,7 @@ internal static class SolverController
                     $"[CombatSolver/Test] SEARCH_REUSE_MISS turn={currentTurn} " +
                     $"reason={CauseToken(replanCause)} cached_turns={_combat.ContinuationSource.Continuations.Count} " +
                     $"previous_boundary={_combat.ContinuationSource.BoundaryReason} diff_count={_combat.LastContinuationDifferences.Count} {difference}");
-                if (SolverSettings.Current.EnableDetailedDiagnosticLogs)
+                if (_combat.LastContinuationDifferences.Count > 0)
                 {
                     for (int index = 0; index < _combat.LastContinuationDifferences.Count; index++)
                     {
@@ -1252,7 +1252,7 @@ internal static class SolverController
 
     internal static string FormatSearchSetupFailure(Exception exception)
     {
-        string title = $"[color={SolverUiTokens.Palette.DangerHex}][b]搜索初始化失败[/b][/color]";
+        string title = $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("搜索初始化失败")}[/b][/color]";
         if (exception is not IncompatibleGameplayModException incompatible)
         {
             return $"{title}\n[color={SolverUiTokens.Palette.DangerHex}]{EscapeRichText(exception.Message)}[/color]" +
@@ -1260,8 +1260,8 @@ internal static class SolverController
         }
 
         string modName = EscapeRichText(incompatible.PlayerFacingModName);
-        return $"{title}\n[color={SolverUiTokens.Palette.DangerHex}]检测到不兼容的第三方 Mod：{modName}。" +
-               $"建议卸载该 Mod 并重启游戏后再使用求解器。[/color]\n" +
+        return $"{title}\n[color={SolverUiTokens.Palette.DangerHex}]" +
+               SolverText.Format($"检测到不兼容的第三方 Mod：{modName}。建议卸载该 Mod 并重启游戏后再使用求解器。") + "[/color]\n" +
                SolverUiTokens.BugReportUploadInstructionRichText;
     }
 
@@ -2482,7 +2482,10 @@ internal static class SolverController
 
                 Player player = LocalContext.GetMe(state)!;
                 Creature? target = state.GetCreature(action.TargetCombatId);
-                SolverOverlay.ShowDeploymentStep(actionIndex, actions.Count, action.ActionTitle);
+                string actionTitle = action.Kind == PlanActionKind.UsePotion
+                    ? SolverUiModelNames.Potion(action.PotionId, action.PotionTitle)
+                    : SolverUiModelNames.Card(action.CardId, action.CardUpgradeLevel, action.CardTitle);
+                SolverOverlay.ShowDeploymentStep(actionIndex, actions.Count, actionTitle);
                 List<PlanCardChoice> actionChoices = [.. action.GetActionChoicesInExecutionOrder()];
                 // A card can advance the turn directly or through a nested auto-play, so its
                 // next-turn choices belong to this native UI session.
@@ -2612,12 +2615,12 @@ internal static class SolverController
                         $"action={action.CardId ?? action.PotionId ?? action.Kind.ToString()} " +
                         $"elapsed_ms={Stopwatch.GetElapsedTime(actionStartedAt).TotalMilliseconds:F1}");
                 }
-                if (deploymentSettings.EnableDetailedDiagnosticLogs)
                 {
                     PlayerCombatState liveState = player.PlayerCombatState!;
                     Entry.Logger.Info(
                         $"[CombatSolver/Debug] DEPLOY_STATE turn={turn} action_index={actionIndex} " +
                         $"action={action.CardId ?? action.PotionId ?? action.Kind.ToString()} " +
+                        $"target={action.TargetCombatId} hp={player.Creature.CurrentHp} block={player.Creature.Block} " +
                         $"energy={liveState.Energy} hand={string.Join(',', liveState.Hand.Cards.Select(card => card.Id.Entry))} " +
                         $"draw={string.Join(',', liveState.DrawPile.Cards.Select(card => card.Id.Entry))} " +
                         $"discard={string.Join(',', liveState.DiscardPile.Cards.Select(card => card.Id.Entry))} " +
@@ -3138,19 +3141,19 @@ internal static class SolverController
     private static string FormatSearchFailure(
         Exception exception,
         bool parallelSearchWasEnabled)
-        => $"[color={SolverUiTokens.Palette.DangerHex}][b]计算失败[/b]\n" +
+        => $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("计算失败")}[/b]\n" +
            $"{EscapeRichText(exception.Message)}[/color]\n" +
            SolverUiTokens.SearchFailureInstructionRichText(parallelSearchWasEnabled);
 
     private static string FormatDeploymentFailure(Exception exception)
-        => $"[color={SolverUiTokens.Palette.DangerHex}][b]自动执行中止[/b]\n" +
+        => $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("自动执行中止")}[/b]\n" +
            $"{EscapeRichText(exception.Message)}[/color]\n" +
            SolverUiTokens.BugReportUploadInstructionRichText;
 
     private static string FormatTurnSetupFailure(
         Exception exception,
         bool parallelSearchWasEnabled)
-        => $"[color={SolverUiTokens.Palette.DangerHex}][b]回合准备选牌失败[/b]\n" +
+        => $"[color={SolverUiTokens.Palette.DangerHex}][b]{SolverText.Get("回合准备选牌失败")}[/b]\n" +
            $"{EscapeRichText(exception.GetBaseException().Message)}[/color]\n" +
            SolverUiTokens.SearchFailureInstructionRichText(parallelSearchWasEnabled);
 

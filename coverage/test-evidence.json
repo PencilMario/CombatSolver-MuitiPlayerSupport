@@ -1,4 +1,20 @@
 {
+  "NORMALITY-AUTOPLAY": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeCardDifferentialAndForkLifecycle",
+    "procedure": "凡庸在手，先出两张防御，再以 2 能量出倾泻；另用回响形态让第一张牌重复打出，再出倾泻。",
+    "expected": "倾泻自身开始时达到三次出牌，自动打出的牌被阻止并进入结果牌堆；诅咒离手后恢复自动打牌。",
+    "observed": "失败基线 b331a29d04dc4587a797ad2c5074eb78 模拟格挡27、实机10。修复后 5df3975b9e874fb1a34f5f966dc7f54d 与重复牌 21766a0d3d3149d485d09baf36885cf3 Passed；完整状态、根重捕获、Fork隔离、回合清零、阻止后的牌堆和诅咒离手均通过。",
+    "evidence": "src/Testing/UnattendedTestRunner.Normality.cs；docs/TEST_MATRIX.md；2026-09-08。"
+  },
+  "SLOW-TURN-RESET-FORK": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTurnLifecycleForkDifferential",
+    "procedure": "旧日雕像战斗注入三张打击，先出两张，执行敌方回合开始并分叉，再出第三张。",
+    "expected": "缓慢清零保持能力身份、获得顺序和分支所有权，清零后分叉与再次攻击符合原版。",
+    "observed": "基线 21070eeed4b84c628ae7ac7f6ebe1cdf 在 Fork 抛出 SlowPower has no fork mapping；最终 2602bde5ac1c45f7af0344dc7cd6153a Passed，完整状态差分、身份、指纹和父子隔离通过。",
+    "evidence": "coverage/unattended/slow-turn-reset-fork-0339-cards.json；src/Testing/UnattendedTestRunner.SlowTurnReset.cs；docs/TEST_MATRIX.md；2026-09-08。"
+  },
   "FIX-141700-TURN-START-CHOICE-ONCE": {
     "status": "Passed",
     "level": "HeadlessTurnStartChoiceContinuationRegression",

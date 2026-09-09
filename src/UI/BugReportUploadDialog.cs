@@ -61,7 +61,7 @@ internal sealed partial class BugReportUploadDialog : CanvasLayer
         root.AddChild(divider);
 
         root.AddChild(SolverUiTokens.CreateLabel(
-            $"问题描述（选填，最多 {CombatBugReportDescription.MaximumPlayerDescriptionCharacters} 字）",
+            SolverText.Format($"问题描述（选填，最多 {CombatBugReportDescription.MaximumPlayerDescriptionCharacters} 字）"),
             SolverUiTokens.Type.Caption,
             SolverUiTokens.Palette.TextSecondary));
         _description = new TextEdit
@@ -87,12 +87,14 @@ internal sealed partial class BugReportUploadDialog : CanvasLayer
             SolverUiTokens.Spacing.Xs));
         root.AddChild(_description);
 
-        root.AddChild(SolverUiTokens.CreateLabel(
+        Label contactHint = SolverUiTokens.CreateLabel(
             string.IsNullOrWhiteSpace(contactQq)
-                ? "未设置联系QQ；可在“求解器设置”里填写“反馈联系QQ”，以后自动带上。"
-                : $"联系QQ：{contactQq}（可在“求解器设置”里修改）",
+                ? SolverText.Get("未设置联系QQ；可在“求解器设置”里填写“反馈联系QQ”，以后自动带上。")
+                : SolverText.Format($"联系QQ：{contactQq}（可在“求解器设置”里修改）"),
             SolverUiTokens.Type.Caption,
-            SolverUiTokens.Palette.TextMuted));
+            SolverUiTokens.Palette.TextMuted);
+        contactHint.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        root.AddChild(contactHint);
 
         HBoxContainer buttons = new()
         {
@@ -100,11 +102,11 @@ internal sealed partial class BugReportUploadDialog : CanvasLayer
             MouseFilter = Control.MouseFilterEnum.Pass,
         };
         buttons.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
-        Button cancel = SolverUiTokens.CreateButton("取消", SolverButtonStyle.Secondary);
+        Button cancel = SolverUiTokens.CreateButton(SolverText.Get("取消"), SolverButtonStyle.Secondary);
         cancel.CustomMinimumSize = new Vector2(88, SolverUiTokens.Size.ButtonHeight);
         cancel.Pressed += Close;
         buttons.AddChild(cancel);
-        Button confirm = SolverUiTokens.CreateButton("确认上传", SolverButtonStyle.Danger);
+        Button confirm = SolverUiTokens.CreateButton(SolverText.Get("确认上传"), SolverButtonStyle.Danger);
         confirm.CustomMinimumSize = new Vector2(110, SolverUiTokens.Size.ButtonHeight);
         confirm.Pressed += () =>
         {
@@ -167,7 +169,7 @@ internal sealed partial class BugReportUploadDialog : CanvasLayer
         header.AddChild(marker);
 
         Label title = SolverUiTokens.CreateLabel(
-            "上传问题包",
+            SolverText.Get("上传问题包"),
             SolverUiTokens.Type.Title,
             SolverUiTokens.Palette.TextPrimary,
             FontType.Bold);

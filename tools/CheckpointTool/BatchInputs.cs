@@ -24,12 +24,12 @@ internal sealed class BatchInputs(string cacheDirectory)
     {
         if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
             throw new InvalidDataException($"input_symlink:{path}");
-        if (Directory.Exists(Path.Combine(path, "combat-solver")))
+        if (Directory.Exists(Path.Combine(path, "combat-solver")) || File.Exists(Path.Combine(path, "replay", "checkpoint.json")))
         {
             string packed = Path.Combine(cacheDirectory, Guid.NewGuid().ToString("N") + ".zip");
             using (ZipArchive output = ZipFile.Open(packed, ZipArchiveMode.Create))
             {
-                foreach (string file in EnumerateFiles(Path.Combine(path, "combat-solver")).Order(StringComparer.Ordinal))
+                foreach (string file in EnumerateFiles(path).Where(file => IsBundlePath(Path.GetRelativePath(path, file).Replace('\\', '/'))).Order(StringComparer.Ordinal))
                 {
                     long length = new FileInfo(file).Length;
                     Account(length);
@@ -74,7 +74,7 @@ internal sealed class BatchInputs(string cacheDirectory)
         {
             if (depth > 4) throw new InvalidDataException("nested_archive_depth_limit");
             using ZipArchive archive = CheckpointArchive.OpenValidated(path, 1024L * 1024 * 1024, 2L * 1024 * 1024 * 1024);
-            if (archive.Entries.Any(entry => entry.FullName.StartsWith("combat-solver/", StringComparison.Ordinal)))
+            if (archive.GetEntry(CheckpointArchive.IndexPath) != null || archive.Entries.Any(entry => entry.FullName.StartsWith("combat-solver/", StringComparison.Ordinal)))
             {
                 _inputs.Add(new BatchInput(source, path, identity));
                 return;
@@ -88,14 +88,19 @@ internal sealed class BatchInputs(string cacheDirectory)
                 using (FileStream output = new(nested, FileMode.Create, FileAccess.Write)) input.CopyTo(output);
                 VisitArchive(nested, source + "!" + entry.FullName, depth + 1);
             }
-            string[] roots = archive.Entries.Select(entry => entry.FullName.IndexOf("combat-solver/forensics/", StringComparison.Ordinal) is int index && index > 0
-                    ? entry.FullName[..index] : null).OfType<string>().Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+            string[] roots = archive.Entries.Select(entry =>
+            {
+                int index = entry.FullName.IndexOf("combat-solver/forensics/", StringComparison.Ordinal);
+                if (index < 0 && entry.FullName.EndsWith("/replay/checkpoint.json", StringComparison.Ordinal))
+                    index = entry.FullName.Length - "replay/checkpoint.json".Length;
+                return index > 0 ? entry.FullName[..index] : null;
+            }).OfType<string>().Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
             foreach (string root in roots)
             {
                 string packed = Path.Combine(cacheDirectory, HashText(identity + ":" + root) + ".zip");
                 using (FileStream outputFile = new(packed + ".tmp", FileMode.Create, FileAccess.Write))
                 using (ZipArchive output = new(outputFile, ZipArchiveMode.Create))
-                    foreach (ZipArchiveEntry entry in archive.Entries.Where(entry => entry.FullName.StartsWith(root + "combat-solver/", StringComparison.Ordinal) && !entry.FullName.EndsWith('/')).OrderBy(entry => entry.FullName, StringComparer.Ordinal))
+                    foreach (ZipArchiveEntry entry in archive.Entries.Where(entry => entry.FullName.StartsWith(root, StringComparison.Ordinal) && IsBundlePath(entry.FullName[root.Length..]) && !entry.FullName.EndsWith('/')).OrderBy(entry => entry.FullName, StringComparer.Ordinal))
                     {
                         Account(entry.Length);
                         ZipArchiveEntry copied = output.CreateEntry(entry.FullName[root.Length..], CompressionLevel.Fastest);
@@ -115,6 +120,10 @@ internal sealed class BatchInputs(string cacheDirectory)
             _inputs.Add(new BatchInput(source, null, identity, error.Message));
         }
     }
+
+    private static bool IsBundlePath(string path) => path == "report.json" || path == "README.txt"
+        || path.StartsWith("replay/", StringComparison.Ordinal) || path.StartsWith("diagnostics/", StringComparison.Ordinal)
+        || path.StartsWith("combat-solver/", StringComparison.Ordinal);
 
     private void Account(long bytes)
     {

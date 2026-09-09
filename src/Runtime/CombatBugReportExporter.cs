@@ -26,12 +26,9 @@ namespace CombatSolver;
 internal static class CombatBugReportExporter
 {
     private const string ExportFolderName = "CombatSolver-BugReports";
-    private const long MaximumLogBytes = 2L * 1024 * 1024;
-    private const long MaximumCombatLogBytes = 4L * 1024 * 1024;
     private const long MaximumCapturedSaveBytes = 4L * 1024 * 1024;
     private const int MaximumCheckpoints = 6;
     private const int MaximumArchivedCheckpoints = 6;
-    private const int MaximumGeneralLogFiles = 1;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -110,7 +107,6 @@ internal static class CombatBugReportExporter
     private sealed record CapturedObjectFields(IReadOnlyList<CapturedObjectField> Items);
     private sealed record CapturedObjectField(string Name, object? Value);
     private sealed record CapturedFieldDescriptor(string Name, FieldInfo Field);
-    private sealed record ForensicLogRange(string Path, string EntryName, long Start, long End);
     private sealed record ForensicArchiveCheckpoint(
         string Name,
         long Sequence,
@@ -189,6 +185,7 @@ internal static class CombatBugReportExporter
         public long NextCheckpointSequence { get; set; }
         public CombatReplayRecording? Recording { get; init; }
         public required CombatReplayOutcome Outcome { get; set; }
+        public BugReportCombat? ReportCombat { get; set; }
         public string? SearchRootId { get; set; }
         public string? LastCompletedSearchRootId { get; set; }
         public string? ComparisonReferenceRootId { get; set; }
@@ -205,8 +202,6 @@ internal static class CombatBugReportExporter
         public int DroppedCaptureErrors;
         public object? LatestEffectivePolicy { get; set; }
         public List<object> SearchPolicies { get; } = [];
-        public Dictionary<string, long> LogStartOffsets { get; } = new(StringComparer.OrdinalIgnoreCase);
-        public Dictionary<string, long> LogEndOffsets { get; } = new(StringComparer.OrdinalIgnoreCase);
         public string LastRoute { get; set; } = "当前没有已完成的求解路线。";
         public string ReplanAudit { get; set; } = string.Empty;
         public string ControlMode { get; set; } = "solver_only";
@@ -220,7 +215,6 @@ internal static class CombatBugReportExporter
         string SessionJson,
         IReadOnlyList<ForensicArchiveCheckpoint> Checkpoints,
         CapturedFile? InMemoryRunSave,
-        IReadOnlyList<ForensicLogRange> Logs,
         string LastRoute,
         string ReplanAudit,
         RecordedCombatArchive? Recording,
@@ -267,7 +261,7 @@ internal static class CombatBugReportExporter
             StartedAt = DateTimeOffset.Now,
             UserDataDirectory = userDataDirectory,
         };
-        CaptureLogStarts(_currentSession);
+        Entry.Logger.Journal.BeginCombat(_currentSession.SessionId, _currentSession.EncounterId, _currentSession.Seed);
         RecordCheckpointCore(state, "combat_start", null, string.Empty);
         CombatReplayRecording.TestCombatStartObserver?.Invoke(state);
     }
@@ -300,19 +294,19 @@ internal static class CombatBugReportExporter
             session.Outcome.Complete(live);
             session.Recording?.Dispose();
         }
+        Entry.Logger.Journal.EndCombat(reason);
         Task completion = QueueSessionCompletion(
             session,
             reason,
             result,
             replanAudit,
-            DateTimeOffset.Now,
-            CaptureLogEndOffsets(session));
+            DateTimeOffset.Now);
         _lastSession = session;
         _currentSession = null;
         return completion;
     }
 
-    public static Task<string> ExportCurrentAsync(string? outputDirectory = null, string? playerDescription = null)
+    public static Task<string> ExportCurrentAsync(string? outputDirectory = null, string? playerDescription = null, string? submissionId = null)
     {
         if (!NGame.IsMainThread())
             throw new InvalidOperationException("问题包只能从游戏主线程导出。");
@@ -330,14 +324,11 @@ internal static class CombatBugReportExporter
         string combatJson = CaptureCombatState(state, profiles);
         string routeText = DescribeRoute(result);
         string exportContextJson = CaptureExportContext(state);
-        string reportJson = JsonSerializer.Serialize(new
-        {
-            schemaVersion = 1,
-            playerDescription,
-            classification = SolverController.CaptureBugReportClassificationForExport(),
-            comparisonKind = SolverController.ManualProjectionComparisonForExport == null ? null : "projected_comparison",
-            manualProjectionComparison = SolverController.ManualProjectionComparisonForExport,
-        }, JsonOptions);
+        string reportId = submissionId ?? Guid.NewGuid().ToString("N");
+        string reportJson = CombatBugReportMetadata.Serialize(reportId, playerDescription,
+            (_currentSession ?? _lastSession)?.ReportCombat,
+            SolverController.CaptureBugReportClassificationForExport(),
+            SolverController.ManualProjectionComparisonForExport);
         string environmentJson = JsonSerializer.Serialize(new
         {
             schemaVersion = 2,
@@ -361,6 +352,7 @@ internal static class CombatBugReportExporter
         ForensicSession? currentSession = _currentSession;
         ForensicSession? recentSession = _lastSession;
         Task<RecordedCombatArchive>? recording = (currentSession ?? recentSession)?.Recording?.CaptureAsync();
+        Task<CombatLogArchive> diagnosticLogs = Entry.Logger.Journal.CaptureAsync();
         Task<ForensicArchiveBundle> forensicsTask = QueueBackground(
             () => CaptureForensicBundle(currentSession, recentSession, recording?.GetAwaiter().GetResult()));
 
@@ -373,7 +365,7 @@ internal static class CombatBugReportExporter
             ?? "no-combat");
         string path = Path.Combine(
             exportDirectory,
-            $"CombatSolver-{encounter}-{DateTime.Now:yyyyMMdd-HHmmss-fff}.zip");
+            $"CombatSolver-{CombatBugReportDescription.CurrentModVersion}-{encounter}-{reportId}.zip");
         string userDataDirectory = OS.GetUserDataDir();
         string executableDirectory = Path.GetDirectoryName(OS.GetExecutablePath())
             ?? throw new DirectoryNotFoundException("无法定位游戏目录。");
@@ -392,7 +384,8 @@ internal static class CombatBugReportExporter
                 exportContextJson,
                 reportJson,
                 environmentJson,
-                forensics);
+                forensics,
+                await diagnosticLogs.ConfigureAwait(false));
         });
     }
 
@@ -407,46 +400,35 @@ internal static class CombatBugReportExporter
         string exportContextJson,
         string reportJson,
         string environmentJson,
-        ForensicArchiveBundle forensics)
+        ForensicArchiveBundle forensics,
+        CombatLogArchive diagnosticLogs)
     {
         using FileStream output = new(path, FileMode.CreateNew, System.IO.FileAccess.Write, FileShare.None);
         using ZipArchive archive = new(output, ZipArchiveMode.Create);
-        string logsDirectory = Path.Combine(userDataDirectory, "logs");
-        if (Directory.Exists(logsDirectory))
-        {
-            int logIndex = 0;
-            foreach (string log in EnumerateFilesSafely(logsDirectory, "*.log")
-                         .OrderByDescending(File.GetLastWriteTimeUtc)
-                         .Take(MaximumGeneralLogFiles))
-            {
-                AddFileTail(
-                    archive,
-                    log,
-                    $"logs/{logIndex++:D2}-{SanitizeFileName(Path.GetFileName(log))}",
-                    MaximumLogBytes);
-            }
-        }
+        WriteDiagnosticLogs(archive, diagnosticLogs);
 
         string releaseInfo = Path.Combine(executableDirectory, "release_info.json");
         if (File.Exists(releaseInfo))
-            AddFile(archive, releaseInfo, "release_info.json");
+            AddFile(archive, releaseInfo, "diagnostics/release_info.json");
 
-        AddText(archive, "combat-solver/combat-state.json", combatJson);
-        AddText(archive, "combat-solver/current-route.txt", routeText);
-        AddText(archive, "combat-solver/replan-audit.txt", replanAudit);
-        AddText(archive, "combat-solver/settings.json", settingsJson);
-        AddText(archive, "combat-solver/export-context.json", exportContextJson);
-        AddText(archive, "combat-solver/report.json", reportJson);
-        AddText(archive, "combat-solver/environment.json", environmentJson);
-        AddText(archive, "combat-solver/forensics/manifest.json", forensics.ManifestJson);
-        AddText(archive, "combat-solver/checkpoint.json", forensics.CheckpointJson);
+        AddText(archive, "diagnostics/combat-state.json", combatJson);
+        AddText(archive, "diagnostics/current-route.txt", routeText);
+        AddText(archive, "diagnostics/replan-audit.txt", replanAudit);
+        AddText(archive, "diagnostics/settings.json", settingsJson);
+        AddText(archive, "diagnostics/export-context.json", exportContextJson);
+        AddText(archive, CombatBugReportMetadata.EntryPath, reportJson);
+        AddText(archive, "diagnostics/environment.json", environmentJson);
+        AddText(archive, "replay/manifest.json", forensics.ManifestJson);
+        AddText(archive, "replay/checkpoint.json", forensics.CheckpointJson);
         WriteForensicSession(archive, "current", forensics.Current);
         WriteForensicSession(archive, "recent", forensics.Recent);
         AddText(
             archive,
-            "combat-solver/README.txt",
+            "README.txt",
             "此问题包由 CombatSolver 设置页导出。\n" +
-            "问题包只保存当前战斗；离开战斗后提交时则只保存最近结束的一场，不会重复附带更早楼层。归档保留最近关键的 6 个检查点。\n" +
+            "report.json 是问题包身份与筛选元数据；diagnostics 保存环境与文字诊断；replay 保存检查点索引、战斗录制与恢复材料。\n" +
+            "当前战斗保存详细记录；离开战斗后仍可提交最近一场，进入下一场后历史战斗只保留摘要。归档保留最近关键的 6 个检查点和完整已记录输入。\n" +
+            "CombatSolver 独立日志位于 diagnostics/logs，按大小分片；index.json 标明记录范围、截断或写盘错误。包不包含 Godot 全局日志。提交时冻结日志前缀，后续战斗不会改变此包。\n" +
             "新包通过 recording 中的真实战前存档与原生动作、选择事件恢复；replay-state 和 native-state 用于独立对账。反射诊断字段存在显式截断时不能作为完整恢复材料。\n" +
             "checkpoint.json v2 列出稳定检查点身份、事件位置、实际搜索政策与材料路径。默认选择最近可搜索检查点；材料检查、恢复、录制回放、搜索和实际部署是不同验证阶段。\n" +
             "forensics/*/pre-combat 保存战前内存跑局快照。截图、整批磁盘存档和更早战斗不会进入问题包。\n" +
@@ -463,7 +445,7 @@ internal static class CombatBugReportExporter
     {
         if (session == null)
             return;
-        string root = $"combat-solver/forensics/{slot}";
+        string root = $"replay/{slot}";
         AddText(archive, $"{root}/session.json", session.SessionJson);
         foreach (ForensicArchiveCheckpoint checkpoint in session.Checkpoints)
         {
@@ -501,15 +483,33 @@ internal static class CombatBugReportExporter
         }
         AddText(archive, $"{root}/last-route.txt", session.LastRoute);
         AddText(archive, $"{root}/replan-audit.txt", session.ReplanAudit);
-        foreach (ForensicLogRange log in session.Logs)
+    }
+
+    private static void WriteDiagnosticLogs(ZipArchive archive, CombatLogArchive logs)
+    {
+        AddText(archive, "diagnostics/logs/index.json", JsonSerializer.Serialize(new
         {
-            AddFileRange(
-                archive,
-                log.Path,
-                $"{root}/logs/{log.EntryName}",
-                log.Start,
-                log.End,
-                MaximumCombatLogBytes);
+            schemaVersion = 1, combat = logs.Current,
+            current = new { logs.Events.EventCount, logs.Events.Error, logs.Events.PeakPendingBytes, logs.Events.WrittenBytes },
+            process = new { logs.Process.EventCount, logs.Process.Error, logs.Process.WrittenBytes },
+            detailScope = "current_or_most_recent_combat", previousCombatScope = "summary_only",
+        }, JsonOptions));
+        AddText(archive, "diagnostics/logs/history.json", JsonSerializer.Serialize(logs.History, JsonOptions));
+        AddLogChunks(archive, "diagnostics/logs/combat", logs.Events.JsonLines);
+        AddLogChunks(archive, "diagnostics/logs/process", logs.Process.JsonLines);
+    }
+
+    private static void AddLogChunks(ZipArchive archive, string root, byte[] bytes)
+    {
+        int start = 0, index = 0;
+        while (start < bytes.Length)
+        {
+            int end = Math.Min(start + 256 * 1024, bytes.Length);
+            while (end < bytes.Length && bytes[end - 1] != (byte)'\n') end++;
+            ZipArchiveEntry entry = archive.CreateEntry($"{root}/{index++:D3}.jsonl", CompressionLevel.Fastest);
+            using Stream output = entry.Open();
+            output.Write(bytes.AsSpan(start, end - start));
+            start = end;
         }
     }
 
@@ -569,6 +569,7 @@ internal static class CombatBugReportExporter
     {
         ForensicSession session = _currentSession
             ?? throw new InvalidOperationException("记录战斗取证检查点时没有活动会话。");
+        session.ReportCombat = CombatBugReportMetadata.CaptureCombat(state, session.SessionId, session.ReportCombat);
         long sequence = session.NextCheckpointSequence++;
         if (label == "combat_start" || label.StartsWith("search_request_", StringComparison.Ordinal))
             session.SearchRootId = $"{session.SessionId}:{sequence}";
@@ -878,8 +879,7 @@ internal static class CombatBugReportExporter
         string reason,
         SolverResult? result,
         string replanAudit,
-        DateTimeOffset endedAt,
-        IReadOnlyDictionary<string, long> logEndOffsets)
+        DateTimeOffset endedAt)
     {
         bool hasResult = result != null;
         string route = DescribeRoute(result);
@@ -898,8 +898,6 @@ internal static class CombatBugReportExporter
                     lastSolverDeployedTurn);
                 session.EndedAt = endedAt;
                 session.EndReason = reason;
-                foreach ((string path, long end) in logEndOffsets)
-                    session.LogEndOffsets[path] = end;
             }
             catch (Exception ex)
             {
@@ -983,7 +981,7 @@ internal static class CombatBugReportExporter
             checkpointLimitPerCombat = MaximumCheckpoints,
             archivedCheckpointLimit = MaximumArchivedCheckpoints,
             checkpointArtifacts = new[] { "metadata", "replay-state", "native-state", "run-state" },
-            checkpointIndexPath = "combat-solver/checkpoint.json",
+            checkpointIndexPath = "replay/checkpoint.json",
             replayStateSchemaVersion = 1,
             nativeStateFormat = "MegaCrit.Sts2.Core.Entities.Multiplayer.NetFullCombatState",
             currentCombatAvailable = current != null,
@@ -1027,9 +1025,9 @@ internal static class CombatBugReportExporter
                 inputOrigins = selected.Recording.InputOrigins,
                 collection = new { selected.Recording.CaptureMilliseconds, selected.Recording.MaximumCaptureMilliseconds,
                     selected.Recording.Events.PeakPendingBytes, selected.Recording.Events.WrittenBytes },
-                originPath = $"combat-solver/forensics/{selectedSlot}/recording/origin.json",
-                runSavePath = $"combat-solver/forensics/{selectedSlot}/recording/origin.save",
-                eventsPath = $"combat-solver/forensics/{selectedSlot}/recording/events.jsonl",
+                originPath = $"replay/{selectedSlot}/recording/origin.json",
+                runSavePath = $"replay/{selectedSlot}/recording/origin.save",
+                eventsPath = $"replay/{selectedSlot}/recording/events.jsonl",
             },
             build = new
             {
@@ -1052,10 +1050,10 @@ internal static class CombatBugReportExporter
                 restorationVerified = false,
                 restoreMethod = selected.Recording == null ? "legacy_checkpoint"
                     : selected.Recording.IncompleteReason == null && backgroundErrors.Count == 0 ? "native_events" : "diagnostic_only",
-                metadataPath = $"combat-solver/forensics/{selectedSlot}/checkpoints/{item.Name}",
-                replayStatePath = $"combat-solver/forensics/{selectedSlot}/replay-state/{item.Name}",
-                nativeStatePath = $"combat-solver/forensics/{selectedSlot}/native-state/{Path.GetFileNameWithoutExtension(item.Name)}.bin",
-                runStatePath = $"combat-solver/forensics/{selectedSlot}/run-state/{Path.GetFileNameWithoutExtension(item.Name)}.save",
+                metadataPath = $"replay/{selectedSlot}/checkpoints/{item.Name}",
+                replayStatePath = $"replay/{selectedSlot}/replay-state/{item.Name}",
+                nativeStatePath = $"replay/{selectedSlot}/native-state/{Path.GetFileNameWithoutExtension(item.Name)}.bin",
+                runStatePath = $"replay/{selectedSlot}/run-state/{Path.GetFileNameWithoutExtension(item.Name)}.save",
             }).ToArray(),
         }, JsonOptions);
         return new ForensicArchiveBundle(manifest, checkpointJson, current, recent);
@@ -1065,19 +1063,6 @@ internal static class CombatBugReportExporter
     {
         if (session == null)
             return null;
-        IReadOnlyList<ForensicLogRange> logs = session.LogStartOffsets
-            .Select(item =>
-            {
-                long end = session.LogEndOffsets.GetValueOrDefault(
-                    item.Key,
-                    File.Exists(item.Key) ? new FileInfo(item.Key).Length : item.Value);
-                return new ForensicLogRange(
-                    item.Key,
-                    NormalizeEntryPath(Path.GetFileName(item.Key)),
-                    item.Value,
-                    Math.Max(item.Value, end));
-            })
-            .ToArray();
         (ForensicCheckpoint Checkpoint, int Index)[] capturedCheckpoints = session.Checkpoints
             .Select((checkpoint, index) => (checkpoint, index))
             .ToArray();
@@ -1111,13 +1096,7 @@ internal static class CombatBugReportExporter
                 recordedEvents = recording?.Events.WrittenBytes,
                 recordedOrigin = recording?.Origin.RunSave.LongLength,
             },
-            logRanges = logs.Select(log => new
-            {
-                log.EntryName,
-                log.Start,
-                log.End,
-                bytes = log.End - log.Start,
-            }),
+            diagnosticLogs = "diagnostics/logs/index.json",
         }, JsonOptions);
         IReadOnlyList<ForensicArchiveCheckpoint> checkpoints = selectedCheckpoints
             .Select(item => new ForensicArchiveCheckpoint(
@@ -1137,7 +1116,6 @@ internal static class CombatBugReportExporter
             sessionJson,
             checkpoints,
             session.InMemoryRunSave,
-            logs,
             session.LastRoute,
             session.ReplanAudit,
             recording,
@@ -1695,28 +1673,6 @@ internal static class CombatBugReportExporter
         return output.ToArray();
     }
 
-    private static void CaptureLogStarts(ForensicSession session)
-    {
-        string logsDirectory = Path.Combine(session.UserDataDirectory, "logs");
-        if (!Directory.Exists(logsDirectory))
-            return;
-        foreach (string log in EnumerateFilesSafely(logsDirectory, "*.log")
-                     .OrderByDescending(File.GetLastWriteTimeUtc)
-                     .Take(MaximumGeneralLogFiles))
-            session.LogStartOffsets[log] = new FileInfo(log).Length;
-    }
-
-    private static IReadOnlyDictionary<string, long> CaptureLogEndOffsets(ForensicSession session)
-    {
-        Dictionary<string, long> offsets = new(StringComparer.OrdinalIgnoreCase);
-        foreach (string log in session.LogStartOffsets.Keys)
-        {
-            if (File.Exists(log))
-                offsets[log] = new FileInfo(log).Length;
-        }
-        return offsets;
-    }
-
     private static void StartBackgroundThread()
     {
         Thread worker = new(() =>
@@ -1777,56 +1733,6 @@ internal static class CombatBugReportExporter
         AddStream(archive, entryName, input);
     }
 
-    private static void AddFileTail(
-        ZipArchive archive,
-        string path,
-        string entryName,
-        long maximumBytes)
-    {
-        using FileStream input = new(
-            path,
-            FileMode.Open,
-            System.IO.FileAccess.Read,
-            FileShare.ReadWrite | FileShare.Delete);
-        if (input.Length > maximumBytes)
-            input.Seek(-maximumBytes, SeekOrigin.End);
-        AddStream(archive, entryName, input);
-    }
-
-    private static void AddFileRange(
-        ZipArchive archive,
-        string path,
-        string entryName,
-        long start,
-        long end,
-        long maximumBytes)
-    {
-        if (!File.Exists(path) || end <= start)
-            return;
-        using FileStream input = new(
-            path,
-            FileMode.Open,
-            System.IO.FileAccess.Read,
-            FileShare.ReadWrite | FileShare.Delete);
-        end = Math.Min(end, input.Length);
-        start = Math.Clamp(start, 0, end);
-        if (end - start > maximumBytes)
-            start = end - maximumBytes;
-        input.Seek(start, SeekOrigin.Begin);
-        ZipArchiveEntry entry = archive.CreateEntry(entryName, CompressionLevel.Fastest);
-        using Stream output = entry.Open();
-        byte[] buffer = new byte[81920];
-        long remaining = end - start;
-        while (remaining > 0)
-        {
-            int read = input.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
-            if (read <= 0)
-                break;
-            output.Write(buffer, 0, read);
-            remaining -= read;
-        }
-    }
-
     private static void AddBytes(ZipArchive archive, string entryName, byte[] bytes)
     {
         using MemoryStream input = new(bytes, writable: false);
@@ -1847,17 +1753,6 @@ internal static class CombatBugReportExporter
             throw new DirectoryNotFoundException("无法定位桌面目录。");
         return Path.Combine(desktop, ExportFolderName);
     }
-
-    private static IEnumerable<string> EnumerateFilesSafely(string root, string pattern)
-        => Directory.EnumerateFiles(root, pattern, new EnumerationOptions
-        {
-            RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
-            AttributesToSkip = FileAttributes.ReparsePoint,
-        });
-
-    private static string NormalizeEntryPath(string path)
-        => path.Replace(Path.DirectorySeparatorChar, '/');
 
     private static string SanitizeFileName(string value)
     {

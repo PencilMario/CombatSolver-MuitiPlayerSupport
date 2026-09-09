@@ -9,11 +9,20 @@ $forbiddenSearchReferences = @(
     "Entry.Logger",
     "SolverController",
     "SolverOverlay",
+    "SolverText",
+    "SolverRelicEffectText",
+    "SolverUiModelNames",
+    "SolverActionTextIdentity",
+    "SolverLocaleRefresh",
     "SolvedRouteCache",
     "UnattendedTestRunner"
 )
 
 $violations = [System.Collections.Generic.List[string]]::new()
+$normalityMirror = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot 'src/Engine/InCombat/Mirrors/Hooks/Card/ShouldPlayMirrors.cs'))
+if (-not $normalityMirror.Contains('registry.Register<Normality>(HandleNormality)')) {
+    $violations.Add('Normality must use the shared ShouldPlay mirror for manual and automatic cards.')
+}
 $playerTurnEndCallers = @(
     "src/Search/CombatBeamSolver.Expansion.cs",
     "src/Runtime/LiveEndTurnRiskEvaluator.cs",
@@ -1004,6 +1013,7 @@ foreach ($rendererPath in $overlayRendererPaths) {
 }
 
 $bugReportExporterPath = Join-Path $repositoryRoot "src\Runtime\CombatBugReportExporter.cs"
+$diagnosticJournalPath = Join-Path $repositoryRoot "src\Runtime\CombatDiagnosticJournal.cs"
 $bugReportUploaderPath = Join-Path $repositoryRoot "src\Runtime\CombatBugReportUploader.cs"
 $solverSettingsPanelPath = Join-Path $repositoryRoot "src\UI\SolverSettingsPanel.cs"
 $solverSettingsGeneralPath = Join-Path $repositoryRoot "src\UI\SolverSettingsPanel.General.cs"
@@ -1011,10 +1021,17 @@ $solverSettingsPerformancePath = Join-Path $repositoryRoot "src\UI\SolverSetting
 $solverSettingsBugReportsPath = Join-Path $repositoryRoot "src\UI\SolverSettingsPanel.BugReports.cs"
 $solverSettingsControlsPath = Join-Path $repositoryRoot "src\UI\SolverSettingsPanel.Controls.cs"
 foreach ($check in @(
+    @{ Path = $diagnosticJournalPath; Text = "AppendOnlyEventLog<CombatLogEntry>" },
+    @{ Path = $diagnosticJournalPath; Text = "_session?.Log.CaptureAsync()" },
+    @{ Path = $bugReportExporterPath; Text = "Entry.Logger.Journal.CaptureAsync()" },
+    @{ Path = $bugReportExporterPath; Text = "WriteDiagnosticLogs(archive, diagnosticLogs)" },
     @{ Path = $bugReportExporterPath; Text = "private static readonly BlockingCollection<Action> BackgroundOperations = new();" },
     @{ Path = $bugReportExporterPath; Text = "QueueCheckpointWrite(session, capture);" },
     @{ Path = $bugReportExporterPath; Text = "Task<ForensicArchiveBundle> forensicsTask = QueueBackground(" },
     @{ Path = $bugReportExporterPath; Text = "ForensicArchiveBundle forensics = await forensicsTask.ConfigureAwait(false);" },
+    @{ Path = $bugReportExporterPath; Text = "CombatBugReportMetadata.CaptureCombat" },
+    @{ Path = $bugReportUploaderPath; Text = "ReadMetadata(zipPath, submissionId, description)" },
+    @{ Path = $bugReportUploaderPath; Text = "AllowAutoRedirect = false" },
     @{ Path = $bugReportUploaderPath; Text = "IProgress<CombatBugReportUploadProgress>" },
     @{ Path = $bugReportUploaderPath; Text = "HttpCompletionOption.ResponseHeadersRead" },
     @{ Path = $bugReportUploaderPath; Text = "CancellationToken requestCancellationToken" },
@@ -1031,6 +1048,11 @@ foreach ($check in @(
 }
 if (Select-String -LiteralPath $bugReportUploaderPath -SimpleMatch "using Godot" -Quiet) {
     $violations.Add("${bugReportUploaderPath}: uploader must not own Godot UI state")
+}
+foreach ($legacyLogRead in @("AddFileTail(", "CaptureLogStarts(", '"*.log"')) {
+    if (Select-String -LiteralPath $bugReportExporterPath -SimpleMatch $legacyLogRead -Quiet) {
+        $violations.Add("${bugReportExporterPath}: global log collection must stay out of report exports")
+    }
 }
 
 $searchCompletionNotifierPath = Join-Path $repositoryRoot "src\Runtime\SearchCompletionNotifier.cs"

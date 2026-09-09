@@ -364,7 +364,7 @@ internal sealed partial class CombatBeamSolver
                 else if (kills.TryGetValue(actionIndex, out IReadOnlyList<string>? fallback))
                 {
                     attributedKills[actionIndex] = fallback
-                        .Select(name => $"{name}（未知效果）")
+                        .Select(name => $"{name}（{displayNames.DamageSource(CombatDamageSource.Unknown)}）")
                         .ToArray();
                 }
             }

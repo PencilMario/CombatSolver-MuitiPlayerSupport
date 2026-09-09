@@ -87,7 +87,8 @@ internal sealed partial class CombatBeamSolver
                         displayNames.Creature(target),
                         ReplayCount: Math.Max(0, card.Preview.GetEnchantedReplayCount()),
                         CardStateKey: cardStateKey,
-                        CardStateOccurrence: cardStateOccurrence);
+                        CardStateOccurrence: cardStateOccurrence,
+                        CardUpgradeLevel: card.Preview.CurrentUpgradeLevel);
                     SimulationSnapshot probe = ReplayAction(seed, action);
                     try
                     {
@@ -647,7 +648,8 @@ internal sealed partial class CombatBeamSolver
                     targetName,
                     ReplayCount: Math.Max(0, card.Preview.GetEnchantedReplayCount()),
                     CardStateKey: cardStateKey,
-                    CardStateOccurrence: cardStateOccurrence);
+                    CardStateOccurrence: cardStateOccurrence,
+                        CardUpgradeLevel: card.Preview.CurrentUpgradeLevel);
                 SimulationSnapshot probeSnapshot = ReplayAction(node, action);
 
                 CardChoiceSpec? choiceSpec = BuildPrimaryCardChoiceSpec(probeSnapshot);
@@ -2696,7 +2698,8 @@ internal sealed partial class CombatBeamSolver
         int startingTurn = 0,
         int priorActionCount = 0,
         ActionRelicTriggerRecorder? triggerRecorder = null,
-        ReplayForkSeed? replayForkSeed = null)
+        ReplayForkSeed? replayForkSeed = null,
+        SearchReplayEvidence? replayEvidence = null)
     {
         _run.WorkPacer.YieldIfNeeded();
         CombatPredictionSimulator simulator;
@@ -2784,7 +2787,7 @@ internal sealed partial class CombatBeamSolver
                     boundary = SearchBoundaryReason.PendingChoice;
                 }
                 turn = simulatedCombat.GetPlayerTurnNumber(_player);
-                LogAnnotatedReplayState(simulator, action, priorActionCount + actionOffset, turn);
+                LogAnnotatedReplayState(simulator, action, priorActionCount + actionOffset, turn, replayEvidence);
                 continue;
             }
 
@@ -2875,7 +2878,7 @@ internal sealed partial class CombatBeamSolver
                 simulator.CheckWinCondition(simulatedCombat.GetPlayerTurnNumber(_player));
                 boundary = ResolveRequestedPlayerTurnEnd(
                     simulator, simulatedCombat, action, processedEnemyDeaths, ref turn, ref shufflesCrossed);
-                LogAnnotatedReplayState(simulator, action, priorActionCount + actionOffset, turn);
+                LogAnnotatedReplayState(simulator, action, priorActionCount + actionOffset, turn, replayEvidence);
                 continue;
             }
 
@@ -2962,7 +2965,7 @@ internal sealed partial class CombatBeamSolver
             simulator.CheckWinCondition(simulatedCombat.GetPlayerTurnNumber(_player));
             boundary = ResolveRequestedPlayerTurnEnd(
                 simulator, simulatedCombat, action, processedEnemyDeaths, ref turn, ref shufflesCrossed);
-            LogAnnotatedReplayState(simulator, action, priorActionCount + actionOffset, turn);
+            LogAnnotatedReplayState(simulator, action, priorActionCount + actionOffset, turn, replayEvidence);
         }
         _run.Performance.End(SearchMetricPhase.Action, actionMeasurement);
 
@@ -3018,8 +3021,12 @@ internal sealed partial class CombatBeamSolver
         CombatPredictionSimulator simulator,
         PlanAction action,
         int actionIndex,
-        int turn)
+        int turn,
+        SearchReplayEvidence? replayEvidence = null)
     {
+        if (replayEvidence != null && replayEvidence.Observe(simulator, _player, action, actionIndex))
+            replayEvidence.FirstActualState = ContinuationStamp.CapturePredicted(
+                _player, simulator, turn, _forecast, _startTurnNumber).StateText;
         if (!_detailedDiagnostics || simulator.ActionRelicTriggers == null)
             return;
 
@@ -3138,6 +3145,12 @@ internal sealed partial class CombatBeamSolver
                 }
                 return incremental;
             });
+        }
+        catch (SearchTransitionException error)
+        {
+            SearchReplayEvidence.PublishCandidateFailure(policy.Diagnostics, parent,
+                "action_replay:" + error.Message, action);
+            throw;
         }
         finally
         {
@@ -4549,6 +4562,7 @@ internal sealed partial class CombatBeamSolver
     {
         if (node.PendingCycleExitObservation != null)
         {
+            SearchReplayEvidence.PublishCandidateFailure(policy.Diagnostics, node, "expansion_admission_frontier");
             throw new InvalidOperationException(
                 "临时循环出口 observation 越过了 action admission frontier。");
         }

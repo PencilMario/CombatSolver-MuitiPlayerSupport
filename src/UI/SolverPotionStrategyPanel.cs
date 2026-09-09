@@ -38,7 +38,7 @@ internal sealed partial class SolverPotionStrategyPanel : PanelContainer
         };
         layout.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
         Label heading = SolverUiTokens.CreateLabel(
-            "药水策略",
+            SolverText.Get("药水策略"),
             SolverUiTokens.Type.Body,
             SolverUiTokens.Palette.TextPrimary,
             FontType.Bold);
@@ -123,7 +123,7 @@ internal sealed partial class SolverPotionStrategyPanel : PanelContainer
         if (potions.Count == 0)
         {
             Label empty = SolverUiTokens.CreateLabel(
-                "当前没有药水",
+                SolverText.Get("当前没有药水"),
                 SolverUiTokens.Type.Body,
                 SolverUiTokens.Palette.TextMuted);
             empty.CustomMinimumSize = new Vector2(0, 32);
@@ -195,7 +195,7 @@ internal sealed partial class SolverPotionStrategyPanel : PanelContainer
         input.Disabled = controlsDisabled || !searchable;
         if (!searchable)
         {
-            input.TooltipText = "该药水不可指定使用策略";
+            input.TooltipText = SolverText.Get("该药水不可指定使用策略");
         }
         else
         {
@@ -244,15 +244,15 @@ internal sealed partial class SolverPotionStrategyPanel : PanelContainer
     {
         (string text, string description, Color color) = directive switch
         {
-            SolverPotionDirective.Disabled => ("x", "禁用 / 保护", SolverUiTokens.Palette.Danger),
-            SolverPotionDirective.Force => ("✓", "强制使用", SolverUiTokens.Palette.Success),
-            _ => ("-", "智能使用", SolverUiTokens.Palette.TextSecondary),
+            SolverPotionDirective.Disabled => ("x", SolverText.Get("禁用 / 保护"), SolverUiTokens.Palette.Danger),
+            SolverPotionDirective.Force => ("✓", SolverText.Get("强制使用"), SolverUiTokens.Palette.Success),
+            _ => ("-", SolverText.Get("智能使用"), SolverUiTokens.Palette.TextSecondary),
         };
         Color background = SolverUiTokens.IsLightTheme
             ? SolverUiTokens.Palette.Surface
             : SolverUiTokens.Palette.Background;
         input.Text = text;
-        input.TooltipText = $"{description}（点击切换）";
+        input.TooltipText = SolverText.Format($"{description}（点击切换）");
         input.AddThemeColorOverride("font_color", color);
         input.AddThemeColorOverride("font_hover_color", color);
         input.AddThemeColorOverride("font_pressed_color", color);

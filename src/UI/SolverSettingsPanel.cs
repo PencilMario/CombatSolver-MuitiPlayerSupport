@@ -44,13 +44,13 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         Label title = SolverUiTokens.CreateLabel(
-            "求解器设置",
+            SolverText.Get("求解器设置"),
             SolverUiTokens.Type.Title,
             SolverUiTokens.Palette.TextPrimary,
             FontType.Bold);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         heading.AddChild(title);
-        Button reset = SolverUiTokens.CreateButton("恢复默认", SolverButtonStyle.Secondary);
+        Button reset = SolverUiTokens.CreateButton(SolverText.Get("恢复默认"), SolverButtonStyle.Secondary);
         reset.CustomMinimumSize = new Vector2(96, SolverUiTokens.Size.ButtonHeight);
         reset.Pressed += ResetDefaults;
         heading.AddChild(reset);
@@ -63,9 +63,9 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
         };
         tabs.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
-        _generalTab = CreateTabButton("常规", SettingsPage.General);
-        _performanceTab = CreateTabButton("性能", SettingsPage.Performance);
-        _bugReportsTab = CreateTabButton("反馈", SettingsPage.BugReports);
+        _generalTab = CreateTabButton(SolverText.Get("常规"), SettingsPage.General);
+        _performanceTab = CreateTabButton(SolverText.Get("性能"), SettingsPage.Performance);
+        _bugReportsTab = CreateTabButton(SolverText.Get("反馈"), SettingsPage.BugReports);
         tabs.AddChild(_generalTab);
         tabs.AddChild(_performanceTab);
         tabs.AddChild(_bugReportsTab);
@@ -133,9 +133,9 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
     public bool OpenPerformancePage() => TrySelectPage(SettingsPage.Performance);
 
     internal bool SettingsTabsConfiguredForTesting
-        => _generalTab.Text == "常规"
-           && _performanceTab.Text == "性能"
-           && _bugReportsTab.Text == "反馈"
+        => _generalTab.Text == SolverText.Get("常规")
+           && _performanceTab.Text == SolverText.Get("性能")
+           && _bugReportsTab.Text == SolverText.Get("反馈")
            && _generalPage.Visible
            && !_performancePage.Visible
            && !_bugReportsPage.Visible;
@@ -209,7 +209,7 @@ internal sealed partial class SolverSettingsPanel : PanelContainer
         ResetPositionRequested?.Invoke();
         Reload();
         SolverOverlay.ApplyOverlayOpacity();
-        SetStatus("已恢复默认设置", SolverUiTokens.Palette.Success);
+        SetStatus(SolverText.Get("已恢复默认设置"), SolverUiTokens.Palette.Success);
         if (activeTheme != SolverSettings.Current.OverlayTheme)
             SolverOverlay.ApplyConfiguredTheme();
     }
