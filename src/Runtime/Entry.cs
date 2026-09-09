@@ -100,7 +100,7 @@ public static class Entry
             return;
         Player? localPlayer = LocalContext.GetMe(state);
         if (SolverController.IsMultiplayerSession
-            && localPlayer?.PlayerCombatState?.Phase != PlayerTurnPhase.Play)
+            && (localPlayer == null || state.CurrentSide != CombatSide.Player))
         {
             SolverOverlay.ShowMultiplayerWaiting(NGame.Instance);
             return;
