@@ -11,6 +11,7 @@ Options:
   --verify-base-lib-card-modifier-boundary
   --verify-baselib-card-modifier-boundary  Deprecated compatibility alias
   --logging-fixture  Run the short native logging/export fixture (at most 120 seconds)
+  --request-fixture-path JSON  Use a complete request fixture (its preset and budgets are preserved)
   --evidence-directory DIRECTORY
   --checkpoint-archive-path ZIP --checkpoint-selector latest --replay-mode RestoreOnly
   --steam-root DIRECTORY
@@ -41,6 +42,7 @@ timeout_seconds=360
 search_max_degree_of_parallelism=2
 verify_baselib_card_modifier_boundary=false
 logging_fixture=false
+request_fixture_path=""
 evidence_directory=""
 checkpoint_archive=""
 checkpoint_selector="latest"
@@ -52,6 +54,9 @@ data_dir_arg=""
 
 while (($# > 0)); do
     case "$1" in
+        --request-fixture-path)
+            require_option_value "$1" "${2-}"
+            request_fixture_path="$(realpath -e -- "$2")"; shift 2 ;;
         --checkpoint-archive-path) require_option_value "$1" "${2-}"; checkpoint_archive="$(realpath -e -- "$2")"; shift 2 ;;
         --checkpoint-selector) require_option_value "$1" "${2-}"; checkpoint_selector="$2"; shift 2 ;;
         --replay-mode) require_option_value "$1" "${2-}"; replay_mode="$2"; shift 2 ;;
@@ -126,6 +131,13 @@ while (($# > 0)); do
             ;;
     esac
 done
+
+if [[ -n "$request_fixture_path" ]]; then
+    [[ "$logging_fixture" == false && -z "$checkpoint_archive" ]] || \
+        die "--request-fixture-path cannot be combined with another fixture mode"
+    jq -e 'type == "object" and (.scenarioId | type == "string")' \
+        "$request_fixture_path" >/dev/null || die "request fixture must be a JSON request object"
+fi
 
 [[ "$timeout_seconds" =~ ^[1-9][0-9]*$ ]] || die "--timeout-seconds must be a positive integer"
 [[ "$search_max_degree_of_parallelism" =~ ^[0-9]+$ ]] \
@@ -387,6 +399,11 @@ if [[ "$logging_fixture" == true ]]; then
     jq --arg runId "$run_id" --argjson timeout "$timeout_seconds" \
         '. + {runId: $runId, timeoutSeconds: $timeout}' \
         "$repository_root/coverage/unattended/logging-short-combat.json" >"$request_temp_path"
+fi
+if [[ -n "$request_fixture_path" ]]; then
+    jq --arg runId "$run_id" --argjson timeout "$timeout_seconds" \
+        '. + {runId: $runId, timeoutSeconds: $timeout, exitOnComplete: true}' \
+        "$request_fixture_path" >"$request_temp_path"
 fi
 if [[ -n "$evidence_directory" ]]; then
     jq --arg path "$evidence_directory" '. + {evidenceDirectory: $path}' "$request_temp_path" >"$request_temp_path.evidence"

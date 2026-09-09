@@ -103,6 +103,10 @@ internal static class SolverWeights
     internal static int ResolveDefaultSearchMaxDegreeOfParallelism(int logicalProcessorCount)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(logicalProcessorCount, 1);
+        // Leave at least half of a large machine's logical processors for the game.
+        // Explicit player settings still take precedence over this default.
+        if (logicalProcessorCount >= 16)
+            return 8;
         if (logicalProcessorCount >= 4)
             return 4;
         return logicalProcessorCount >= 2 ? 2 : 1;

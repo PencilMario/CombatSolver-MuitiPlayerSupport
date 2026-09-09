@@ -18,6 +18,16 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "MIRRORED-HOOK-FILTER")
+            {
+                runner.SetStage("mirrored_hook_filter");
+                runner.AssertMirroredHookFilter(scenario.CombatState, scenario.Player);
+            }
+            if (request.ScenarioId == "HAND-POTENTIAL-COSTS")
+            {
+                runner.SetStage("hand_potential_costs");
+                runner.AssertHandPotentialCosts(scenario.CombatState, scenario.Player);
+            }
             if (request.ScenarioId == "KNOWN-GAMEPLAY-MOD-BOUNDARY")
             {
                 runner.SetStage("known_gameplay_mod_boundary");
@@ -76,7 +86,9 @@ internal sealed partial class UnattendedTestRunner
             if (request.VerifySearchPolicySnapshot)
             {
                 runner.SetStage("search_policy_snapshot");
-                await AssertSearchPolicySnapshotAsync(scenario.CombatState);
+                await AssertSearchPolicySnapshotAsync(
+                    scenario.CombatState,
+                    verifyStandPatBatches: request.ScenarioId == "STAND-PAT-PROBE-BATCHES");
                 runner._completedChecks.Add("SearchPolicySnapshot");
             }
             if (request.VerifyGrowthPolicy)
@@ -84,6 +96,11 @@ internal sealed partial class UnattendedTestRunner
                 runner.SetStage("growth_policy");
                 await runner.AssertGrowthPolicyAsync(scenario.CombatState);
                 runner._completedChecks.Add("GrowthPolicy");
+            }
+            if (request.ScenarioId == "DEFAULT-SEARCH-PARALLELISM")
+            {
+                AssertDefaultSearchParallelism();
+                runner._completedChecks.Add("DefaultSearchParallelism");
             }
             if (request.VerifyControllerSessionLifecycle)
             {

@@ -77,7 +77,7 @@ internal sealed partial class SolverSettingsPanel
             budgetGrid,
             SolverText.Get("搜索并行度"),
             CreateSearchParallelismInput(),
-            SolverText.Get("关闭时使用单线程搜索；2–16 是并行上限，实际并发还会受可独立分支数和内存安全准入限制，因此 CPU 不一定满载。提高可能加快大型搜索，也会增加 CPU、峰值内存和帧率压力；超过物理核心数通常只有小幅收益。默认按可用逻辑处理器自动选择 4、2 或单线程；遇到疑似并行问题时请先上传问题包，再切换为关闭。"));
+            SolverText.Get("关闭时使用单线程搜索；2–16 是并行上限，实际并发还会受可独立分支数和内存安全准入限制，因此 CPU 不一定满载。提高可能加快大型搜索，也会增加 CPU、峰值内存和帧率压力；超过物理核心数通常只有小幅收益。默认按可用逻辑处理器选择：16 个及以上用 8 线程，4–15 个用 4 线程，2–3 个用 2 线程，其余用单线程；遇到疑似并行问题时请先上传问题包，再切换为关闭。"));
         _noGcRegionEnabled = CreateToggle();
         _noGcRegionEnabled.Toggled += OnNoGcRegionEnabledToggled;
         AddBasicRow(

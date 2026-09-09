@@ -6,6 +6,7 @@ param(
     [int]$SearchMaxDegreeOfParallelism = 2,
     [switch]$VerifyBaseLibCardModifierBoundary,
     [switch]$LoggingFixture,
+    [string]$RequestFixturePath,
     [string]$EvidenceDirectory,
     [string]$CheckpointArchivePath,
     [ValidateSet('RestoreOnly','ReplayRecorded','SearchOnly','DeploySolver')][string]$ReplayMode = 'RestoreOnly',
@@ -13,6 +14,15 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+if ($RequestFixturePath -and ($LoggingFixture -or $CheckpointArchivePath)) {
+    throw "RequestFixturePath cannot be combined with another fixture mode."
+}
+if ($RequestFixturePath) {
+    $fixture = Get-Content -LiteralPath $RequestFixturePath -Raw | ConvertFrom-Json -AsHashtable
+    if ($fixture -isnot [System.Collections.IDictionary] -or $fixture.scenarioId -isnot [string]) {
+        throw "Request fixture must be a JSON request object."
+    }
+}
 if ($LoggingFixture) { $TimeoutSeconds = [Math]::Min($TimeoutSeconds, 120) }
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $steamExe = "D:\Steam\steam.exe"
@@ -144,6 +154,12 @@ if ($LoggingFixture) {
     $request = Get-Content -LiteralPath (Join-Path $repositoryRoot 'coverage/unattended/logging-short-combat.json') -Raw | ConvertFrom-Json -AsHashtable
     $request.runId = $runId
     $request.timeoutSeconds = $TimeoutSeconds
+}
+if ($RequestFixturePath) {
+    $request = $fixture
+    $request.runId = $runId
+    $request.timeoutSeconds = $TimeoutSeconds
+    $request.exitOnComplete = $true
 }
 if ($EvidenceDirectory) { $request.evidenceDirectory = [IO.Path]::GetFullPath($EvidenceDirectory) }
 if ($CheckpointArchivePath) {

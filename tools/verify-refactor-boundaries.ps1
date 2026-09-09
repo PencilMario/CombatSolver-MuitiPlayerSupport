@@ -426,6 +426,7 @@ foreach ($check in $rootSnapshotChecks) {
 
 $expectedBeamFiles = @(
     "CombatBeamSolver.cs",
+    "CombatBeamSolver.AdmittedExpansion.cs",
     "CombatBeamSolver.BeamRetentionPolicy.cs",
     "CombatBeamSolver.CrossTurnPlanning.cs",
     "CombatBeamSolver.CyclePlanning.cs",
@@ -438,8 +439,11 @@ $expectedBeamFiles = @(
     "CombatBeamSolver.ParallelExpansion.cs",
     "CombatBeamSolver.PathDiagnostics.cs",
     "CombatBeamSolver.Phases.cs",
+    "CombatBeamSolver.PrimaryChoiceReplay.cs",
     "CombatBeamSolver.Retention.cs",
+    "CombatBeamSolver.RetentionJobs.cs",
     "CombatBeamSolver.StateEvaluation.cs",
+    "CombatBeamSolver.StandPatJobs.cs",
     "CombatBeamSolver.Terminal.cs"
 )
 $pathDiagnosticsPath = Join-Path $searchRoot "CombatBeamSolver.PathDiagnostics.cs"
@@ -506,11 +510,50 @@ $beamStructureChecks = @(
     @{ File = "CombatBeamSolver.cs"; Text = "private FinalPlanOrdering FinalOrdering =>" },
     @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "private sealed class BeamRetentionPolicy(" },
     @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "public List<SearchNode> RankBest(" },
+    @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "private sealed class RoutingChoiceNodes(SearchNode first) : List<SearchNode>" },
+    @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "public void Clear() => NodesByChoice.Clear();" },
+    @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "routingNodes = new RoutingChoiceNodes(node);" },
+    @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "ReturnRoutingChoiceScratch(scratch);" },
     @{ File = "CombatBeamSolver.Models.cs"; Text = "private readonly record struct TranspositionLabel(" },
     @{ File = "CombatBeamSolver.Models.cs"; Text = "private sealed class SearchRunContext(" },
     @{ File = "CombatBeamSolver.Models.cs"; Text = "private readonly record struct SearchFeatures(" },
-    @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "private sealed class ParallelExpansionExecutor : IDisposable" },
+    @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "private sealed partial class ParallelExpansionExecutor : IDisposable" },
     @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "public ExpansionWorkerOutcome[] Evaluate(" },
+    @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "public int MaximumQueuedParents => SearchWaveMemoryPolicy.MaximumQueuedParents(DegreeOfParallelism);" },
+    @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "List<ExpansionLane> lanes = new(DegreeOfParallelism);" },
+    @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "private ExpansionWorkerOutcome[] EvaluateQueuedParents(" },
+    @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "private sealed class AdmittedParent(" },
+    @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "public object ForkGate { get; } = new();" },
+    @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);" },
+    @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "wave.BackgroundCompleted.Wait();" },
+    @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "while (committed < parents.Length && parents[committed]!.TailCompleted)" },
+    @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "_completedActions == Actions.Count && _completedPotions == Potions.Count" },
+    @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "ready.TransferPotionTo(Aggregate!, candidate);" },
+    @{ File = "CombatBeamSolver.PrimaryChoiceReplay.cs"; Text = "private sealed class PrimaryChoiceReplayFrontier : IDisposable" },
+    @{ File = "CombatBeamSolver.PrimaryChoiceReplay.cs"; Text = "=> branches >= 2 && finals >= branches && attempts >= branches;" },
+    @{ File = "CombatBeamSolver.PrimaryChoiceReplay.cs"; Text = "public bool CanDispatchContinuation => CompletedReplays == Actions.Length" },
+    @{ File = "CombatBeamSolver.PrimaryChoiceReplay.cs"; Text = "if (!budget.TrySpendReplayAttempt())" },
+    @{ File = "CombatBeamSolver.PrimaryChoiceReplay.cs"; Text = "frontier.AssertConsumed();" },
+    @{ File = "CombatBeamSolver.PrimaryChoiceReplay.cs"; Text = "if (index != NextReplay || count < 1 || count > 4 || index + count > Actions.Length)" },
+    @{ File = "CombatBeamSolver.Models.cs"; Text = "public ParallelExpansionExecutor? ActiveParallelExpansion;" },
+    @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "_coordinator._run.ActiveParallelExpansion = null;" },
+    @{ File = "CombatBeamSolver.StandPatJobs.cs"; Text = "private void PrepareStandPatProbes(IEnumerable<SearchNode> nodes)" },
+    @{ File = "CombatBeamSolver.StandPatJobs.cs"; Text = "seen.Add(node.StateKey)" },
+    @{ File = "CombatBeamSolver.StandPatJobs.cs"; Text = "_run.StandPatCache.Add(pending[index].StateKey, evaluations[index]);" },
+    @{ File = "CombatBeamSolver.StandPatJobs.cs"; Text = "ExpansionLane[] lanes = EnsureBackgroundLanes();" },
+    @{ File = "CombatBeamSolver.StandPatJobs.cs"; Text = "_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);" },
+    @{ File = "CombatBeamSolver.StandPatJobs.cs"; Text = "wave.Completed.Wait();" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "public void EvaluateRetentionIndices(" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "ExpansionLane[] lanes = EnsureBackgroundLanes();" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "wave.Completed.Wait();" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "_coordinator._run.OffThreadAllocatedBytes += job.AllocatedBytes;" },
+    @{ File = "CombatBeamSolver.RetentionJobs.cs"; Text = "wave.Error?.Throw();" },
+    @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "_run.RoutingChoiceSummaryBuilds += summaryGroups.Length;" },
+    @{ File = "CombatBeamSolver.BeamRetentionPolicy.cs"; Text = "RequestOrderedMutationObservation(candidate);" },
+    @{ File = "SearchWaveMemoryPolicy.cs"; Text = "return checked(degreeOfParallelism * 2);" },
+    @{ File = "SearchWaveMemoryPolicy.cs"; Text = "current >= maximum - current ? maximum : current * 2" },
+    @{ File = "CombatBeamSolver.Phases.cs"; Text = "SearchWaveMemoryPolicy.GrowCapacity(" },
+    @{ File = "CombatBeamSolver.Retention.cs"; Text = "end.ReleaseSimulator();" },
     @{ File = "CombatBeamSolver.ParallelExpansion.cs"; Text = "private void CommitExpansionBatch(" },
     @{ File = "CombatBeamSolver.Phases.cs"; Text = "public SolverResult Solve()" },
     @{ File = "CombatBeamSolver.Expansion.cs"; Text = "private IEnumerable<SearchNode> Expand(SearchNode node)" },
@@ -1070,6 +1113,67 @@ $ritsuTargetLookupPath = Join-Path $repositoryRoot "src/Runtime/RitsuBaseLibTarg
 foreach ($rule in @('ConditionalWeakTable<Assembly, Resolution>', 'SimulationNotificationIsolation.IsActive', '__0.IsDynamic', 'callbacks.Length != 1')) {
     if (-not (Select-String -LiteralPath $ritsuTargetLookupPath -SimpleMatch $rule -Quiet)) {
         $violations.Add("${ritsuTargetLookupPath}: missing metadata cache boundary '$rule'")
+    }
+}
+
+$metadataReuseChecks = @(
+    @{ File = 'src/Runtime/PowerAmountComparisonPatch.cs'; Text = 'Enum.GetUnderlyingType(typeof(PowerStackType)) != typeof(int)' },
+    @{ File = 'src/Runtime/PowerAmountComparisonPatch.cs'; Text = 'if (matches.Count != 2' },
+    @{ File = 'src/Runtime/PowerAmountComparisonPatch.cs'; Text = 'code[i].labels.Count != 0 || code[i].blocks.Count != 0' },
+    @{ File = 'src/Runtime/AssemblyTypeAbsenceCache.cs'; Text = 'WeakReference<Assembly>[] DynamicAssemblies' },
+    @{ File = 'src/Runtime/AssemblyTypeAbsenceCache.cs'; Text = 'AppDomain.CurrentDomain.AssemblyLoad' },
+    @{ File = 'src/Runtime/AssemblyTypeAbsenceCache.cs'; Text = 'absence.Generation == Volatile.Read(ref _assemblyGeneration)' },
+    @{ File = 'src/Runtime/AssemblyTypeAbsenceCache.cs'; Text = 'assembly.GetType(markerTypeName, throwOnError: false)' },
+    @{ File = 'src/Runtime/RitsuBaseLibTargetTypeResolutionPatches.cs'; Text = '!SimulationNotificationIsolation.IsActive' },
+    @{ File = 'src/Runtime/RitsuBaseLibTargetTypeResolutionPatches.cs'; Text = 'MissingType.ObserveResult(__state, __result)' },
+    @{ File = 'src/Search/SimulatedCombatState.cs'; Text = 'IReadOnlyList<PowerModel>? powers = effectivePrefix is not null ? _effectivePowers : null;' },
+    @{ File = 'src/Search/SimulatedCombatState.cs'; Text = '_effectiveHookListenerPrefix = null;' },
+    @{ File = 'src/Search/SimulatedCombatState.Fork.cs'; Text = 'ReferenceEquals(_activeHookListenerPrefix, _effectiveHookListenerPrefix)' },
+    @{ File = 'src/Search/SimulatedCombatState.cs'; Text = 'private IReadOnlyList<AbstractModel> GetBaseHookListenerPrefix()' },
+    @{ File = 'src/Search/SimulatedCombatState.cs'; Text = 'if (insertionIndex < 0 && requirePrefixAnchor)' },
+    @{ File = 'src/Search/SimulatedCombatState.cs'; Text = '_baseHookListenerPrefix = null;' },
+    @{ File = 'src/Search/SimulatedCombatState.cs'; Text = 'private void InvalidateCardAndOrbHookListeners()' },
+    @{ File = 'src/Search/SimulatedCombatState.Fork.cs'; Text = 'fork._baseHookListenerPrefix = RemapCachedModels(_baseHookListenerPrefix, context);' },
+    @{ File = 'src/Search/CombatBeamSolver.BeamRetentionPolicy.cs'; Text = 'group.RankSummary = new(' },
+    @{ File = 'src/Search/CombatBeamSolver.BeamRetentionPolicy.cs'; Text = 'ComputeRoutingParentRetentionRank(group)' },
+    @{ File = 'src/Engine/Common/MirroredHookListenerFilter.cs'; Text = 'shared.Matches(source)' },
+    @{ File = 'src/Engine/Common/MirroredHookListenerFilter.cs'; Text = 'Volatile.Write(ref _sharedLayouts[slot], layout)' },
+    @{ File = 'src/Engine/Common/MirroredHookListenerFilter.cs'; Text = 'source.Count <= MaxSharedLayoutLength' },
+    @{ File = 'src/Engine/Common/MirroredHookListenerFilter.cs'; Text = 'BaseHooks.Append(NativeKeywordHook)' },
+    @{ File = 'src/Engine/InCombat/Simulation/CombatPredictedCardExtensions.cs'; Text = '!listeners.HasAny(MirroredHookMask.TryModifyKeywordsInCombat)' }
+)
+foreach ($check in $metadataReuseChecks) {
+    $path = Join-Path $repositoryRoot $check.File
+    if (-not (Select-String -LiteralPath $path -SimpleMatch $check.Text -Quiet)) {
+        $violations.Add("${path}: missing exact metadata reuse boundary '$($check.Text)'")
+    }
+}
+
+# Keep the no-op dispatch metadata complete when callbacks are added to the facade.
+foreach ($file in @("CombatBeamSolver.RetentionJobs.cs", "CombatBeamSolver.BeamRetentionPolicy.cs")) {
+    foreach ($forbidden in @("Parallel.For(", "Task.Run(")) {
+        if (Select-String -LiteralPath (Join-Path $searchRoot $file) -SimpleMatch $forbidden -Quiet) {
+            $violations.Add("$($file): retention work bypassed fixed lanes '$forbidden'")
+        }
+    }
+}
+
+$mirroredFilterText = Get-Content -LiteralPath (Join-Path $repositoryRoot "src/Engine/Common/MirroredHookListenerFilter.cs") -Raw
+$mirroredHookNames = [System.Collections.Generic.HashSet[string]]::new()
+[void]$mirroredHookNames.Add('TryModifyKeywordsInCombat')
+foreach ($sourceFile in Get-ChildItem -LiteralPath (Join-Path $repositoryRoot "src/Engine/InCombat/Mirrors") -Filter '*.cs' -Recurse) {
+    $sourceText = Get-Content -LiteralPath $sourceFile.FullName -Raw
+    foreach ($match in [regex]::Matches($sourceText, 'nameof\(AbstractModel\.([A-Za-z][A-Za-z0-9]*)\)')) {
+        [void]$mirroredHookNames.Add($match.Groups[1].Value)
+    }
+}
+$hookFacadeText = Get-Content -LiteralPath (Join-Path $repositoryRoot "src/Engine/InCombat/Mirrors/HookMirrors.cs") -Raw
+foreach ($match in [regex]::Matches($hookFacadeText, '(?:listener|modifier)\.([A-Za-z][A-Za-z0-9]*)\(')) {
+    [void]$mirroredHookNames.Add($match.Groups[1].Value)
+}
+foreach ($hookName in $mirroredHookNames) {
+    if (-not $mirroredFilterText.Contains("nameof(AbstractModel.$hookName)")) {
+        $violations.Add("Missing mirrored hook participation metadata: $hookName")
     }
 }
 
