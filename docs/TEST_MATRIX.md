@@ -1,6 +1,6 @@
 # CombatSolver 测试清单
 
-## 2026-09-09：0.34.6 静默猎手修复合并验证（待审核）
+## 2026-09-09：0.34.6 静默猎手修复合并验证
 
 - 将 `fix/silent-unexpected-replans` 的 `7f5a984` 合入包含 PR #67 / #68 / #72 的源码。合并后的 Release 构建 0 警告 / 0 错误；`CopyModOnBuild=false`，使用本机现有 .NET 4.8 引用包。结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`；CoverageCatalog `--verify-effective --verify-roster-sources` 通过。
 - 以下为本次合并后的直接结果，均完成 T1 → T2 严格差分，比较有序牌堆、逐实例卡牌、Power、怪物状态、RNG、ContinuationStamp 和相关 Fork 状态。它们验证新监听器过滤与既有修复的组合，不代表原报告整场回放。
@@ -12,7 +12,7 @@
 | STOCK-REPORT-RESPAWN-HP | `9452a1f11d5a4143a7fd383fd4699054` | Passed，12.45 秒；原报告 Niche RNG 边界、反伤死亡与下一回合替补完整状态 |
 
 - 使用下方原场景命令，私有实例改为 `silent-release-0346`，每请求期限 120 秒；证据位于集成工作区 `.local/silent-merge-evidence/`。结束后已停止该实例并精确删除其拥有的 `game` 快照，Steam 游戏目录未写入。
-- 本次未重复已通过的无关纯计算/并行调度检查，未运行整场性能 A/B 或可见 FPS 测试；发布动作等待玩家更新日志审核。
+- 本次未重复已通过的无关纯计算/并行调度检查，未运行整场性能 A/B 或可见 FPS 测试。更新日志已审核，0.34.6 定版仅改变版本与发布文档，复用上述行为验证。
 
 本次静默猎手三项根因最终共 5 个最小行为场景通过（3 项根因 + 2 项相邻回归）；Release 构建 0 警告 / 0 错误，结构门禁 `REFACTOR_BOUNDARIES_OK search_files=78`，CoverageCatalog `--verify-effective --verify-roster-sources` 通过。以下分别保留失败基线、最终结果及未整场回放的范围。
 
