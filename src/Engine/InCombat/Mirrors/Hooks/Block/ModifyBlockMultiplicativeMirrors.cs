@@ -2,6 +2,7 @@ using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Hooks;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.Models.Relics;
 using MegaCrit.Sts2.Core.Models.Singleton;
 using MegaCrit.Sts2.Core.ValueProps;
@@ -46,8 +47,26 @@ internal static class ModifyBlockMultiplicativeMirrors
         registry.Register<PaelsLegion>(HandlePaelsLegion);
         registry.Register<Vambrace>(HandleVambrace);
         registry.Register<MultiplayerScalingModel>(HandleMultiplayerScaling);
+        registry.Register<UnmovablePower>(HandleUnmovablePower);
 
         return registry;
+    }
+
+    private static decimal HandleUnmovablePower(
+        UnmovablePower power,
+        ModifyBlockMultiplicativeMirrorContext context)
+    {
+        if (context.Target.IsMonster
+            || !context.Props.IsCardOrMonsterMove()
+            || context.CardSource is not null
+                && context.CardSource.Preview.Owner.Creature != power.Owner)
+        {
+            return 1m;
+        }
+
+        SimulatedCombatState combat = context.State.CombatState as SimulatedCombatState
+            ?? throw new InvalidOperationException("Unmovable prediction requires SimulatedCombatState.");
+        return combat.GetBlockCardsPlayedThisTurn(power.Owner) < power.Amount ? 2m : 1m;
     }
 
     private static decimal HandleMultiplayerScaling(

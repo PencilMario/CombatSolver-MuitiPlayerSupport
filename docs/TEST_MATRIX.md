@@ -1,5 +1,20 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：历史敏感 Power 顺序（0.34.5）
+
+- `MIXED-POWER-ACQUISITION-ORDER` 失败基线 `6eba58023b214ead8829ed5effbad6ee`：旧逻辑在已有小刀/攻击/格挡历史后临时停用并恢复 Power，首个差异为 `P[1] expected Strength actual PhantomBlades`。
+- 最终 `8f5c8d96d9e342e8a2163e54e359c0d2` Passed，26.26 秒。夹具先在没有目标 Power 时各打一张格挡牌和小刀，再按代表报告顺序获得幻影之刃、力量、第二个轨道、敏捷、致死性和不动；继续各打一张牌后施加虚弱，完整比较生命、格挡、能量、牌堆、有序 Power、ContinuationStamp、Fork 和父分支隔离。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId MIXED-POWER-ACQUISITION-ORDER -EnemyCurrentHp 100 -HeadlessInstance unexpected-replan-power-order-final`。最终 Release 构建 0 警告 / 0 错误。
+- 代表报告 `4b188b2e088c4826ba1b14d0252bd3bf` 只直接核验元数据与独立日志；没有整包恢复或正式搜索。其余 19 份按相同首个 Power 顺序差异和相同执行路径静态归组，不能表述为 20 份整场重放通过。
+
+## 2026-09-09：狂战士回合开始自动出牌历史（0.34.5）
+
+- 代表报告 `c68216599d1a439b972d4161a2135988` 的第 2、3 回合均为 `Y expected=0/0/0 actual=0/0/1`；独立日志确认狂战士在抽牌时自动打出 Strike。只读取代表包日志，没有整包恢复。
+- `HELLRAISER-TURN-START-HISTORY`：`5bbb6f1081aa4206ae077b8aff733194` Passed，24.82 秒。从第 1 回合推进到第 2 回合，预测与实机都在抽牌前开始新的历史窗口；狂战士自动出牌后严格比较生命、资源、四个牌堆、有序 Power、Power 内部状态、RNG 与 ContinuationStamp，并显式断言本回合出牌开始次数为 1。
+- 关联回归 `NORMALITY-AUTOPLAY`：`f014ee4080bd4191805e67096eef7e8b` Passed，10.51 秒，覆盖同一出牌开始计数的根捕获、Fork 隔离、下一回合归零和被阻止自动牌的牌堆结果。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId HELLRAISER-TURN-START-HISTORY -HeadlessInstance unexpected-replan-power-order-final`；回归只替换 ScenarioId 为 `NORMALITY-AUTOPLAY` 并加 `-EnemyCurrentHp 100`。Release 构建 0 警告 / 0 错误。
+- 同组共 9 份 / 7 场；代表报告仅日志直接核验，其余按同一 `Y` 首差异与抽牌自动出牌路径归组。没有把正常 `manual_divergence` 纳入修复数，也没有运行正式搜索或逐包整场部署。
+
 ## 2026-09-08：凡庸与自动打牌（0.34.4）
 
 - 原报告 `12f213c23ccd4a00abaf7a80c796273e` 的第 6 回合在发现、彼岸咆哮后打出倾泻，Normality 仍在手；原版结束回合复核为 25 HP，计划为 0 HP。日志定位后直接构造最小夹具，没有运行原包恢复。

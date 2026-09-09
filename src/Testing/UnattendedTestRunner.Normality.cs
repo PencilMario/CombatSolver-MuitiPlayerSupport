@@ -56,6 +56,7 @@ internal sealed partial class UnattendedTestRunner
                 || forkState.GetCardPlayStartsThisTurn(player.Creature) != 3
                 || ((SimulatedCombatState)recaptured.State.CombatState).GetCardPlayStartsThisTurn(player.Creature) != 3)
                 throw new InvalidOperationException("Card-play starts differ across root, replay and fork.");
+            forkState.BeginSideTurn(player.Creature);
             if (!forkState.TriggerSideTurnStart(fork, CombatSide.Player, [player.Creature], decrementPlating: false)
                 || forkState.GetCardPlayStartsThisTurn(player.Creature) != 0
                 || shadow.GetCardPlayStartsThisTurn(player.Creature) != 3)

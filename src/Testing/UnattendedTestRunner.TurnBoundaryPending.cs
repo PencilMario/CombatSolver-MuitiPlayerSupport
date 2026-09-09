@@ -195,6 +195,7 @@ internal sealed partial class UnattendedTestRunner
 
         Creature enemy = simulatedCombat.Enemies.First();
         simulatedCombat.Apply<VulnerablePower>(enemy, 1, player.Creature);
+        simulatedCombat.BeginSideTurn(player.Creature);
         simulatedCombat.BeginActionChoices((IReadOnlyList<PlanCardChoice>?)null);
         try
         {
