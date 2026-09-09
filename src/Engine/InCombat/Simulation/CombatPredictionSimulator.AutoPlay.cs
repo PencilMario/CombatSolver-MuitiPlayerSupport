@@ -28,8 +28,6 @@ internal sealed partial class CombatPredictionSimulator
     {
         if (HasPendingChoice)
             return false;
-        using IDisposable? modifierScope = (State.CombatState as ICombatPredictionCardExecutionSink)
-            ?.BeginHistorySensitiveCardModifierScope(card);
         if (IsOverOrEnding || State.GetCreature(card.Preview.Owner.Creature).IsDead)
         {
             return false;

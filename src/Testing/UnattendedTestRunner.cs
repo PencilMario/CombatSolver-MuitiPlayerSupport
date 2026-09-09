@@ -2173,7 +2173,6 @@ internal sealed partial class UnattendedTestRunner
         IReadOnlyList<string>? choiceCardIds = null,
         IReadOnlyList<string>? expectedExcludedChoiceCardIds = null)
     {
-        CardPlayPowerSuppression suppression = combat.SuppressHistorySensitiveCardModifiers(card);
         HashSet<uint> processedEnemyDeaths = [];
         IReadOnlyList<string> requestedChoiceCardIds = choiceCardIds ?? [];
         TurnStartChoiceCursor choices = choiceCardIds == null
@@ -2204,7 +2203,6 @@ internal sealed partial class UnattendedTestRunner
         }
         finally
         {
-            combat.RestoreHistorySensitiveCardModifiers(suppression);
             combat.EndActionChoices();
         }
         combat.NormalizeAeonglassWithers(simulator);

@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 2026-09-09：历史敏感 Power 顺序
+
+- `MIXED-POWER-ACQUISITION-ORDER` 失败基线 `6eba58023b214ead8829ed5effbad6ee`：旧逻辑在已有小刀/攻击/格挡历史后临时停用并恢复 Power，首个差异为 `P[1] expected Strength actual PhantomBlades`。
+- 最终 `8f5c8d96d9e342e8a2163e54e359c0d2` Passed，26.26 秒。夹具先在没有目标 Power 时各打一张格挡牌和小刀，再按代表报告顺序获得幻影之刃、力量、第二个轨道、敏捷、致死性和不动；继续各打一张牌后施加虚弱，完整比较生命、格挡、能量、牌堆、有序 Power、ContinuationStamp、Fork 和父分支隔离。
+- 命令：`pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId MIXED-POWER-ACQUISITION-ORDER -EnemyCurrentHp 100 -HeadlessInstance unexpected-replan-power-order-final`。最终 Release 构建 0 警告 / 0 错误。
+- 代表报告 `4b188b2e088c4826ba1b14d0252bd3bf` 只直接核验元数据与独立日志；没有整包恢复或正式搜索。其余 19 份按相同首个 Power 顺序差异和相同执行路径静态归组，不能表述为 20 份整场重放通过。
+
 ## 2026-09-08：凡庸与自动打牌（0.34.4）
 
 - 原报告 `12f213c23ccd4a00abaf7a80c796273e` 的第 6 回合在发现、彼岸咆哮后打出倾泻，Normality 仍在手；原版结束回合复核为 25 HP，计划为 0 HP。日志定位后直接构造最小夹具，没有运行原包恢复。

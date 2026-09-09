@@ -2864,8 +2864,6 @@ internal sealed partial class CombatBeamSolver
                     $"hand={hand}。");
             }
             int shuffleEvents = simulator.ShuffleEventCount;
-            CardPlayPowerSuppression suppression =
-                simulatedCombat.SuppressHistorySensitiveCardModifiers(card);
             SearchMeasurement cardExecutionMeasurement = _run.Performance.Begin();
             simulatedCombat.BeginActionChoices(ActionChoicesForReplay(action));
             using IDisposable cardExecutionScope =
@@ -2877,7 +2875,6 @@ internal sealed partial class CombatBeamSolver
             }
             finally
             {
-                simulatedCombat.RestoreHistorySensitiveCardModifiers(suppression);
                 _run.Performance.End(SearchMetricPhase.CardExecution, cardExecutionMeasurement);
             }
             SearchMeasurement cardPostMeasurement = _run.Performance.Begin();
