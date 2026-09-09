@@ -6,7 +6,7 @@
 
 日志站以 `issue=UnexpectedReplan`、`resolution=unresolved`、`modVersion=0.34.4` 查询到 55 份报告，按 `combat.sessionId` 去重为 51 场。全部报告只提取 `report.json`、异常摘要和 CombatSolver 独立战斗日志；本轮没有读取整份 `godot.log`，也没有逐包重跑。
 
-原始包、选择清单、哈希校验结果与逐场本地分类保存在 `.local/issue-bundles/unexpected-replans-0.34.4/`，不进入源码提交。日志站令牌只有 read scope，本轮不能写处理备注；报告保持未修复状态。
+原始包、选择清单、哈希校验结果与逐场本地分类保存在 `.local/issue-bundles/unexpected-replans-0.34.4/`，不进入源码提交。修复阶段保持报告未修复；只在 0.34.5 正式发布后标记已修复。
 
 ## 分组
 
