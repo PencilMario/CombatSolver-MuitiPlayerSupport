@@ -553,7 +553,7 @@ internal static class SolverOverlay
         SetPerformanceHintVisible(false);
         SetBossHpStrategyHint(BossHpRelief.None);
         SetReviewText(null);
-        SetMessageContent(SolverText.Format($"[color={SolverUiTokens.Palette.TextSecondaryHex}]多人模式下仅在本地玩家回合计算和执行路线。[/color]"));
+        SetMessageContent(SolverText.Get("多人模式下仅在本地玩家回合计算和执行路线。"));
         SetRouteVisibility(false);
         ShowLayer();
         RefreshControls();

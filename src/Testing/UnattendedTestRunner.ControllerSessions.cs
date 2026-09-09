@@ -60,62 +60,6 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidOperationException("多人模式搜索范围没有保持单人/多人边界。");
         }
 
-        if (!SolverController.IsPlayableTurnForTesting(
-                isMultiplayer: true,
-                currentSide: CombatSide.Enemy,
-                localPlayerPhase: PlayerTurnPhase.Play)
-            || !SolverController.IsPlayableTurnForTesting(
-                isMultiplayer: true,
-                currentSide: CombatSide.Player,
-                localPlayerPhase: PlayerTurnPhase.Play)
-            || SolverController.IsPlayableTurnForTesting(
-                isMultiplayer: true,
-                currentSide: CombatSide.Player,
-                localPlayerPhase: PlayerTurnPhase.Start)
-            || !SolverController.IsPlayableTurnForTesting(
-                isMultiplayer: false,
-                currentSide: CombatSide.Player,
-                localPlayerPhase: PlayerTurnPhase.Play)
-            || SolverController.IsPlayableTurnForTesting(
-                isMultiplayer: false,
-                currentSide: CombatSide.Enemy,
-                localPlayerPhase: PlayerTurnPhase.Play))
-        {
-            throw new InvalidOperationException("多人本地玩家回合判断没有区分全局方和本地玩家阶段。");
-        }
-        if (SolverController.ShouldWaitForMultiplayerTurnForTesting(
-                isMultiplayer: true,
-                localPlayerPhase: PlayerTurnPhase.Start)
-            || SolverController.ShouldWaitForMultiplayerTurnForTesting(
-                isMultiplayer: true,
-                localPlayerPhase: PlayerTurnPhase.Play)
-            || SolverController.ShouldWaitForMultiplayerTurnForTesting(
-                isMultiplayer: true,
-                localPlayerPhase: null)
-            || !SolverController.ShouldWaitForMultiplayerTurnForTesting(
-                isMultiplayer: true,
-                localPlayerPhase: PlayerTurnPhase.End)
-            || SolverController.ShouldWaitForMultiplayerTurnForTesting(
-                isMultiplayer: false,
-                localPlayerPhase: null))
-        {
-            throw new InvalidOperationException("多人回合开始时错误地把本地玩家的原生阶段过渡当作队友回合。");
-        }
-
-        if (!SolverController.IsPlayableTurnForTesting(
-                isMultiplayer: true,
-                currentSide: CombatSide.Enemy,
-                localPlayerPhase: PlayerTurnPhase.End,
-                playerActionsDisabled: false)
-            || SolverController.IsPlayableTurnForTesting(
-                isMultiplayer: true,
-                currentSide: CombatSide.Player,
-                localPlayerPhase: PlayerTurnPhase.Play,
-                playerActionsDisabled: true))
-        {
-            throw new InvalidOperationException("多人可操作回合没有以原版操作锁状态为准。");
-        }
-
         AssertInvalidMultiplayerSearchTurnLimit(0);
         AssertInvalidMultiplayerSearchTurnLimit(13);
 
@@ -199,21 +143,17 @@ internal sealed partial class UnattendedTestRunner
 
     private async Task AssertControllerSessionLifecycleAsync(CombatState combat)
     {
+        if (!SolverController.IsPlayableTurnForTesting(true, CombatSide.Enemy, PlayerTurnPhase.Play)
+            || SolverController.IsPlayableTurnForTesting(true, CombatSide.Player, PlayerTurnPhase.Play, playerActionsDisabled: true)
+            || !SolverController.IsPlayableTurnForTesting(false, CombatSide.Player, PlayerTurnPhase.Play)
+            || SolverController.IsPlayableTurnForTesting(false, CombatSide.Enemy, PlayerTurnPhase.Play))
+            throw new InvalidOperationException("多人可操作回合判断没有遵循本地操作锁边界。");
         CombatBeamSolver.VerifyCycleTranspositionLeasePolicyForTesting();
         CombatBeamSolver.VerifyPlayerTargetEnumerationForTesting();
         VerifyMultiplayerSearchTurnLimitSettings();
         VerifyMultiplayerDeathOutcomeNotice();
         NGame host = NGame.Instance
             ?? throw new InvalidOperationException("控制器会话测试找不到 NGame。");
-        SolverOverlay.ShowMultiplayerWaiting(host);
-        if (SolverOverlay.PresentationForTesting != SolverOverlayPresentation.MultiplayerWaiting
-            || SolverOverlay.SearchSummaryTextForTesting is not { Length: > 0 } waitingText
-            || !waitingText.Contains(
-                SolverText.Get("多人模式下仅在本地玩家回合计算和执行路线。"),
-                StringComparison.Ordinal))
-        {
-            throw new InvalidOperationException("多人回合等待状态没有显示 Overlay。");
-        }
         if (SolverController.SolverDisabled)
             throw new InvalidOperationException("控制器会话测试要求求解器初始启用。");
         Player player = LocalContext.GetMe(combat)

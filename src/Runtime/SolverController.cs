@@ -122,8 +122,8 @@ internal static class SolverController
 
     /// <summary>
     /// True whenever the current run is a networked multiplayer session (host or client).
-    /// Multiplayer searches are limited to the local player's current turn and never
-    /// take over another player's turn.
+    /// The solver must stay fully inert in this case: the game's own multiplayer turn
+    /// synchronization has no concept of a client silently auto-planning another player's turn.
     /// </summary>
     public static bool IsMultiplayerSession
         => RunManager.Instance.IsInProgress && RunManager.Instance.NetService.Type.IsMultiplayer();
@@ -3296,6 +3296,7 @@ internal static class SolverController
 
     private static bool CanSolve(CombatState state, out string rejection)
     {
+        Player? player = LocalContext.GetMe(state);
         if (_solverDisabled)
             rejection = "求解器已在设置中禁用。";
         else if (!CombatManager.Instance.IsInProgress)
@@ -3324,43 +3325,15 @@ internal static class SolverController
     internal static bool IsPlayableTurn(CombatState state)
     {
         Player? player = LocalContext.GetMe(state);
-        return IsPlayableTurn(
-            IsMultiplayerSession,
-            state.CurrentSide,
-            player?.PlayerCombatState?.Phase,
-            CombatManager.Instance.PlayerActionsDisabled);
+        return IsMultiplayerSession
+            ? !CombatManager.Instance.PlayerActionsDisabled
+            : state.CurrentSide == CombatSide.Player
+              && player?.PlayerCombatState?.Phase == PlayerTurnPhase.Play;
     }
 
-    internal static bool IsPlayableTurnForTesting(
-        bool isMultiplayer,
-        CombatSide currentSide,
-        PlayerTurnPhase? localPlayerPhase,
-        bool playerActionsDisabled = false)
-        => IsPlayableTurn(isMultiplayer, currentSide, localPlayerPhase, playerActionsDisabled);
-
-    internal static bool ShouldWaitForMultiplayerTurn(
-        bool isMultiplayer,
-        PlayerTurnPhase? localPlayerPhase)
-        => isMultiplayer
-            // TurnStarted can fire before the local player is attached. Defer
-            // in that transient state so the polling operation can reach Play.
-            && localPlayerPhase is { } phase
-            && phase is not PlayerTurnPhase.Start and not PlayerTurnPhase.Play;
-
-    internal static bool ShouldWaitForMultiplayerTurnForTesting(
-        bool isMultiplayer,
-        PlayerTurnPhase? localPlayerPhase)
-        => ShouldWaitForMultiplayerTurn(isMultiplayer, localPlayerPhase);
-
-    private static bool IsPlayableTurn(
-        bool isMultiplayer,
-        CombatSide currentSide,
-        PlayerTurnPhase? localPlayerPhase,
-        bool playerActionsDisabled)
-        => isMultiplayer
-            ? !playerActionsDisabled
-            : localPlayerPhase == PlayerTurnPhase.Play
-              && currentSide == CombatSide.Player;
+    internal static bool IsPlayableTurnForTesting(bool isMultiplayer, CombatSide currentSide,
+        PlayerTurnPhase? localPlayerPhase, bool playerActionsDisabled = false)
+        => isMultiplayer ? !playerActionsDisabled : currentSide == CombatSide.Player && localPlayerPhase == PlayerTurnPhase.Play;
 
     private static void AssertMainThread()
     {
