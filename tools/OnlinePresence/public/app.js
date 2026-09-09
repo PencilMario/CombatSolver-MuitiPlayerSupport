@@ -641,10 +641,7 @@ function renderChart() {
   if (!$("trend").open || !overviewData) return;
   const data = overviewData,
     points = [];
-  let previous;
   for (const p of data.history) {
-    if (previous !== undefined && p.breakBefore)
-      points.push({ x: Math.floor((previous + p.time) / 2), y: null });
     points.push({
       x: p.time,
       y: p.count,
@@ -652,7 +649,6 @@ function renderChart() {
       end: p.end,
       samples: p.samples,
     });
-    previous = p.time;
   }
   $("history-empty").hidden = points.length > 0;
   if (!chart) {
@@ -668,8 +664,8 @@ function renderChart() {
             fill: true,
             borderWidth: 2,
             pointRadius: points.length === 1 ? 3 : 0,
-            spanGaps: false,
-            tension: 0.1,
+            spanGaps: true,
+            cubicInterpolationMode: "monotone",
           },
         ],
       },

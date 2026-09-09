@@ -2457,6 +2457,8 @@ pwsh -NoProfile -File tools\run-unattended-test.ps1 -ScenarioId MONSTER-MOVES-BA
 - UI-LOCALIZATION `42dce92d333e46e482ba556b9959e4eb` Passed，24.85 秒，覆盖 322 条中英资源与 headless 统计节点隔离。不是可见游戏结算/交互或帧率验收。
 # 在线监控工作台验证（2026-09-09）
 
+- 平滑曲线追加合同 `trend bridges missing samples smoothly while preserving zero and measured counts` 通过：含缺口与零值的 5 个样本保留，单一连续线段，monotone 插值；截图检查通过。
+
 - 服务端 15 项测试通过：原有心跳、会话与统计兼容；新增全局排序再分页、固定在线名次、精确身份、升降序和未知值规则。
 - `browser.test.mjs` 6 项 Edge headless 测试通过：真实 DOM 登录恢复、中断/401、紧凑长文本、详情、样本门槛、已应用与草稿隔离、历史切换、精确联查、URL 恢复、暂停与选区、失败保留、空结果和响应竞争。
 - 等效 125% / 150% CSS 视口与 390px 窄窗口均无页面横向溢出；桌面截图人工检查。没有启动游戏或重跑战斗；浏览器仅使用本地模拟数据。

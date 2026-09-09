@@ -127,3 +127,18 @@ test('a delayed previous filter response cannot overwrite the newest applied sel
     assert.equal(new URL(page.url()).searchParams.get('run_runs_min'),'20');assert.deepEqual(f.errors,[]);
   }finally{await f.context.close();}
 });
+test('trend bridges missing samples smoothly while preserving zero and measured counts',async()=>{
+  const f=await setup();try{
+    await f.page.locator('#rows tr').first().waitFor();
+    await f.page.locator('#trend summary').click();
+    const result=await f.page.evaluate(()=>{
+      const now=overviewData.now,counts=[5,20,0,12,8];
+      overviewData={...overviewData,history:counts.map((count,i)=>({time:now-(4-i)*3600000,count,start:now-(4-i)*3600000,end:now-(4-i)*3600000,samples:1,breakBefore:i===2}))};
+      renderChart();
+      const dataset=chart.data.datasets[0];
+      return {counts:dataset.data.map(p=>p.y),points:dataset.data.length,segments:chart.getDatasetMeta(0).dataset.segments.length,mode:dataset.cubicInterpolationMode,span:dataset.spanGaps};
+    });
+    assert.deepEqual(result,{counts:[5,20,0,12,8],points:5,segments:1,mode:'monotone',span:true});
+    await f.page.screenshot({path:resolve(screenshots,'trend-smooth.png'),fullPage:true});assert.deepEqual(f.errors,[]);
+  }finally{await f.context.close();}
+});
