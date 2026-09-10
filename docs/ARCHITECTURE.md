@@ -83,6 +83,8 @@ PR #43 集成修正：Mod 使用独立文件复制，游戏程序继续使用硬
 
 `RitsuBaseLibTargetTypeLookupPatch` 属于 Runtime 的第三方适配：只在模拟隔离域缓存目标桥的精确类型查询，以 Assembly 弱键持有准确 Type/缺失；具体回调由当前桥中唯一的 Assembly→Type 签名定位，适配不匹配显式失败。`RitsuBaseLibTargetTypeResolutionPatches` 还记录原版全程序集查询正常返回 null 时的缺失证据。`AssemblyTypeAbsenceCache` 用 AssemblyLoad 代次判定静态程序集集合是否变化，并在每次复用前重新查询弱引用中的动态程序集；加载新程序集、动态晚创建目标类型、原查询失败或找到类型时均不能复用旧缺失结论。live 调用仍走原桥。它们不缓存框架是否安装、注册表或目标谓词，不持有分支模型，也不参与搜索策略。 `TARGET_TYPE_ABSENCE_CACHE scope=process_cumulative` 记录命中、原查询和旁路；对单次请求取首尾差值，不能直接累加日志。
 
+玩家死亡被确认后，`CombatPredictionSimulator.HandlePlayerDeath` 先调用 `SimulatedCombatState.RemovePowersAfterDeath`，再清理球和宠物。敌人能力仍由原领域死亡清扫处理；玩家不能依赖仅遍历敌人的后续清扫。
+
 ## 3. Search
 
 根创建时，`PredictionModPatchAudit` 在 Prediction 层检查已有卡牌 OnPlay 的第三方 Harmony 补丁；每根按类型去重并读取当前补丁表。它只负责未支持行为的准入边界，不执行补丁或提供第三方镜像注册，后续生成卡牌和其他方法不在此入口覆盖范围。
