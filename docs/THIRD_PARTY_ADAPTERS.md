@@ -371,7 +371,18 @@ CardRemovalValueMirrors.Register<YourDefend>(-10d);
 **这个入口解决的是「别烧错、该烧的要烧」，不解决「为了压出无限而主动烧牌」。** 后者要的是对
 「移除之后牌库能不能自持」的判断，那是求解器的估值主干，见第 6 节。
 
-### 2.9 还没有登记入口的地方
+### 2.9 遗物与 Modifier 的分支状态
+
+`ModelPredictionStateMirrors.RegisterRelic<TModel, TState>` 与 `RegisterModifier<TModel, TState>`
+按精确类型登记根捕获、实机字段和预测字段。状态通过现有 `PredictionStateStore` Fork，
+同一字段口径进入搜索指纹与 `ContinuationStamp`，按实例所属位置绑定，不合并同类型计数。
+首次根或续用捕获后拒绝继续登记；未捕获状态不回落到 live 值。
+
+此接口不放行 Mod、补丁或 Hook，不扩展遗物／Modifier 的中途增删。
+完整签名、对象重映射、字段格式及验证边界见[模型状态适配](third-party-model-state.md)。
+与其他内部镜像入口一样，外部程序集仍需要 publicizer；本接口尚未发布。
+
+### 2.10 还没有登记入口的地方
 
 见第 6 节。目前只能 Harmony 打补丁，或者等对应的扩展点合并。
 
@@ -385,6 +396,9 @@ CardRemovalValueMirrors.Register<YourDefend>(-10d);
 一次（拿到 `Inferred` 或 `Unsupported`），之后再登记也不会生效，而且不报错。
 
 所以：在 Mod 初始化时把所有登记做完，绝不在战斗中途登记。
+
+`ModelPredictionStateMirrors` 不使用上述延迟分派缓存，而是在第一次根或续用捕获后冻结整张登记表；
+迟到登记明确抛异常。两类入口的共同要求仍是初始化期间一次完成登记。
 
 ### 3.2 失败要关死，不要装一半
 
@@ -494,6 +508,7 @@ CardRemovalValueMirrors.Register<YourDefend>(-10d);
 | `CardChoiceSupport.RemovalPriority` 的排序口径 | 移除类选择按**单卡**估值排，不看牌库其余部分；弃牌那一侧已经是「源牌堆平均值减本牌估值」的相对口径，消耗与转变没有。表现为求解器不会为了压出无限而主动烧牌。起手牌那一层已由 §2.7 打开，相对口径这一层仍然封闭 | 待做 |
 | `ContinuationStamp.AppendCard` 的 `private=` 段与 `CombatBeamSolver.CaptureCardStateFingerprintForTesting` 的 `switch (preview)` | **卡牌**的隐藏字段按原版类型写死（利爪、基因算法、巨锤、狂暴、镰刀、疯狂科学），第三方卡牌的私有计数进不了指纹。Power 那一侧已有 `PowerHiddenStateMirrors`，见 §2.6 | 待做 |
 | `SimulatedCombatState.AddTurnStartStates` 的 `switch (power)` | 原版 Power 隐藏计数按类型写死。第三方走 §2.6 的登记表进同一份指纹，本行只是记下原版那个 `switch` 本身仍然封闭 | 第三方已有入口 |
+| `RelicPredictionStateSupport` 的原版类型分支 | 内置遗物状态仍按原实现处理；第三方遗物与 Modifier 的独立状态通过 §2.9 登记，不修改原版分支 | 第三方已有入口 |
 | `GrowthSource` 枚举与 `SolverGrowthStrategyPanel.SourceCard` 的 `switch` | 原版八类成长来源按类型写死。第三方走 §2.7 的 `GrowthSourceMirrors` 拿独立额度、侧栏行和指纹，本行只是记下原版那个枚举本身仍然封闭 | 第三方已有入口 |
 
 **这些开关新增或改动时，必须在同一个提交里更新这张表和本文档对应章节。** 见

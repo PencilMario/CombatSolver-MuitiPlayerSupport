@@ -56,6 +56,7 @@ internal sealed partial class SimulatedCombatState
     private readonly AbstractModel[] _rootRunHookListeners;
     private readonly IReadOnlyDictionary<Player, RelicModel[]> _rootRelics;
     private IReadOnlyDictionary<RelicModel, RelicModel>? _rootRelicSources;
+    private IReadOnlyList<ModifierModel>? _rootModifierSources;
     private readonly IReadOnlyDictionary<Player, int> _rootPotionSlotCounts;
     private readonly IReadOnlyDictionary<Player, int> _rootPlayerTurnNumbers;
     private readonly IReadOnlyDictionary<(Creature Owner, Type Type), int> _rootPowerAmounts;
@@ -279,6 +280,8 @@ internal sealed partial class SimulatedCombatState
             .Select(PredictionUtils.CloneModelForSimulation)
             .ToArray();
         _modifiers = modifiers;
+        if (ModelPredictionStateMirrors.HasAny)
+            _rootModifierSources = inner.Modifiers.ToArray();
         for (int index = 0; index < modifiers.Length; index++)
             rootModelClones.Add(inner.Modifiers[index], modifiers[index]);
         Dictionary<Player, RelicModel[]> rootRelics = [];
@@ -445,6 +448,7 @@ internal sealed partial class SimulatedCombatState
         _rootRunHookListeners = source._rootRunHookListeners;
         _rootRelics = source._rootRelics;
         _rootRelicSources = source._rootRelicSources;
+        _rootModifierSources = source._rootModifierSources;
         _rootPotionSlotCounts = source._rootPotionSlotCounts;
         _rootPlayerTurnNumbers = source._rootPlayerTurnNumbers;
         _rootPowerAmounts = source._rootPowerAmounts;
@@ -1998,9 +2002,20 @@ internal sealed partial class SimulatedCombatState
         _ = GetFetchCardsPlayedThisTurn();
         _enemiesIntendingAttack = [.. Enemies.Where(enemy => enemy.Monster?.IntendsToAttack == true)];
         _hasPredictedEnemyIntents = true;
+        if (ModelPredictionStateMirrors.HasAny)
+        {
+            // Capture after the built-in root is materialized. Adapter factories may resolve
+            // live card references to predicted cards, but must not retain live mutable state.
+            foreach (Player player in Players)
+                foreach (RelicModel relic in RelicsOf(player))
+                    ModelPredictionStateMirrors.CaptureRootState(simulator, relic, _rootRelicSources![relic]);
+            for (int slot = 0; slot < _modifiers.Count; slot++)
+                ModelPredictionStateMirrors.CaptureRootState(simulator, _modifiers[slot], _rootModifierSources![slot]);
+        }
         StateFingerprintBuilder fingerprint = new();
         AppendFingerprint(ref fingerprint, simulator);
         _rootRelicSources = null;
+        _rootModifierSources = null;
         _rootMaterialized = true;
     }
 
@@ -2160,6 +2175,7 @@ internal sealed partial class SimulatedCombatState
         AddTenderStates(ref fingerprint, effectivePowers);
         AppendCardLifecycleFingerprint(ref fingerprint, simulator);
         AppendStatefulRelicFingerprint(ref fingerprint, simulator);
+        ModelPredictionStateMirrors.AppendPredicted(ref fingerprint, null, simulator, this);
         AppendRelicResourceFingerprint(ref fingerprint);
         AppendPotionFingerprint(ref fingerprint);
         AppendMonsterAiFingerprint(ref fingerprint);

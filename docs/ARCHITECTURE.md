@@ -239,6 +239,13 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 `PlayerTurnEndLifecycle.RunPhaseTwo` 拥有清空手牌后的玩家回合末补偿顺序：常规 Power、遗物、晚期 Power，最后规范化卡牌词条。Search、风险预估和无人差分共用此入口；每个阶段的挂起选择立即向上传播。`CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects` 仅承担常规 Power 阶段，晚期伤害在遗物之后结算。
 
+`Prediction/ModelPredictionStateMirrors` 拥有遗物／Modifier 的精确类型状态登记，首次根或续用捕获后冻结。
+`SimulatedCombatState.MaterializeRoot` 在内置状态物化后调用捕获并释放实机源映射；状态放入现有
+`PredictionStateStore`，随同一 Fork context 复制。模型克隆仅作只读身份，效果镜像通过登记入口的
+`Get<TState>` 读写分支状态。`ModelPredictionStateWriter` 用同一组有序类型字段生成搜索指纹与
+live/predicted continuation 文本，按所属位置绑定同类型实例。该层不拥有 Hook 时序、搜索政策或
+Mod 准入，具体契约见[模型状态适配](third-party-model-state.md)。
+
 有效 Power 的有序语义值直接进入搜索指纹，`ContinuationStamp` 的 `P` 字段按有效列表顺序输出，保留获得、移除和重新获得形成的 Hook 顺序；动态变量自身仍按无序键值集合比较。根捕获及分支监听表继续拥有顺序，指纹和续用只读取既有状态，不另设按阶段划分的顺序账本。
 
 普通能力与多实例能力共用逐实例获得顺序表，Fork 通过同一 `PredictionForkContext.RequireRemap` 映射到子分支。重新获得已移除的普通能力时建立新实例，回合开始数量与内部状态由新实例初始化。新召唤友方归入敌方段之前，按原版友方/敌方顺序构造监听表。
