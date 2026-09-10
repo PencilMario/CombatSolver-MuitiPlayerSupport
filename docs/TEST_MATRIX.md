@@ -1,5 +1,14 @@
 # CombatSolver 测试清单
 
+## 2026-09-10：动态目标类型分支隔离
+
+- Release 编译 0 警告/0 错误；Bash 结构门禁通过，`search_files=84`。同步更新两端门禁的分支模式，PowerShell 因当前环境缺少 `pwsh` 未运行。未安装或启动游戏。
+
+- `dotnet run --project tools/CardTargetingChecks -c Release`：37 项通过，直接编译生产 `CombatPredictionSimulator.CardTargeting.cs`；旧源码复现分支无能力时误用实机全体目标。
+- 两张动态目标牌分别覆盖分支能力缺失/0/1/2/移除、实机能力有无交错、其他角色能力隔离、独立分支，以及普通卡和非影子状态回退。影子状态用例禁止读取原生目标 getter。
+- 游戏 0.111.0 的原版 Shiv / SovereignBlade 目标 getter 已定向核对：对应能力决定 `AnyEnemy` / `AllEnemies`。测试模型和状态为替身，不构成真实根捕获、完整 Fork、原生伤害或原包回放验收。
+
+
 ## 2026-09-10：PR #74 / #75 / #77 合并验证
 
 - #74：直接编译 PR 中生产 profile 与 BuildNarrowBeamRecoveryProfile，剩余 49000 节点/299000 ms 和 2000 节点/1000 ms 正确；预算耗尽与普通 Beam 不产生救援。复用同一行为源码审计阶段的结果，不声明实战战损改善。

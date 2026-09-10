@@ -38,6 +38,8 @@ CombatRootSnapshot.Capture（主线程根）
 
 确定唯一权威结算点后再改代码。不能靠执行顺序抵消双结算。
 
+动态目标类型的分支覆盖必须同时定义能力存在和不存在两侧。君王之剑/小刀在分支无群攻能力时不能回退到实机 owner 的原生 TargetType；最小合同交错改变实机能力与独立分支，验证后台目标枚举不读 live。
+
 ## 2. 选择实现层
 
 - 通用命令时序、资源、集合、历史、RNG：`src/Engine/InCombat/Simulation`。

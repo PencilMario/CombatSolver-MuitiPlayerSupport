@@ -469,8 +469,8 @@ done
 
 card_targeting_path="$repository_root/src/Engine/InCombat/Simulation/CombatPredictionSimulator.CardTargeting.cs"
 for targeting_rule in \
-    'Shiv when combat.GetAmount<FanOfKnivesPower>' \
-    'SovereignBlade when combat.GetAmount<SeekingEdgePower>'; do
+    'Shiv => combat.GetAmount<FanOfKnivesPower>' \
+    'SovereignBlade => combat.GetAmount<SeekingEdgePower>'; do
     require_fixed "$card_targeting_path" "$targeting_rule" 'missing simulated card targeting rule'
 done
 
