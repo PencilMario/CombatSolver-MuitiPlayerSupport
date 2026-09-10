@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 2026-09-10：撤回满栏药水优惠
+
+- 用户要求撤回满栏药水策略。终局准入、反事实省血门槛和药水搜索容量恢复原规则，删除 PotionInventoryValue 及其专属纯函数测试。更新满栏和部署夹具：保留药水、预测损血 3，部署结束生命至少 67、零计划外重算。
+- 最终 `SMART-POTION-INVENTORY-OPEN` / `64ce2ff94ddd404d89513635bde6e351`、`SMART-POTION-INVENTORY-FULL` / `b7eefa6fe2cd463ebfbdf29c8d50e9da`、`SMART-POTION-INVENTORY-NO-BENEFIT` / `22d1c780d5b749008c1c97c1ae1678a6` 均 Passed；实际部署 `SMART-POTION-INVENTORY-DEPLOY` / `6c87d7aa16114f73997cedb228987df0` Passed。每请求 120 秒，独立测试实例。
+- 最初未满栏探针 `342e0bc4fa284dcaad865369f33484d3` Failed：此前 UI 测试把永久培养目标和关闭自动计算写入测试实例配置，测试结束只恢复内存。修正 UI 测试结束时同步恢复持久化配置，并恢复该私有实例的平衡目标；未修改玩家设置。
+- `SEARCH-OBJECTIVES-UI-LOCALE` / `b939207ba9a94af2904eff00ba4d9cca` Passed，测试后读取持久化配置确认平衡目标及自动计算已恢复。
+- Release 构建 0 警告／0 错误，结构门禁 `REFACTOR_BOUNDARIES_OK search_files=85`。以下上一轮满栏折扣测试结果仅作为历史记录，不代表当前策略。
+
 ## 2026-09-10：PR #69 / #71 / #73 战斗内部分集成
 
 从三个审查分支提取战斗搜索目标、达标停止、无序牌堆缓存、战斗潜力与满栏 Smart 药水策略，集成到 0.34.8 之后；奖励、商店、删牌评分与画像 UI 未引入。以下为本次集成源码的直接结果，使用独立实例 `combat-pr-integration`，每请求 120 秒。

@@ -30,7 +30,7 @@
   "stopAfterInitialSolverResultAssertion": true,
   "timeoutSeconds": 120,
   "scenarioId": "SMART-POTION-INVENTORY-FULL",
-  "description": "Game v0.111.0 regression: identical zero-energy roots with three versus one EnergyPotion; Smart spends one potion only when inventory is full, saving 3 HP.",
+  "description": "Full inventory uses the standard Smart threshold: retain potions when they save only 3 HP.",
   "potions": [
     {
       "potionId": "EnergyPotion"
@@ -42,5 +42,6 @@
       "potionId": "EnergyPotion"
     }
   ],
-  "expectedInitialPotionCount": 1
+  "expectedInitialPotionCount": 0,
+  "expectedInitialProjectedBattleHpLost": 3
 }

@@ -30,7 +30,7 @@
   "stopAfterInitialSolverResultAssertion": false,
   "timeoutSeconds": 120,
   "scenarioId": "SMART-POTION-INVENTORY-DEPLOY",
-  "description": "Deploy the full-inventory potion route and finish without HP loss or unexpected replans.",
+  "description": "Full inventory retains potions at the standard Smart threshold; deploy the 3 HP route without unexpected replans.",
   "potions": [
     {
       "potionId": "EnergyPotion"
@@ -42,9 +42,10 @@
       "potionId": "EnergyPotion"
     }
   ],
-  "expectedInitialPotionCount": 1,
+  "expectedInitialPotionCount": 0,
+  "expectedInitialProjectedBattleHpLost": 3,
   "expectedFinishedTurn": 1,
-  "expectedFinishedPlayerHpAtLeast": 70,
+  "expectedFinishedPlayerHpAtLeast": 67,
   "expectedUnexpectedReplansAtMost": 0,
   "deploymentFastModeForTest": "Instant",
   "deploymentInterActionDelaySecondsForTest": 0

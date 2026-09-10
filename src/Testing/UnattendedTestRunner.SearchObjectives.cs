@@ -121,7 +121,7 @@ internal sealed partial class UnattendedTestRunner
         finally
         {
             LocManager.Instance.SetLanguage(language);
-            SolverSettings.ApplyForTesting(original);
+            SolverSettings.Update(original);
             var panel = (SolverGrowthStrategyPanel?)typeof(SolverOverlay).GetField("_growthStrategyPanel", flags)!.GetValue(null);
             if (panel?.Visible == true) toggle.Invoke(null, null);
         }
