@@ -73,6 +73,14 @@ internal sealed partial class UnattendedTestRunner
     {
         if (_writer.ReplayVerification == null)
             return;
+        if (_writer.ReplayVerification["nativeStateVerification"]?["status"]?.GetValue<string>() == "not_comparable")
+        {
+            _writer.ReplayVerification["restorationVerified"] = false;
+            _writer.ReplayVerification["nativeStateVerified"] = false;
+            _writer.ReplayVerification["status"] = "restored_continuation";
+            _completedChecks.Add("CheckpointContinuationMatchedNativeEncodingUnverified");
+            return;
+        }
         _writer.ReplayVerification["restorationVerified"] = true;
         _writer.ReplayVerification["nativeStateVerified"] = !string.IsNullOrWhiteSpace(_request.NativeStatePath);
         _writer.ReplayVerification["status"] = "restored";

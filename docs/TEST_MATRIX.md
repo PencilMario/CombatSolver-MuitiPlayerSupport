@@ -2,6 +2,14 @@
 
 实验体批次与此前静默猎手批次的证据分别记录，原包恢复与最小差分分开计。以下分别保留失败基线、最终结果及未整场回放的范围。
 
+## 2026-09-10：原生恢复边界与编码诊断（开发中）
+
+- `REPLAY-BOUNDARY-CONTRACT` / `2ed7ea141baa48748df3b3fcaea69cb7` Passed：旧两项/三项历史匹配、已记录历史和其他字段不一致拒绝、当前四项任一不同拒绝；边界观察器的原异常对象被等待链抛出，不变成缺失边界。
+- 5cc95 原包基线 `08cf2adff9b24b8cbf4f9892da607222` 报缺失边界，内部首差异实际是 `Y=0/0/0` 与 `0/0/0/0`。最终 `579796fc4ccc469ebd1de83f618f737f` Passed / restored，开战及首个可操作检查点完整状态、原生二进制均通过，restorationVerified/nativeStateVerified/readyCheckpointVerified=true。
+- e476 原包原先停在 hash，移除硬门禁后 `39c37d90f60b411d88cfc9797663729e` 的 ContinuationStamp 通过，但本机表解码旧二进制报 SavedProperty58 越界（本机47项）。最终 `befca951aa014dfd977c22479e2e203e` Passed / restored_continuation，两处已记录战斗状态通过；原生二进制未核验，restorationVerified=false、nativeStateVerified=false，原因明确为旧包未记录模型编号映射。
+- 两包均使用原 ZIP、start / RestoreOnly / 120秒，只验证开战至首次可操作检查点（replayedEvents=0），没有回放 Boss 复活错误回合，不表示原始战斗逻辑问题已修复。
+- 最终 Release 构建0警告0错误，CheckpointTool self-test 29项通过，结构门禁 REFACTOR_BOUNDARIES_OK search_files=78。未发布。
+
 ## 2026-09-10：程序集清单差异取消硬拦截（开发中）
 
 - 基线：两份原包在 `ValidateCheckpointModsAfterStartup` 以 `environment_mismatch:mods` 提前退出。该判断将整个程序集数组直接比较，混入外观 Mod、加载器和辅助库。

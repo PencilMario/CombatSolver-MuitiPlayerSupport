@@ -454,6 +454,17 @@ internal sealed partial class UnattendedTestRunner
             string actualField = actualFields[index];
             if (string.Equals(expectedField, actualField, StringComparison.Ordinal))
                 continue;
+            if (expectedField.StartsWith("Y=", StringComparison.Ordinal)
+                && actualField.StartsWith("Y=", StringComparison.Ordinal))
+            {
+                string[] recordedHistory = expectedField[2..].Split('/');
+                string[] currentHistory = actualField[2..].Split('/');
+                // Older schemas recorded fewer derived history counters. Compare every
+                // recorded counter; the added counters come from the replayed native events.
+                if (recordedHistory.Length is 2 or 3 && currentHistory.Length == 4
+                    && recordedHistory.SequenceEqual(currentHistory.Take(recordedHistory.Length)))
+                    continue;
+            }
             if (!expectedField.StartsWith("R=", StringComparison.Ordinal)
                 || !actualField.StartsWith("R=", StringComparison.Ordinal)
                 || !LegacyRngContinuationMatches(expectedField[2..], actualField[2..]))

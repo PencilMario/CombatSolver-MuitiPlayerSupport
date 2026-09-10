@@ -270,6 +270,12 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add(request.ScenarioId);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "REPLAY-BOUNDARY-CONTRACT")
+            {
+                await runner.AssertReplayBoundaryContractAsync(player);
+                runner._completedChecks.Add("ReplayLegacyHistoryAndBoundaryFailure");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "CLONE-EVENT-ISOLATION")
             {
                 runner.AssertCloneEventIsolation(player);

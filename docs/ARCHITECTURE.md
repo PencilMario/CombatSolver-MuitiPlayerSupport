@@ -276,6 +276,8 @@ renderer 不得重新读取 `SolverResult`、`PlanAction`、`PlanCardChoice` 或
 
 `UnattendedTestRunner.CheckpointArchive.RecordCheckpointModDifferencesAfterStartup` 只生成程序集清单诊断，不决定恢复能否继续。两条原包恢复入口共用此方法，Writer 保存 `modEnvironmentComparison` 的逐名称缺失/新增/构建变化；模型解码、原生录制重放和严格状态对账继续拥有实际失败判定。
 
+NativeReplayDriver 保存开战/结束观察器抛出的原始异常，由 AdvanceAsync 的等待链中止请求，防止生命周期事件分发隔离异常后变成“边界缺失”。开战 RestoreOnly 同时读取并核对首个可操作检查点；CheckpointArchive.Prepare 在既有安全解压边界内携带其材料。模型表 hash 是诊断；ReplayAssertions 先比较二进制，旧表不可解码时明确返回未核验，只有已记录 ContinuationStamp 全部匹配才可输出 `restored_continuation`。完整恢复标志与仅状态通过分开。
+
 `src/Replay/CheckpointArchive.cs` 是不依赖游戏的包协议读取器，负责 v2/v1 索引、旧包目录适配、材料配对校验和按原目录解包。`tools/CheckpointTool` 链接同一源文件提供离线预检，两端脚本不复制索引规则。`ScenarioBuilder` 经 `UnattendedTestRunner.CheckpointArchive.cs` 准备请求和临时材料；`Executor` 应用并恢复原包实际策略；`Writer` 输出独立的 `replayVerification`，区分材料检查、检查点恢复和后续执行。checkpoint 稳定 ID 不随六份快照的淘汰重编号。
 
 `CombatReplayRecording` 拥有单场原生输入观察与不可变事件；战前存档在原生 RecordInitialState 边界采集，后台不读取事件的 live 对象。`CombatReplayOutcome` 单独观察玩家HP变化，不推进求解器的战损账本。`UnattendedTestRunner.NativeReplay` 属于ScenarioBuilder/Executor的恢复实现，以单人原生流程、动作和录制选择重建状态，不调用旧字段注入器；`ReplayAssertions` 提供二进制原生状态对账。`UnattendedCombatStartReplay` 只为旧包在最后一个生物加入后、开战Hook前注入已经捕获的开战状态，作用域结束即解除挂钩。

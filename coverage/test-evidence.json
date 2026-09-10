@@ -1,4 +1,12 @@
 {
+  "REPLAY-BOUNDARY-CONTRACT": {
+    "status": "Passed",
+    "level": "HeadlessReplaySchemaAndFailureBoundaryContract",
+    "procedure": "比较旧两项/三项与当前四项历史，反例覆盖已记录计数和其他状态字段；边界观察器抛出异常后等待原生回放驱动。",
+    "expected": "只迁移旧格式缺失的派生字段，实际已记录差异均拒绝；观察器原异常使回放失败。",
+    "observed": "2ed7ea141baa48748df3b3fcaea69cb7 Passed。另两份原包开战/首个可操作状态对账通过，其中5cc95原生二进制也通过，e476旧编号表缺失明确未核验。",
+    "evidence": "src/Testing/UnattendedTestRunner.ReplayBoundary.cs；docs/TEST_MATRIX.md；2026-09-10。"
+  },
   "REPORT-ROUND-NOSTALGIA-STRIKE": {
     "status": "Passed",
     "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
