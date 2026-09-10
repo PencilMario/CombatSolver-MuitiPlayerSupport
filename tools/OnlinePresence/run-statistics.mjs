@@ -30,7 +30,9 @@ export function validateSnapshot(value) {
 }
 export function parseStatisticsFilters(params) {
   const filters = {source:params.get('source') || 'solver', participation:params.get('participation') || 'full',
-    character:params.get('character') || '', version:params.get('version') || '', activity:params.get('activity') || '', sort:params.get('sort') || 'streak'};
+    character:params.get('character') || '', version:params.get('version') || '', activity:params.get('activity') || '', sort:params.get('sort') || 'streak',
+    order:params.get('order') || 'desc',sessionId:params.get('sessionId') || '',profileId:params.get('profileId') || ''};
+  if(!['asc','desc'].includes(filters.order) || [filters.sessionId,filters.profileId].some(value=>value && !id(value)))throw new RangeError('invalid identity or order');
   if (!['solver','historical'].includes(filters.source) || !['full','partial','none','all'].includes(filters.participation)
     || !['','solve','execute','auto'].includes(filters.activity) || !['streak','best','rate','wins','losses'].includes(filters.sort)
     || filters.character.length>128 || filters.version.length>128) throw new RangeError('invalid statistics filter');
@@ -92,8 +94,11 @@ export function createRunStatistics(db, now) {
     },
     query(filters) {
       const groups=new Map();
+      const scope=[],args=[];
+      for(const [key,column] of [['sessionId','installation'],['profileId','profile']])if(filters[key]){scope.push(column+'=?');args.push(filters[key]);}
+      const where=scope.length?' WHERE '+scope.join(' AND '):'';
       if(filters.source==='historical') {
-        for(const row of db.prepare('SELECT * FROM run_history_snapshots').all()) {
+        for(const row of db.prepare('SELECT * FROM run_history_snapshots'+where).all(...args)) {
           const h=JSON.parse(row.payload), chars=h.characters.filter(c=>!filters.character || c.characterId===filters.character);
           if(!chars.length)continue;
           const wins=chars.reduce((s,c)=>s+c.wins,0),losses=chars.reduce((s,c)=>s+c.losses,0);
@@ -102,7 +107,7 @@ export function createRunStatistics(db, now) {
               bestStreak:filters.character?chars[0].bestStreak:null,completedRuns:wins+losses,winRate:wins+losses?wins/(wins+losses):null}});
         }
       } else {
-        for(const row of db.prepare('SELECT * FROM runs').all()) {
+        for(const row of db.prepare('SELECT * FROM runs'+where).all(...args)) {
           const key=row.installation+row.profile;
           if(!groups.has(key))groups.set(key,{sessionId:row.installation,profileId:row.profile,runs:[]});
           groups.get(key).runs.push(JSON.parse(row.payload));
@@ -111,7 +116,11 @@ export function createRunStatistics(db, now) {
       }
       const entries=[...groups.values()].filter(g=>matchesStatistics(g.statistics,filters));
       const sort={streak:'currentStreak',best:'bestStreak',rate:'winRate',wins:'wins',losses:'losses'}[filters.sort];
-      entries.sort((a,b)=>(b.statistics[sort]??-1)-(a.statistics[sort]??-1) || a.sessionId.localeCompare(b.sessionId) || a.profileId.localeCompare(b.profileId));
+      entries.sort((a,b)=>{
+        const av=a.statistics[sort],bv=b.statistics[sort];
+        if(av===null || bv===null)return (av===null)-(bv===null) || a.sessionId.localeCompare(b.sessionId) || a.profileId.localeCompare(b.profileId);
+        return (filters.order==='asc'?1:-1)*(av-bv) || a.sessionId.localeCompare(b.sessionId) || a.profileId.localeCompare(b.profileId);
+      });
       const wins=entries.reduce((n,g)=>n+g.statistics.wins,0),losses=entries.reduce((n,g)=>n+g.statistics.losses,0);
       return {now:now(),source:filters.source,total:entries.length,wins,losses,winRate:wins+losses?wins/(wins+losses):null,entries};
     },

@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 0.35.3：PR 合并与监控版本提醒（本轮验证）
+
+- 合并后的 `dotnet run --project tools/CardHookReceiverChecks -c Release`：78 项通过；`python -X utf8 tools/EndTurnAdmissionChecks/run.py`：33 项通过；`dotnet run --project tools/CardTargetingChecks -c Release`：37 项通过；`python -X utf8 tools/DamageDealerChecks/run.py`：101 项通过；`python -X utf8 tools/PlayerDeathChecks/run.py`：42 项通过。伤害合同替身有一条 CS0649 未赋值警告；共 291 项是生产方法链接合同，尚未执行游戏原包或完整原生结算差分。
+- `dotnet run --project tools/ClientUpdateChecks -c Release`：35 项通过。验证三段数字比较（包括 0.35.10）、相等/更旧/主版本升级、204 旧服务、非法/缺失 JSON、HTTP 失败、取消、服务回撤版本及关闭提醒；失败不覆盖最后有效状态。
+- 已部署工作台基线 5611856 同步后，在 `tools/OnlinePresence` 执行 `npm test`：17 项通过，含管理员登录/Origin、采集端隔离、严格版本验证、旧客户端心跳、设置更新/清除/重启持久化及已有统计逻辑。Node 23.9.0 提示 SQLite experimental warning；线上使用 Node 24.15.0。
+- 同目录 `$env:BROWSER_CHANNEL='msedge'; node --test browser.test.mjs`：9 项通过。新增版本维护表单实际 DOM 保存/关闭、刷新不覆盖输入，同时验证现有登录恢复、筛选、布局、延迟请求及统计恢复。默认 Playwright 浏览器未安装导致首轮启动失败，改用已安装的 Edge 后通过；未启动可见浏览器或游戏。
+- 下方 PR 附带检查属于贡献者原始记录。本轮不将独立替身合同表述为游戏状态差分或实机修复的完整验收。
+
 ## 2026-09-10：玩家死亡能力清理
 
 - Release 编译 0 警告/0 错误；Bash 结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`。没有安装或启动游戏。

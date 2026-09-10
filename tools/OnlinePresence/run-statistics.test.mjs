@@ -46,7 +46,7 @@ test('public run collection, admin auth, persistence and old heartbeat compatibi
     const data=await fetch(a+'/api/run-statistics?streak_min=1',{headers:{Cookie:cookie}}).then(r=>r.json());
     assert.equal(data.total,1);assert.equal(data.wins,1);
     const old={sessionId:id,name:'player',character:'SILENT',floor:1,encounter:'A',hpLoss:0,version:'old'};
-    assert.ok(validate(old));assert.equal((await post(c+'/v1/heartbeat',old)).status,204);
+    assert.ok(validate(old));assert.equal((await post(c+'/v1/heartbeat',old)).status,200);
   } finally {server.closeAllConnections();admin.closeAllConnections();await Promise.all([new Promise(r=>server.close(r)),new Promise(r=>admin.close(r))]);app.close();}
 });
 test('settled runs and historical snapshots survive database restart',()=>{

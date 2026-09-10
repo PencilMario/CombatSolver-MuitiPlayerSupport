@@ -36,8 +36,14 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS history (time INTEGER PRIMARY KEY, count INTEGER NOT NULL) STRICT;');
   db.exec('CREATE TABLE IF NOT EXISTS durations (session_id TEXT PRIMARY KEY, total_ms INTEGER NOT NULL, last_seen INTEGER NOT NULL) STRICT;');
   db.exec('CREATE TABLE IF NOT EXISTS admin_sessions (token_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL) STRICT;');
+  db.exec('CREATE TABLE IF NOT EXISTS release_settings (id INTEGER PRIMARY KEY CHECK(id=1), version TEXT) STRICT;');
+  const releaseRead = db.prepare('SELECT version FROM release_settings WHERE id=1');
+  const releaseWrite = db.prepare('INSERT INTO release_settings(id,version) VALUES (1,?) ON CONFLICT(id) DO UPDATE SET version=excluded.version');
+  const currentRelease = () => ({latestVersion:releaseRead.get()?.version ?? null});
   // Player nicknames and combat details stay in memory. Admin sessions persist separately.
   const players = new Map(), buckets = new Map();
+  // A fresh in-memory roster is incomplete until one full presence lease has elapsed.
+  const samplingReadyAt = now() + TTL;
   const sessionKey = token => createHmac('sha256', password).update(token).digest('hex');
   const sessionRead = db.prepare('SELECT expires_at FROM admin_sessions WHERE token_hash=?');
   const sessionWrite = db.prepare('INSERT INTO admin_sessions(token_hash,expires_at) VALUES (?,?)');
@@ -59,7 +65,8 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   }
   function sample() {
     expire();
-    historyInsert.run(Math.floor(now()/60000)*60000, players.size);
+    if (now() >= samplingReadyAt)
+      historyInsert.run(Math.floor(now()/60000)*60000, players.size);
     historyDelete.run(now() - 90*86400000);
   }
   function limit(key, max) {
@@ -131,7 +138,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
         ? {character:prior.character,floor:prior.floor,encounter:prior.encounter,hpLoss:prior.hpLoss,battleUpdatedAt:prior.battleUpdatedAt}
         : {character:'',floor:null,encounter:'',hpLoss:null,battleUpdatedAt:null};
     players.set(body.sessionId,{...body,...battle,inCombat,inRun:body.inRun ?? null,totalMs,lastSeen:receivedAt});
-    send(res,204);
+    send(res,200,currentRelease());
   });
   const files = new Map([
     ['/', ['public/index.html','text/html; charset=utf-8']],
@@ -162,6 +169,17 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
     const token = /(?:^|;\s*)cs_presence_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1];
     if (url.pathname.startsWith('/api/')) {
       if (!token || (sessionRead.get(sessionKey(token))?.expires_at ?? 0) <= now()) return send(res,401);
+      if (req.method === 'GET' && url.pathname === '/api/release')
+        return send(res,200,currentRelease());
+      if (req.method === 'POST' && url.pathname === '/api/release') {
+        const body = await json(req);
+        const version = body?.latestVersion;
+        if (!body || Object.keys(body).length !== 1 || !Object.hasOwn(body,'latestVersion')
+          || version !== null && (typeof version !== 'string' || !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version)
+            || version.length > 32 || version.split('.').some(part => Number(part) > 2147483647))) return send(res,400);
+        releaseWrite.run(version);
+        return send(res,200,currentRelease());
+      }
       if (req.method === 'POST' && url.pathname === '/api/logout') {
         sessionDelete.run(sessionKey(token));
         res.setHeader('Set-Cookie',`${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureCookie || req.socket.encrypted?'; Secure':''}`);
@@ -174,12 +192,15 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
         if (![1,24,168,720].includes(hours) || !Number.isInteger(maxPoints) || maxPoints < 32 || maxPoints > 240) return send(res,400);
         const at = now();
         const history = aggregateHistory(historyRead.all(at-hours*3600000),hours,maxPoints);
-        return send(res,200,{now:at,ttl:TTL,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.inCombat).length,inRunCount:[...players.values()].filter(player=>player.inRun === true).length,runStatusUnknownCount:[...players.values()].filter(player=>player.inRun === null).length,...history});
+        return send(res,200,{now:at,ttl:TTL,samplingReady:at>=samplingReadyAt,samplingReadyAt,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.inCombat).length,inRunCount:[...players.values()].filter(player=>player.inRun === true).length,runStatusUnknownCount:[...players.values()].filter(player=>player.inRun === null).length,...history});
       }
       if (req.method === 'GET' && url.pathname === '/api/players') {
         expire();
         const pageValue = url.searchParams.get('page') ?? '1';
         const query = (url.searchParams.get('q') ?? '').trim();
+        const sort = url.searchParams.get('sort') || 'online';
+        const order = url.searchParams.get('order') || 'desc';
+        if (!['online','floor','hpLoss','lastSeen'].includes(sort) || !['asc','desc'].includes(order)) return send(res,400);
         if (!/^[1-9]\d*$/.test(pageValue) || !Number.isSafeInteger(Number(pageValue)) || query.length > 128)
           return send(res,400);
         const term = query.toLocaleLowerCase();
@@ -187,6 +208,11 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
           .sort((a,b)=>b.totalMs-a.totalMs || a.sessionId.localeCompare(b.sessionId))
           .map(({totalMs,...player},index)=>({...player,rank:index+1,onlineSeconds:Math.floor(totalMs/1000)}));
         const matching = term ? ranked.filter(player=>[player.name,player.character,player.encounter].some(value=>value.toLocaleLowerCase().includes(term))) : ranked;
+        const key=sort==='online'?'onlineSeconds':sort;
+        matching.sort((a,b)=>{
+          if(a[key]===null || b[key]===null)return (a[key]===null)-(b[key]===null) || a.sessionId.localeCompare(b.sessionId);
+          return (order==='asc'?1:-1)*(a[key]-b[key]) || a.sessionId.localeCompare(b.sessionId);
+        });
         const total = matching.length;
         const totalPages = Math.max(1,Math.ceil(total/PAGE_SIZE));
         const page = Math.min(Number(pageValue),totalPages);

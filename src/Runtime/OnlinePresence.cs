@@ -34,6 +34,9 @@ internal sealed partial class OnlinePresence : Node
     private Task? _pending;
     private CancellationTokenSource? _request;
     private readonly string _version = typeof(Entry).Assembly.GetName().Version!.ToString(3);
+    private static readonly ClientUpdateNotice Updates = new(typeof(Entry).Assembly.GetName().Version!.ToString(3));
+    internal static string? AvailableUpdateVersion => Updates.AvailableVersion;
+    private string? _displayedUpdate;
 
     public static void Start(NGame host)
     {
@@ -55,6 +58,11 @@ internal sealed partial class OnlinePresence : Node
 
     public override void _Process(double delta)
     {
+        if (_displayedUpdate != AvailableUpdateVersion)
+        {
+            _displayedUpdate = AvailableUpdateVersion;
+            SolverOverlay.RefreshControls();
+        }
         if (!SolverSettings.Current.OnlineStatisticsEnabled || SolverController.IsMultiplayerSession || UnattendedTestRunner.IsActive) return;
         SolverResult? result = SolverController.CurrentResultForBugReport;
         if (CombatManager.Instance.IsInProgress && result?.CombatEndedTurn.HasValue == true && result != _capturedResult)
@@ -177,10 +185,16 @@ internal sealed partial class OnlinePresence : Node
             using HttpResponseMessage response = await _client!.PostAsJsonAsync("v1/heartbeat",payload,Json,token).ConfigureAwait(false);
             if (!response.IsSuccessStatusCode)
                 Entry.Logger.Warn($"[CombatSolver/Online] Heartbeat HTTP {(int)response.StatusCode}");
+            else
+                await Updates.ReadResponseAsync(response, token).ConfigureAwait(false);
         }
         catch (HttpRequestException)
         {
             Entry.Logger.Warn("[CombatSolver/Online] Heartbeat connection failed.");
+        }
+        catch (JsonException)
+        {
+            Entry.Logger.Warn("[CombatSolver/Online] Invalid heartbeat update response.");
         }
         catch (OperationCanceledException) { }
     }

@@ -102,6 +102,8 @@ Linux 不使用上述 Windows 路径。上传前必须设置 `COMBATSOLVER_MOD_U
 
 上传命令报告成功就是远端完成证据。不要打开创意工坊页面、重新下载订阅内容、再次读取版本或重复上传。失败时只修正命令明确报告的原因，再重试一次；原因不明则原样报告。
 
+客户端 0.35.3 起随在线心跳检查监控系统维护的版本。发布包可下载后，在监控后台“客户端更新提醒”保存本次版本；也可在服务器部署目录执行 `node --env-file=private/service.env set-release.mjs <版本号>`。设置存入 SQLite，密码仅从服务器私有环境读取；命令成功响应即记录完成。渠道上传失败时保持原已发布版本，撤回提醒可用 `off`。不要通过创意工坊查询接口维护检查结果。
+
 ### Steam 工坊 `FileNotFound` 排查
 
 - `k_EItemUpdateStatusInvalid` 与 `k_EResultFileNotFound` 不一定表示暂存目录缺文件。若工作区的 `image.png`、`workshop.json`、`content/` 和 `mod_id.txt` 已通过一次本地读取确认存在，先读取 Steam 客户端日志 `D:\Steam\logs\workshop_log.txt` 中对应时间和 AppID 的记录。
