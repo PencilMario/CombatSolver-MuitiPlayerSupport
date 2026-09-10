@@ -36,6 +36,8 @@
 
 两包 Preflight 均 `materials_valid`，仅证明材料完整；随后 RestoreOnly 均以 `environment_mismatch:mods` 停止。没有忽略环境校验、安装原包 Mod 栈或将环境差异直接归咎于第三方。恢复结果 `restorationVerified=false`，原路线未验证。
 
+2026-09-10 后续：按用户要求取消“程序集清单完全一致”的硬门禁，差异只作诊断。两包重试都通过此处：5cc95 进入事件恢复后报 `native_replay_missing_combat_start_boundary`；e476 报 `environment_mismatch:modelIdHash`，属于原生事件模型 ID 表校验。两包仍未恢复成功，后续应沿这两个具体错误处理，不再把程序集名单不同当作冲突。
+
 ## 证据与继续入口
 
 行为证据见 [测试矩阵](../TEST_MATRIX.md)。原包、安全解压清单、首差异时间线、动作窗口、完整预检和恢复失败结果留在 `.local/issue-bundles/batch-20260909-225613/triage/`，不进入源码提交。剩余工作应从两份复活报告的首次错误动作窗口继续，或在原环境恢复录制前缀，不重复已通过的全部最小场景。

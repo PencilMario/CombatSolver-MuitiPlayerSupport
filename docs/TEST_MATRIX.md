@@ -2,6 +2,14 @@
 
 实验体批次与此前静默猎手批次的证据分别记录，原包恢复与最小差分分开计。以下分别保留失败基线、最终结果及未整场回放的范围。
 
+## 2026-09-10：程序集清单差异取消硬拦截（开发中）
+
+- 基线：两份原包在 `ValidateCheckpointModsAfterStartup` 以 `environment_mismatch:mods` 提前退出。该判断将整个程序集数组直接比较，混入外观 Mod、加载器和辅助库。
+- 现在按名称生成缺失、新增和构建变化诊断，写入 `replayVerification.modEnvironmentComparison`；继续原生模型解码、事件恢复和完整状态检查。不会仅因库存不同失败，也没有把未知 Mod 宣称为无影响。
+- 原包 `5cc95…` 再次 RestoreOnly：`08cf2adff9b24b8cbf4f9892da607222`，通过库存检查并进入 `native_replay_events`，最终 Failed / `native_replay_missing_combat_start_boundary`。
+- 原包 `e476…` 再次 RestoreOnly：`6bbfd2c3cdd141269552ca6b92557ac7`，库存差异完整保存，随后 Failed / `environment_mismatch:modelIdHash`。模型 ID 表校验保留并补充预期/实际 hash 的明确字段诊断。
+- 两次都使用原 ZIP、`CheckpointSelector=start`、`ReplayMode=RestoreOnly`、单请求 120 秒；这证明库存差异不再挡住恢复，不证明原包恢复成功。最终 Release 构建 0 警告/0 错误，未发版。
+
 ## 2026-09-09–10：实验体汇总包（开发中）
 
 34 份报告的逐包结论见 [分诊记录](issues/test-subject-reports-20260909.md)。以下均为本任务实际运行结果；语义夹具比较完整 MoveStateSnapshot / ContinuationStamp，包括逐实例有序牌堆、Power、怪物 AI、资源与 RNG，另检查 Fork。第三方和克隆事件场景验证各自的明确边界，不冒充整场差分。

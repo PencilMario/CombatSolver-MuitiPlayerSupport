@@ -30,7 +30,7 @@ internal sealed partial class UnattendedTestRunner
     {
         SetStage("native_replay_startup");
         await _host.GameStartupComplete;
-        ValidateCheckpointModsAfterStartup();
+        RecordCheckpointModDifferencesAfterStartup();
         ApplyHeadlessFastModeOverride();
         EnsureWithinDeadline();
         if (RunManager.Instance.IsInProgress)
@@ -40,7 +40,15 @@ internal sealed partial class UnattendedTestRunner
         string RootPath(string key) => Path.Combine(_checkpointImportDirectory!, recording[key]!.GetValue<string>());
         JsonObject origin = JsonNode.Parse(await File.ReadAllTextAsync(RootPath("originPath")))!.AsObject();
         if (origin["modelIdHash"]!.GetValue<uint>() != ModelIdSerializationCache.Hash)
+        {
+            _writer.ReplayVerification!["firstDifference"] = new JsonObject
+            {
+                ["field"] = "serialization.modelIdHash",
+                ["expected"] = origin["modelIdHash"]!.DeepClone(),
+                ["actual"] = ModelIdSerializationCache.Hash,
+            };
             throw new InvalidDataException("environment_mismatch:modelIdHash");
+        }
         SerializableRun save = JsonSerializer.Deserialize(
             await File.ReadAllTextAsync(RootPath("runSavePath")), JsonSerializationUtility.GetTypeInfo<SerializableRun>())!;
         if (save.Players.Count != 1)

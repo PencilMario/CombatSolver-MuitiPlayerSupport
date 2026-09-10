@@ -132,14 +132,33 @@ internal sealed partial class UnattendedTestRunner
 
     private bool HasNativeRecording => _checkpointImport?["index"]?["recording"]?["complete"]?.GetValue<bool>() == true;
 
-    private void ValidateCheckpointModsAfterStartup()
+    private void RecordCheckpointModDifferencesAfterStartup()
     {
         if (_checkpointImport?["index"]?["build"]?["mods"] is not JsonArray mods) return;
-        JsonNode actual = JsonSerializer.SerializeToNode(CombatReplayRecording.CaptureModIdentity(), UnattendedTestFiles.JsonOptions)!;
-        if (JsonNode.DeepEquals(mods, actual)) return;
-        _writer.ReplayVerification!["firstDifference"] = new JsonObject
-            { ["field"] = "environment.mods", ["expected"] = mods.DeepClone(), ["actual"] = actual };
-        throw new InvalidDataException("environment_mismatch:mods");
+        JsonArray actual = JsonSerializer.SerializeToNode(CombatReplayRecording.CaptureModIdentity(), UnattendedTestFiles.JsonOptions)!.AsArray();
+        var recordedByName = mods.ToDictionary(item => item!["name"]!.GetValue<string>(), item => item!, StringComparer.Ordinal);
+        var actualByName = actual.ToDictionary(item => item!["name"]!.GetValue<string>(), item => item!, StringComparer.Ordinal);
+        JsonArray differences = [];
+        foreach (string name in recordedByName.Keys.Union(actualByName.Keys).Order(StringComparer.Ordinal))
+        {
+            recordedByName.TryGetValue(name, out JsonNode? recorded);
+            actualByName.TryGetValue(name, out JsonNode? loaded);
+            if (JsonNode.DeepEquals(recorded, loaded)) continue;
+            differences.Add(new JsonObject
+            {
+                ["name"] = name,
+                ["kind"] = recorded == null ? "extra" : loaded == null ? "missing" : "build_changed",
+                ["expected"] = recorded?.DeepClone(),
+                ["actual"] = loaded?.DeepClone(),
+            });
+        }
+        // Assembly inventory includes cosmetic mods, loaders and libraries. Gameplay
+        // compatibility is established by model decoding, native events and exact state checks.
+        _writer.ReplayVerification!["modEnvironmentComparison"] = new JsonObject
+        {
+            ["inventoryMatches"] = differences.Count == 0,
+            ["differences"] = differences,
+        };
     }
 
     private void ResolveCheckpointPolicy()
