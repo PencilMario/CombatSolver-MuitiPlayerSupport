@@ -148,10 +148,7 @@ internal readonly record struct PotionFreePolicyBaseline(
     bool Won,
     int HpDeficit,
     int PlayerHp,
-    int? CombatEndedTurn)
-{
-    public SearchObjectiveOutcome Objective { get; init; }
-}
+    int? CombatEndedTurn);
 
 internal sealed class PotionPolicyUnsatisfiedException(string message) : InvalidOperationException(message);
 

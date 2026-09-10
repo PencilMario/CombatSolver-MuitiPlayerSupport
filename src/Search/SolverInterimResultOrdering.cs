@@ -28,15 +28,11 @@ internal static class SolverInterimResultOrdering
         int candidateGrowthHpCredit = 0,
         int currentGrowthHpCredit = 0,
         int candidateGrowthRewardCount = 0,
-        int currentGrowthRewardCount = 0,
-        SearchObjectiveOutcome candidateObjective = default,
-        SearchObjectiveOutcome currentObjective = default)
+        int currentGrowthRewardCount = 0)
     {
         int comparison = currentCompleteVictory.CompareTo(candidateCompleteVictory);
         if (comparison != 0)
             return comparison;
-        comparison = candidateObjective.CompareTo(currentObjective);
-        if (comparison != 0) return comparison;
         comparison = candidateStrategicHpDeficit.CompareTo(currentStrategicHpDeficit);
         if (comparison != 0)
             return comparison;
@@ -55,14 +51,6 @@ internal static class SolverInterimResultOrdering
         int comparison = current.Won.CompareTo(candidate.Won);
         if (comparison != 0)
             return comparison < 0;
-        comparison = candidate.Objective.CompareTo(current.Objective);
-        if (comparison != 0) return comparison < 0;
-        if (candidate.Objective.TargetReached && current.Objective.TargetReached)
-        {
-            comparison = ComparePrimaryQuality(candidate.Won, candidate.StrategicHpDeficit, candidate.CombatEndedTurn,
-                current.Won, current.StrategicHpDeficit, current.CombatEndedTurn);
-            if (comparison != 0) return comparison < 0;
-        }
         if (candidate.OutstandingStolenResource != current.OutstandingStolenResource)
             return candidate.OutstandingStolenResource < current.OutstandingStolenResource;
         if (IsResourceTradeImprovement(candidate, current))
@@ -87,7 +75,7 @@ internal static class SolverInterimResultOrdering
     public static bool CanPromoteDisplayedResult(
         SolverInterimResult candidate,
         SolverInterimResult current)
-        => (candidate.Objective.Policy.IsRewardObjective || !candidate.Won
+        => (!candidate.Won
                 || !current.Won
                 || candidate.ProjectedBattleHpLost - candidate.GrowthHpCredit
                     <= current.ProjectedBattleHpLost - current.GrowthHpCredit)

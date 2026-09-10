@@ -320,7 +320,6 @@ internal static class CardEffectSpecRegistry
                 {
                     combat.RecordLongTermResource(increase);
                     combat.RecordGrowthReward(GrowthSource.GeneticAlgorithm);
-                    combat.RecordPermanentGrowth(block: increase);
                 }
                 applied = true;
                 break;

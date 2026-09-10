@@ -144,7 +144,6 @@ internal sealed record SolverInterimResult(
     double Score,
     int? CombatEndedTurn = null)
 {
-    public SearchObjectiveOutcome Objective { get; init; }
     public int GrowthHpCredit { get; init; }
     public int GrowthRewardCount { get; init; }
 }

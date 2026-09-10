@@ -165,7 +165,6 @@ internal static class BespokeCardMirrors
         {
             combat.RecordLongTermResource(increase);
             combat.RecordGrowthReward(GrowthSource.TheScythe);
-            combat.RecordPermanentGrowth(damage: increase);
         }
     }
 

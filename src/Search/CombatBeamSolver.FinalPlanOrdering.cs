@@ -176,9 +176,6 @@ internal sealed partial class CombatBeamSolver
                 potionFreePlayerHp = auditedBaseline.PlayerHp;
                 potionFreeCombatEndedTurn = auditedBaseline.CombatEndedTurn;
             }
-            SearchObjectiveOutcome potionFreeObjective = potionFreePolicyBaseline?.Objective
-                ?? (hasPotionFreeBaseline && potionFreeBaselineIndex >= 0
-                    ? policyCandidates[potionFreeBaselineIndex].Snapshot.Objective : default);
             bool anyRouteWon = potionFreeWon
                 || policyCandidates.Any(candidate => candidate.CompleteVictory);
             if (emitDiagnostics)
@@ -218,9 +215,7 @@ internal sealed partial class CombatBeamSolver
                             candidate.CombatEndedTurn,
                             potionFreeWon,
                             potionFreeStrategicHpDeficit,
-                            potionFreeCombatEndedTurn,
-                            candidateObjective: candidate.Snapshot.Objective,
-                            currentObjective: potionFreeObjective) < 0;
+                            potionFreeCombatEndedTurn) < 0;
                     bool passesSoftPotionPolicy = PotionUsePolicy.IsEligible(
                             candidate.EffectivePotionPolicy,
                             candidate.OptionalPotionCount,
@@ -260,7 +255,6 @@ internal sealed partial class CombatBeamSolver
                         ? 1
                         : 0)
                 // Compare HP after earned growth credit, then realized growth and duration.
-                .ThenBy(candidate => candidate.Snapshot.Objective)
                 .ThenBy(candidate => candidate.StrategicHpDeficit)
                 .ThenByDescending(candidate => candidate.Snapshot.GrowthHpCredit)
                 .ThenByDescending(candidate => candidate.Snapshot.GrowthRewards.Total)
@@ -362,8 +356,6 @@ internal sealed partial class CombatBeamSolver
             if (comparison != 0)
                 return comparison;
         }
-        comparison = leftSnapshot.Objective.CompareTo(rightSnapshot.Objective);
-        if (comparison != 0) return comparison;
         comparison = (ActEndingBossPolicy.StrategicHpDeficit(
                 leftSnapshot.CumulativePlayerHpLost,
                 Math.Max(0, initialPlayerMaxHp - leftSnapshot.PlayerMaxHp),

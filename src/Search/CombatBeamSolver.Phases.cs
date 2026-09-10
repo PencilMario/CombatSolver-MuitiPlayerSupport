@@ -241,7 +241,6 @@ internal sealed partial class CombatBeamSolver
                 Score: node.Score,
                 CombatEndedTurn: won ? node.Snapshot.CombatEndedTurn : null)
             {
-                Objective = node.Snapshot.Objective,
                 GrowthHpCredit = node.Snapshot.GrowthHpCredit,
                 GrowthRewardCount = node.Snapshot.GrowthRewards.Total,
             };
@@ -330,13 +329,7 @@ internal sealed partial class CombatBeamSolver
             }
 
             SolverInterimResult candidate = SummarizeCandidate(node, won: true);
-            if (candidate.Objective.CanStopSearch(completeVictory: true))
-            {
-                acceptableBattleHpLossReached = true;
-                policy.Diagnostics.Info($"[CombatSolver/Test] OBJECTIVE_TARGET_REACHED mode={_objective.Mode} " +
-                    $"target={_objective.EffectiveTarget} gain={candidate.Objective.RawTargetValue}");
-            }
-            else if (!_hasGrowthTargets && candidate.ProjectedBattleHpLost <= _acceptableBattleHpLoss)
+            if (!_hasGrowthTargets && candidate.ProjectedBattleHpLost <= _acceptableBattleHpLoss)
             {
                 acceptableBattleHpLossReached = true;
                 policy.Diagnostics.Info(
@@ -601,7 +594,6 @@ internal sealed partial class CombatBeamSolver
                 finalSnapshot.BoundaryReason,
                 finalSnapshot.PredictionGaps.ToArray())
             {
-                Objective = finalSnapshot.Objective,
                 GrowthHpCredit = finalSnapshot.GrowthHpCredit,
                 GrowthRewards = finalSnapshot.GrowthRewards,
             };

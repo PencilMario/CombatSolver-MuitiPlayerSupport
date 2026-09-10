@@ -44,26 +44,6 @@ internal sealed partial class UnattendedTestRunner
                 await runner.AssertNormalityAutoPlayAsync(combatState, player);
                 return Observation(combatEnded: false);
             }
-            if (request.ScenarioId == "SEARCH-OBJECTIVES-CONTRACTS")
-            {
-                runner.AssertSearchObjectiveEdgeContracts(combatState);
-                return Observation(combatEnded: false);
-            }
-            if (request.ScenarioId == "SEARCH-OBJECTIVES-TARGET-STOP")
-            {
-                await runner.AssertSearchObjectiveTargetStopAsync(combatState);
-                return Observation(combatEnded: false);
-            }
-            if (request.ScenarioId is "SEARCH-OBJECTIVES-UI" or "SEARCH-OBJECTIVES-UI-LOCALE")
-            {
-                await runner.AssertSearchObjectiveUiAsync(combatState);
-                return Observation(combatEnded: false);
-            }
-            if (request.ScenarioId is "SEARCH-OBJECTIVES-GROWTH" or "SEARCH-OBJECTIVES-RESOURCES")
-            {
-                await runner.AssertSearchObjectivesAsync(combatState);
-                return Observation(combatEnded: false);
-            }
             if (request.ScenarioId == "UI-LOCALIZATION")
             {
                 RunStatistics.Start(MegaCrit.Sts2.Core.Nodes.NGame.Instance!);

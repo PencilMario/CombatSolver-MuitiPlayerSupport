@@ -1172,7 +1172,6 @@ internal static class CombatBugReportExporter
             settings.ActTransitionBossHpStrategy,
             settings.FinalBossHpStrategy,
             settings.AcceptableBattleHpLoss,
-            settings.Objective,
             settings.GrowthBudgets,
             settings.IgnoreLongTermRewards,
             searchMaxDegreeOfParallelism = UnattendedTestRunner.SearchMaxDegreeOfParallelismOverride ?? settings.SearchMaxDegreeOfParallelism,
@@ -1219,7 +1218,6 @@ internal static class CombatBugReportExporter
         {
             SoftTimeBudgetMilliseconds = policy.DeepBudgetOverrideMilliseconds ?? policy.DeepProfile.SoftTimeBudgetMilliseconds,
         }, JsonOptions);
-        captured["objective"] = JsonSerializer.SerializeToNode(policy.Objective, JsonOptions);
         captured["forceShortOnly"] = policy.ForceShortOnly;
         captured["searchMaxDegreeOfParallelism"] = policy.MaxDegreeOfParallelism;
         captured["includeTurnSetup"] = policy.IncludeTurnSetup;
@@ -1271,7 +1269,7 @@ internal static class CombatBugReportExporter
         {
             "solverDisabled", "automaticCalculationEnabled", "stopFullAutoOnCombatEnd", "stopFullAutoOnDeathTurn",
             "stopFullAutoOnWorseRecalculation", "enableDetailedDiagnosticLogs", "potionDirectives",
-            "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "objective", "growthBudgets", "performancePreset",
+            "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "growthBudgets", "performancePreset",
             "searchMaxDegreeOfParallelism", "shortTimeLimitSeconds", "deepTimeLimitSeconds", "enableNoGcRegion",
             "noGcRegionBudgetGigabytes", "shortBeamWidth", "deepBeamWidth", "shortMaxExpandedNodes", "deepMaxExpandedNodes",
             "shortMaxCardBranchesPerNode", "deepMaxCardBranchesPerNode", "shortMaxPileChoiceBranchesPerAction",

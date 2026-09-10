@@ -1,5 +1,22 @@
 # CombatSolver 测试清单
 
+## 0.34.10：撤回新增搜索目标
+
+删除 0.34.9 的目标模式、目标面板、独立收益排序与达标停止，恢复原成长策略；保留牌堆缓存和组合估值。五项游戏回归通过，单请求 120 秒：
+
+| 场景 | runId | 验证范围 |
+| --- | --- | --- |
+| GROWTH-POLICY-FREE-FIRST | `d174c57bb03b47e787a827f29a9c9107` | 零额度优先免费成长、忽略收益开关、原侧栏、逐次额度、Fork 与增量回放；旧三种目标配置保留已有额度 |
+| GROWTH-POLICY-PAID | `32b7f8852606422f873228bcb2209fa1` | 零额度拒绝付血；允许额度内实际付血成长，超额拒绝，完整获胜优先 |
+| PROFILE-STRENGTH-SHIV-DEPLOY | `9806fb4ae82a4c3489ad8cafb92cf649` | 保留力量小刀估值，T1 无损部署、零计划外重算 |
+| PROFILE-EXHAUST-DRAW-DEPLOY | `50d71e6fcea34248b7590091e971d543` | 保留消耗抽牌估值，T1 无损部署、零计划外重算 |
+| SMART-POTION-INVENTORY-FULL | `d5e87bc97a74438fa75e80092907c4bd` | 满栏按原门槛保留药水，预测战损 3 |
+
+- 复用实例中的首个付血场景 `efae88b299b34e7ca7c06dee7e7dd4c9` 在侧栏开关／边界测试断言失败，尚未进入该场景的战斗搜索；独立实例同时通过 UI 与付血搜索合同。未定位重复使用 UI 测试时的状态干扰，不将其写成生产战斗语义缺陷或已修复项。
+- 旧配置读取使用现有反序列化入口测试：忽略已移除的 objective 字段，保留 geneticAlgorithm=7 及原忽略收益设置。没有添加新的迁移默认值或覆盖用户配置。
+- 行为构建 0 警告／0 错误；结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`；CoverageCatalog `--verify-effective --verify-state-fields --verify-state-writes --verify-branch-state-reads` 3035 项通过。目标专属 SearchObjectiveChecks 随功能删除；调用旧入口报项目不存在，该检查不再适用，由上述原成长合同覆盖。
+- 回归之后只改版本与发布文档，执行最终 Release 构建，不重复行为测试。0.34.9 的以下发布和测试记录均保留为历史。玩家更新日志见 [0.34.10](releases/0.34.10-RELEASE_NOTES.md)。
+
 ## 0.34.9 发布依据
 
 发布行为源码为 `ceea8ef`：保留本批战斗搜索改动，撤回满栏药水优惠。复用下方集成回归及撤回后的药水、部署、UI 配置恢复证据；本次只修改版本与发布文档，执行一次最终 Release 构建，不重复游戏测试。玩家更新日志见 [0.34.9](releases/0.34.9-RELEASE_NOTES.md)。
