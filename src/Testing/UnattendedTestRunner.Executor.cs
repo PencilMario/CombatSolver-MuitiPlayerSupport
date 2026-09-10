@@ -112,6 +112,13 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("LivingFogSummonIntentAndExplosionNativeFork");
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "PERFORMANCE-RECORDING-LIFETIME")
+            {
+                PerformanceRecording.VerifyHostReattachmentForTesting();
+                await Task.Delay(TimeSpan.FromSeconds(15));
+                runner._completedChecks.Add("PerformanceObserverReattachmentKeepsProcessRecorder");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "ONLINE-PRESENCE-CONTRACT")
             {
                 if (!OnlinePresence.IsHeadless()) throw new InvalidOperationException("Presence fixture requires headless isolation.");

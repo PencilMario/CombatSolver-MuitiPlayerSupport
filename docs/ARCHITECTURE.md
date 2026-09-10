@@ -6,6 +6,8 @@
 
 ## 1. 运行链
 
+可选的 `src/Diagnostics/PerformanceRecording.cs` 是主线程标量采样和状态提示入口，由 Dispatcher 安装；`PerformanceSession.cs` 拥有进程级有界队列、后台文件写入及 OS/GC 采样；`PerformanceLifecycle.cs` 仅计量跑局/房间异步生命周期。节点重建复用同一进程写入器，游戏对象只以弱引用追踪。`tools/watch-performance.ps1` 在独立进程采集 EventPipe 和用户明确触发的 Heap dump；配置文件存在时才启用。诊断不修改搜索政策、GC 模式或第三方行为，详情见 [全程性能录制](performance/long-session-recording.md)。
+
 ```text
 Entry / turn hooks
   -> SolverController（主线程会话与请求）
