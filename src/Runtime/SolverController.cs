@@ -3244,7 +3244,7 @@ internal static class SolverController
             SolverDeploymentFastMode.FollowGame => null,
             SolverDeploymentFastMode.Normal => FastModeType.Normal,
             SolverDeploymentFastMode.Fast => FastModeType.Fast,
-            SolverDeploymentFastMode.Instant => FastModeType.Instant,
+            SolverDeploymentFastMode.Instant => null,
             _ => throw new ArgumentOutOfRangeException(nameof(mode), mode, null),
         };
 

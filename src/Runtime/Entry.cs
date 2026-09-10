@@ -73,6 +73,8 @@ public static class Entry
         patcher.RegisterPatch<BaseLibCloneConcurrencyPatch>();
         patcher.RegisterPatch<PowerDynamicVarMaterializationGuardPatch>();
         patcher.RegisterPatch<PowerAmountComparisonPatch>();
+        patcher.RegisterPatch<RichTextEnvironmentLifetimePatch>();
+        patcher.RegisterPatch<CombatInstantModePatch>();
         patcher.RegisterPatch<UnattendedTestIsolationPatch>();
         patcher.RegisterPatch<UnattendedHeadlessFtuePatch>();
         patcher.RegisterPatch<CombatReplayRecordingPatch>();
