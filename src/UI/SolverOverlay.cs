@@ -2028,6 +2028,14 @@ internal static class SolverOverlay
             tone = TextMuted;
         }
 
+        if (LoadedModWarnings.SpeedXPresent)
+        {
+            string notice = SolverText.Get("检测到皮皮极速（SpeedX）：其悬浮显示可能持续产生大量临时内存，触发频繁回收，加重长时间游玩时的卡顿。");
+            text = text == null ? notice : notice + "\n" + text;
+            if (tone != Danger)
+                tone = Warning;
+        }
+
         bool visibilityChanged = _feedbackBanner.Visible != (text != null);
         _feedbackBanner.Visible = text != null;
         if (text != null)

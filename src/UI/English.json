@@ -1,4 +1,5 @@
 {
+  "检测到皮皮极速（SpeedX）：其悬浮显示可能持续产生大量临时内存，触发频繁回收，加重长时间游玩时的卡顿。": "SpeedX detected: its overlay may continuously allocate temporary memory, causing frequent garbage collection and worsening stutter during longer play sessions.",
   "Ctrl＋F8：卡顿时保存内存现场（会短暂停顿）": "Ctrl+F8: capture memory during lag (brief pause)",
   "性能录制失败：请勿开始测试": "Performance recording failed: do not start the test",
   "性能录制失败：请勿继续测试": "Performance recording failed: stop the test",
