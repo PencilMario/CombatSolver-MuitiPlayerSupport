@@ -1892,12 +1892,18 @@ internal static class SearchGcPolicy
                 restartNoGcRegion: false,
                 cancellationToken: cancellationToken,
                 reason: "default_gc_fallback"),
-            HasUnexpectedNoGcLoss);
+            HasUnexpectedNoGcLoss,
+            OperatingSystem.IsWindows() ? CaptureCurrentPhysicalMemoryLoad : null,
+            OperatingSystem.IsWindows()
+                ? CalculateReusableHeapBytes(memory.HeapSizeBytes, memory.FragmentedBytes,
+                    GC.GetTotalMemory(forceFullCollection: false))
+                : 0);
         Entry.Logger.Info(
             $"[CombatSolver/Test] GC_SEARCH_ALLOCATION_LIMIT limit={allocationLimitBytes} " +
             $"remaining_region={remainingRegionBytes} region_budget={regionBudgetBytes} " +
             $"loh_budget={lohBudgetBytes} configured_budget={configuredRegionBudgetBytes} " +
             $"system_memory_load={memory.MemoryLoadBytes} " +
+            $"system_pressure_source={(OperatingSystem.IsWindows() ? "physical" : "allocation_projection")} " +
             $"system_memory_limit={systemMemoryLimitBytes}");
     }
 
@@ -2275,11 +2281,20 @@ internal static class SearchGcPolicy
     {
         GCMemoryInfo memory = GC.GetGCMemoryInfo();
         long systemLimit = ResolveSystemMemoryLimit(memory);
-        long memoryLoad = Math.Max(0, memory.MemoryLoadBytes);
-        long headroom = systemLimit == long.MaxValue
-            ? configuredBudgetBytes
-            : Math.Max(0, systemLimit - memoryLoad);
-        long effectiveBudget = Math.Min(configuredBudgetBytes, headroom);
+        // A background collection leaves reusable holes inside the already committed heap.
+        // Reusing those holes is allocation, but does not consume the same amount of new
+        // physical memory. Use live physical pressure while searching on Windows; platforms
+        // with only last-GC memory samples retain the conservative allocation projection.
+        long memoryLoad = OperatingSystem.IsWindows()
+            ? PhysicalMemoryUsage.Capture(memory).UsedBytes
+            : Math.Max(0, memory.MemoryLoadBytes);
+        long reusableHeap = OperatingSystem.IsWindows()
+            ? CalculateReusableHeapBytes(memory.HeapSizeBytes, memory.FragmentedBytes,
+                GC.GetTotalMemory(forceFullCollection: false))
+            : 0;
+        long effectiveBudget = CalculateAllocationCapacity(configuredBudgetBytes, systemLimit, memoryLoad, reusableHeap);
+        Entry.Logger.Info($"[CombatSolver/Test] GC_ALLOCATION_CAPACITY physical_load={memoryLoad} " +
+            $"system_limit={systemLimit} reusable_heap={reusableHeap} effective_budget={effectiveBudget}");
         if (effectiveBudget < MinimumNoGcRegionBudgetBytes)
             effectiveBudget = 0;
         long effectiveLohBudget = effectiveBudget == 0
@@ -2293,6 +2308,22 @@ internal static class SearchGcPolicy
             memoryLoad,
             systemLimit,
             effectiveBudget < configuredBudgetBytes);
+    }
+
+    private static long CaptureCurrentPhysicalMemoryLoad()
+        => PhysicalMemoryUsage.Capture(GC.GetGCMemoryInfo()).UsedBytes;
+
+    internal static long CalculateReusableHeapBytes(long heapSize, long fragmented, long currentLive)
+        => Math.Max(0, Math.Min(fragmented, heapSize - Math.Max(0, currentLive)));
+
+    internal static long CalculateAllocationCapacity(long configured, long systemLimit, long memoryLoad, long reusableHeap)
+    {
+        if (systemLimit == long.MaxValue) return configured;
+        // Existing heap space does not grant permission to run at the physical pressure limit.
+        long headroom = Math.Max(0, systemLimit - memoryLoad);
+        if (headroom == 0) return 0;
+        return Math.Min(configured, headroom > long.MaxValue - reusableHeap
+            ? long.MaxValue : headroom + reusableHeap);
     }
 
     internal static long ResolveSystemMemoryLimit(GCMemoryInfo memory)

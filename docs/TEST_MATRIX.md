@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 0.35.1：回收后堆空间复用
+
+- `dotnet run --project tools/CombatSolver.GcPolicyChecks/CombatSolver.GcPolicyChecks.csproj -c Release -- memory`：Passed，直接链接生产策略及信号；玩家采样剩余可复用空间 4,172,872,440 字节，区域容量 6,938,945,322 字节。验证复用空间不重复增加物理用量、三 GB 波次可准入、物理上限立即阻止准入、用户预算上限、回收委托、Disable 探针清理及无实时探针模式。
+- 同工具默认入口：19 项 GC 策略检查 Passed。Release 编译通过，0 警告/0 错误；版本元数据变化后的最终发布构建不重跑这些合同。
+- 证据：`outputs/centipede-gc-20260910/checkpoints.json`、`trace3-raw.json`。原始第三段完整解析，EventsLost=0；目标战斗 36 次主动回收、102 个 SuspendForGC 暂停区间，总暂停约 6244.8 ms、最大约 861.8 ms。此为旧版现场，不能作为修复后的结果。
+- 按用户要求没有启动实机或无人游戏；没有实际回收次数下降、FPS 或路线质量的新结论。
+
 ## 0.35.0：发布验证
 
 - 复用下列文字特效与战斗速度证据及明确的未验证边界。SpeedX 提示增加中英设置指引，路径与当前控件标签逐项核对，英文 JSON 做语法及文案键匹配检查。
