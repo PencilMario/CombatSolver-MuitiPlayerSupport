@@ -1,5 +1,15 @@
 # CombatSolver 测试清单
 
+## 2026-09-10：玩家死亡能力清理
+
+- Release 编译 0 警告/0 错误；Bash 结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`。没有安装或启动游戏。
+
+- `python3 tools/PlayerDeathChecks/run.py`：42 项通过，提取编译生产 HandlePlayerDeath 和 RemovePowersAfterDeath；旧入口在宠物死亡回调观察到残留能力，失败基线已复现。
+- 覆盖有/无奥斯提、宠物清理 pending、先清能力再清球/宠物、正负层数移除、允许死后存续能力、其他 owner、重复清理及现有 Illusion 移除否决规则。
+- 测试状态/能力模型/宠物 Kill 为替身；不构成真实根/Fork、AfterRemoved 回调覆盖、死亡阻止或原报告完整回放验收。原版 CreatureCmd 的清理位置及 Creature.RemoveAllPowersAfterDeath 已定向核对。
+
+
+
 ## 2026-09-10：伤害来源生命状态隔离
 
 - Release 编译通过，0 警告/0 错误；Bash 结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`。未安装或启动游戏。
