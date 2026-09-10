@@ -2030,7 +2030,7 @@ internal static class SolverOverlay
 
         if (LoadedModWarnings.SpeedXPresent)
         {
-            string notice = SolverText.Get("检测到皮皮极速（SpeedX）：其悬浮显示可能持续产生大量临时内存，触发频繁回收，加重长时间游玩时的卡顿。");
+            string notice = SolverText.Get("检测到皮皮极速（SpeedX）：其悬浮显示可能持续产生大量临时内存，触发频繁回收，加重长时间游玩时的卡顿。\n需要战斗加速时，建议使用求解器自带的“瞬间”：设置 > 常规 > 自动执行，将“自动出牌速度”设为“瞬间”，“牌间额外停顿（秒）”设为 0。玩家和怪物回合均加速，局外保持原速。");
             text = text == null ? notice : notice + "\n" + text;
             if (tone != Danger)
                 tone = Warning;
