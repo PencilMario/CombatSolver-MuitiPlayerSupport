@@ -1,5 +1,30 @@
 # CombatSolver 测试清单
 
+## 2026-09-10：PR #69 / #71 / #73 战斗内部分集成
+
+从三个审查分支提取战斗搜索目标、达标停止、无序牌堆缓存、战斗潜力与满栏 Smart 药水策略，集成到 0.34.8 之后；奖励、商店、删牌评分与画像 UI 未引入。以下为本次集成源码的直接结果，使用独立实例 `combat-pr-integration`，每请求 120 秒。
+
+| 场景 | runId | 结果与范围 |
+| --- | --- | --- |
+| SEARCH-OBJECTIVES-GROWTH | `88504d6ad582413689ca1e42653bc348` | Passed，四模式正式短搜、收益与零损限制、增量回放、Fork、无序缓存与强制重算一致 |
+| SEARCH-OBJECTIVES-RESOURCES | `efa7410eadc644c3a803f2f763aeef77` | Passed，金币收益与生存／平衡／限制模式对照、增量回放 |
+| SEARCH-OBJECTIVES-TARGET-STOP | `0b4cb333c5044043a4e43d31955c0213` | Passed，实际培养达标且安全获胜，求解器日志与协调器停止谓词同时命中，增量回放 |
+| SEARCH-OBJECTIVES-UI-LOCALE | `9ab2ae3174e642678d3eb7f65c3908d9` | Passed，战斗目标下拉框／限制保存、eng/zhs/zht 切换及面板边界；headless 控件验证 |
+| SMART-POTION-INVENTORY-OPEN | `54568b386eaf427ca79698ef58fa292b` | Passed，未满栏保留药水、预测战损 3 |
+| SMART-POTION-INVENTORY-FULL | `a4eb30b03d0143588c8dd75c245512f0` | Passed，满栏使用 1 瓶、预测战损 0 |
+| SMART-POTION-INVENTORY-NO-BENEFIT | `fe8283a5b6334695a1c56a9ed518cb50` | Passed，满栏但无收益时保留药水 |
+| PROFILE-STRENGTH-SHIV-DEPLOY | `0210cd748c894b85a98b020351726173` | Passed，力量与生成小刀，T1 无损部署、零计划外重算 |
+| PROFILE-STRENGTH-SHIV-NO-SETUP | `7662f42e678e4a6db3a35e82014c02d2` | Passed，无需力量铺垫，T1 无损部署、零计划外重算 |
+| PROFILE-EXHAUST-DRAW-DEPLOY | `07fb7f35c312410d8958a17243cb4e1f` | Passed，消耗抽牌组合，T1 无损部署、零计划外重算 |
+| PROFILE-NO-DRAW-NO-SETUP | `6d1cb121f36f4965815454625a174a17` | Passed，禁抽时跳过无效铺垫，T1 无损部署、零计划外重算 |
+| TEST-SUBJECT-ORIGINAL-REPORT | `3e6e7f796ffa41fcaa6d52c859a12404` | Passed，0.34.8 天际钻头原包首回合至 T2 完整状态回归 |
+| REPORT-ROUND-DOOM-THRESHOLD-CARD | `534b875dd61c47a3a536b32fdde66f3a` | Passed，0.34.8 末日降临临界击杀与复活跨回合完整状态回归 |
+
+- 目标停止探针最初 `3b410fb57dd342a79fc9392c9bfb8950` / `09a49fc244794146be3db2a9c26d82fc` Failed。建局将故障机器人原生 75 HP 降至 70，被累计战损记录为 5 HP，违反探针的零损收益限制，实际选中无收益路线；这是夹具输入问题。固定 75/75 HP 后达标停止通过，提交夹具为 `coverage/unattended/search-objectives-target-stop.json`。没有放宽生产血量限制。
+- 本轮未修改被提取功能的生产语义；仅修正缩进、剥离局外入口并新增停止回归。最后两次构建只改变测试诊断，既有成功场景不重复运行。
+- Release 构建 0 警告／0 错误；SearchObjectiveChecks 227 项、PotionInventoryChecks 21220 项通过；结构门禁 `REFACTOR_BOUNDARIES_OK search_files=86`；CoverageCatalog `--verify-effective --verify-state-fields --verify-state-writes --verify-branch-state-reads` 3035 项通过。
+- 复跑入口为 `tools/run-unattended-test.ps1` / `.sh`：成长用 `SEARCH-OBJECTIVES-GROWTH` / DEFECT，手牌 GENETIC_ALGORITHM、STRIKE_DEFECT；资源用 `SEARCH-OBJECTIVES-RESOURCES` / IRONCLAD，手牌 HAND_OF_GREED、STRIKE_IRONCLAD。两者均 ClearRunDeck、ClearPlayerPiles、初始能量 1、格挡 0、敌生命 6，手牌 TreatAsDeckCard=true，120 秒。UI 用成长建局并指定 `SEARCH-OBJECTIVES-UI-LOCALE`。目标停止输入见上述新 JSON，机制和药水输入见 `coverage/unattended/profile-*.json`、`smart-potion-inventory-*.json`。原包和末日降临沿用 0.34.8 的命令。本轮没有原包整场质量 A/B、可见帧率或发布结论。
+
 ## 0.34.8 发布集成
 
 合入已发布 0.34.7 后，补充验证剑圣冻结根与复制牌的重放次数，以及原报告的击杀边界。既有分批失败基线与最终证据保留如下；发布集成结果另记于本节。

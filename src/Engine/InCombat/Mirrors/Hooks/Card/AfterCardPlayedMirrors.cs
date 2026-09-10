@@ -860,6 +860,7 @@ internal static class AfterCardPlayedMirrors
             {
                 combat.RecordLongTermResource(1);
                 combat.RecordGrowthReward(GrowthSource.Goopy);
+                combat.RecordPermanentGrowth(block: 1);
             }
         }
     }

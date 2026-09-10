@@ -705,6 +705,10 @@ internal sealed partial class CombatBeamSolver
                     right.OptionalAmbergrisFinalPlayerHpCohort);
         }
 
+        private static int ResourceRetentionValue(SimulationSnapshot snapshot)
+            => snapshot.Objective.Policy.IsRewardObjective
+                ? snapshot.Objective.TargetValue : snapshot.LongTermResourceValue;
+
         public List<SearchNode> RankLongTermResource(
             IReadOnlyList<SearchNode> nodes,
             int limit)
@@ -717,7 +721,7 @@ internal sealed partial class CombatBeamSolver
             int highestCount = 0;
             for (int index = 0; index < nodes.Count; index++)
             {
-                int value = nodes[index].Snapshot.LongTermResourceValue;
+                int value = ResourceRetentionValue(nodes[index].Snapshot);
                 if (value > highestValue)
                 {
                     highestValue = value;
@@ -733,7 +737,7 @@ internal sealed partial class CombatBeamSolver
             List<SearchNode> highest = new(highestCount);
             for (int index = 0; index < nodes.Count; index++)
             {
-                if (nodes[index].Snapshot.LongTermResourceValue == highestValue)
+                if (ResourceRetentionValue(nodes[index].Snapshot) == highestValue)
                     highest.Add(nodes[index]);
             }
             return RankBest(
@@ -6725,7 +6729,8 @@ internal sealed partial class CombatBeamSolver
                 leftSnapshot.GrowthHpCredit,
                 rightSnapshot.GrowthHpCredit,
                 leftSnapshot.GrowthRewards.Total,
-                rightSnapshot.GrowthRewards.Total);
+                rightSnapshot.GrowthRewards.Total,
+                leftSnapshot.Objective, rightSnapshot.Objective);
             if (comparison != 0)
                 return comparison;
 
@@ -7388,6 +7393,10 @@ internal sealed partial class CombatBeamSolver
             {
                 return false;
             }
+            if (left.Snapshot.Objective.Policy.IsRewardObjective
+                && (left.Snapshot.Objective.TargetValue < right.Snapshot.Objective.TargetValue
+                    || !left.Snapshot.Objective.MeetsLimits && right.Snapshot.Objective.MeetsLimits))
+                return false;
             bool noWorse = left.Snapshot.ProjectedPlayerHp >= right.Snapshot.ProjectedPlayerHp
                 && left.Snapshot.PlayerMaxHp >= right.Snapshot.PlayerMaxHp
                 && left.Snapshot.CumulativePlayerHpLost <= right.Snapshot.CumulativePlayerHpLost

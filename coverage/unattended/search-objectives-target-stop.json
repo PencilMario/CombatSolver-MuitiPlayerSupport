@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "scenarioId": "SEARCH-OBJECTIVES-TARGET-STOP",
+  "characterId": "DEFECT",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "clearRunDeck": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "initialPlayerEnergy": 2,
+  "initialPlayerHp": 75,
+  "initialPlayerMaxHp": 75,
+  "enemyCurrentHp": 6,
+  "cards": [
+    { "cardId": "GENETIC_ALGORITHM", "pile": "Hand", "treatAsDeckCard": true },
+    { "cardId": "STRIKE_DEFECT", "pile": "Hand", "treatAsDeckCard": true }
+  ],
+  "timeoutSeconds": 120
+}

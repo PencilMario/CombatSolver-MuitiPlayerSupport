@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "characterId": "SILENT",
+  "encounterId": "FUZZY_WURM_CRAWLER_WEAK",
+  "seed": "INVENTORYVALUE0111",
+  "enemyCurrentHp": 6,
+  "initialPlayerHp": 70,
+  "initialPlayerMaxHp": 70,
+  "initialPlayerEnergy": 0,
+  "clearRunDeck": true,
+  "clearPlayerPiles": true,
+  "clearAllPowers": true,
+  "cards": [
+    {
+      "cardId": "BLOODLETTING",
+      "pile": "Hand",
+      "treatAsDeckCard": true
+    },
+    {
+      "cardId": "STRIKE_IRONCLAD",
+      "pile": "Hand",
+      "treatAsDeckCard": true
+    }
+  ],
+  "potionPolicyForTest": "Smart",
+  "forceShortSearchOnly": true,
+  "shortSearchBudgetOverrideMilliseconds": 3000,
+  "searchMaxDegreeOfParallelismForTest": 1,
+  "expectedInitialFinalEnemyHpAtMost": 0,
+  "stopAfterInitialSolverResultAssertion": false,
+  "timeoutSeconds": 120,
+  "scenarioId": "SMART-POTION-INVENTORY-DEPLOY",
+  "description": "Deploy the full-inventory potion route and finish without HP loss or unexpected replans.",
+  "potions": [
+    {
+      "potionId": "EnergyPotion"
+    },
+    {
+      "potionId": "EnergyPotion"
+    },
+    {
+      "potionId": "EnergyPotion"
+    }
+  ],
+  "expectedInitialPotionCount": 1,
+  "expectedFinishedTurn": 1,
+  "expectedFinishedPlayerHpAtLeast": 70,
+  "expectedUnexpectedReplansAtMost": 0,
+  "deploymentFastModeForTest": "Instant",
+  "deploymentInterActionDelaySecondsForTest": 0
+}

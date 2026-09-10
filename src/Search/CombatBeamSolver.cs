@@ -53,14 +53,13 @@ internal sealed partial class CombatBeamSolver(
     private readonly int _initialEnemyCount = root.Enemies.Count;
     private readonly bool _isActEndingBoss = root.IsActEndingBoss;
     private readonly BossHpRelief _bossHpRelief = root.BossHpRelief;
-    private readonly BossHpRelief _strategicBossHpRelief = ActEndingBossPolicy.ResolveStrategicHpRelief(
-        root.BossHpRelief,
-        policy.ActTransitionBossHpStrategy,
-        policy.FinalBossHpStrategy);
+    private readonly BossHpRelief _strategicBossHpRelief = policy.ResolveStrategicHpRelief(root.BossHpRelief);
+    private readonly SearchObjectivePolicy _objective = policy.EffectiveObjective;
     private readonly int _acceptableBattleHpLoss = policy.AcceptableBattleHpLoss;
     private readonly GrowthValues _growthBudgets = policy.EffectiveGrowthBudgets;
     private readonly bool _hasGrowthTargets = policy.EffectiveHasGrowthTargets;
-    private readonly bool _ignoreLongTermRewards = policy.IgnoreLongTermRewards;
+    private readonly bool _ignoreLongTermRewards = policy.IgnoreLongTermRewards
+        || policy.EffectiveObjective.Mode != SearchObjective.Balanced;
     private readonly bool _detailedDiagnostics = policy.DetailedDiagnostics;
     private readonly int? _maximumPotionUses = maximumPotionUses;
     private readonly int _minimumPotionUses = minimumPotionUses ?? 0;
@@ -109,6 +108,7 @@ internal sealed partial class CombatBeamSolver(
         _potionStrategy,
         _enforcePotionDirectives,
         root.HasRenewablePotionShapedRock,
+        root.PotionSlotCount > 0 && root.InitialPotionCount >= root.PotionSlotCount,
         _theftPolicy,
         _strategicBossHpRelief,
         root.PostCombatRelicHeal,

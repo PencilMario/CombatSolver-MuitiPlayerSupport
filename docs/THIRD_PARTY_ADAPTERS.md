@@ -118,6 +118,8 @@ StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 只有当你的 Power **收益取决于它和别的动作的先后关系**时才需要。详见
 [第三方 Power 的战略估值登记](third-party-strategic-effects.md)。
 
+`StrategicEffectRequirements.AttackHits` 可请求可达攻击命中数；`StrategicEffectContext.AttackHits` 在请求后提供估值，未请求时为 null。它包括已审查的原版多段与小刀生成，第三方攻击使用普通单次命中估计，不能当作真实攻击结算。`ExhaustDrawPlays` 是黑暗之拥在禁抽、虚无顺序下的抽牌机会估值；这些字段只服务保路，不改变 Hook 镜像语义。
+
 不登记的后果：求解器按叠加层数记一点 `ScalingPotential` 兜底。对大多数 Power 够用；对
 「自己不给甲、但让后续攻击给甲」这类会被排到错误位置。
 

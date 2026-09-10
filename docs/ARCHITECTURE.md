@@ -19,6 +19,8 @@ Entry / turn hooks
 
 搜索 worker 接收 `CombatRootSnapshot`、`SearchPolicySnapshot`、诊断 sink、帧压力信号和取消令牌。它不读取全局设置、控制器、UI 或无人测试状态。
 
+战斗搜索目标由 `SearchObjectivePolicy` 随请求冻结；`SearchObjectiveOutcome` 描述分支已实现的成长与资源收益，供中间结果、Pareto、终局及协调器共用。Runtime 保存设置、失效路线缓存和全自动收益限制提示，UI 只展示结果。`CardMechanismFacts` 提供小刀数量、攻击命中与消耗抽牌的纯值估计，`StrategicEffectModel` 消费分支状态；当前没有奖励／商店评分模块。
+
 普通搜索在 Runtime 同时等待根回收屏障、原生动作队列及当前动作完成后捕获根；队列因等待玩家选择暂时无可执行动作时，当前动作的完成任务仍约束捕获。任何异步等待恢复后都重新进入请求校验，沿用请求身份和战斗生命周期取消；专用回合准备选牌入口先行处理。
 
 ## 2. Runtime
