@@ -15,8 +15,10 @@ internal sealed partial class CombatBeamSolver
         int minimumPotionUses,
         SearchDiagnosticsSink diagnostics,
         bool detailedDiagnostics,
-        BattleDamageSnapshot battleDamage)
+        BattleDamageSnapshot battleDamage,
+        PotionStrategicCostLookup? potionStrategicCosts = null)
     {
+        private readonly PotionStrategicCostLookup _potionStrategicCosts = potionStrategicCosts ?? new();
         /// <summary>
         /// The HP a potion must save to be worth spending, scaled by how much HP is worth in this fight. When HP
         /// buys nothing, no amount of saved HP justifies a potion and only the win/lose escape in
@@ -46,11 +48,12 @@ internal sealed partial class CombatBeamSolver
                     ForcedPotionUseEvaluation forced = enforcePotionDirectives
                         ? potionStrategy.EvaluateForcedUses(
                             candidate.Node.Actions,
-                            renewablePotionShapedRock)
+                            renewablePotionShapedRock,
+                            _potionStrategicCosts)
                         : new ForcedPotionUseEvaluation(true, 0, 0, 0);
                     int explicitPotionStrategicCost = candidate.Node.Actions
                         .Where(action => action.Kind == PlanActionKind.UsePotion)
-                        .Sum(action => PotionUsePolicy.StrategicHpCost(
+                        .Sum(action => _potionStrategicCosts.Get(
                             action.PotionId!,
                             renewablePotionShapedRock));
                     int optionalPotionCount = Math.Max(

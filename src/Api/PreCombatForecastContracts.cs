@@ -89,19 +89,23 @@ public sealed record PreCombatForecastOptions
 
     /// <summary>
     /// Ignore a successful cached result and launch a fresh isolated search. Intended for an explicit Recalculate
-    /// action where the caller exposes the cost and progress to the player.
+    /// action where the caller exposes the cost and progress to the player. Also bypasses active request sharing;
+    /// CancelWorkerWhenCallerCancels still independently controls cancellation ownership.
     /// </summary>
     public bool ForceRefresh { get; init; }
 
     /// <summary>
     /// Stop the isolated worker after this request has returned to its reusable barrier. This changes only worker
-    /// lifetime; it does not participate in forecast caching or combat semantics.
+    /// lifetime; it does not participate in completed-result caching or combat semantics. Cache hits apply this
+    /// setting at the reusable barrier without cancelling another caller's running request. Active requests share
+    /// work only when both lifetime options match.
     /// </summary>
     public bool CloseWorkerAfterRequest { get; init; }
 
     /// <summary>
     /// Idle lifetime for a retained worker. Null disables automatic idle shutdown. This changes only worker lifetime
-    /// and is deliberately excluded from deterministic forecast cache keys.
+    /// and is deliberately excluded from deterministic completed-result cache keys. Cache hits also apply the
+    /// requested lifetime; active requests with different lifetimes do not share work.
     /// </summary>
     public int? WorkerIdleTimeoutMilliseconds { get; init; } =
         PreCombatForecastApi.DefaultWorkerIdleTimeoutMilliseconds;

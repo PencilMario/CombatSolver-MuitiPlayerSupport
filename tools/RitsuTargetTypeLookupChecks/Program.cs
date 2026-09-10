@@ -61,6 +61,45 @@ for (int attempt = 0; collectible.IsAlive && attempt < 8; attempt++)
 Check(!collectible.IsAlive, "cache does not retain an unloaded collectible assembly");
 SimulationNotificationIsolation.IsActive = false;
 Check(Query(typeof(Program).Assembly) == typeof(BaseLib.Patches.Features.CustomTargetType), "live callback restored after simulation");
+const string lateMarker = "CombatSolver.Tests.AbsentThenEmittedMarker";
+var absence = new AssemblyTypeAbsenceCache(lateMarker);
+Type? ProbeAll(string name) => AppDomain.CurrentDomain.GetAssemblies()
+    .Select(assembly => assembly.GetType(name, throwOnError: false)).FirstOrDefault(type => type != null);
+void RecordAbsence()
+{
+    long generation = absence.BeginProbe();
+    Type? result = ProbeAll(lateMarker);
+    Check(result == null, "full marker probe is absent");
+    absence.ObserveResult(generation, result);
+}
+Check(!absence.IsStillAbsent(), "no absence accepted before a completed original lookup");
+absence.BeginProbe();
+Check(!absence.IsStillAbsent(), "failed or unfinished original lookup publishes no evidence");
+RecordAbsence();
+Check(absence.IsStillAbsent(), "unchanged assemblies reuse completed absence");
+var emptyAssembly = AssemblyBuilder.DefineDynamicAssembly(
+    new AssemblyName("AbsenceCacheLateAssembly"), AssemblyBuilderAccess.RunAndCollect);
+var emptyModule = emptyAssembly.DefineDynamicModule("late");
+Check(!absence.IsStillAbsent(), "a new empty assembly invalidates previous absence");
+RecordAbsence();
+Check(absence.IsStillAbsent(), "new empty dynamic assembly is checked and remains absent");
+long beforeDefinition = absence.BeginProbe();
+Type lateType = emptyModule.DefineType(lateMarker, TypeAttributes.Public).CreateType()!;
+Check(absence.BeginProbe() == beforeDefinition, "emitting a type need not load another assembly");
+Check(!absence.IsStillAbsent() && ProbeAll(lateMarker) == lateType,
+    "new type in an existing dynamic assembly remains visible");
+absence.ObserveResult(beforeDefinition, lateType);
+Check(!absence.IsStillAbsent(), "a positive result never authorizes the absence shortcut");
+var bridge = RitsuBaseLibTargetTypeResolution.Target("EnsureResolved").TargetType;
+Check(bridge.GetMethod("EnsureResolved", BindingFlags.Static | BindingFlags.NonPublic,
+    null, Type.EmptyTypes, null)?.ReturnType == typeof(void)
+    && bridge.GetMethod("ResolveBaseLibCustomTargetType", BindingFlags.Static | BindingFlags.NonPublic,
+        null, Type.EmptyTypes, null)?.ReturnType == typeof(Type),
+    "current Ritsu resolver patch signatures match");
+Check(RitsuBaseLibTargetTypeResolutionPatch.Prefix(), "live resolution always runs the original method");
+RitsuBaseLibTargetTypeEvidencePatch.Prefix(out long liveState);
+Check(liveState == -1, "live resolution cannot publish simulation-only evidence");
+Console.WriteLine($"ABSENCE_COUNTS {absence.Counts}");
 Console.WriteLine($"RITSU_TARGET_TYPE_LOOKUP_CHECKS_OK checks={checks}");
 
 [MethodImpl(MethodImplOptions.NoInlining)]

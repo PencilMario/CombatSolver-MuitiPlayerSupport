@@ -188,6 +188,8 @@ internal sealed partial class UnattendedTestRunner
             SetEnergy(player, capturedEnergy);
         }
 
+        await AssertSwordSageRootBaselineAsync(combat, player);
+
         Entry.Logger.Info(
             $"[CombatSolver/Unattended] COMBAT_ROOT_SNAPSHOT_OK " +
             $"turn={root.StartTurnNumber} enemies={root.Enemies.Count} energy={capturedEnergy}");

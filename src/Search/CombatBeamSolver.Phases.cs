@@ -43,6 +43,33 @@ internal sealed partial class CombatBeamSolver
         }
         finally
         {
+            policy.Diagnostics.Info(
+                $"[CombatSolver/Test] ROUTING_CHOICE_SUMMARIES scope=solver " +
+                $"builds={_run.RoutingChoiceSummaryBuilds} hits={_run.RoutingChoiceSummaryHits} " +
+                $"bypasses={_run.RoutingChoiceSummaryBypasses}");
+            HookLayoutCacheStatistics hookLayouts = root.HookLayoutCacheStatistics;
+            HookListenerSegmentStatistics hookSegments = root.HookListenerSegmentStatistics;
+            policy.Diagnostics.Info(
+                $"[CombatSolver/Test] HOOK_LISTENER_SEGMENTS scope=root_cumulative " +
+                $"prefix_reuses={hookSegments.PrefixReuses} prefix_builds={hookSegments.PrefixBuilds} " +
+                $"split_builds={hookSegments.SplitBuilds} whole_builds={hookSegments.WholeBuilds} " +
+                $"effective_prefix_reuses={hookSegments.EffectivePrefixReuses} " +
+                $"effective_prefix_builds={hookSegments.EffectivePrefixBuilds}");
+            policy.Diagnostics.Info(
+                $"[CombatSolver/Test] HOOK_LAYOUT_CACHE scope=root_cumulative " +
+                $"hits={hookLayouts.Hits} misses={hookLayouts.Misses} " +
+                $"collisions={hookLayouts.Collisions} bypasses={hookLayouts.Bypasses}");
+            var targetTypes = root.TargetTypeAbsenceCounts;
+            policy.Diagnostics.Info(
+                $"[CombatSolver/Test] TARGET_TYPE_ABSENCE_CACHE scope=process_cumulative " +
+                $"hits={targetTypes.Hits} probes={targetTypes.Probes} bypasses={targetTypes.Bypasses}");
+            if (_run.PotionStrategicCosts.Misses > 0)
+            {
+                policy.Diagnostics.Info(
+                    $"[CombatSolver/Test] POTION_POLICY_LOOKUP " +
+                    $"hits={_run.PotionStrategicCosts.Hits} misses={_run.PotionStrategicCosts.Misses} " +
+                    $"entries={_run.PotionStrategicCosts.Count}");
+            }
             if (_run.DeferredFrontier != null)
             {
                 _run.DeferredFrontier.Clear();
@@ -172,7 +199,10 @@ internal sealed partial class CombatBeamSolver
         SolverRouteAdoptionSeed? requestedRouteAdoptionSeed = null;
         IReadOnlyList<SearchNode>? interruptedActive = null;
         int routePreviewVersion = 0;
-        long lastRoutePreviewAt = System.Environment.TickCount64 - 100;
+        // 路线预览要重排一次完整 RankFinal；与进度 UI 用同一个刷新间隔，避免每 100ms
+        // 就重算一次比进度本身还重的排序。
+        long lastRoutePreviewAt =
+            System.Environment.TickCount64 - SolverWeights.ProgressUiIntervalMilliseconds;
         bool adoptionReached = false;
         bool currentTurnAdoptionReached = false;
         int initialHp = root.InitialPlayerHp;
@@ -805,7 +835,7 @@ internal sealed partial class CombatBeamSolver
             if (progressCallback == null)
                 return;
             long now = System.Environment.TickCount64;
-            if (!force && now - lastRoutePreviewAt < 100)
+            if (!force && now - lastRoutePreviewAt < SolverWeights.ProgressUiIntervalMilliseconds)
                 return;
             IEnumerable<SearchNode> pool = additional == null
                 ? retained
@@ -1451,9 +1481,11 @@ internal sealed partial class CombatBeamSolver
                 }
 
                 int activeIndex = 0;
+                int maximumQueuedParents = parallelExpansionExecutor?.MaximumQueuedParents
+                    ?? expansionParallelism;
                 int parallelWaveCapacity = policy.MemoryPressureSignal.ConservativeParallelismRequired
                     ? Math.Min(2, expansionParallelism)
-                    : expansionParallelism;
+                    : maximumQueuedParents;
 
                 long ParallelWaveAllocationReserve(int parentCount)
                     => SearchWaveMemoryPolicy.Reserve(parentAllocatedHighWater, parentCount);
@@ -1606,8 +1638,6 @@ internal sealed partial class CombatBeamSolver
                         {
                             outcomes = parallelExpansionExecutor!.Evaluate(
                                 workerNodes,
-                                enableSingleParentActionReplay:
-                                    workerNodes.Count == 1,
                                 commitOrdered: (workerIndex, batch) =>
                                 {
                                     rawCandidateCount += batch.Cards.Count + batch.Potions.Count + batch.EndTurns.Count;
@@ -1661,7 +1691,9 @@ internal sealed partial class CombatBeamSolver
                             // back to two lanes after a single heavy wave left most of the user's
                             // requested lanes idle for the following waves.
                             parallelWaveCapacity = waveStayedWithinReserve
-                                ? Math.Min(expansionParallelism, parallelWaveCapacity * 2)
+                                ? SearchWaveMemoryPolicy.GrowCapacity(
+                                    parallelWaveCapacity,
+                                    maximumQueuedParents)
                                 : Math.Max(
                                     Math.Min(2, expansionParallelism),
                                     parallelWaveCapacity / 2);

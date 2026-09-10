@@ -4,12 +4,13 @@ using Buffer = CombatSolver.OwnedExpansionBatch<Resource, Resource, Resource>;
 
 CheckCrossThreadReturnAndOldLease();
 CheckPartialTransferFailure();
+CheckPotionTransferFailure();
 CheckTransferredOwnership();
 CheckPoolBoundAndClear();
 CheckCapacityRejection();
 CheckConcurrentPoolUse();
 CheckClearedReferences();
-Console.WriteLine("Passed 7 expansion batch checks using the actual production storage/lease source.");
+Console.WriteLine("Passed 8 expansion batch checks using the actual production storage/lease source.");
 
 static Buffer.Pool CreatePool() => new(static resource => resource.Release());
 
@@ -73,6 +74,34 @@ static void CheckTransferredOwnership()
     batch.Dispose();
     Require(accepted.Releases == 0, "Disposal released a transferred candidate.");
     accepted.Release();
+}
+
+static void CheckPotionTransferFailure()
+{
+    Buffer.Pool pool = CreatePool();
+    using TestBatch source = new(pool);
+    using TestBatch target = new(pool);
+    Resource first = new(), second = new(), pending = new();
+    source.Potion(first);
+    source.Potion(second);
+    source.Potion(pending);
+    source.MovePotionTo(target, first);
+    source.MovePotionTo(target, second);
+    Require(target.Potions.SequenceEqual([first, second]), "Potion merge changed input order.");
+    target.Dispose();
+    bool failed = false;
+    try { source.MovePotionTo(target, pending); }
+    catch (ObjectDisposedException) { failed = true; }
+    Require(failed && source.CurrentStorage.Owned.Contains(pending),
+        "Failed potion merge lost the source lease.");
+    source.Dispose();
+    using TestBatch next = new(pool);
+    Resource reused = new();
+    next.Potion(reused);
+    source.Dispose();
+    target.Dispose();
+    Require(first.Releases == 1 && second.Releases == 1 && pending.Releases == 1
+        && reused.Releases == 0, "Potion merge leaked, double released, or touched a later lease.");
 }
 
 static void CheckPoolBoundAndClear()
@@ -177,4 +206,5 @@ internal sealed class TestBatch(Buffer.Pool pool) : Buffer(pool)
     public void Potion(Resource resource) => AddPotion(resource, resource);
     public void EndTurn(Resource resource) => AddEndTurn(resource, resource);
     public void MoveTo(TestBatch target, Resource resource) => TransferTo(target, resource, resource);
+    public void MovePotionTo(TestBatch target, Resource resource) => TransferPotionTo(target, resource, resource);
 }

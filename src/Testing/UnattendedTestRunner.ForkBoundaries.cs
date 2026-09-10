@@ -2450,13 +2450,29 @@ internal sealed partial class UnattendedTestRunner
         IReadOnlyList<AbstractModel> childListenersRestored =
             ((ICombatPredictionHookListenerSource)childCombat).HookListeners;
         IReadOnlyList<PowerModel> childPowersRestored = childCombat.EffectivePowers();
+        // Removal followed by acquisition creates a fresh native power instance. Prior
+        // listener snapshots keep the retired instance; current views must contain only
+        // the replacement (the same rule checked by the reacquisition order contracts).
+        StrengthPower restoredStrength = childCombat.GetPower<StrengthPower>(owner)
+            ?? throw new InvalidOperationException("重新获得的 StrengthPower 不存在。");
+        IReadOnlyList<AbstractModel> childRunListenersRestored =
+            ((ICombatPredictionHookListenerSource)childCombat).RunHookListeners;
         if (ReferenceEquals(childListenersAtZero, childListenersRestored)
             || ReferenceEquals(childPowersAtZero, childPowersRestored)
-            || CountReferences(childListenersRestored, childStrength) != 1
-            || CountReferences(childPowersRestored, childStrength) != 1)
+            || ReferenceEquals(childRunListenersAtZero, childRunListenersRestored)
+            || ReferenceEquals(childStrength, restoredStrength)
+            || restoredStrength.Amount != 1
+            || childStrength.Amount != 0
+            || parentStrength.Amount != 2
+            || CountReferences(childListenersRestored, restoredStrength) != 1
+            || CountReferences(childRunListenersRestored, restoredStrength) != 1
+            || CountReferences(childPowersRestored, restoredStrength) != 1
+            || CountReferences(childListenersRestored, childStrength) != 0
+            || CountReferences(childRunListenersRestored, childStrength) != 0
+            || CountReferences(childPowersRestored, childStrength) != 0)
         {
             throw new InvalidOperationException(
-                "Power 数量从 0 恢复到 1 时没有失效缓存或唯一恢复对应 listener。");
+                "Power 重新获得时没有失效缓存、唯一注册新实例或隔离已移除实例。");
         }
 
         DexterityPower firstAdded = childCombat.AddPowerInstance<DexterityPower>(owner, 1, owner);

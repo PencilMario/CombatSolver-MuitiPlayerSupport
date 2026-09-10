@@ -426,14 +426,7 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidOperationException("上传任务结束前按钮状态提前切回空闲，可能重新打开确认弹窗。");
         if (!SolverOverlay.ExercisePerformancePresetPersistenceForTesting())
             throw new InvalidOperationException("0.24.3 性能迁移或预设/内存独立持久化失败。");
-        if (SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(1) != 1
-            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(2) != 2
-            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(3) != 2
-            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(4) != 4
-            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(32) != 4)
-        {
-            throw new InvalidOperationException("默认搜索并行度没有按逻辑处理器数量解析为 1/2/4。");
-        }
+        AssertDefaultSearchParallelism();
         string parallelFailure = SolverController.FormatSearchFailureForTesting(
             new InvalidOperationException("parallel failure"),
             parallelSearchWasEnabled: true);
@@ -1524,6 +1517,36 @@ internal sealed partial class UnattendedTestRunner
         {
             if (!description.Contains(expected, StringComparison.Ordinal))
                 throw new InvalidOperationException($"在线问题描述缺少自动分类：{expected}。");
+        }
+    }
+
+    private static void AssertDefaultSearchParallelism()
+    {
+        if (SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(1) != 1
+            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(2) != 2
+            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(3) != 2
+            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(4) != 4
+            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(8) != 4
+            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(15) != 4
+            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(16) != 8
+            || SolverWeights.ResolveDefaultSearchMaxDegreeOfParallelism(32) != 8)
+        {
+            throw new InvalidOperationException("默认搜索并行度没有按逻辑处理器数量解析为 1/2/4/8。");
+        }
+        SolverSettingsData original = SolverSettings.Current;
+        try
+        {
+            SolverSettings.ApplyForTesting(original with { SearchMaxDegreeOfParallelism = null });
+            if (SolverSettings.Capture().SearchMaxDegreeOfParallelism
+                != SolverWeights.DefaultSearchMaxDegreeOfParallelism)
+                throw new InvalidOperationException("Automatic search parallelism did not use the CPU default.");
+            SolverSettings.ApplyForTesting(original with { SearchMaxDegreeOfParallelism = 2 });
+            if (SolverSettings.Capture().SearchMaxDegreeOfParallelism != 2)
+                throw new InvalidOperationException("Explicit search parallelism was replaced by the CPU default.");
+        }
+        finally
+        {
+            SolverSettings.ApplyForTesting(original);
         }
     }
 }

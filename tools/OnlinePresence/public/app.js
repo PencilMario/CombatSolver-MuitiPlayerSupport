@@ -3,6 +3,7 @@ let chart, timer, searchTimer, overviewRequest, playersRequest;
 let currentPage = 1;
 let pageData;
 let resizeTimer;
+let runPage=1,runPages=1,runRequest;
 const verticalGuide = {
   id: 'vertical-guide',
   afterDatasetsDraw(chart) {
@@ -33,6 +34,7 @@ function loggedOut() {
   clearTimeout(searchTimer);
   overviewRequest?.abort();
   playersRequest?.abort();
+  runRequest?.abort();
   $('login').hidden = false;
   $('dashboard').hidden = true;
   $('logout').hidden = true;
@@ -71,6 +73,7 @@ function renderPlayers(data) {
   for (const p of data.players) {
     const row = document.createElement('tr');
     const values = [p.rank, p.name || '未命名玩家', duration(p.onlineSeconds), p.character || '-', p.floor ?? '-', p.encounter || '等待首次计算', p.hpLoss === null ? '-' : `${p.hpLoss} HP`, p.version, `${Math.max(0, Math.floor((data.now - p.lastSeen) / 1000))} 秒前`];
+    if(p.runStatistics?.solver) { const s=p.runStatistics.solver; values[1]+=` · ${s.currentStreak}连胜 · ${s.wins}胜/${s.losses}负`; }
     if (p.battleUpdatedAt !== null) row.title = `战斗数据采集于 ${new Date(p.battleUpdatedAt).toLocaleString()}`;
     for (const [index, value] of values.entries()) {
       const td = document.createElement('td');
@@ -184,7 +187,7 @@ async function refreshPlayers(page = currentPage, clearRows = false) {
 
 async function refresh() {
   clearTimeout(timer);
-  await Promise.all([refreshOverview(), refreshPlayers()]);
+  await Promise.all([refreshOverview(), refreshPlayers(), refreshRunStatistics()]);
   if (!$('dashboard').hidden) timer = setTimeout(refresh, 10000);
 }
 
@@ -224,4 +227,42 @@ $('session-retry').addEventListener('click', () => {
   refresh();
 });
 $('next-page').addEventListener('click', () => { currentPage += 1; refreshPlayers(currentPage, true); });
+function rate(value) {return value===null?'暂无数据':`${(value*100).toFixed(1)}%`;}
+async function refreshRunStatistics() {
+  runRequest?.abort();
+  const request=runRequest=new AbortController();
+  try {
+    const query=new URLSearchParams();
+    for(const [key,value] of new FormData($('run-filters'))) {
+      if(!value)continue;
+      if(key==='from'||key==='to')query.set(key==='from'?'since':'until',String(new Date(value).getTime()));
+      else query.set(key,value);
+    }
+    query.set('page',runPage);
+    const data=await api('/api/run-statistics?'+query,{signal:request.signal});
+    if(request.signal.aborted)return;
+    runPage=data.page;runPages=data.totalPages;
+    $('run-error').hidden=true;
+    $('run-summary').textContent=`${data.total} 个档案 · ${data.wins}胜 / ${data.losses}负 · 总胜率 ${rate(data.winRate)}`;
+    $('run-rows').replaceChildren();
+    for(const entry of data.entries) {
+      const row=document.createElement('tr'),s=entry.statistics;
+      for(const value of [`${entry.name} / ${entry.profileId.slice(0,8)}`,s.currentStreak??'未知',s.bestStreak??'未知',s.wins,`${s.losses}（${s.abandoned??'未知'}）`,rate(s.winRate)]) {
+        const cell=document.createElement('td');cell.textContent=value;row.append(cell);
+      }
+      $('run-rows').append(row);
+    }
+    $('run-page').textContent=`${runPage} / ${runPages}`;
+    $('run-prev').disabled=runPage<=1;$('run-next').disabled=runPage>=runPages;
+  } catch(error) {if(request.signal.aborted||$('dashboard').hidden)return;$('run-error').hidden=false;$('run-error').textContent='战绩筛选失败，请检查筛选范围。历史快照仅支持角色与汇总数值筛选。';}
+}
+$('run-filters').addEventListener('submit',event=>{event.preventDefault();runPage=1;refreshRunStatistics();});
+function updateHistoricalControls() {
+  const historical=$('run-filters').elements.source.value==='historical';
+  for(const key of ['participation','activity','version','ascension','from','to','abandoned_min'])$('run-filters').elements[key].disabled=historical;
+}
+$('run-filters').addEventListener('reset',()=>{runPage=1;setTimeout(()=>{updateHistoricalControls();refreshRunStatistics();},0);});
+$('run-filters').elements.source.addEventListener('change',updateHistoricalControls);
+$('run-prev').addEventListener('click',()=>{runPage--;refreshRunStatistics();});
+$('run-next').addEventListener('click',()=>{runPage++;refreshRunStatistics();});
 refresh();

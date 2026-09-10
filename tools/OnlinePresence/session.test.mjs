@@ -52,15 +52,15 @@ test('initial UI waits for authentication and shows login only on 401',async()=>
   for(const outcome of ['success','unauthorized','network']) {
     const elements=new Map();
     const element=id=>{
-      if(!elements.has(id)) elements.set(id,{hidden:['login','dashboard','logout','session-retry'].includes(id),value:id==='range'?'24':'',parentElement:{clientWidth:800},addEventListener(){},replaceChildren(){},append(){}});
+      if(!elements.has(id)) elements.set(id,{elements:{source:{addEventListener(){}}},hidden:['login','dashboard','logout','session-retry'].includes(id),value:id==='range'?'24':'',parentElement:{clientWidth:800},addEventListener(){},replaceChildren(){},append(){}});
       return elements.get(id);
     };
     let release;
     const ready=new Promise(r=>release=r);
-    const context=vm.createContext({document:{getElementById:element,createElement:()=>({})},window:{innerWidth:1000,addEventListener(){}},AbortController,URLSearchParams,setTimeout:()=>1,clearTimeout(){},Chart:function(){},fetch:async path=>{
+    const context=vm.createContext({FormData:class { *[Symbol.iterator](){} },document:{getElementById:element,createElement:()=>({})},window:{innerWidth:1000,addEventListener(){}},AbortController,URLSearchParams,setTimeout:()=>1,clearTimeout(){},Chart:function(){},fetch:async path=>{
       await ready;
       if(outcome==='network') throw Error('network unavailable');
-      return {status:outcome==='unauthorized'?401:200,ok:outcome!=='unauthorized',json:async()=>path.startsWith('/api/overview')?{onlineCount:0,inRunCount:0,runStatusUnknownCount:0,historyPeak:0,history:[],now:0}:{page:1,totalPages:1,pageSize:30,total:0,players:[]}};
+      return {status:outcome==='unauthorized'?401:200,ok:outcome!=='unauthorized',json:async()=>path.startsWith('/api/overview')?{onlineCount:0,inRunCount:0,runStatusUnknownCount:0,historyPeak:0,history:[],now:0}:{page:1,totalPages:1,pageSize:30,total:0,players:[],entries:[],wins:0,losses:0,winRate:null}};
     }});
     vm.runInContext(source,context);
     assert.equal(element('login').hidden,true);

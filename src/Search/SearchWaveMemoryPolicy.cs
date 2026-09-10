@@ -3,6 +3,21 @@ namespace CombatSolver;
 /// <summary>Pure admission arithmetic; Runtime owns the source of the remaining budget.</summary>
 internal static class SearchWaveMemoryPolicy
 {
+    /// <summary>Parent reservation cap; the remaining allocation budget may reduce it.</summary>
+    public static int MaximumQueuedParents(int degreeOfParallelism)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(degreeOfParallelism, 1);
+        return checked(degreeOfParallelism * 2);
+    }
+
+    /// <summary>Doubles the adaptive capacity without overflowing or overshooting its cap.</summary>
+    public static int GrowCapacity(int current, int maximum)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(current);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maximum);
+        return current >= maximum - current ? maximum : current * 2;
+    }
+
     public static int Capacity(int desiredCapacity, long parentReserveBytes, long remainingBytes)
     {
         ArgumentOutOfRangeException.ThrowIfNegative(desiredCapacity);

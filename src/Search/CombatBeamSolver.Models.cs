@@ -130,14 +130,19 @@ internal sealed partial class CombatBeamSolver
     {
         public Guid PathDiagnosticsSolverId;
         public int PathDiagnosticsBoundaryId;
+        public long RoutingChoiceSummaryBuilds;
+        public long RoutingChoiceSummaryHits;
+        public long RoutingChoiceSummaryBypasses;
         public readonly SearchPerformanceMetrics Performance = new(measurePhasePerformance);
         public readonly SearchWorkPacer WorkPacer = new(framePressureSignal);
         public readonly OwnedExpansionBatch<SimulationSnapshot, RawCardCandidate, SearchNode>.Pool
             ExpansionBatchPool = new(static snapshot => snapshot.ReleaseSimulator());
         public readonly SnapshotListBuffer<PredictedCard> SnapshotLiveCards = new();
+        public ParallelExpansionExecutor? ActiveParallelExpansion;
         public Dictionary<StateFingerprint, TranspositionFrontier> Transpositions = [];
         public Dictionary<StateFingerprint, TranspositionFrontier> ExpandedTranspositions = [];
         public Dictionary<StateFingerprint, StandPatEvaluation> StandPatCache = [];
+        public readonly PotionStrategicCostLookup PotionStrategicCosts = new();
         public Dictionary<(StateFingerprint State, int RoundIndex), ThreatProjection> ThreatProjectionCache = [];
         public Dictionary<PredictionRiskSignature, CoverageSummary> CoverageCache = [];
         // This ledger is search semantics rather than a rebuildable cache. In particular, a
@@ -236,8 +241,7 @@ internal sealed partial class CombatBeamSolver
         public int DeferredRoundChoiceFiniteQuotaFallbacks;
         public int DeferredRoundChoiceFinitePrimaryLayers;
         public int DeferredRoundChoiceFinitePendingFallbacks;
-        // Retained as zero-valued compatibility telemetry after nested choice replay moved to the
-        // deterministic coordinator-owned two-phase collector.
+        // Choice preparation/replay/continuation jobs on the same fixed expansion lanes.
         public int ParallelRoundChoiceReplayWaves = 0;
         public int ParallelRoundChoiceReplayWorkItems = 0;
         public int MaxParallelRoundChoiceReplayConcurrency = 0;

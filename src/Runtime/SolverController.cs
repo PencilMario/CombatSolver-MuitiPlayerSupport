@@ -1112,6 +1112,7 @@ internal static class SolverController
 
             Player player = LocalContext.GetMe(state)!;
             int turn = player.PlayerCombatState!.TurnNumber;
+            RunStatistics.Activity(state);
             SolverOverlay.ShowSearching(
                 host,
                 turn,
@@ -1472,6 +1473,7 @@ internal static class SolverController
     {
         AssertMainThread();
         _solverDisabled = disabled;
+        RunStatistics.SettingsChanged();
         if (persist)
             SolverSettings.Update(SolverSettings.Current with { SolverDisabled = disabled });
 
@@ -2598,6 +2600,7 @@ internal static class SolverController
                 try
                 {
                     await choiceSession.AwaitProducerAndCompleteAsync(actionCompletion);
+                    RunStatistics.Activity(state, execution: true, auto: _combat.FullAutoEnabled);
                 }
                 catch (NativeChoicePlanMismatchException)
                 {
