@@ -355,3 +355,7 @@ NativeReplayDriver 保存开战/结束观察器抛出的原始异常，由 Advan
 - `tools/verify-refactor-boundaries.ps1` / `tools/verify-refactor-boundaries.sh`：Windows / Linux 的等价门禁，阻止 Search 全局依赖、旧 controller 字段、worker live 回读、Beam 职责回流、unattended 编排回流、UI mutable 类型回流和 registry 私有反射；规则变化时必须同步维护两端。
 
 纯职责移动至少运行 Release 编译与当前平台的结构门禁。改变语义、搜索或显示行为时，再按影响面选择严格差分、完整 headless、CoverageCatalog 或可见 Steam。
+
+### 回合末卡牌 Hook 的接收者身份
+
+`HookMirrors.BeforeSideTurnEnd` 的常规阶段先通过 `CardHookReceiver` 固定监听成员与对应分支 `PredictedCard`，再按原序读取当前 Preview。前一监听者触发 COW 时，不把已脱离牌堆的旧预览传给后一卡牌 Hook；不重新枚举成员，不保留跨阶段或跨分支接收者。
