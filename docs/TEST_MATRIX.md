@@ -1,5 +1,37 @@
 # CombatSolver 测试清单
 
+## 无胜利路线时的搜索面升级（贡献者记录）
+
+同一个玩家问题包 `CombatSolver-0.35.3-CEREMONIAL_BEAST_BOSS-610658da…`，观者 A9 第一幕 Boss
+仪式兽，玩家 34/79、Boss 262/262、两瓶药（稳定血清、缚魂药水），恢复方式 `native_events`
+（`materials_valid` / `canSearch=true`，原生二进制编码未校验）。三次都固定
+`-NoGcRegionBudgetGigabytesForTest 10`，避免 NoGC 区域建不起来变成隐藏变量。
+
+| 场景 | runId | 结果 |
+|---|---|---|
+| 第 1 回合检查点，录制的 High 策略，改动前 | 无（对照，未记录 runId） | `OnlyDeath=True`、战损 34、第 6 回合死、用药 0、`searched_turns=6`、17.0 秒。药水梯度三层 `saved=0`，`selected_potions=0` |
+| 第 1 回合检查点，录制的 High 策略，改动后 + `-VerifySearchPolicySnapshot` | `76ed67cdcd504d30b451b230246b667c` | Passed，41.7 秒。一次升级（Beam 90→180、节点 25,000→50,000、出牌分支 48→96）后 `layer=2 won=True`：两瓶药、第 7 回合斩杀、战损 30、`OnlyDeath=False`、`Unmirrored=0`。同一次跑通过 `SearchPolicySnapshot` 全组结构断言（含新增的升级政策纯函数断言） |
+| 第 3 回合检查点（改动前就能获胜），不可退化哨兵 | `09f0f4a5ea7541fa818c5389c03fb059` | Passed，16.6 秒。`NO_VICTORY_ESCALATION` 出现 **0 次**；`Potion=2, Saved=5/18, Rejected=170, Turns=4, 战损 29, CombatEndedTurn=6, SoldHp=0/15` 与改动前实机日志逐项相同 |
+
+Beam 与节点是乘的关系，只抬一边都不够，四组顶格实测（`b2131b2c54b243d7a65c7ccffb58e17b`
+为其中 Beam 135 / 100,000 那一组）：
+
+| Beam | 节点上限 | 结果 | 胜利层实际展开 |
+|---|---|---|---|
+| 90 | 25,000 | 输 | 主搜索 2,701–5,206（前沿走空，花不掉预算） |
+| 90 | 50,000 | 输 | **与上一行逐个相同**，只抬节点无效 |
+| 135 | 50,000 | 输 | 需要 83,423，不够 |
+| 135 | 100,000 | 赢（第 9 回合、战损 33） | 83,423 |
+| 512 | 100,000 | 赢（第 8 回合、战损 31） | 26,671 |
+
+`tools/verify-refactor-boundaries.ps1`：`REFACTOR_BOUNDARIES_OK search_files=84`。
+`dotnet build CombatSolver.csproj -c Release`：0 警告 0 错误。
+
+边界：这三次都是单一检查点的搜索质量证据，不是整包回放、不是完整自动部署，也不覆盖原版角色。
+默认小遭遇战（`FUZZY_WURM_CRAWLER_WEAK` + 起始牌组）跑 `-VerifySearchPolicySnapshot` 会在
+既有的「节点上限释放快照」断言上失败（`dop1=0/3`），改动前后一致，属于该组门禁的场景依赖，
+与本改动无关。
+
 ## 0.35.3：PR 合并与监控版本提醒（本轮验证）
 
 - 合并后的 `dotnet run --project tools/CardHookReceiverChecks -c Release`：78 项通过；`python -X utf8 tools/EndTurnAdmissionChecks/run.py`：33 项通过；`dotnet run --project tools/CardTargetingChecks -c Release`：37 项通过；`python -X utf8 tools/DamageDealerChecks/run.py`：101 项通过；`python -X utf8 tools/PlayerDeathChecks/run.py`：42 项通过。伤害合同替身有一条 CS0649 未赋值警告；共 291 项是生产方法链接合同，尚未执行游戏原包或完整原生结算差分。
