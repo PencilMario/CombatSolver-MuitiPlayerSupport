@@ -252,11 +252,8 @@ internal sealed partial class SimulatedCombatState
             int rootAmount = _swordSageCardsInitialized
                 ? 0
                 : _rootPowerAmounts.GetValueOrDefault((player.Creature, typeof(SwordSagePower)));
-            // With no current/root bonus and no previously applied bonus, every blade
-            // already has the correct replay count. A later Power gain still scans all
-            // cards with a zero baseline; removal must visit any recorded bonuses.
-            if (desired == 0 && rootAmount == 0 && _swordSageReplayBonuses is not { Count: > 0 })
-                continue;
+            // Record zero bonuses too: a clone already present before the next Power
+            // gain needs that delta, while a newly generated clone carries its bonus.
             foreach (PredictedCard card in simulator.State.GetPlayerCombatState(player).AllCards)
             {
                 if (card.Preview is not SovereignBlade)
