@@ -440,8 +440,8 @@ foreach ($runtimePath in Get-ChildItem (Join-Path $repositoryRoot "src\Runtime")
 }
 $cardTargetingPath = Join-Path $repositoryRoot "src\Engine\InCombat\Simulation\CombatPredictionSimulator.CardTargeting.cs"
 foreach ($targetingRule in @(
-    "Shiv when combat.GetAmount<FanOfKnivesPower>",
-    "SovereignBlade when combat.GetAmount<SeekingEdgePower>")) {
+    "Shiv => combat.GetAmount<FanOfKnivesPower>",
+    "SovereignBlade => combat.GetAmount<SeekingEdgePower>")) {
     if (-not (Select-String -LiteralPath $cardTargetingPath -SimpleMatch $targetingRule -Quiet)) {
         $violations.Add("${cardTargetingPath}: missing simulated card targeting rule '$targetingRule'")
     }
