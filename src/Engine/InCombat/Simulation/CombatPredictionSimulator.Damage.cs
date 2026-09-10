@@ -60,7 +60,7 @@ internal sealed partial class CombatPredictionSimulator
         PredictedCard? cardSource,
         CardPlay? cardPlay)
     {
-        if (dealer?.IsDead == true || targets.Count == 0)
+        if (dealer != null && State.GetCreature(dealer).IsDead || targets.Count == 0)
         {
             // Vanilla returns empty DamageResult shells when the dealer is dead. The simulator
             // only uses damage results to update prediction state, so no-op results are omitted.
@@ -99,7 +99,7 @@ internal sealed partial class CombatPredictionSimulator
         PredictedCard? cardSource,
         CardPlay? cardPlay)
     {
-        if (dealer?.IsDead == true)
+        if (dealer != null && State.GetCreature(dealer).IsDead)
             return [];
         CombatDamageSource source = ResolveDamageSource(cardSource);
         if (!TryDamageTarget(

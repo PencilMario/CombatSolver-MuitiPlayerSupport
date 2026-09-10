@@ -20,6 +20,8 @@
 - [0.18.0 发布后问题批次](post-0.18.0-bug-batch.md)及[修复计划](post-0.18.0-fix-plan.md)。
 - [0.18.0 原始问题](0.18.0-raw-bug-batch.md)及[集中修复计划](0.18.0-bugfix-plan.md)。
 
+- [伤害来源死亡状态读取实机（2026-09-10）](shadow-damage-dealer-liveness-20260910.md)
+
 - [动态目标类型读取实机状态（2026-09-10）](branch-local-card-targeting-20260910.md)
 
 - [结束回合循环出口准入遗漏（2026-09-10）](end-turn-cycle-admission-20260910.md)

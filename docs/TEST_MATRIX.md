@@ -1,5 +1,15 @@
 # CombatSolver 测试清单
 
+## 2026-09-10：伤害来源生命状态隔离
+
+- Release 编译通过，0 警告/0 错误；Bash 结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`。未安装或启动游戏。
+
+- `python3 tools/DamageDealerChecks/run.py`：101 项生产伤害入口检查通过。旧代码在分支已死、实机存活的输入下仍产生伤害结果，最小基线失败。
+- 编译生产全部 Damage 重载及 DamageSingleTarget；交错实机/分支死亡状态，覆盖禁止 live getter、独立分支、复活、null 来源、空目标及死亡来源不进入伤害/后续 Hook。
+- 状态和逐目标/后续 Hook 为确定性替身；没有验证真实 Fork、伤害计算、原生死亡时序或报告中完整递归抽牌链。保留原递归安全上限，不把本合同写成整场验收。
+
+
+
 ## 2026-09-10：动态目标类型分支隔离
 
 - Release 编译 0 警告/0 错误；Bash 结构门禁通过，`search_files=84`。同步更新两端门禁的分支模式，PowerShell 因当前环境缺少 `pwsh` 未运行。未安装或启动游戏。
