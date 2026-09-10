@@ -1,5 +1,14 @@
 # CombatSolver 测试清单
 
+## 2026-09-10：结束回合循环出口准入
+
+- Release 编译通过，0 警告/0 错误；结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`。未安装或启动游戏。
+
+- `python3 tools/EndTurnAdmissionChecks/run.py`：33 项通过。直接编译生产结束回合入口、raw 生成、剪枝、准入谓词、materialization 循环和批次所有权容器；旧 `BuildAcceptedEndTurnNodes` 在相同输入下因未结算观测到达转置准入而失败。
+- 覆盖有效/撤销/无父租约、多选牌子分支单一出口、终结边界、剪枝、转置拒绝、stand-pat 发布，以及提前退出/生成失败时快照释放。
+- 质量计算、单张出口票据签发、模拟与转置判断使用确定性替身；不构成游戏原生差分、预算触发的完整搜索或原报告回放验收。既有展开入口 fail-fast 和循环预算保持不变。
+
+
 ## 2026-09-10：PR #74 / #75 / #77 合并验证
 
 - #74：直接编译 PR 中生产 profile 与 BuildNarrowBeamRecoveryProfile，剩余 49000 节点/299000 ms 和 2000 节点/1000 ms 正确；预算耗尽与普通 Beam 不产生救援。复用同一行为源码审计阶段的结果，不声明实战战损改善。
