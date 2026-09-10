@@ -252,6 +252,13 @@ DarkEmbrace 的延迟抽牌数由 AfterCardExhausted 镜像按实际虚无消耗
 
 Nostalgia 的本回合攻击/技能开始数属于 `SimulatedCombatState`：冻结根历史初始化，开始事件递增，阵营回合开始归零，Fork COW，进入指纹及 ContinuationStamp 的 `Y` 第四项。HistoryCourse 的上一回合空值也属于物化根/分支状态，跨回合后不重新扫描实机历史。Nightmare 在选中时克隆选中牌并去除 affliction，后续原牌费用、升级和保留变化不修改该快照。ForegoneConclusion 的候选全选为原版隐式选择时，由 CardChoiceSpec 显式标记并保持来源顺序。
 
+`Prediction/ModelPredictionStateMirrors` 拥有遗物／Modifier 的精确类型状态登记，首次根或续用捕获后冻结。
+`SimulatedCombatState.MaterializeRoot` 在内置状态物化后调用捕获并释放实机源映射；状态放入现有
+`PredictionStateStore`，随同一 Fork context 复制。模型克隆仅作只读身份，效果镜像通过登记入口的
+`Get<TState>` 读写分支状态。`ModelPredictionStateWriter` 用同一组有序类型字段生成搜索指纹与
+live/predicted continuation 文本，按所属位置绑定同类型实例。该层不拥有 Hook 时序、搜索政策或
+Mod 准入，具体契约见[模型状态适配](third-party-model-state.md)。
+
 有效 Power 的有序语义值直接进入搜索指纹，`ContinuationStamp` 的 `P` 字段按有效列表顺序输出，保留获得、移除和重新获得形成的 Hook 顺序；动态变量自身仍按无序键值集合比较。根捕获及分支监听表继续拥有顺序，指纹和续用只读取既有状态，不另设按阶段划分的顺序账本。
 
 普通能力与多实例能力共用逐实例获得顺序表，Fork 通过同一 `PredictionForkContext.RequireRemap` 映射到子分支。重新获得已移除的普通能力时建立新实例，回合开始数量与内部状态由新实例初始化。新召唤友方归入敌方段之前，按原版友方/敌方顺序构造监听表。

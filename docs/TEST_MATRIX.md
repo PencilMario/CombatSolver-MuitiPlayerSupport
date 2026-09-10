@@ -1,5 +1,23 @@
 # CombatSolver 测试清单
 
+## 遗物与 Modifier 通用状态接口（开发中）
+
+- `ModelPredictionStateChecks --empty`：Passed，3 项；空登记表保持原指纹与 continuation 文本。
+- `ModelPredictionStateChecks`：Passed，32 项；捕获后 live 变化隔离、同类型实例交换、零值与集合顺序、父子分支隔离、引用重映射、事务边界、错误 Fork 拒绝（包含派生运行时状态被切成基类）、缺失/重复捕获、重复/迟到登记、精确类型、区域设置、并发读取，以及独立 live/predicted 更新和重新捕获后的等价描述。
+- `--fork-type` 在修正前拒绝断言失败：派生状态被复制为声明的基类且未报错，虚属性从 2 变为 1。修正要求实际运行时类型一致，已由上述 32 项合同覆盖。
+- `--allocation` 在修正前检测到 1,000 次无文本指纹调用分配 32,088 字节（其中包括首次比较初始化）；改为下标遍历玩家列表后，预热比较和查询的最终检查 Passed，1,000 次调用分配 0 字节。这是固定调用的分配合同，不是游戏或搜索耗时 A/B。
+- 检查直接链接生产 registry、writer、store 和 fingerprint，游戏身份、模拟器外壳与 Fork context 使用替身。没有启动 Godot，也没有据此声称完整模拟器 Fork、原生结算或两回合差分通过。
+- 当前游戏 0.111.0 的 macOS ARM64 引用下 Release 构建通过，`CopyModOnBuild=false`，0 错误；最终 `--no-restore` 构建有 1 条 `NU1900` 警告，来自无法访问 NuGet 漏洞数据源的缓存恢复记录。
+- Bash 结构门禁通过：`REFACTOR_BOUNDARIES_OK search_files=84`。PowerShell 对应规则已同步，未执行（本机无 `pwsh`）。未执行游戏内单效果/两回合差分、部署、性能 A/B；具体适配的语义验收仍需这些针对性差分。
+
+```sh
+dotnet run --project tools/ModelPredictionStateChecks/ModelPredictionStateChecks.csproj -c Release -- --empty
+dotnet run --project tools/ModelPredictionStateChecks/ModelPredictionStateChecks.csproj -c Release
+dotnet run --project tools/ModelPredictionStateChecks/ModelPredictionStateChecks.csproj -c Release -- --allocation
+```
+
+接口及手工验收范围见[模型状态适配](third-party-model-state.md)。此记录仅对应本项开发改动，不复用下方历史游戏场景作为本轮证据。
+
 ## 0.35.1：回收后堆空间复用
 
 - `dotnet run --project tools/CombatSolver.GcPolicyChecks/CombatSolver.GcPolicyChecks.csproj -c Release -- memory`：Passed，直接链接生产策略及信号；玩家采样剩余可复用空间 4,172,872,440 字节，区域容量 6,938,945,322 字节。验证复用空间不重复增加物理用量、三 GB 波次可准入、物理上限立即阻止准入、用户预算上限、回收委托、Disable 探针清理及无实时探针模式。

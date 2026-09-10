@@ -233,6 +233,34 @@ foreach ($sessionType in @("SolverCombatSession", "SolverSearchSession", "Solver
 
 $forkBoundaryChecks = @(
     @{
+        Path = Join-Path $repositoryRoot "src\Prediction\ModelPredictionStateMirrors.cs"
+        Text = "context.Register(value, typed)"
+    },
+    @{
+        Path = Join-Path $repositoryRoot "src\Prediction\ModelPredictionStateMirrors.cs"
+        Text = "boundary.AssertForkable()"
+    },
+    @{
+        Path = Join-Path $repositoryRoot "src\Search\SimulatedCombatState.cs"
+        Text = "ModelPredictionStateMirrors.CaptureRootState(simulator,"
+    },
+    @{
+        Path = Join-Path $repositoryRoot "src\Search\SimulatedCombatState.cs"
+        Text = "ModelPredictionStateMirrors.AppendPredicted(ref fingerprint,"
+    },
+    @{
+        Path = Join-Path $repositoryRoot "src\Search\SimulatedCombatState.cs"
+        Text = "_rootModifierSources = null;"
+    },
+    @{
+        Path = Join-Path $repositoryRoot "src\Runtime\ContinuationStamp.cs"
+        Text = "ModelPredictionStateMirrors.AppendLiveContinuation(text, state)"
+    },
+    @{
+        Path = Join-Path $repositoryRoot "src\Runtime\ContinuationStamp.cs"
+        Text = "ModelPredictionStateMirrors.AppendPredicted(ref adapterFingerprint,"
+    },
+    @{
         Path = Join-Path $repositoryRoot "src\Engine\Common\PredictionForking.cs"
         Text = "interface IPredictionForkBoundary"
     },

@@ -366,6 +366,13 @@ while IFS=$'\t' read -r relative_path text; do
 done <<'EOF'
 src/Engine/Common/PredictionForking.cs	interface IPredictionForkBoundary
 src/Engine/Common/PredictionStateStore.cs	boundary.AssertForkable()
+src/Prediction/ModelPredictionStateMirrors.cs	context.Register(value, typed)
+src/Prediction/ModelPredictionStateMirrors.cs	boundary.AssertForkable()
+src/Search/SimulatedCombatState.cs	ModelPredictionStateMirrors.CaptureRootState(simulator,
+src/Search/SimulatedCombatState.cs	ModelPredictionStateMirrors.AppendPredicted(ref fingerprint,
+src/Search/SimulatedCombatState.cs	_rootModifierSources = null;
+src/Runtime/ContinuationStamp.cs	ModelPredictionStateMirrors.AppendLiveContinuation(text, state)
+src/Runtime/ContinuationStamp.cs	ModelPredictionStateMirrors.AppendPredicted(ref adapterFingerprint,
 src/Search/SimulatedCombatState.Fork.cs	_activeActionChoices
 src/Search/SimulatedCombatState.Fork.cs	_activeCardExecutionDeaths
 src/Engine/InCombat/Mirrors/Hooks/Card/CardPlayHookPredictionStates.cs	Cannot fork Pen Nib

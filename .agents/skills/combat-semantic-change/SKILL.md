@@ -71,6 +71,11 @@ CombatRootSnapshot.Capture（主线程根）
 7. actual/simulated 严格状态如何捕获；
 8. 创建、叠加、归零、移除、清空和 Fork 稳定边界。
 
+第三方遗物／Modifier 的根内隐藏状态优先使用 `ModelPredictionStateMirrors`，同时登记 capture、
+writeLive 和 writePredicted，复用 store 的 Fork context。状态描述按有序实例绑定并进入续用核对；
+首次根或续用捕获后不可登记，不允许未捕获时读取 live 或默认初始化。状态登记不代表 Hook 或
+补丁语义已适配，仍需沿实际结算链验证。签名和范围见 `docs/third-party-model-state.md`。
+
 活动 roster 和已知怪物状态是不同生命周期。怪物死亡或离开可行动阵容后，其正在执行行动仍可能读取根 AI/静态参数；不要随 roster 移除提前删除这些数据。
 
 纯派生搜索启发式不属于战斗状态，不进入状态键或续用文本。
