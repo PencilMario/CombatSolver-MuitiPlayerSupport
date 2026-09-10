@@ -126,11 +126,15 @@ internal static partial class CombatSearchCoordinator
             return null;
         }
 
+        // 收窄的是搜索面（Beam 宽度和分支上限），不是玩家配的预算。节点和时间用调用方这一层
+        // 剩下的部分：这个机制只在 Beam 比内置档位宽时才触发，也就是只为 High 以上的玩家运行，
+        // 把他们的预算夹回内置档位等于先把他们配的东西拿掉，而这里恰恰是主搜索一条胜利路线都
+        // 没找到、最需要多给的时候。两侧都仍然被调用方自己的预算封顶。
         return profile with
         {
             RecoverDeferredTurnFrontier = true,
             BeamWidth = standard.BeamWidth,
-            MaxExpandedNodes = (int)Math.Min(standard.MaxExpandedNodes, remainingNodes),
+            MaxExpandedNodes = (int)remainingNodes,
             MaxCardBranchesPerNode = Math.Min(
                 profile.MaxCardBranchesPerNode,
                 standard.MaxCardBranchesPerNode),
@@ -140,9 +144,7 @@ internal static partial class CombatSearchCoordinator
             MaxHandChoiceBranchesPerAction = Math.Min(
                 profile.MaxHandChoiceBranchesPerAction,
                 standard.MaxHandChoiceBranchesPerAction),
-            SoftTimeBudgetMilliseconds = (int)Math.Min(
-                standard.SoftTimeBudgetMilliseconds,
-                remainingMilliseconds),
+            SoftTimeBudgetMilliseconds = (int)remainingMilliseconds,
         };
     }
 }

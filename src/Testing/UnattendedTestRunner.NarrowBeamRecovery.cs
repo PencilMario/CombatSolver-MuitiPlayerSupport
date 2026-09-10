@@ -34,6 +34,25 @@ internal sealed partial class UnattendedTestRunner
             throw new InvalidOperationException("窄 Beam 恢复没有遵守标准配置与原层剩余预算。");
         }
 
+        // 剩余预算大于内置档位时也必须原样带过去。收窄只针对搜索面，不针对玩家配的预算：
+        // 这个机制只在 Beam 比内置档位宽时触发，夹回内置档位等于只惩罚配得比 Medium 高的人。
+        SolverSearchProfile roomy = wide with { SoftTimeBudgetMilliseconds = 300_000 };
+        SolverSearchProfile ample = CombatSearchCoordinator.BuildNarrowBeamRecoveryProfile(
+            roomy,
+            expandedNodes: 1_000,
+            elapsedMilliseconds: 1_000)
+            ?? throw new InvalidOperationException("预算充裕的宽 Beam 没有生成恢复配置。");
+        if (ample.MaxExpandedNodes != 49_000
+            || ample.SoftTimeBudgetMilliseconds != 299_000
+            || ample.BeamWidth != SolverSearchProfile.Deep.BeamWidth
+            || ample.MaxCardBranchesPerNode != SolverSearchProfile.Deep.MaxCardBranchesPerNode
+            || ample.MaxPileChoiceBranchesPerAction != SolverSearchProfile.Deep.MaxPileChoiceBranchesPerAction
+            || ample.MaxHandChoiceBranchesPerAction != SolverSearchProfile.Deep.MaxHandChoiceBranchesPerAction)
+        {
+            throw new InvalidOperationException(
+                "窄 Beam 恢复把节点或时间预算夹回了内置档位，或者没有收窄搜索面。");
+        }
+
         SolverSearchProfile custom = wide with
         {
             MaxCardBranchesPerNode = 3,
