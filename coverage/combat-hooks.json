@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "combatSolverVersion": "0.34.5",
+  "combatSolverVersion": "0.34.8",
   "gameVersion": "0.111.0",
   "simulationEngine": "embedded",
   "entries": [

@@ -4,6 +4,14 @@
 
 合入已发布 0.34.7 后，补充验证剑圣冻结根与复制牌的重放次数，以及原报告的击杀边界。既有分批失败基线与最终证据保留如下；发布集成结果另记于本节。
 
+- Release source commit：`8caa17f`。最终 Release 构建 0 警告 / 0 错误；以下四项均使用该构建、私有实例 `report-release-0348`、单请求 120 秒。
+- `REPORT-CARDS-SWORD-SAGE` 合并基线 `661dd28f012a42cc944d4b7c47a27e6f` Failed：零层时跳过登记，已有复制牌后获得剑圣少一次重放。删除跳过后 `3a3c72ddb6ff4d67a53cc52e32bd216d` Passed，逐牌完整状态与 Fork 一致。
+- `BACKEND-SWORD-SAGE-ROOT` / `75152668cc8440b28e4d1fd9b70fb24e` Passed：冻结根、首次移除、从零获得、生成牌和父子分支隔离。
+- `TEST-SUBJECT-ORIGINAL-REPORT` / `5e6958f43351426f9836f262d029b2b9` Passed：5cc95 原包首回合全部动作前缀及第二回合完整状态一致，原生开战恢复通过。
+- `REPORT-ROUND-DOOM-THRESHOLD-CARD` / `9603604deaf8416d8dd9eec3ea8f4bb7` Passed：末日降临与血肉戏法临界击杀、复活至下一回合完整状态一致。
+- 集成结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`，CoverageCatalog `--verify-effective --verify-runtime-evidence` 3035 项通过；随后仅修改剑圣的零层基线登记，使用上述两项剑圣场景验证，覆盖登记与结构未改变。其余已通过的分批行为证据复用，未做整场或可见界面完整验收。
+- 更新日志中英文游戏名称分别与当前游戏 PCK 的 `localization/zhs`、`localization/eng` 核对。
+
 实验体批次与此前静默猎手批次的证据分别记录，原包恢复与最小差分分开计。以下分别保留失败基线、最终结果及未整场回放的范围。
 
 ## 2026-09-10：两份原始 Boss 复活错误的根因修复
