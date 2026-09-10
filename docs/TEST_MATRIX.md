@@ -1,5 +1,18 @@
 # CombatSolver 测试清单
 
+## 2026-09-10：PR #74 / #75 / #77 合并验证
+
+- #74：直接编译 PR 中生产 profile 与 BuildNarrowBeamRecoveryProfile，剩余 49000 节点/299000 ms 和 2000 节点/1000 ms 正确；预算耗尽与普通 Beam 不产生救援。复用同一行为源码审计阶段的结果，不声明实战战损改善。
+- #75：`pwsh -NoProfile -File tools/verify-unattended-map-points.ps1` Passed，4 种输入；从生产请求哈希表的 AST 取出真实字段表达式，检查省略、空数组、单点、多点的 JSON 往返形状，拒绝 null 和嵌套数组。原 PR 的显式空数组和非空数组均已复现多包一层。
+- #77：`MODEL-STATE-INTEGRATION` / `444ddec2f3bf49568ece16acf9be80f5` Passed，27.93 秒，T1 → T2。真实游戏身份、CombatRootSnapshot、完整 CombatPredictionSimulator.Fork 和原版回合推进；专用测试为 BurningBlood 与 BigGameHunter 登记状态，持有可变列表及预测卡牌引用。父子对象/列表/卡牌隔离，子分支变更改变指纹与续用文本而父分支保持原值；原生和预测下一回合完整快照（含 continuation）一致。不是第三方 Mod 效果镜像通用正确性的证明。
+- 原 PR 独立 32 项状态合同、3 项空登记及 1000 次 0 字节指纹分配检查在审计阶段通过；同一接口行为不重复。合并后的 Release 编译 0 警告/0 错误，PowerShell 结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`。没有打开可见 Steam 游戏，没有发布。
+
+专用模型状态合同必须使用新后台实例，并在请求后退出，避免已冻结的测试登记污染其他请求：
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId MODEL-STATE-INTEGRATION -CharacterId IRONCLAD -EncounterId FUZZY_WURM_CRAWLER_WEAK -PreserveNativeCombatStateForTest -ModifierId BIG_GAME_HUNTER -EnemyCurrentHp 500 -HeadlessInstance model-state-integration -ExitOnComplete -TimeoutSeconds 120
+```
+
 ## 遗物与 Modifier 通用状态接口（开发中）
 
 - `ModelPredictionStateChecks --empty`：Passed，3 项；空登记表保持原指纹与 continuation 文本。

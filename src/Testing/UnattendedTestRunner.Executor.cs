@@ -112,6 +112,11 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("LivingFogSummonIntentAndExplosionNativeFork");
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "MODEL-STATE-INTEGRATION")
+            {
+                await runner.AssertModelStateIntegrationAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "COMBAT-TIMING-LIFETIME")
             {
                 await runner.AssertCombatTimingLifetimeAsync(combatState, player);

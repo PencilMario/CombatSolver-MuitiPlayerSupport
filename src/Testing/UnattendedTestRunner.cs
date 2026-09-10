@@ -77,6 +77,8 @@ internal sealed partial class UnattendedTestRunner
     {
         _host = host;
         _request = request;
+        if (request.ScenarioId == "MODEL-STATE-INTEGRATION")
+            RegisterModelStateIntegrationAdapters();
         _protocolHost = protocolHost;
         _writer = new Writer(
             () => _request,

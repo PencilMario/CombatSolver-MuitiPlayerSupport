@@ -731,7 +731,7 @@ $request = [ordered]@{
     preCombatInterveningMapPoints = if ([string]::IsNullOrWhiteSpace($PreCombatInterveningMapPointsJson)) {
         ,@()
     } else {
-        ,@($PreCombatInterveningMapPointsJson | ConvertFrom-Json -NoEnumerate)
+        ConvertFrom-Json -InputObject $PreCombatInterveningMapPointsJson -NoEnumerate
     }
     replayStatePath = $resolvedReplayStatePath
     checkpointArchivePath = if ($CheckpointArchivePath) { $CheckpointArchivePath } else { $null }
