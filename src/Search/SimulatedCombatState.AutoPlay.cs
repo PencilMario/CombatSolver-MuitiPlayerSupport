@@ -180,6 +180,8 @@ internal sealed partial class SimulatedCombatState
 
     private PredictedCard? GetPreviousTurnAttack(CombatPredictionSimulator simulator, Player player)
     {
+        if (_rootMaterialized)
+            return _lastAttackPreviousTurn?.GetValueOrDefault(player);
         if (_lastAttackPreviousTurn?.TryGetValue(player, out PredictedCard? predicted) == true)
             return predicted;
         CardPlayFinishedEntry? live = _rootHistory.CardPlaysFinished.LastOrDefault(entry =>

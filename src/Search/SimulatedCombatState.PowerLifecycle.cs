@@ -71,15 +71,23 @@ internal sealed partial class SimulatedCombatState
     {
         if (_paleBlueDotActivated?.TryGetValue(power, out bool activated) == true)
             return activated;
+        activated = ReadPaleBlueDotActivated(power);
+        (_paleBlueDotActivated ??= [])[power] = activated;
+        return activated;
+    }
+
+    public void CapturePaleBlueDotRootState(PaleBlueDotPower target, PaleBlueDotPower source)
+        => InitializePaleBlueDot(target, ReadPaleBlueDotActivated(source));
+
+    private static bool ReadPaleBlueDotActivated(PaleBlueDotPower power)
+    {
         object data = PowerInternalDataField.GetValue(power)
             ?? throw new InvalidOperationException("苍蓝星球没有内部回合状态。");
         FieldInfo field = data.GetType().GetField(
             "alreadyActivatedThisTurn",
             BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             ?? throw new MissingFieldException(data.GetType().FullName, "alreadyActivatedThisTurn");
-        activated = (bool)field.GetValue(data)!;
-        (_paleBlueDotActivated ??= [])[power] = activated;
-        return activated;
+        return (bool)field.GetValue(data)!;
     }
 
     public void SetPaleBlueDotActivated(PaleBlueDotPower power, bool activated)
@@ -240,14 +248,15 @@ internal sealed partial class SimulatedCombatState
         {
             Player player = players[playerIndex];
             int desired = GetAmount<SwordSagePower>(player.Creature);
-            int liveAmount = player.Creature.GetPower<SwordSagePower>()?.Amount ?? 0;
             foreach (PredictedCard card in simulator.State.GetPlayerCombatState(player).AllCards)
             {
-                if (card.Preview is not SovereignBlade || card.Preview.IsClone)
+                if (card.Preview is not SovereignBlade)
                     continue;
                 if (!_swordSageReplayBonuses.TryGetValue(card, out int applied))
                 {
-                    applied = _swordSageCardsInitialized ? 0 : liveAmount;
+                    // A gameplay clone carries its source's replay state on entry. Later
+                    // power changes still affect that instance, just like every other blade.
+                    applied = _swordSageCardsInitialized && !card.Preview.IsClone ? 0 : desired;
                     _swordSageReplayBonuses.Add(card, applied);
                 }
                 int delta = desired - applied;

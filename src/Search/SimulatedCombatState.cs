@@ -216,6 +216,7 @@ internal sealed partial class SimulatedCombatState
     private ForkableDictionary<Creature, int>? _cardPlaySeriesStartedThisTurn;
     private ForkableDictionary<Creature, int>? _zeroCostAttackStartsThisTurn;
     private ForkableDictionary<Creature, int>? _cardPlayStartsThisTurn;
+    private ForkableDictionary<Creature, int>? _attackSkillStartsThisTurn;
     private ForkableSet<Creature>? _enemiesIntendingAttack;
     private bool _hasPredictedEnemyIntents;
     private ForkableDictionary<Player, int>? _playerTurnNumbers;
@@ -587,16 +588,22 @@ internal sealed partial class SimulatedCombatState
     }
 
     public void Apply<T>(Creature target, int amount, Creature? applier = null) where T : PowerModel
+        => ApplyWithBeforeApplied<T>(target, amount, applier, null);
+
+    private int ApplyWithBeforeApplied<T>(Creature target, int amount, Creature? applier, Action<int>? beforeApplied)
+        where T : PowerModel
     {
         if (amount == 0 || !CanReceivePredictedPowers(target))
-            return;
+            return 0;
         T incoming = CreatePowerForApplication<T>(target, target, applier);
         amount = ModifyPowerAmountForRelics(incoming, target, amount, applier);
         if (incoming.GetTypeForAmount(amount) == MegaCrit.Sts2.Core.Entities.Powers.PowerType.Debuff
             && ConsumeArtifact(target))
         {
-            return;
+            return 0;
         }
+        if (GetAmount<T>(target) == 0)
+            beforeApplied?.Invoke(amount);
         PowerModel simulated = GetOrCreatePower(target, incoming, applier);
         int previousAmount = simulated._amount;
         simulated._amount = Math.Clamp(simulated._amount + amount, -999_999_999, 999_999_999);
@@ -622,6 +629,7 @@ internal sealed partial class SimulatedCombatState
                 throw new InvalidOperationException("击倒 Power 的施加者不是战斗中的玩家。");
             ((StringVar)knockdown.DynamicVars["Applier"]).StringValue = _playerNames[applyingPlayer];
         }
+        return applied;
     }
 
     public void ApplyPower(Type powerType, Creature target, int amount, Creature? applier = null)
@@ -940,54 +948,33 @@ internal sealed partial class SimulatedCombatState
 
     public void ApplyTemporaryStrengthLoss<T>(Creature creature, int amount, Creature? applier)
         where T : PowerModel
-    {
-        int before = GetAmount<T>(creature);
-        Apply<T>(creature, amount, applier);
-        int applied = GetAmount<T>(creature) - before;
-        if (applied <= 0)
-            return;
-        Apply<StrengthPower>(creature, -applied, applier);
-    }
+        => ApplyTemporaryStat<T, StrengthPower>(creature, amount, applier, -1);
 
     public void ApplyTemporaryStrengthGain<T>(Creature creature, int amount, Creature? applier)
         where T : PowerModel
-    {
-        int before = GetAmount<T>(creature);
-        Apply<T>(creature, amount, applier);
-        int applied = GetAmount<T>(creature) - before;
-        if (applied > 0)
-            Apply<StrengthPower>(creature, applied, applier);
-    }
+        => ApplyTemporaryStat<T, StrengthPower>(creature, amount, applier, 1);
 
     public void ApplyTemporaryDexterity<T>(Creature creature, int amount, Creature? applier)
         where T : PowerModel
-    {
-        int before = GetAmount<T>(creature);
-        Apply<T>(creature, amount, applier);
-        int applied = GetAmount<T>(creature) - before;
-        if (applied <= 0)
-            return;
-        Apply<DexterityPower>(creature, applied, applier);
-    }
+        => ApplyTemporaryStat<T, DexterityPower>(creature, amount, applier, 1);
 
     public void ApplyTemporaryFocus<T>(Creature creature, int amount, Creature? applier)
         where T : PowerModel
-    {
-        int before = GetAmount<T>(creature);
-        Apply<T>(creature, amount, applier);
-        int applied = GetAmount<T>(creature) - before;
-        if (applied > 0)
-            Apply<FocusPower>(creature, applied, applier);
-    }
+        => ApplyTemporaryStat<T, FocusPower>(creature, amount, applier, 1);
 
     public void ApplyTemporaryFocusLoss<T>(Creature creature, int amount, Creature? applier)
         where T : PowerModel
+        => ApplyTemporaryStat<T, FocusPower>(creature, amount, applier, -1);
+
+    private void ApplyTemporaryStat<T, TStat>(Creature creature, int amount, Creature? applier, int sign)
+        where T : PowerModel
+        where TStat : PowerModel
     {
-        int before = GetAmount<T>(creature);
-        Apply<T>(creature, amount, applier);
-        int applied = GetAmount<T>(creature) - before;
-        if (applied > 0)
-            Apply<FocusPower>(creature, -applied, applier);
+        bool alreadyApplied = GetAmount<T>(creature) != 0;
+        int applied = ApplyWithBeforeApplied<T>(creature, amount, applier,
+            value => Apply<TStat>(creature, sign * value, applier));
+        if (alreadyApplied && applied != 0)
+            Apply<TStat>(creature, sign * applied, applier);
     }
 
     public void ApplyAnticipate(Creature creature, int amount, Creature? applier)
@@ -1145,6 +1132,7 @@ internal sealed partial class SimulatedCombatState
         (_cardPlaySeriesStartedThisTurn ??= [])[owner] = 0;
         (_zeroCostAttackStartsThisTurn ??= [])[owner] = 0;
         (_cardPlayStartsThisTurn ??= [])[owner] = 0;
+        (_attackSkillStartsThisTurn ??= [])[owner] = 0;
         if (owner.Player is { } ownerPlayer)
         {
             (_energySpentThisTurn ??= [])[ownerPlayer] = 0;
@@ -1817,6 +1805,8 @@ internal sealed partial class SimulatedCombatState
         {
             PowerModel mutable = GetMutablePowerInstance(power);
             PowerPredictionStateSupport.CaptureRootState(simulator, mutable, power);
+            if (power is PaleBlueDotPower paleBlueDot)
+                CapturePaleBlueDotRootState((PaleBlueDotPower)mutable, paleBlueDot);
             if (power is DampenPower dampen)
                 CaptureDampenRootState(simulator, dampen);
         }
@@ -1870,6 +1860,7 @@ internal sealed partial class SimulatedCombatState
             _ = GetCardPlaySeriesStartedThisTurn(creature);
             _ = GetZeroCostAttackStartsThisTurn(creature);
             _ = GetCardPlayStartsThisTurn(creature);
+            _ = GetAttackSkillStartsThisTurn(creature);
             _ = GetAttacksPlayedThisTurn(creature);
             _ = GetShivsPlayedThisTurn(creature);
             _ = GetBlockCardsPlayedThisTurn(creature);
@@ -1885,6 +1876,7 @@ internal sealed partial class SimulatedCombatState
             _ = GetPreviousTurnAttack(simulator, player);
         }
         _ = GetFetchCardsPlayedThisTurn();
+        NormalizeSwordSageReplays(simulator);
         _enemiesIntendingAttack = [.. Enemies.Where(enemy => enemy.Monster?.IntendsToAttack == true)];
         _hasPredictedEnemyIntents = true;
         StateFingerprintBuilder fingerprint = new();
@@ -2010,6 +2002,7 @@ internal sealed partial class SimulatedCombatState
         AddCreatureIntMap(ref fingerprint, 'Q', _cardPlaySeriesStartedThisTurn);
         AddCreatureIntMap(ref fingerprint, 'q', _zeroCostAttackStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'J', _cardPlayStartsThisTurn);
+        AddCreatureIntMap(ref fingerprint, 'N', _attackSkillStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'k', _knowledgeDemonCurseCounters);
         AddCreatureSet(ref fingerprint, 'i', _enemiesIntendingAttack);
         fingerprint.Add(_hasPredictedEnemyIntents);

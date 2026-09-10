@@ -1177,6 +1177,7 @@ internal sealed partial class CombatBeamSolver
         key.Add(player.MaxHp);
         key.Add(player.Block);
         key.Add(playerState.Energy);
+        key.Add((int)playerState.Phase);
         key.Add(playerState.Stars);
         key.Add(shufflesCrossed);
         Player owner = _player;

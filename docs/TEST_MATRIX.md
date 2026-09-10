@@ -1,6 +1,42 @@
 # CombatSolver 测试清单
 
-本次静默猎手三项根因最终共 5 个最小行为场景通过（3 项根因 + 2 项相邻回归）；Release 构建 0 警告 / 0 错误，结构门禁 `REFACTOR_BOUNDARIES_OK search_files=78`，CoverageCatalog `--verify-effective --verify-roster-sources` 通过。以下分别保留失败基线、最终结果及未整场回放的范围。
+实验体批次与此前静默猎手批次的证据分别记录，原包恢复与最小差分分开计。以下分别保留失败基线、最终结果及未整场回放的范围。
+
+## 2026-09-09–10：实验体汇总包（开发中）
+
+34 份报告的逐包结论见 [分诊记录](issues/test-subject-reports-20260909.md)。以下均为本任务实际运行结果；语义夹具比较完整 MoveStateSnapshot / ContinuationStamp，包括逐实例有序牌堆、Power、怪物 AI、资源与 RNG，另检查 Fork。第三方和克隆事件场景验证各自的明确边界，不冒充整场差分。
+
+| 场景 | 失败基线 | 最终 Passed |
+| --- | --- | --- |
+| NIGHTMARE-SELECTION-SNAPSHOT | `9d2befcaf31a418cbd2529142373e0fe`，副本费用 3/0 | `0985fa1d841844db8f2ddd35494424ee` |
+| CLONE-EVENT-ISOLATION | `df880d27c9ab4538bafa80039ca96e3d`，调用实时订阅 1 次 | `5fcb0c2afdea4e24b7271b33d9037095`，0 次 |
+| REPORT-CARDS-PANACHE | `6e393d8b0b44472ba59de7550756fe71`，实例合并 | `2316903dd0814a9387fc7c71bc1a73cb` |
+| REPORT-CARDS-CRUSH-UNDER | `d484ff388a6e4378964ec7f388e9b3f8`，临时 Power/力量顺序 | `9bd9c9d07e614cdda06d86837235b5a4`，首次与叠加 |
+| HISTORY-COURSE-EMPTY-TURN | `9bc30ec4b2a94894aeb070184f2386bb`，多重放旧攻击，敌 HP 39/45 | `8c69d71eb49c4a588351ddaaddff68c4` |
+| REPORT-CARDS-SWORD-SAGE | `e07652667e314c0782291fd1220b6bb3`，复制牌少一次重放 | `516bd8a4c9534091b640e988ac34d1b4` |
+| FOREGONE-IMPLICIT-ORDER | `fbf96f2e4beb41eb974746cd2aa160bd`，两张牌顺序反转 | `bb04cacf2f344e5a8a6c4a5137b8d7bd` |
+| REPORT-ROUND-UNCEASING-HELLRAISER | `d64d5f079c8f4487abb573535ccde4f8`，手牌 5/3 | `d05fcc32fb5e4501a3695cb0728f1cab`，最终回合顺序源码 |
+| REPORT-ROUND-HAILSTORM-ORBS | `39c741c197c04e1892a665f4c437b9b1`，目标 RNG 2/1 | `8e753acd438e40e89b2bceb873495a7d`；移除实机额外回合列表读取后 `bdcf0989998a4b51b258dc5012359329` |
+| REPORT-ROUND-NOSTALGIA-STRIKE | `e1d57aa82cc54fd5890d8628508890a8`，第二回合攻击进错牌堆 | `fa776392afa3413b93ee93ce4e931550`；新增检查点历史校验后 `2bff954cd0a246c4abd406220823b202` |
+| REPORT-CARDS-PALE-BLUE-ROOT | `12498ff2098a424eb7f9037a1f2ff5c4`，下回合抽牌 Power 2/1 | `733ed99ebed048e1b9d2933512fd6899` |
+| REPORT-ROUND-HOWL-MUSIC-BOX | `5dc660636a54439c9ae036755c11e582`，手牌 5/6 | `88166b32b56541479cb7fa666adeee09` |
+
+相邻与失败边界：FocusedStrike 临时集中 `a7119fb6a1dc4159b0a827333f563b31`；UnceasingTop 正常手动出牌 `0d16b0590bdf4515aea99871715e6a05`；已知 Mod ID/程序集别名、包装异常文案及上传分类 `dae3810cc97f492280d62de99ae04173`；FlexPotion、SpeedPotion 使用与回合末恢复 `a1a7783a7d784e0390a4e51d8806afa1`，全部 Passed。
+
+Nostalgia 最终夹具另校验包含四项 `Y` 的检查点历史能被读取，并明确拒绝被篡改的攻击/技能开始数；只验证历史解析，不替代原包全状态恢复。
+
+关键复跑命令（其余使用相同请求入口，夹具专用语义在对应测试文件）：
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId REPORT-ROUND-NOSTALGIA-STRIKE -CharacterId SILENT -EncounterId TEST_SUBJECT_BOSS -EnemyCurrentHp 200 -ClearAllPowers -ClearPlayerPiles -InitialPlayerEnergy 10 -CardsJson '[{"CardId":"STRIKE_SILENT","Pile":"Hand"},{"CardId":"DEFEND_SILENT","Pile":"Draw","Count":7}]' -PowersJson '[{"PowerId":"NOSTALGIA_POWER","Target":"Player","Amount":1},{"PowerId":"ADAPTABLE_POWER","Target":"Enemy","Amount":1}]' -HeadlessInstance testsubject-batch -TimeoutSeconds 120
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId REPORT-CARDS-PALE-BLUE-ROOT -CharacterId REGENT -EncounterId TEST_SUBJECT_BOSS -EnemyCurrentHp 200 -ClearAllPowers -ClearPlayerPiles -InitialPlayerEnergy 20 -CardsJson '[{"CardId":"DEFEND_REGENT","Pile":"Hand","Count":6}]' -PowersJson '[{"PowerId":"PALE_BLUE_DOT_POWER","Target":"Player","Amount":1},{"PowerId":"ADAPTABLE_POWER","Target":"Enemy","Amount":1}]' -HeadlessInstance testsubject-batch -TimeoutSeconds 120
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId REPORT-ROUND-HOWL-MUSIC-BOX -CharacterId IRONCLAD -EncounterId TEST_SUBJECT_BOSS -EnemyCurrentHp 200 -ClearAllPowers -ClearPlayerPiles -InitialPlayerEnergy 20 -CardsJson '[{"CardId":"DEFEND_IRONCLAD","Pile":"Hand","Count":8},{"CardId":"STRIKE_IRONCLAD","Pile":"Discard"},{"CardId":"HOWL_FROM_BEYOND","Pile":"Exhaust","UpgradeLevels":1}]' -PowersJson '[{"PowerId":"DARK_EMBRACE_POWER","Target":"Player","Amount":1},{"PowerId":"ADAPTABLE_POWER","Target":"Enemy","Amount":1}]' -RelicsJson '[{"RelicId":"MUSIC_BOX"}]' -HeadlessInstance testsubject-batch -TimeoutSeconds 120
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId REPORT-TEMPORARY-STATS -CharacterId SILENT -EncounterId FUZZY_WURM_CRAWLER_WEAK -EnemyCurrentHp 100 -ClearAllPowers -PotionChecksJson '[{"PotionId":"FLEX_POTION","TriggerPlayerSideTurnEndAfterUse":true},{"PotionId":"SPEED_POTION","TriggerPlayerSideTurnEndAfterUse":true}]' -HeadlessInstance testsubject-batch -TimeoutSeconds 120
+```
+
+复活问题的未复现探针：`REPORT-ROUND-END-OF-DAYS-CARD` / `dcd3e25a127345c79b9693f292876b6d`、`REPORT-ROUND-ROOT-DEAD` / `f52b03efa1e74883ae3b29dfcea0f466`、`REPORT-ROUND-SECOND-FORM-CARD` / `4e45a941db034c28ae0d766ace29b9b4`、`REPORT-ROUND-SLEIGHT-DOOM-CARD` / `98fe9ed3bc664a0bb10e28f4b18f3e7b` 均 Passed；昨日直接击杀、毒杀、多段攻击探针也未复现。它们证明这些最小输入的原生状态一致，**不证明两份原始复活报告已修复**。原包 Preflight 材料有效，RestoreOnly 均 `environment_mismatch:mods`，没有恢复成功证据。
+
+最终行为源码 Release 构建 0 警告/0 错误；`verify-refactor-boundaries.ps1` 得到 `REFACTOR_BOUNDARIES_OK search_files=78`。CoverageCatalog `--verify-effective --verify-state-fields --verify-state-writes --verify-combat-choices` 通过，3035 项、0 未分类状态字段、0 未解决范围内选牌源。最终移除实机额外回合列表读取后，`--verify-effective --verify-branch-state-reads` 通过。没有整场求解、可见 UI 验收或发布。
 
 ## 2026-09-09：谋杀根历史隔离（开发中）
 

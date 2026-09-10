@@ -93,7 +93,10 @@ internal sealed partial class SimulatedCombatState
             && entry.CardPlay.Resources.EnergyValue == 0);
         int cardPlayStarts = CombatManager.Instance.History.CardPlaysStarted.Count(entry =>
             entry.HappenedThisTurn(combatState) && entry.CardPlay.Player == player);
-        AppendTurnCardHistory(text, statusCardsDrawn, zeroCostAttackStarts, cardPlayStarts);
+        int attackSkillStarts = CombatManager.Instance.History.CardPlaysStarted.Count(entry =>
+            entry.HappenedThisTurn(combatState) && entry.CardPlay.Player == player
+            && entry.CardPlay.Card.Type is CardType.Attack or CardType.Skill);
+        AppendTurnCardHistory(text, statusCardsDrawn, zeroCostAttackStarts, cardPlayStarts, attackSkillStarts);
     }
 
     public void AppendPredictedTurnCardHistory(StringBuilder text, Player player)
@@ -101,19 +104,23 @@ internal sealed partial class SimulatedCombatState
             text,
             GetStatusCardsDrawnThisTurn(player),
             GetZeroCostAttackStartsThisTurn(player.Creature),
-            GetCardPlayStartsThisTurn(player.Creature));
+            GetCardPlayStartsThisTurn(player.Creature),
+            GetAttackSkillStartsThisTurn(player.Creature));
 
     private static void AppendTurnCardHistory(
         StringBuilder text,
         int statusCardsDrawn,
         int zeroCostAttackStarts,
-        int cardPlayStarts)
+        int cardPlayStarts,
+        int attackSkillStarts)
         => text.Append(";Y=")
             .Append(statusCardsDrawn)
             .Append('/')
             .Append(zeroCostAttackStarts)
             .Append('/')
-            .Append(cardPlayStarts);
+            .Append(cardPlayStarts)
+            .Append('/')
+            .Append(attackSkillStarts);
 
     public void AfterCardEnteredCombat(CombatPredictionSimulator simulator, PredictedCard card)
     {

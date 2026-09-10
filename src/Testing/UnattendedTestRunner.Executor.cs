@@ -246,6 +246,42 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add(request.ScenarioId);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "FOREGONE-IMPLICIT-ORDER")
+            {
+                await runner.AssertForegoneSelectionAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "HISTORY-COURSE-EMPTY-TURN")
+            {
+                await runner.AssertHistoryCourseEmptyTurnAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId.StartsWith("REPORT-ROUND-", StringComparison.Ordinal))
+            {
+                await runner.AssertReportRoundAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId.StartsWith("REPORT-CARDS-", StringComparison.Ordinal))
+            {
+                await runner.AssertReportCardSequenceAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "CLONE-EVENT-ISOLATION")
+            {
+                runner.AssertCloneEventIsolation(player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "NIGHTMARE-SELECTION-SNAPSHOT")
+            {
+                await runner.AssertNightmareSnapshotAsync(combatState, player);
+                runner._completedChecks.Add(request.ScenarioId);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "MURDER-ROOT-HISTORY")
             {
                 await runner.AssertMurderRootHistoryAsync(combatState, player);

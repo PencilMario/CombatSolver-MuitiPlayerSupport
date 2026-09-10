@@ -1,4 +1,28 @@
 {
+  "REPORT-ROUND-NOSTALGIA-STRIKE": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "Nostalgia1，T1 出攻击并结束回合，T2 再出攻击，比较完整状态与 Fork。",
+    "expected": "每回合第一张攻击/技能放回抽牌堆顶，分支计数隔离并清零。",
+    "observed": "基线 e1d57aa82cc54fd5890d8628508890a8 第二回合攻击进入弃牌堆；最终 fa776392afa3413b93ee93ce4e931550 Passed。增加四项检查点历史解析与篡改计数拒绝后，2bff954cd0a246c4abd406220823b202 Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.ReportRound.cs；docs/TEST_MATRIX.md；2026-09-10。"
+  },
+  "REPORT-CARDS-PALE-BLUE-ROOT": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeRootCaptureAndForkDifferential",
+    "procedure": "原生先出五张牌触发苍蓝星球，捕获根后预测和原生分别打第六张。",
+    "expected": "根保留已经触发标志，第六张不重复增加下回合抽牌。",
+    "observed": "基线12498ff2098a424eb7f9037a1f2ff5c4抽牌Power预测2/原生1；最终733ed99ebed048e1b9d2933512fd6899 Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.ReportCardSequence.cs；docs/TEST_MATRIX.md；2026-09-10。"
+  },
+  "REPORT-ROUND-HOWL-MUSIC-BOX": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "MusicBox、DarkEmbrace1、消耗堆 HowlFromBeyond，八张手牌结束回合，比较生成复制牌的虚无消耗及下回合抽牌。",
+    "expected": "黑暗之拥按实际虚无消耗次数延迟抽牌，包含自动打牌期间新生成的牌。",
+    "observed": "基线5dc660636a54439c9ae036755c11e582下一回合手牌预测5/原生6；最终88166b32b56541479cb7fa666adeee09 Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.ReportRound.cs；docs/TEST_MATRIX.md；2026-09-10。"
+  },
   "MURDER-ROOT-HISTORY": {
     "status": "Passed",
     "level": "HeadlessStrictNativeTwoTurnRootHistoryAndForkDifferential",
