@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 下一版本（开发中）：回合末卡牌 Hook 的 COW 接收者
+
+束缚清除可能替换共享卡牌预览，后续Regret Hook 持有旧接收者并找不到手牌，漏记失血张数。常规 BeforeSideTurnEnd 派发先固定卡牌 wrapper 和监听顺序，执行时跟随当前预览，保留原先的挂起检查和非卡牌身份。
+
+本轮生产 COW/牌堆源文件的独立检查：旧派发模式复现失败，修复后 78 项断言通过。Release 构建 0 warnings / 0 errors，结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`。没有启动游戏、恢复原报告或执行原生伤害/正式搜索差分。报告计数与证明范围见 [专项分诊](issues/regret-bound-hook-receiver-20260910.md)。
+
+
 ## 0.35.2：回合开始选牌生命周期
 
 最终行为源码使用同一 DLL 完成以下 12 项后台原生页面回归，均 Passed。场景结果位于本地 `outputs/turn-setup-ui/verified/<ScenarioId>/result.json`，同目录保留请求和命令记录。后台实例已退出，性能录制保持关闭。
