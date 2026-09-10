@@ -1,5 +1,28 @@
 # CombatSolver 测试清单
 
+## 0.35.2：回合开始选牌生命周期
+
+最终行为源码使用同一 DLL 完成以下 12 项后台原生页面回归，均 Passed。场景结果位于本地 `outputs/turn-setup-ui/verified/<ScenarioId>/result.json`，同目录保留请求和命令记录。后台实例已退出，性能录制保持关闭。
+
+| ScenarioId | runId | 验证边界 |
+| --- | --- | --- |
+| TURN-SETUP-UI-TOASTY | f4772d52214c4a028c8e72d1b814d2ba | 初次停止、重算中停止、再次重算、执行进入 Play |
+| TURN-SETUP-UI-GAMBLING-PARTIAL | a9bb1d4e4b3d4538b7754e99d47fb801 | 同上，额外覆盖未确认的手动勾选后计划部署 |
+| TURN-SETUP-UI-TOOLBOX | abd258ec251f40eebf88d11841c00295 | TOOLBOX 原生选择页停止与恢复 |
+| TURN-SETUP-UI-PARADOX | d907f709caba4366b916de1033f630d0 | CHOOSE_A_PARADOX 原生选择页停止与恢复 |
+| TURN-SETUP-UI-TOOLS | a15eba75865b41acac5183e7f32c46ee | T2 TOOLS_OF_THE_TRADE，无既有续用选择 |
+| TURN-SETUP-UI-TYRANNY | 85ca20ed4d9040d494742e32b1103963 | T2 TYRANNY，无既有续用选择 |
+| TURN-SETUP-UI-MIXED | 957c52a9ba574a2480b87d44ad9d7e68 | TOOLBOX、GAMBLING_CHIP、TOASTY_MITTENS 连续选择 |
+| TURN-SETUP-UI-TOASTY-MANUAL | 28e4d6508dc04d33a71360f52afa9bd1 | 搜索中手动确认，旧搜索退出且旧结果不安装 |
+| TURN-SETUP-UI-TOASTY-FULL-AUTO | efc0e0d46575422dbe09006e0ab4f02f | 停止后立即开启全自动，排空后重算并驱动原生选择 |
+| INITIAL-TOASTY-MITTENS-SEARCH-CONTROLS-REGRESSION | 9511fb1ec2b045c89951b43051f93306 | 搜索中采用、执行及手动重算入口，T1 26 动作 |
+| TURN-SETUP-STOP-CANDIDATE | dc2da1d6fe0e4ad794da077ebdcc17e6 | 保留停止候选并采用，忙碌标志清除，T1 24 动作 |
+| TURN-SETUP-APPLY-CURRENT | 5a0a705091fc46b8a78ed46c6d4bc841 | 应用当前回合，T1 23 动作 |
+
+- 使用 SILENT / GREMLIN_MERC_NORMAL、2000 ms 短搜、`PreserveNativeCombatStateForTest`、单请求 120 秒上限。UI 场景在首次目标 Play 状态停止，断言忙碌标志清除、页面遮挡消失、搜索失败为空；部分勾选场景同时断言计划外重算为 0。
+- 迭代中的手动确认 fixture 曾超时，暴露页面等待后的搜索所有者竞争；恢复原子状态转换后通过最终手动确认及全自动场景。未延长超时。
+- 这些是后台原生控件与生命周期验证，没有打开可见 Steam 游戏，不代表人工鼠标/动画验收或所有场景完整战斗战损差分。
+
 ## 2026-09-10：PR #74 / #75 / #77 合并验证
 
 - #74：直接编译 PR 中生产 profile 与 BuildNarrowBeamRecoveryProfile，剩余 49000 节点/299000 ms 和 2000 节点/1000 ms 正确；预算耗尽与普通 Beam 不产生救援。复用同一行为源码审计阶段的结果，不声明实战战损改善。

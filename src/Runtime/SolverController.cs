@@ -1284,6 +1284,8 @@ internal static class SolverController
             Entry.Logger.Info("[CombatSolver/Test] DEPLOY_REJECT reason=already_deploying");
             return;
         }
+        _combat.AutomaticSearchPaused = false;
+        _combat.AutomaticSearchPausedTurn = null;
         if (PlayerTurnSetupCoordinator.TryContinuePlannedChoice(
                 host,
                 state,
@@ -1349,10 +1351,9 @@ internal static class SolverController
 
         if (_combat.AutomaticSearchPaused)
         {
-            _combat.FullAutoEnabled = false;
-            Entry.Logger.Info("[CombatSolver/Test] FULL_AUTO_REJECT reason=user_stopped");
-            SolverOverlay.ShowSearchStopped(host);
-            return;
+            _combat.AutomaticSearchPaused = false;
+            _combat.AutomaticSearchPausedTurn = null;
+            Entry.Logger.Info("[CombatSolver/Test] AUTOMATIC_SEARCH_RESUMED reason=explicit_full_auto");
         }
 
         if (PlayerTurnSetupCoordinator.CanTakeOverTurnSetup(state))
