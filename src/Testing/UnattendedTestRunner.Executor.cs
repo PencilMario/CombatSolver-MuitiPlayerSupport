@@ -270,6 +270,12 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add(request.ScenarioId);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "TEST-SUBJECT-ORIGINAL-REPORT")
+            {
+                await runner.AssertTestSubjectReportAsync(combatState, player);
+                runner._completedChecks.Add("TestSubjectOriginalReportTurn2");
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "REPLAY-BOUNDARY-CONTRACT")
             {
                 await runner.AssertReplayBoundaryContractAsync(player);

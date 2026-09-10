@@ -2,6 +2,19 @@
 
 实验体批次与此前静默猎手批次的证据分别记录，原包恢复与最小差分分开计。以下分别保留失败基线、最终结果及未整场回放的范围。
 
+## 2026-09-10：两份原始 Boss 复活错误的根因修复
+
+- `TEST-SUBJECT-ORIGINAL-REPORT` 从5cc95原包已验证的首个可操作状态出发，按原始部署顺序使用OROBIC_ACID、FLEX_POTION、LIQUID_BRONZE，打SPECTRUM_SHIFT、TYRANNY、HEAVENLY_DRILL、BULWARK，结束回合并按原记录选择ASCENDERS_BANE。基线 `ebbcbc7c3e8d4f688944b20b87024b66` 在T2复现玩家HP97/103；逐前缀定位 `9516db27445a487ea2cecad9d34e185c` 首错是HEAVENLY_DRILL后敌HP8/0。最终 `2139e56df0aa41f5940ad6bca1cee627` Passed，全部七个动作前缀及T2完整状态一致。只验证原包首回合至第二回合，不声称整场通过。
+- HeavenlyDrill 相邻场景：升级牌X=3 `4837b0e8c6a84f15b3fa71bc7f3c79ad` Passed；基础投入2能量加CHEMICAL_X达到4 `8c38386ff1f5428ab60a336aecd9b7a5` Passed。两场均比较原生/预测完整状态和Fork，敌人200HP避免过早击杀掩盖次数误差。
+- `REPORT-ROUND-DOOM-THRESHOLD-CARD` 使用e476报告的施放前临界条件：敌134HP（最大213）、Doom34、SleightOfFlesh13、Duplication1、升级EndOfDays37。基线 `d4ffe973627244df921d003d529bdf52` Failed，跨回合玩家HP预测46/原生66，处决晚一阶段。最终 `339f3bf702874325bf13a36ea0b9c37f` Passed，完整状态、Fork、父前缀继续回放一致。夹具显式断言134HP/34Doom，注入Doom在SleightOfFlesh之前，避免建局触发13伤害改变临界点。该夹具采用第一形态验证共用处决/复活链，没有整场恢复e476至T6。
+- 最初简化探针使用低HP，或注入顺序使施放前HP已降至121，均无法证明此临界根因；旧Passed不能替代本次失败基线。一次新镜像错误调用live卡ResolveEnergyXValue产生空引用，已改为PredictedCard分支入口，最终证据以上述Passed为准。
+- 最终Release构建0警告0错误，CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过；HeavenlyDrill/EndOfDays覆盖条目指向本轮针对性证据，未发布。
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId TEST-SUBJECT-ORIGINAL-REPORT -CheckpointArchivePath <5cc95原包.zip> -CheckpointSelector start -ReplayMode RestoreOnly -HeadlessInstance testsubject-batch -TimeoutSeconds 120
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId REPORT-ROUND-DOOM-THRESHOLD-CARD -CharacterId NECROBINDER -EncounterId TEST_SUBJECT_BOSS -EnemyCurrentHp 134 -InitialEnemyMaxHpsJson '[213]' -ClearAllPowers -ClearPlayerPiles -InitialPlayerEnergy 3 -CardsJson '[{"CardId":"END_OF_DAYS","Pile":"Hand","UpgradeLevels":1},{"CardId":"DEFEND_NECROBINDER","Pile":"Draw","Count":7}]' -PowersJson '[{"PowerId":"ADAPTABLE_POWER","Target":"Enemy","Amount":1},{"PowerId":"DOOM_POWER","Target":"Enemy","Amount":34},{"PowerId":"SLEIGHT_OF_FLESH_POWER","Target":"Player","Amount":13},{"PowerId":"DUPLICATION_POWER","Target":"Player","Amount":1}]' -HeadlessInstance testsubject-batch -TimeoutSeconds 120
+```
+
 ## 2026-09-10：原生恢复边界与编码诊断（开发中）
 
 - `REPLAY-BOUNDARY-CONTRACT` / `2ed7ea141baa48748df3b3fcaea69cb7` Passed：旧两项/三项历史匹配、已记录历史和其他字段不一致拒绝、当前四项任一不同拒绝；边界观察器的原异常对象被等待链抛出，不变成缺失边界。

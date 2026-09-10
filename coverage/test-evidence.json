@@ -1,4 +1,20 @@
 {
+  "TEST-SUBJECT-ORIGINAL-REPORT": {
+    "status": "Passed",
+    "level": "OriginalArchiveNativeActionAndTwoTurnDifferential",
+    "procedure": "恢复5cc95原包首个可操作根，重走三药水、SpectrumShift、Tyranny、HeavenlyDrill、Bulwark、结束回合及原Tyranny选择；逐动作和T2完整状态对账。",
+    "expected": "天钻按修正后的X值达到4时翻倍攻击次数，Boss在玩家回合倒地、敌方回合复活。",
+    "observed": "ebbcbc7c3e8d4f688944b20b87024b66复现原T2玩家HP97/103；9516db27445a487ea2cecad9d34e185c首错定位天钻后Boss8/0。最终2139e56df0aa41f5940ad6bca1cee627 Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.TestSubjectReport.cs；docs/TEST_MATRIX.md；2026-09-10。"
+  },
+  "REPORT-ROUND-DOOM-THRESHOLD-CARD": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "报告e476临界条件：Boss134HP、Doom34、SleightOfFlesh13、Duplication1，打出升级EndOfDays再跨回合；完整状态和增量/Fork对账。",
+    "expected": "施加Doom后先结算触发伤害再判断处决，第二次施放在108HP/108Doom时击杀，Boss按时复活。",
+    "observed": "基线d4ffe973627244df921d003d529bdf52预测玩家HP46/原生66；最终339f3bf702874325bf13a36ea0b9c37f Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.ReportRound.cs；docs/TEST_MATRIX.md；2026-09-10。"
+  },
   "REPLAY-BOUNDARY-CONTRACT": {
     "status": "Passed",
     "level": "HeadlessReplaySchemaAndFailureBoundaryContract",

@@ -29,6 +29,12 @@ internal sealed partial class UnattendedTestRunner
     private async Task AssertReportRoundAsync(CombatState combat, Player player)
     {
         var enemy = combat.Enemies.Single();
+        if (_request.ScenarioId == "REPORT-ROUND-DOOM-THRESHOLD-CARD")
+        {
+            if (enemy.CurrentHp != 134
+                || enemy.GetPower<MegaCrit.Sts2.Core.Models.Powers.DoomPower>()?.Amount != 34)
+                throw new InvalidOperationException("Report Doom threshold requires exactly 134 HP and 34 Doom.");
+        }
         if (_request.ScenarioId is "REPORT-ROUND-ROOT-DEAD" or "REPORT-ROUND-SECOND-FORM-CARD")
         {
             await CreatureCmd.Kill(enemy);
