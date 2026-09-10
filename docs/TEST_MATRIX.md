@@ -2,6 +2,8 @@
 
 ## 2026-09-10：进程全程性能诊断（未发布）
 
+- 自动压缩追加合同：`outputs/performance-compression-contract/` 连续 3 段全部成功采集并压缩，原始总计 8,408,334 字节转为 1,458,408 字节；collector 正常 complete。解压第一段后解析出 10043 个线程采样、8707 个分配事件、538 次 GC start，EventsLost=0。玩家已有段一次性从 280,502,570 字节压为 26,455,804 字节；此次只修改外部存储脚本，不改变 DLL、采样配置或搜索行为。
+
 - 独立 `tools/PerformanceRecordingTests` 合同：36 秒进程采样，刻意停止主线程心跳 3 秒；验证后台仍写入、线程/内存/GC 数据、队列无丢弃、退出排空。10 秒分段连续采集并正常退出；带空格输出路径通过。修正 Windows PowerShell 的 File.Replace 空备份路径及 Process.ExitCode 句柄生命周期问题后最终合同通过。
 - EventPipe 显式使用 runtime `0x100003C01D:5`，避免多个 profile 合并保留 Informational 而漏掉分配事件。独立样本解析出 10118 个采样事件、8696 个分配事件、538 次 GC start，EventsLost=0；topN 能解析出测试计算方法。采样含等待时间，不当作 CPU 占比。
 - Heap dump 合同：独立进程收到现场请求，dotnet-dump exitCode=0，dumpheap 成功读取 PerformanceSession 等对象；连续轨迹继续分段并收尾。对应本地证据 `outputs/performance-snapshot-contract/`。

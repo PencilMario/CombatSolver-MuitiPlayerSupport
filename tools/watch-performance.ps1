@@ -11,6 +11,9 @@ $SessionDirectory = [IO.Path]::GetFullPath($SessionDirectory)
 $journalPath = Join-Path $SessionDirectory 'collector.jsonl'
 $healthPath = Join-Path $SessionDirectory 'collector-health.json'
 $collector = $null
+$compressor = $null
+$compressionPath = ''
+$compressionQueue = [Collections.Generic.Queue[string]]::new()
 $dump = $null
 $dumpRequest = 0L
 $dumpPath = ''
@@ -58,6 +61,30 @@ function PollSnapshot {
         -RedirectStandardError (Join-Path $SessionDirectory "heap-$dumpRequest.stderr.txt")
     $null = $dump.Handle
 }
+function PollCompression {
+    if ($null -ne $compressor) {
+        $compressor.Refresh()
+        if (!$compressor.HasExited) {
+            Record @{ kind = 'compression_sample'; path = $compressionPath;
+                cpuMs = $compressor.TotalProcessorTime.TotalMilliseconds; workingSet = $compressor.WorkingSet64 }
+            return
+        }
+        $compressor.WaitForExit()
+        Record @{ kind = 'compression_end'; path = $compressionPath; exitCode = $compressor.ExitCode }
+        # The helper commits its ZIP before deleting the raw file. A failure retains the raw evidence.
+        $compressor.Dispose()
+        $script:compressor = $null
+    }
+    if ($compressionQueue.Count -eq 0) { return }
+    $script:compressionPath = $compressionQueue.Dequeue()
+    Record @{ kind = 'compression_start'; path = $compressionPath }
+    $helper = Join-Path $PSScriptRoot 'compress-performance-trace.ps1'
+    $script:compressor = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass',
+        '-File', ('"' + $helper + '"'), '-TracePath', ('"' + $compressionPath + '"')) -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput ($compressionPath + '.compression.stdout.txt') `
+        -RedirectStandardError ($compressionPath + '.compression.stderr.txt')
+    $null = $compressor.Handle
+}
 try {
     $target = [Diagnostics.Process]::GetProcessById($TargetProcessId)
     $startedAt = $target.StartTime.ToUniversalTime()
@@ -91,6 +118,7 @@ try {
         while (!$collector.HasExited) {
             if ($drive.AvailableFreeSpace -lt 5GB) { throw 'Trace recording stopped: less than 5 GB free disk space.' }
             PollSnapshot
+            PollCompression
             $bytes = if ([IO.File]::Exists($tracePath)) { ([IO.FileInfo]::new($tracePath)).Length } else { 0L }
             if ($bytes -gt $lastBytes) { $lastGrowth = [DateTime]::UtcNow; $lastBytes = $bytes }
             $stalled = ([DateTime]::UtcNow - $lastGrowth).TotalSeconds -gt 30
@@ -119,12 +147,18 @@ try {
         $target.Refresh()
         if ($code -ne 0) { throw "Trace collector exited with code $code. See segment stderr/stdout." }
         if ($bytes -eq 0) { throw 'Trace collector produced an empty trace.' }
+        $compressionQueue.Enqueue($tracePath)
     }
     $dumpDeadline = [DateTime]::UtcNow.AddSeconds(30)
     while ($null -ne $dump) {
         PollSnapshot
         if ([DateTime]::UtcNow -gt $dumpDeadline) { throw 'Memory snapshot did not finalize after game exit.' }
         if ($null -ne $dump) { Start-Sleep -Seconds 1 }
+    }
+    Health 'finalizing' 'Compressing completed trace segments.'
+    while ($null -ne $compressor -or $compressionQueue.Count -gt 0) {
+        PollCompression
+        if ($null -ne $compressor) { Start-Sleep -Seconds 1 }
     }
     if ($GameLogDirectory -and [IO.File]::Exists((Join-Path $GameLogDirectory 'godot.log'))) {
         Copy-Item -LiteralPath (Join-Path $GameLogDirectory 'godot.log') -Destination (Join-Path $SessionDirectory 'godot.log')
@@ -134,6 +168,7 @@ try {
 }
 catch {
     if ($null -ne $collector -and !$collector.HasExited) { $collector.Kill() }
+    if ($null -ne $compressor -and !$compressor.HasExited) { $compressor.Kill() }
     if ($null -ne $dump -and !$dump.HasExited) { $dump.Kill() }
     Record @{ kind = 'failed'; error = $_.ToString() }
     Health 'failed' $_.ToString()
