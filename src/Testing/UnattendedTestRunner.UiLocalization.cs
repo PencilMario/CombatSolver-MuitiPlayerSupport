@@ -121,6 +121,7 @@ internal sealed partial class UnattendedTestRunner
             ("：全体伤害3", ": Damage to all 3"), ("：力量+1", ": Strength +1"),
             ("：力量+1 敏捷+2", ": Strength +1 Dexterity +2"),
             ("：手牌0费", ": Hand costs 0"), ("：复制到手牌", ": Copy to hand"), ("：升级", ": Upgrade"),
+            ("：本张免费", ": Free card"),
             ("：额外回合", ": Extra turn"), ("：复活", ": Revive"), ("×2", "×2"), ("", ""),
             ("第三方：力量宝珠", "第三方：力量宝珠"),
         };
@@ -142,7 +143,7 @@ internal sealed partial class UnattendedTestRunner
             || !snapshot.Tooltip.Contains(english ? "(Potion)" : "（药水）", StringComparison.Ordinal)
             || snapshot.Kills.Single() != kill)
             throw new InvalidOperationException("Secondary capsule labels and tooltips disagree.");
-        _completedChecks.Add($"ActionAnnotations:{language}:CapturedDamageSources:20RelicFormats:NestedChoices:Tooltip");
+        _completedChecks.Add($"ActionAnnotations:{language}:CapturedDamageSources:{effects.Length}RelicFormats:NestedChoices:Tooltip");
     }
 
     private async Task AssertCardLanguageRoundTripAsync()

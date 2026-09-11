@@ -66,6 +66,16 @@ internal sealed partial class UnattendedTestRunner
                 runner.AssertDynamicVarMetadata();
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "AUTO-TURN-REQUEST-OWNERSHIP")
+            {
+                await runner.AssertAutoTurnRequestOwnershipAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "BRILLIANT-SCARF-COST")
+            {
+                await runner.AssertBrilliantScarfAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "RELIC-COUNTER-POLICY")
             {
                 await runner.AssertRelicCountersAsync(combatState, player);
