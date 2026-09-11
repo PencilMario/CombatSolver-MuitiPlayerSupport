@@ -28,6 +28,9 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
     private const long BytesPerGigabyte = 1_000_000_000L;
 
     private readonly Label _label;
+    private readonly Label _releaseHint;
+    public event Action? ReleaseRequested;
+    public bool ReleaseInProgress { get; private set; }
     private readonly PanelContainer _progress;
     private readonly ColorRect _systemSegment;
     private readonly ColorRect _processSegment;
@@ -40,8 +43,10 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
     {
         Name = "MemoryUsage";
         CustomMinimumSize = new Vector2(0f, SolverUiTokens.Size.ButtonHeight);
-        MouseFilter = MouseFilterEnum.Pass;
+        MouseFilter = MouseFilterEnum.Stop;
+        MouseDefaultCursorShape = CursorShape.PointingHand;
         TooltipText =
+            SolverText.Get("点击释放内存：等待搜索退出后请求管理员权限，清空系统工作集与待机列表。") + "\n" +
             SolverText.Get("求解器内存与性能监视\n") +
             SolverText.Get("- 灰色：系统和其他程序当前占用的内存。\n") +
             SolverText.Get("- 彩色：游戏进程当前占用的内存，包含求解器与其他已加载 Mod。\n") +
@@ -69,6 +74,10 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
         _label.HorizontalAlignment = HorizontalAlignment.Right;
         _label.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         content.AddChild(_label);
+        _releaseHint = SolverUiTokens.CreateLabel(SolverText.Get("点击释放内存"),
+            SolverUiTokens.Type.Caption, SolverUiTokens.Palette.TextSecondary);
+        _releaseHint.MouseFilter = MouseFilterEnum.Ignore;
+        content.AddChild(_releaseHint);
 
         _progress = new PanelContainer
         {
@@ -96,6 +105,23 @@ internal sealed partial class SolverMemoryUsageBar : PanelContainer
         _progress.AddChild(segments);
         content.AddChild(_progress);
         RefreshDisplay();
+    }
+
+    public override void _GuiInput(InputEvent inputEvent)
+    {
+        if (inputEvent is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true })
+        {
+            AcceptEvent();
+            if (!ReleaseInProgress)
+                ReleaseRequested?.Invoke();
+        }
+    }
+
+    public void SetReleaseInProgress(bool inProgress)
+    {
+        ReleaseInProgress = inProgress;
+        _releaseHint.Text = SolverText.Get(inProgress ? "正在释放内存…" : "点击释放内存");
+        MouseDefaultCursorShape = inProgress ? CursorShape.Busy : CursorShape.PointingHand;
     }
 
     public override void _Process(double delta)

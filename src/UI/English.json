@@ -1,4 +1,7 @@
 {
+  "点击释放内存": "Click to release memory",
+  "正在释放内存…": "Releasing memory…",
+  "点击释放内存：等待搜索退出后请求管理员权限，清空系统工作集与待机列表。": "Click to release memory: wait for the search to exit, then request administrator permission to clear system working sets and standby memory.",
   "本场全自动": "Auto-play this combat",
   "开战自动开启": "Enable at combat start",
   "内存维护": "Memory maintenance",

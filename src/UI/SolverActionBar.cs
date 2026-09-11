@@ -17,7 +17,7 @@ internal sealed partial class SolverActionBar : VBoxContainer
     private readonly Control _memory;
 
     public SolverActionBar(Button execute, Button recalculate, Button stop, Button adopt,
-        Button fullAuto, Control autoStart, Control memory, Button releaseMemory)
+        Button fullAuto, Control autoStart, Control memory)
     {
         Name = "Footer";
         MouseFilter = MouseFilterEnum.Pass;
@@ -37,7 +37,6 @@ internal sealed partial class SolverActionBar : VBoxContainer
         _actions.AddChild(stop);
         _actions.AddChild(adopt);
         _modes.AddChild(autoStart);
-        _modes.AddChild(releaseMemory);
         AddChild(_actions);
         AddChild(_modes);
         AddChild(memory);

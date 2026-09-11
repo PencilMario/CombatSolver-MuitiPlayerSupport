@@ -69,7 +69,6 @@ internal static class SolverOverlay
     private static Button? _solverEnabledButton;
     private static Label? _stolenResourceOutcomeLabel;
     private static CheckButton? _autoEnableFullAutoSwitch;
-    private static Button? _systemMemoryReleaseButton;
     private static Button? _collapseButton;
     private static Button? _settingsButton;
     private static Button? _potionStrategyButton;
@@ -161,10 +160,10 @@ internal static class SolverOverlay
     internal static bool SettingsTabsConfiguredForTesting
         => _settingsPanel?.SettingsTabsConfiguredForTesting == true;
     internal static bool ManualSystemMemoryReleaseButtonConfiguredForTesting
-        => _systemMemoryReleaseButton is { Text: "强制释放内存" } button
-            && GodotObject.IsInstanceValid(button)
-            && button.IsInsideTree()
-            && _actionBar?.IsAncestorOf(button) == true;
+        => _memoryUsageBar is { MouseFilter: Control.MouseFilterEnum.Stop } bar
+            && GodotObject.IsInstanceValid(bar)
+            && bar.IsInsideTree()
+            && _actionBar?.IsAncestorOf(bar) == true;
     internal static bool NoGcControlsConfiguredForTesting
         => _settingsPanel?.NoGcControlsConfiguredForTesting == true;
     internal static bool MemoryUsageBarConfiguredForTesting
@@ -1883,28 +1882,19 @@ internal static class SolverOverlay
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
 
-        _systemMemoryReleaseButton = CreateButton(SolverText.Get("强制释放内存"), false);
-        SolverUiTokens.ApplyButtonStyle(_systemMemoryReleaseButton, SolverButtonStyle.Secondary);
-        _systemMemoryReleaseButton.Name = "SystemMemoryReleaseButton";
-        _systemMemoryReleaseButton.CustomMinimumSize = new Vector2(
-            144,
-            SolverUiTokens.Size.ButtonHeight);
-        _systemMemoryReleaseButton.TooltipText =
-            SolverText.Get("等待搜索退出并回收求解器内存后，请求 Windows 管理员权限，") +
-            SolverText.Get("清空系统工作集与待机列表。其他程序之后重新载入页面时可能短暂卡顿。");
-        _systemMemoryReleaseButton.Pressed += OnSystemMemoryReleasePressed;
+        _memoryUsageBar.ReleaseRequested += OnSystemMemoryReleasePressed;
 
         _actionBar = new SolverActionBar(_executeButton, _recalculateButton, _stopSearchButton,
-            _adoptRouteButton, _fullAutoButton, autoStart, _memoryUsageBar, _systemMemoryReleaseButton);
+            _adoptRouteButton, _fullAutoButton, autoStart, _memoryUsageBar);
         return _actionBar;
     }
 
     private static async void OnSystemMemoryReleasePressed()
     {
-        if (_systemMemoryReleaseButton is not { Disabled: false } button)
+        if (_memoryUsageBar is not { ReleaseInProgress: false } bar)
             return;
 
-        button.Disabled = true;
+        bar.SetReleaseInProgress(true);
         Entry.Logger.Info("[CombatSolver/Test] UI_ACTION action=manual_system_memory_release");
         SetStatus(SolverText.Get("系统内存释放已安排，搜索退出后将请求管理员权限"), Success);
         try
@@ -1924,8 +1914,8 @@ internal static class SolverOverlay
         }
         finally
         {
-            if (GodotObject.IsInstanceValid(button))
-                button.Disabled = false;
+            if (GodotObject.IsInstanceValid(bar))
+                bar.SetReleaseInProgress(false);
         }
     }
 
