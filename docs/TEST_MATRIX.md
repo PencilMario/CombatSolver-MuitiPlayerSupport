@@ -1,5 +1,57 @@
 # CombatSolver 测试清单
 
+## 下一版本（开发中，暂不发版）：统一搜索预算与进程诊断
+
+- SINGLE-SEARCH-PROFILE / `2fb11ffdc6c649bca3838cab87dffbf0` Passed，22.68 秒：旧 deep 自定义参数迁移、保存重载、四档预算、单搜索进度、请求工作累计与固定小预算。
+- SEARCH-HP-TARGET-STOP / `8313b1d83703473bb5dc1c751bd2700b` Passed，7.75 秒：零损、阈值、并行、成长目标、必要药水和额外药水保留。
+- THEFT-RECOVERY-POLICY / `88dca2a1337d47b3bfef439169922998` Passed，7.27 秒：策略合同与固定小预算搜索。没有据此宣称完整玩家战斗路线质量或内存收益。
+- UI-LOCALIZATION / `b794090ac5584fa8a06ab8f18c31844e` Passed，9.78 秒：设置、动态状态和中英切换。PROCESS-DIAGNOSTICS / `75fe89832e6b472c88f82ebec29df2a4` Passed，22.33 秒：模拟 State 存在而 NetService 未就绪的读档窗口，调用真实心跳 Process；验证切换战斗后 GC 摘要仍在进程日志、高频显示采样未被复制。
+- CheckpointTool self-test 31 项断言通过，包括新单配置政策比较、旧政策保留及不同代预算不冒充同一政策；Windows 结构门禁通过。Bash 入口同步了协议与结构约束，未在 Linux 实际启动游戏。
+- 最新可见进程 27996 的最后一场 combat_ended 回收：managed live 2.157→2.057 GB、private 15.581→14.451 GB，working set 6.746→6.740 GB。原日志删除了前序战斗，不能从该样本证明长局卡顿根因；未开启新 trace 或可见性能测试。
+
+## 0.35.5：偷窃策略
+
+- 定位证据：本机进程 31712 的战斗日志 `combat-7165739b37ab40ecae1120a90a34198a.jsonl` 中 SEARCH_REQUEST 与最终结果均为 PreserveResources，最终零损、outstanding_stolen_resource=20；多次点击保策略也仍为该枚举，按钮没有接反。旧代码的审计合同明确要求先比较战损，已按用户新确认的保资源优先语义修正。
+- `THEFT-RECOVERY-POLICY`：地精 `1934513228be4d6eb86333192f568332` Passed，23.08 秒；偷窃草蜢 `fa18ef06b5b340db9e565d79f44c02bc` Passed，7.34 秒。合同覆盖两药/15 战损追回优于零损丢失、放走反向选择、候选展示可接受追回带来的战损增加、失败不能优于胜利、未追回不得 HP 早停；分别跑两种策略的 256 节点/1500 ms 短搜。短搜不是原玩家整场回放，也不证明所有局面都能击杀逃跑怪。
+- 普通早停哨兵 `SEARCH-HP-TARGET-STOP` / `3928bbf0e4df41b28700274cd04abaa6` Passed，7.75 秒，零损/阈值/成长与药水数量合同通过；同一 headless 进程复用，末次退出。Release 编译 0 警告 / 0 错误，结构门禁通过。
+
+## 0.35.5：UI 操作区重排
+
+- 搜索摘要取消世界线计数前的强制换行：仅改显示连接符，未改计数或搜索逻辑；本轮验证 Release 编译，未重跑游戏场景或实机视觉验收。
+
+- 状态摘要字号调整：仅将五处字体统一为 16；Release 编译 0 警告 / 0 错误，差异检查通过。没有变更状态/事件逻辑，本轮未重跑游戏场景，实际字号与长文本排版交由用户视觉验收。
+
+- 红框状态摘要局部整理：`UI-PRIORITY-FEEDBACK` / `ca19e6d8275241b5b32abca92ad4c173`，Passed，22.60 秒；既有结果显示、收起恢复、设置伸展与失焦保存合同通过。Release 编译 0 警告 / 0 错误。根据截图调整状态卡片，未改动作列表；未进行新版实机视觉验收。
+
+- 设置与结果摘要第二阶段：`UI-PRIORITY-FEEDBACK` / `7d6ea6dbffc942a194742ce16e440f84`，Passed，22.55 秒。性能页战损阈值失焦保存为 19、切页后恢复；设置高度伸展；结果卡片收起迁入主栈、展开恢复正文首位；失窃仍位于战损之前，新搜索清除旧提示。Release 编译 0 警告 / 0 错误，结构门禁通过，英文词典无重复键。未做实机视觉验收，也未改变搜索或出牌政策。
+
+- 采用顺序与搜索入口简化：`UI-PRIORITY-FEEDBACK` / `34b3478a49a5480bba243234d57a8c46`，Passed，22.51 秒。采用控件固定第二位、搜索时执行控件隐藏，原展开/收起与设置合同通过；Release 编译 0 警告 / 0 错误。未做实机视觉验收。
+
+- 独立释放按钮与右侧自动偏好布局：`UI-PRIORITY-FEEDBACK` / `ee426c9635624b9bbd7ca51578a3e63f`，Passed，22.54 秒；内存条恢复 Pass，释放按钮与内存条同父且位于右侧；展开/收起、主开关和设置伸展合同通过。Release 编译 0 警告 / 0 错误；未进行实机视觉及管理员清理验证。
+
+- 内存条释放入口整合：`UI-PRIORITY-FEEDBACK` / `e74200fa4e634b00b190421b2ac5d739`，Passed，22.46 秒。确认内存条接收鼠标事件、位于主操作区，原布局/启停/设置伸展合同通过。Release 编译 0 警告 / 0 错误。本轮未实际触发管理员授权和系统内存释放，未做真实鼠标点击或视觉验收；该测试不作为系统清理效果证据。
+
+- 用户校正后的最终验证：`UI-PRIORITY-FEEDBACK` / `a9ee0cb8abc34cb384231bc81485b4fa`，Passed，22.61 秒。全自动固定为动作行第一项，展开/收起均保持位置；内存释放入口归属主界面。原有启停、收起战损/失窃和设置伸展合同通过。Release 编译 0 警告 / 0 错误；未做实机视觉验收。以下保留初版证据。
+
+- `UI-PRIORITY-FEEDBACK`：`5708336d44454fc9b073371c0c4e048a`，Passed，22.69 秒。覆盖动作区展开/收起、搜索/空闲、采用入口组合；全自动控件在模式行与紧凑动作行之间移动；标题栏启停事件、维护按钮归属、偷窃策略位置，以及原有 SL 面板恢复、收起战损/失窃和设置页伸展合同。
+- Release 编译 0 警告 / 0 错误，结构门禁通过（85 个 Search 文件）。初次编译发现 Godot 控件缺少 partial，补齐后通过；没有使用失败构建的旧产物进行验证。
+- 本轮不改搜索、采用和部署命令实现；未进行实机视觉验收，未宣称具体窗口尺寸下的遮挡或帧率已经验证。没有发布创意工坊或推送远端。
+
+## 0.35.5：P0 / P1 反馈
+
+| 场景 | 最终 runId | 结果与范围 |
+| --- | --- | --- |
+| NATIVE-HAND-CHOICE-REPLAY | f56df4c5816d490fabbd1ebd8172c8bb | Passed，27.38 秒。燃烧契约原生选牌、投斧两次重放；主动构造选择计划失配，保留原生手牌选择，手动完成后具体出牌动作正常结束。 |
+| TURN-SETUP-UI-TOOLS | 2080e6ad6c7e4907b80ecddb919ce9cc | Passed，30.64 秒。必备工具 T2 准备选牌中停止、重算、再次停止、继续原生选择，返回 Play 后忙碌状态和输入锁均清除；短/深预算各 1000 ms。 |
+| UI-PRIORITY-FEEDBACK | 166804bf580b428dac522d4dca0fddcc | Passed，23.00 秒。主面板启停事件；清理会话且没有 TurnStarted 时恢复面板并保留手动计算；收起时财物提示在战损左侧、新搜索清除旧提示；设置面板从 440 增至 660 高度，内部滚动区增高至少 180，切页正常。 |
+| SEARCH-HP-TARGET-STOP | 60ec179b65e7413a8f3d6b3480d3c60e | Passed，23.50 秒。保留既有零损/阈值/开关/DOP2/禁忌魔典哨兵；狩猎兑现收益后零损停搜（1 节点）；指定一瓶与全局至少一瓶均以一瓶零损获胜并保留额外药水；可重复击杀来源在 3 敌人时保持目标 3。 |
+
+- 所有请求使用独立 headless 实例、120 秒上限并在完成后退出。结构门禁 `search_files=85`，Release 编译 0 警告 / 0 错误。
+- 失配基线 `3d174aeadc8942abbe94d88764b30f48` 明确失败于“原生选择被取消”；修复后手动恢复合同通过。此前初版 fixture `d2aca6c8ae944e63915a4b74c6505258` 错把动作队列临时空闲当作重放完成，改为复用生产 GameAction.CompletionTask 捕获后普通/投斧场景 `263cacd38bb74b19a43af1b8a4485927` 已通过；该初版错误不是产品卡死证据。一次编译失败后的旧产物测试启动被中止，未计为验证。
+- 未复现反馈中的所有“整个游戏进程无响应”情况；也未实际调用 BetterSpire2 的 SL 操作。无可见布局/鼠标验收，没有整场性能或所有第三方组合兼容结论。财物显示合同验证投影和布局，不新增怪物偷窃效果语义结论。
+
+复跑入口为 `tools/run-unattended-test.ps1 -ScenarioId <上述ID> -CharacterId IRONCLAD -EncounterId FUZZY_WURM_CRAWLER_WEAK -PreserveNativeCombatStateForTest -HeadlessInstance <独立名称> -ExitOnComplete -TimeoutSeconds 120`；TOOLS 使用 SILENT，并附 `-ShortSearchBudgetOverrideMilliseconds 1000 -DeepSearchBudgetOverrideMilliseconds 1000 -ForceShortSearchOnly`。
+
 ## 0.35.4：战损目标早停
 
 - `SEARCH-HP-TARGET-STOP` 最终 `f6b4b94d8a6641bf8a6ec2cdd953776b` Passed，22.85 秒；固定 128 节点、1500 ms 短搜，后台独立实例 `hp-target`，120 秒请求上限，完成后退出。

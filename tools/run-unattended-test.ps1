@@ -109,18 +109,14 @@ param(
     [switch]$StopAfterCombatRootSnapshotAssertion,
     [switch]$VerifyIncrementalSearch,
     [switch]$ForceShortSearchOnly,
+    [switch]$FixedSearchBudget,
+    [int]$SearchBudgetOverrideMilliseconds = -1,
     [switch]$MeasureSearchPhases,
     [ValidateSet(-1, 1, 2, 3, 4, 5, 6, 7, 8)]
     [int]$SearchMaxDegreeOfParallelismForTest = -1,
     [switch]$HoldAfterInitialSearch,
     [int]$ShortSearchBudgetOverrideMilliseconds = -1,
     [int]$DeepSearchBudgetOverrideMilliseconds = -1,
-    [ValidateSet("", "Short", "Deep")]
-    [string]$ExpectedInitialSearchPhase = "",
-    [ValidateSet(-1, 0, 1)]
-    [int]$ExpectedInitialDeepSearchTriggered = -1,
-    [ValidateSet(-1, 0, 1)]
-    [int]$ExpectedInitialDeepSearchImprovedResult = -1,
     [int]$ExpectedInitialExpandedNodesAtMost = -1,
     [int]$ExpectedInitialTransitionsAtMost = -1,
     [long]$ExpectedInitialTotalExpandedNodesAtMost = -1,
@@ -788,14 +784,13 @@ $request = [ordered]@{
     stopAfterCombatRootSnapshotAssertion = $StopAfterCombatRootSnapshotAssertion.IsPresent
     verifyIncrementalSearch = $VerifyIncrementalSearch.IsPresent
     forceShortSearchOnly = $ForceShortSearchOnly.IsPresent
+    fixedSearchBudget = $FixedSearchBudget.IsPresent -or $ForceShortSearchOnly.IsPresent
+    searchBudgetOverrideMilliseconds = if ($SearchBudgetOverrideMilliseconds -gt 0) { $SearchBudgetOverrideMilliseconds } else { $null }
     measureSearchPhases = $MeasureSearchPhases.IsPresent
     searchMaxDegreeOfParallelismForTest = if ($SearchMaxDegreeOfParallelismForTest -gt 0) { $SearchMaxDegreeOfParallelismForTest } else { $null }
     holdAfterInitialSearch = $HoldAfterInitialSearch.IsPresent
     shortSearchBudgetOverrideMilliseconds = if ($ShortSearchBudgetOverrideMilliseconds -gt 0) { $ShortSearchBudgetOverrideMilliseconds } else { $null }
     deepSearchBudgetOverrideMilliseconds = if ($DeepSearchBudgetOverrideMilliseconds -gt 0) { $DeepSearchBudgetOverrideMilliseconds } else { $null }
-    expectedInitialSearchPhase = if ([string]::IsNullOrWhiteSpace($ExpectedInitialSearchPhase)) { $null } else { $ExpectedInitialSearchPhase }
-    expectedInitialDeepSearchTriggered = if ($ExpectedInitialDeepSearchTriggered -ge 0) { [bool]$ExpectedInitialDeepSearchTriggered } else { $null }
-    expectedInitialDeepSearchImprovedResult = if ($ExpectedInitialDeepSearchImprovedResult -ge 0) { [bool]$ExpectedInitialDeepSearchImprovedResult } else { $null }
     expectedInitialExpandedNodesAtMost = if ($ExpectedInitialExpandedNodesAtMost -ge 0) { $ExpectedInitialExpandedNodesAtMost } else { $null }
     expectedInitialTransitionsAtMost = if ($ExpectedInitialTransitionsAtMost -ge 0) { $ExpectedInitialTransitionsAtMost } else { $null }
     expectedInitialTotalExpandedNodesAtMost = if ($ExpectedInitialTotalExpandedNodesAtMost -ge 0) { $ExpectedInitialTotalExpandedNodesAtMost } else { $null }

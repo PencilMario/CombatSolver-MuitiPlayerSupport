@@ -71,7 +71,7 @@ internal sealed partial class UnattendedTestRunner
             SetEnergy(player,3);
             var searchRoot = CombatRootSnapshot.Capture(combat);
             policy = SolverController.CaptureSearchPolicy(SolverSettings.Capture(),combat,false,null) with
-            { ForceShortOnly=true, ShortBudgetOverrideMilliseconds=1500, PotionPolicy=SolverPotionPolicy.Disabled, MaxDegreeOfParallelism=1, VerifyIncrementalSearch=true };
+            { FixedBudget=true, BudgetOverrideMilliseconds=1500, PotionPolicy=SolverPotionPolicy.Disabled, MaxDegreeOfParallelism=1, VerifyIncrementalSearch=true };
             var names = SolverDisplayNames.Capture(combat); var damage = BattleDamageTracker.Observe(combat);
             SolverResult result = await Task.Run(()=>CombatSearchCoordinator.Solve(searchRoot,names,damage,policy,CancellationToken.None,null));
             Check(result.Snapshot.AllEnemiesDead && result.Snapshot.GrowthRewards.ForbiddenGrimoire == 1

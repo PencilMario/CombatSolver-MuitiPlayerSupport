@@ -3986,7 +3986,7 @@ internal sealed partial class CombatBeamSolver
             || after.EnemyVulnerableTurns > before.EnemyVulnerableTurns
             || after.LiveDeckClutter < before.LiveDeckClutter
             || after.DelayedDamageValue > before.DelayedDamageValue
-            || !pure && (_profile.Phase == SolverSearchPhase.Deep || damage == 0 && block == 0))
+            || !pure)
         {
             traits |= SearchRouteTraits.Control;
         }

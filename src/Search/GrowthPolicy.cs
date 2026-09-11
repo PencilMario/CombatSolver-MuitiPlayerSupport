@@ -277,6 +277,35 @@ internal readonly record struct GrowthValues(
         => card is Cards.HandOfGreed or Cards.TheHunt or Cards.Feed or Cards.Royalties or Cards.Alchemize or Cards.ForbiddenGrimoire
             || card.DeckVersion != null && (card is Cards.GeneticAlgorithm or Cards.TheScythe || card.Enchantment is Enchantments.Goopy)
             || GrowthSourceMirrors.HasTarget(card);
+
+    // Early stopping asks each currently available fatal card to realize its reward once,
+    // bounded by the enemies present. This is a search goal, not a theoretical farming bound.
+    // Non-fatal and mixed sources retain the existing growth search policy.
+    public static FatalGrowthSearchTarget? CaptureFatalTarget(IEnumerable<CardModel> cards, int enemyCount)
+    {
+        GrowthSource? source = null;
+        int availableCards = 0;
+        foreach (CardModel card in cards.Where(HasTarget))
+        {
+            GrowthSource? candidate = card switch
+            {
+                Cards.TheHunt => GrowthSource.TheHunt,
+                Cards.Feed => GrowthSource.Feed,
+                Cards.HandOfGreed => GrowthSource.HandOfGreed,
+                _ => null,
+            };
+            if (candidate == null || card.Enchantment is Enchantments.Goopy
+                || GrowthSourceMirrors.HasTarget(card) || (source.HasValue && source != candidate))
+                return null;
+            source = candidate;
+            if (card.Pile?.Type != MegaCrit.Sts2.Core.Entities.Cards.PileType.Exhaust)
+                availableCards++;
+        }
+        return source is { } selected && enemyCount > 0
+            ? new FatalGrowthSearchTarget(selected,
+                selected == GrowthSource.HandOfGreed && availableCards > 0 ? enemyCount : Math.Min(availableCards, enemyCount))
+            : null;
+    }
     public int Get(GrowthSource source) => source switch
     {
         GrowthSource.HandOfGreed => HandOfGreed,

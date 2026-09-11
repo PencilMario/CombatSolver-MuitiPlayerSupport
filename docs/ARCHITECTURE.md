@@ -6,6 +6,14 @@
 
 ## 1. 运行链
 
+### 单一搜索预算与兼容边界
+
+`SolverSettings` 将四档或自定义配置解析为一个 `Profile`，主线程冻结到 `SearchPolicySnapshot`。`CombatSearchCoordinator` 的主搜索、药水审计与恢复使用同一套预算维度；`FixedBudget` 只限制无胜利后的预算扩展，测试/API 可显式覆盖时间。Search 不再包含 Short/Deep 配置、枚举、检查点或分段累计统计；两端结构门禁禁止这些符号回流。`SearchRequestWorkTotals` 按请求累计唯一 elapsed 和工作计数。
+
+旧设置的 deep 字段仅在反序列化边界迁移至 search 字段，保存只写新字段；旧归档读取 deepProfile，新的回放政策覆盖文件使用 profile/fixedBudget。旧无人请求的 forceShortSearchOnly 与短/深时间字段在 ProtocolHost 入口转成固定预算；已退休的阶段断言参数不再接受。UI 设置只渲染单列预算。
+
+`CombatDiagnosticJournal` 仍按战斗保留详细诊断，额外向有界进程日志复制 GC/分配预算/主线程帧摘要，供跨战斗关联。高频显示与节点日志不复制。`SearchGcPolicy` 分别记录收集完成后的堆状态和重启 NoGC 后的状态，诊断采样不改变收集策略。
+
 可选的 `src/Diagnostics/PerformanceRecording.cs` 是主线程标量采样和状态提示入口，由 Dispatcher 安装；`PerformanceSession.cs` 拥有进程级有界队列、后台文件写入及 OS/GC 采样；`PerformanceLifecycle.cs` 仅计量跑局/房间异步生命周期。节点重建复用同一进程写入器，游戏对象只以弱引用追踪。`tools/watch-performance.ps1` 在独立进程采集 EventPipe 和用户明确触发的 Heap dump；配置文件存在时才启用。诊断不修改搜索政策、GC 模式或第三方行为，详情见 [全程性能录制](performance/long-session-recording.md)。
 
 ```text
@@ -90,6 +98,7 @@ PR #43 集成修正：Mod 使用独立文件复制，游戏程序继续使用硬
 
 ## 3. Search
 
+开发中的反馈修复：`GrowthValues.CaptureFatalTarget` 在主线程冻结单一原版击杀成长来源的早停目标；`SearchPolicySnapshot.GrowthTargetSatisfied` 统一比较收益完成情况。早停还要求实际用药不超出用户必要数量。偷窃分项沿既有 SimulatedCombatState 计数投影为 SimulationSnapshot → SolverSnapshot → OverlaySnapshot，只读 UI 不重新读取真实战斗。Runtime 在选牌部署失配时暂停并交还手动选择，只有退出场景才取消原生选择；缺失战斗通知的面板恢复由 MonitorCombatPresence 在稳定回合负责。
 `SearchPolicySnapshot.CanStopAtHpTarget` 统一默认开启的战损目标早停与实际成长目标例外。主线程根据本场卡牌冻结 HasGrowthTargets，额度本身不代表持有对应牌。Phases 在已准入候选提交时检查完整胜利与强制用药要求，命中后排空当前父节点/并行批次，释放后续工作并从达标候选收尾；Coordinator 在补充搜索结果边界沿用同一开关与阈值。
 `GrowthCostPolicy` 管理至亮之焰单场累计最大生命消耗的准入；成本属于 SimulatedCombatState 的独立分支值，从主线程原生出牌历史捕获，经 Fork 复制并进入指纹/续用文本。`ResolveRoundChoiceBranches` 与 `ResolveTurnSetupChoices` 在产出候选前统一拒绝超额分支，实际模拟仍执行原有效果。禁忌魔典的收益计数在已有 CardPowerOnPlaySupport 中记入 GrowthValues，允许额度由成长策略设置决定。
 
@@ -277,6 +286,14 @@ Mod 准入，具体契约见[模型状态适配](third-party-model-state.md)。
 
 ## 6. UI
 
+偷窃策略由 `TheftEncounterStrategy.CompareRecovery` 统一胜利/追回资源的排序前缀；`SolverInterimResult` 携带 TheftPolicy，展示与搜索中的候选比较按同一策略处理。保策略的终局、保路与药水审计将追回置于战损之前，纯 HP 早停要求资源已追回，HP incumbent 剪枝在保策略下停用。放走继续普通战损/药水政策。
+
+状态摘要采用首行徽章/路线摘要/右侧详情，次行搜索上下文/耗时/统计的结构；`ShowResult` 使用已有 SummaryText 中的回合信息，不重复显示规划回合上下文。搜索中的上下文标签关闭内部换行，流式统计行负责整项换行；`SolverDetailsButton` 保留展开事件与箭头，使用轻量无背景样式。
+
+常规设置按开始计算、出牌速度、自动执行暂停条件、幕末 Boss、显示与通知、在线统计分组；性能设置按搜索预算、搜索停止条件、内存管理及折叠自定义参数分组。`Controls.AddSettingsSection` 提供统一分组容器，输入仍使用原保存/重载事件，页面滚动沿用伸展布局。结果卡片位于状态摘要上方，以流式排列显示原快照的扣血、药水、失窃与回血；收起时迁移同一结果卡片，展开时恢复正文首位，避免重复结果状态。
+
+`SolverActionBar` 独占底部动作行、自动模式行及收起布局，通过只读 `SolverActionBarState` 更新可见性。它不读取 Controller、搜索结果或战斗对象；Overlay 保留命令绑定、可用性判断和按钮文案。全局启停位于标题栏，偷窃策略位于路线摘要之后。全自动作为绿色主按钮固定在动作行首位，执行与采用为次级按钮；“自动开启全自动”偏好开关位于按钮行最右侧；下一行左侧为纯显示内存条，右侧为“强制释放内存”按钮。Overlay 沿用原释放流程，等待期间按钮显示进行状态并禁用重复触发。当前阶段只迁移布局所有权，未把 Runtime 操作能力重复实现为新的状态机。
+
 `src/UI/SolverOverlaySnapshot.cs` 是结果或只读候选路线到显示数据的唯一转换边界。它在主线程复制状态、概览、详情、回合、动作标题、选牌文本、遗物标注、击杀、逐回合对敌伤害、tooltip 和视觉类别。
 
 `src/UI/SolverText.cs` 与内嵌 `English.json` 负责中英显示文案：按游戏语言选取完整模板，再格式化插值，避免翻译玩家输入、模型名称或诊断内容。字典只加载一次；游戏名称仍在主线程从原版显示元数据获取。Search 禁止引用 SolverText，不接触语言或资源加载。简化版切换游戏语言后通过重启统一重建既有控件和路线快照。
@@ -299,7 +316,7 @@ renderer 不得重新读取 `SolverResult`、`PlanAction`、`PlanCardChoice` 或
 
 `SolverPotionStrategyPanel` 是主界面右侧独立窄浮层的逐瓶药水策略控件所有者。它只在主线程按当前槽位读取图标、标题和可搜索性，紧凑按钮在智能、保护和强制使用间循环；`SolverController` 以槽位和药水 ID 捕获不可变 `PotionStrategySnapshot`，自动计算开启时策略变化会废弃旧 continuation 并启动新搜索。新进入槽位的药水没有旧身份覆盖，默认按智能使用处理。
 
-`SolverGrowthStrategyPanel` 拥有逐来源额外 HP 输入，原版八行之后按登记顺序追加 `GrowthSourceMirrors` 的第三方行（取牌函数抛异常时该行退化为无图标、标题显示 id 并记 warn，不连带面板失败），发布额度时把设置里尚未登记的 id 原样并回。与药水侧栏共享受视口约束的位置规则。“提前结束搜索的战损阈值”由 `SolverSettingsPanel.General` 管理，沿用 `AcceptableBattleHpLoss` 存储字段。两种面板在外部鼠标点击时释放其输入框焦点，沿用失焦提交；成长 SpinBox 显式应用待输入文本。成长面板在主线程读取卡牌图像与官方标题；`SolverController.SetGrowthPolicy` 只保存成长配置、废弃旧 continuation/完整路线比较基线，并在自动计算开启时重算。`SolverSettings`、路线缓存、问题包和战前 API 设置快照共同携带成长额度。
+`SolverGrowthStrategyPanel` 拥有逐来源额外 HP 输入，原版八行之后按登记顺序追加 `GrowthSourceMirrors` 的第三方行（取牌函数抛异常时该行退化为无图标、标题显示 id 并记 warn，不连带面板失败），发布额度时把设置里尚未登记的 id 原样并回。与药水侧栏共享受视口约束的位置规则。“提前结束搜索的战损阈值”在 `SolverSettingsPanel.Performance` 的搜索停止条件分组展示，输入校验与保存仍复用设置面板的通用逻辑，沿用 `AcceptableBattleHpLoss` 存储字段。两种面板在外部鼠标点击时释放其输入框焦点，沿用失焦提交；成长 SpinBox 显式应用待输入文本。成长面板在主线程读取卡牌图像与官方标题；`SolverController.SetGrowthPolicy` 只保存成长配置、废弃旧 continuation/完整路线比较基线，并在自动计算开启时重算。`SolverSettings`、路线缓存、问题包和战前 API 设置快照共同携带成长额度。
 
 「不考虑局外收益」开关由 SearchPolicySnapshot 的 EffectiveGrowthBudgets / EffectiveHasGrowthTargets 统一解释；开启后所有原版和第三方额度行置灰，原始配置保留。
 

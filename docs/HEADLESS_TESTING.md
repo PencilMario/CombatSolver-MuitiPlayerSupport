@@ -4,6 +4,8 @@
 
 ## 用法
 
+固定小预算搜索使用 `-FixedSearchBudget -SearchBudgetOverrideMilliseconds 1500`，Bash 对应 `--fixed-search-budget --search-budget-override-milliseconds 1500`。生产只有一套搜索配置；旧 ForceShortSearchOnly 和短/深预算输入仅作为兼容入口，不能据此断言阶段。旧 ExpectedInitialSearchPhase/DeepSearchTriggered/DeepSearchImprovedResult 参数已删除，改断言总工作量、边界和实际路线。新回放政策覆盖文件使用 `profile` / `fixedBudget`；旧归档的 `deepProfile` 仍可读取。
+
 先在各任务自己的 worktree 构建，禁止两个 agent 同时构建同一 worktree：
 
 ```sh

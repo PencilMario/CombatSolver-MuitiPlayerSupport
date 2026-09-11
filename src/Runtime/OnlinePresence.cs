@@ -58,6 +58,9 @@ internal sealed partial class OnlinePresence : Node
 
     public override void _Process(double delta)
     {
+        // Saved-run loading publishes State before awaiting the save counter, then installs
+        // NetService. Capture only after that initialization boundary has completed.
+        if (RunManager.Instance.IsInProgress && RunManager.Instance.NetService is null) return;
         if (_displayedUpdate != AvailableUpdateVersion)
         {
             _displayedUpdate = AvailableUpdateVersion;

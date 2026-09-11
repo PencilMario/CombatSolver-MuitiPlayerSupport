@@ -5,6 +5,10 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $searchRoot = Join-Path $repositoryRoot "src\Search"
 
 $forbiddenSearchReferences = @(
+    "SolverSearchPhase",
+    "ShortProfile",
+    "DeepProfile",
+    "shortCheckpointMilliseconds",
     "SolverSettings.Current",
     "Entry.Logger",
     "SolverController",
@@ -1020,7 +1024,8 @@ $overlaySnapshotPath = Join-Path $repositoryRoot "src\UI\SolverOverlaySnapshot.c
 $overlayRendererPaths = @(
     (Join-Path $repositoryRoot "src\UI\SolverOverlay.cs"),
     (Join-Path $repositoryRoot "src\UI\SolverRouteRow.cs"),
-    (Join-Path $repositoryRoot "src\UI\SolverActionPill.cs")
+    (Join-Path $repositoryRoot "src\UI\SolverActionPill.cs"),
+    (Join-Path $repositoryRoot "src\UI\SolverActionBar.cs")
 )
 foreach ($check in @(
     @{ Path = $overlaySnapshotPath; Text = "internal sealed record SolverOverlaySnapshot(" },

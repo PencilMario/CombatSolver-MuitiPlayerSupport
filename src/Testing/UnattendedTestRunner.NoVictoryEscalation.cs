@@ -9,7 +9,7 @@ internal sealed partial class UnattendedTestRunner
     private static void AssertNoVictoryEscalationPolicy()
     {
         // 高档的深搜配置。玩家实际撞上这个问题时用的就是它。
-        SolverSearchProfile high = SolverSearchProfile.Deep with
+        SolverSearchProfile high = SolverSearchProfile.Default with
         {
             BeamWidth = 90,
             MaxExpandedNodes = 25_000,

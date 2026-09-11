@@ -103,33 +103,19 @@ internal sealed partial class CombatBeamSolver
         TimeSpan gcPauseAtStart)
     {
         TimeSpan elapsed = Stopwatch.GetElapsedTime(startedTimestamp);
-        bool deepTriggered = false;
-        TimeSpan shortElapsed = elapsed;
-        if (_shortCheckpointMilliseconds is { } checkpointMilliseconds
-            && elapsed.TotalMilliseconds > checkpointMilliseconds)
-        {
-            deepTriggered = true;
-            shortElapsed = TimeSpan.FromMilliseconds(checkpointMilliseconds);
-        }
         TimeSpan gcPauseDuration = GC.GetTotalPauseDuration() - gcPauseAtStart;
         requestWorkTotals.Record(new SearchSolverWorkContribution(
             _run.Expanded,
             _run.TransitionCount,
             _run.ChoiceBranchesEvaluated,
-            shortElapsed,
-            elapsed - shortElapsed,
+            elapsed,
             Math.Max(0, GC.GetAllocatedBytesForCurrentThread() - allocatedBytesAtStart)
                 + _run.OffThreadAllocatedBytes,
-            deepTriggered ? 0 : _run.Expanded,
-            deepTriggered ? _run.Expanded : 0,
-            deepTriggered ? 0 : _run.TransitionCount,
-            deepTriggered ? _run.TransitionCount : 0,
             Math.Max(0, GC.CollectionCount(0) - gen0AtStart),
             Math.Max(0, GC.CollectionCount(1) - gen1AtStart),
             Math.Max(0, GC.CollectionCount(2) - gen2AtStart),
             gcPauseDuration < TimeSpan.Zero ? TimeSpan.Zero : gcPauseDuration,
-            _run.WorkPacer.MaxObservedGcPause,
-            deepTriggered));
+            _run.WorkPacer.MaxObservedGcPause));
     }
 
     private SolverResult SolveCore()
@@ -242,6 +228,7 @@ internal sealed partial class CombatBeamSolver
                 CombatEndedTurn: won ? node.Snapshot.CombatEndedTurn : null)
             {
                 GrowthHpCredit = node.Snapshot.GrowthHpCredit,
+                TheftPolicy = _theftPolicy,
                 GrowthRewardCount = node.Snapshot.GrowthRewards.Total,
             };
         }
@@ -311,8 +298,11 @@ internal sealed partial class CombatBeamSolver
             return null;
         }
 
+        int requiredPotionUses = Math.Max(_minimumPotionUses,
+            _potionPolicy == SolverPotionPolicy.RequireAtLeastOne ? 1 : 0);
+        int earlyStopPotionUses = policy.MinimumRequiredPotionUses(battleDamage.PotionsUsedSoFar);
         bool IsEligibleCompleteVictory(SearchNode node)
-            => ExplicitPotionUseCount(node) >= _minimumPotionUses
+            => ExplicitPotionUseCount(node) >= requiredPotionUses
                 && (!_enforcePotionDirectives
                     || _potionStrategy.EvaluateForcedUses(
                             node.Actions,
@@ -325,8 +315,10 @@ internal sealed partial class CombatBeamSolver
                     node.Snapshot.ProjectedPlayerHp);
 
         bool MeetsHpTarget(SearchNode node)
-            => policy.CanStopAtHpTarget
+            => policy.GrowthTargetSatisfied(node.Snapshot.GrowthRewards)
+                && TheftEncounterStrategy.RecoverySatisfied(_theftPolicy, node.Snapshot.OutstandingStolenResource)
                 && IsEligibleCompleteVictory(node)
+                && ExplicitPotionUseCount(node) <= earlyStopPotionUses
                 && battleDamage.HpLostSoFar + node.Snapshot.CumulativePlayerHpLost <= _acceptableBattleHpLoss;
 
         void ConsiderCompleteVictory(SearchNode node)
@@ -602,12 +594,13 @@ internal sealed partial class CombatBeamSolver
             {
                 GrowthHpCredit = finalSnapshot.GrowthHpCredit,
                 GrowthRewards = finalSnapshot.GrowthRewards,
+                UnrecoveredGold = finalSnapshot.UnrecoveredGold,
+                UnrecoveredCards = finalSnapshot.UnrecoveredCards,
             };
             ValidateOrderedMutationAdmissionLedger(_run);
             SolverResult result = new()
             {
                 ResultScope = resultScope,
-                SearchPhase = _profile.Phase,
                 TotalSearchElapsed = stopwatch.Elapsed,
                 TotalWorkerAllocatedBytes = workerAllocatedBytes,
                 TotalGen0Collections = gen0Collections,
@@ -917,8 +910,6 @@ internal sealed partial class CombatBeamSolver
             if (!force && elapsedMs - lastProgressMs < 100)
                 return;
             lastProgressMs = elapsedMs;
-            bool checkpointPhase = _shortCheckpointMilliseconds is { } checkpoint
-                && elapsedMs < checkpoint;
             progressCallback?.Invoke(new SolverProgress(
                 _startTurnNumber,
                 currentTurn,
@@ -931,7 +922,7 @@ internal sealed partial class CombatBeamSolver
                 endedNodes,
                 elapsedMs,
                 _progressPhaseOverride
-                ?? $"{(checkpointPhase || _profile.Phase == SolverSearchPhase.Short ? "快速搜索" : "深化搜索")}·{phase}",
+                ?? $"搜索·{phase}",
                 currentBestResult,
                 currentTurnPreview,
                 speculativeRoutePreview,
@@ -1216,8 +1207,7 @@ internal sealed partial class CombatBeamSolver
                 "已切换常规 GC，继续搜索",
                 force: true);
         }
-        int reservedTurnLayers = _profile.Phase == SolverSearchPhase.Deep
-            && root.EncounterRoomType == RoomType.Boss
+        int reservedTurnLayers = root.EncounterRoomType == RoomType.Boss
                 ? SolverWeights.BossEnemyStrengthSuppressionHorizon
                 : SolverWeights.StandardEnemyStrengthSuppressionHorizon;
 

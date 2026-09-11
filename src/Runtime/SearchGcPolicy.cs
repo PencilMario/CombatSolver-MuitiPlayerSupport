@@ -1984,6 +1984,8 @@ internal static class SearchGcPolicy
             : NoGcRegionStartOutcome.InsufficientMemory;
         bool collectionCompleted = false;
         BackgroundGen2Completion completedCollection = default;
+        long liveAfterCollection = 0;
+        GCMemoryInfo heapAfterCollection = default;
         long liveBefore = GC.GetTotalMemory(forceFullCollection: false);
         using Process processBefore = Process.GetCurrentProcess();
         long workingSetBefore = processBefore.WorkingSet64;
@@ -2014,6 +2016,8 @@ internal static class SearchGcPolicy
             completedCollection = CollectGeneration2InBackgroundAsync(inSearchCheckpoint: true)
                 .GetAwaiter().GetResult();
             collectionCompleted = true;
+            liveAfterCollection = GC.GetTotalMemory(false);
+            heapAfterCollection = GC.GetGCMemoryInfo();
             // Capture the forced collection before TryStartNoGCRegion can replace the latest
             // GC info with a bookkeeping collection that has no pause of its own.
             signal.ObserveReclaimGcPause(pauseObservation.ObserveMaximumSince());
@@ -2118,6 +2122,10 @@ internal static class SearchGcPolicy
                 $"max_observed_gc_pause_ms={signal.LastReclaimMaxObservedGcPause.TotalMilliseconds:F1} " +
                 CaptureLifecycle().DeltaFrom(lifecycleBefore).ToDiagnosticString() + " " +
                 $"collection_completed={collectionCompleted.ToString().ToLowerInvariant()} " +
+                $"managed_live_after_collect={liveAfterCollection} " +
+                $"heap_after_collect={heapAfterCollection.HeapSizeBytes} " +
+                $"fragmented_after_collect={heapAfterCollection.FragmentedBytes} " +
+                $"committed_after_collect={heapAfterCollection.TotalCommittedBytes} " +
                 $"managed_live_before={liveBefore} managed_live_after={GC.GetTotalMemory(false)} " +
                 $"working_set_before={workingSetBefore} working_set_after={processAfter.WorkingSet64} " +
                 $"private_before={privateBefore} private_after={processAfter.PrivateMemorySize64}");
@@ -2191,7 +2199,7 @@ internal static class SearchGcPolicy
         process.Refresh();
         return $"working_set={process.WorkingSet64} private_bytes={process.PrivateMemorySize64} " +
                $"managed_live={GC.GetTotalMemory(forceFullCollection: false)} " +
-               $"managed_heap={memory.HeapSizeBytes} fragmented={memory.FragmentedBytes} " +
+               $"managed_heap={memory.HeapSizeBytes} fragmented={memory.FragmentedBytes} managed_committed={memory.TotalCommittedBytes} " +
                $"memory_load={memory.MemoryLoadBytes} high_memory_threshold={memory.HighMemoryLoadThresholdBytes} " +
                $"total_available={memory.TotalAvailableMemoryBytes} " +
                $"gen0={GC.CollectionCount(0)} gen1={GC.CollectionCount(1)} gen2={GC.CollectionCount(2)} " +

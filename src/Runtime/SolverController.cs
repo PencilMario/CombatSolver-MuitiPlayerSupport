@@ -472,17 +472,15 @@ internal static class SolverController
                 $"实际为 {maxDegreeOfParallelism}。");
         }
         SearchPolicySnapshot policy = new(
-            settings.ShortProfile,
-            settings.DeepProfile,
+            settings.Profile,
             settings.PotionPolicy,
             CapturePotionStrategy(state, settings.PotionPolicy),
             settings.EnableDetailedDiagnosticLogs,
             UnattendedTestRunner.VerifyIncrementalSearch,
-            UnattendedTestRunner.ForceShortSearchOnly,
+            UnattendedTestRunner.FixedSearchBudget,
             UnattendedTestRunner.MeasureSearchPhases,
             maxDegreeOfParallelism,
-            UnattendedTestRunner.ShortSearchBudgetOverrideMilliseconds,
-            UnattendedTestRunner.DeepSearchBudgetOverrideMilliseconds,
+            UnattendedTestRunner.SearchBudgetOverrideMilliseconds,
             includeTurnSetup,
             theftPolicy,
             settings.ActTransitionBossHpStrategy,
@@ -501,6 +499,8 @@ internal static class SolverController
             StopAtAcceptableBattleHpLoss = settings.StopAtAcceptableBattleHpLoss,
             BrightestFlameMaxHpLossLimit = settings.BrightestFlameMaxHpLossLimit,
             HasGrowthTargets = state.Players.SelectMany(player => player.PlayerCombatState!.AllCards).Any(GrowthValues.HasTarget),
+            FatalGrowthTarget = GrowthValues.CaptureFatalTarget(
+                state.Players.SelectMany(player => player.PlayerCombatState!.AllCards), state.Enemies.Count),
             IgnoreLongTermRewards = settings.IgnoreLongTermRewards,
         };
         CombatBugReportExporter.RecordSearchPolicy(state, policy);
@@ -539,7 +539,7 @@ internal static class SolverController
             return;
         if (!_combat.ReviewedWorldlineResults.Add(result))
             return;
-        long reviewed = (long)result.ShortExpandedNodes + result.DeepExpandedNodes;
+        long reviewed = result.TotalExpandedNodes;
         _combat.ReviewedWorldlinesTotal = checked(_combat.ReviewedWorldlinesTotal + reviewed);
     }
 
@@ -1138,8 +1138,7 @@ internal static class SolverController
                 $"max_dop={searchPolicy.MaxDegreeOfParallelism}");
             Entry.Logger.Info(SolverDiagnostics.DescribeStart(
                 state,
-                settings.ShortProfile,
-                settings.DeepProfile));
+                settings.Profile));
 
             setupStage = "worker_schedule";
             SolvedRouteCache routeCache = SolvedRouteCache.Capture(state, rootSnapshot, searchPolicy, battleDamage);
@@ -2038,22 +2037,37 @@ internal static class SolverController
     public static void MonitorCombatPresence()
     {
         AssertMainThread();
-        if (_combat.State == null && !SolverOverlay.IsVisible)
-            return;
-
         CombatState? current = CombatManager.Instance.DebugOnlyGetState();
         if (!CombatManager.Instance.IsInProgress || current == null)
         {
-            Reset("combat_inactive");
+            if (_combat.State != null || SolverOverlay.IsVisible)
+                Reset("combat_inactive");
             return;
         }
 
         if (_combat.State != null && !ReferenceEquals(current, _combat.State))
         {
-            Reset("combat_replaced");
-            return;
+            BeginCombat(current);
         }
         BattleDamageTracker.Observe(current);
+        // SL may replace the combat after TurnStarted. Reattach at the playable boundary.
+        if (!SolverOverlay.IsVisible && !IsSearching && !IsDeploying
+            && !PendingCombatDeferredOperations.Any(task => !task.IsCompleted)
+            && !PlayerTurnSetupCoordinator.IsManaging(current)
+            && current.Players.Count == 1
+            && LocalContext.GetMe(current)?.PlayerCombatState?.Phase == PlayerTurnPhase.Play
+            && NGame.Instance is { } host)
+        {
+            _combat.State = current;
+            if (_solverDisabled)
+                SolverOverlay.ShowDisabled(host);
+            else if (_combat.AutomaticSearchPaused)
+                SolverOverlay.ShowSearchStopped(host);
+            else if (!AutomaticCalculationEnabled || !UnattendedTestRunner.AutomaticTurnSearchEnabled)
+                SolverOverlay.ShowManualCalculationReady(host, HasCalculatedThisCombat);
+            else if (CanSolve(current, out _))
+                RequestSearch(host, current, SearchReason.AutoTurnStart);
+        }
     }
 
     public static void RefreshSearchProgress()
@@ -2623,12 +2637,12 @@ internal static class SolverController
                 }
                 catch (NativeChoicePlanMismatchException)
                 {
-                    choiceSession.CancelVisibleSurfaceForReplan();
+                    choiceSession.ReleaseVisibleSurface();
                     throw;
                 }
                 catch (NativeChoiceSurfaceMismatchException)
                 {
-                    choiceSession.CancelVisibleSurfaceForReplan();
+                    choiceSession.ReleaseVisibleSurface();
                     throw;
                 }
                 if (measureDeploymentTiming)
@@ -2741,12 +2755,12 @@ internal static class SolverController
                     }
                     catch (NativeChoicePlanMismatchException)
                     {
-                        choiceSession.CancelVisibleSurfaceForReplan();
+                        choiceSession.ReleaseVisibleSurface();
                         throw;
                     }
                     catch (NativeChoiceSurfaceMismatchException)
                     {
-                        choiceSession.CancelVisibleSurfaceForReplan();
+                        choiceSession.ReleaseVisibleSurface();
                         throw;
                     }
                     await choiceSession.CompleteAndDetachAsync();
@@ -2816,29 +2830,11 @@ internal static class SolverController
         }
         catch (NativeChoicePlanMismatchException ex)
         {
-            _combat.ContinuationSource = null;
-            CompleteDeployment(deployment);
-            Entry.Logger.Warn(
-                $"[CombatSolver/Test] DEPLOY_REPLAN turn={turn} reason=native_choice_drift " +
-                $"message={ex.Message}");
-            RequestSearch(
-                host,
-                state,
-                SearchReason.DeploymentDrift,
-                deployWhenReady: !_combat.FullAutoEnabled);
+            PauseAfterNativeChoiceFailure(host, deployment, turn, ex);
         }
         catch (NativeChoiceSurfaceMismatchException ex)
         {
-            _combat.ContinuationSource = null;
-            CompleteDeployment(deployment);
-            Entry.Logger.Warn(
-                $"[CombatSolver/Test] DEPLOY_REPLAN turn={turn} reason=native_choice_surface_closed " +
-                $"message={ex.Message}");
-            RequestSearch(
-                host,
-                state,
-                SearchReason.DeploymentDrift,
-                deployWhenReady: !_combat.FullAutoEnabled);
+            PauseAfterNativeChoiceFailure(host, deployment, turn, ex);
         }
         catch (Exception ex)
         {
@@ -2870,6 +2866,18 @@ internal static class SolverController
                 SolverOverlay.RefreshControls();
             }
         }
+    }
+
+    private static void PauseAfterNativeChoiceFailure(NGame host, SolverDeploymentSession deployment, int turn, Exception failure)
+    {
+        _combat.ContinuationSource = null;
+        _combat.FullAutoEnabled = false;
+        _combat.AutomaticSearchPaused = true;
+        _combat.AutomaticSearchPausedTurn = turn;
+        _combat.BugReportIssues.RecordFailure(CombatBugReportIssueKind.DeploymentFailure, failure);
+        CompleteDeployment(deployment);
+        SolverOverlay.Show(host, SolverText.Get("自动选牌未完成，已暂停执行。当前选择交还手动操作，完成后点击“重新计算”。"));
+        Entry.Logger.Error($"[CombatSolver/Test] DEPLOY_CHOICE_PAUSED turn={turn} exception={failure}");
     }
 
     internal static CardModel FindCardForDeployment(
@@ -2909,7 +2917,7 @@ internal static class SolverController
             "部署途中已不再是原玩家回合。",
             StringComparison.Ordinal);
 
-    private static async Task<GameAction> EnqueueAndCaptureActionAsync(
+    internal static async Task<GameAction> EnqueueAndCaptureActionAsync(
         Func<GameAction, bool> matches,
         Action enqueue,
         CancellationToken token)

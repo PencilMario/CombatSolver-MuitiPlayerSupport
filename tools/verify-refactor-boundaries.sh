@@ -301,6 +301,10 @@ require_fixed "$repository_root/src/Engine/InCombat/Mirrors/Hooks/Card/ShouldPla
 
 for file in "${search_files[@]}"; do
     for reference in \
+        'SolverSearchPhase' \
+        'ShortProfile' \
+        'DeepProfile' \
+        'shortCheckpointMilliseconds' \
         'SolverSettings.Current' \
         'Entry.Logger' \
         'SolverController' \
@@ -827,6 +831,7 @@ overlay_renderer_paths=(
     "$repository_root/src/UI/SolverOverlay.cs"
     "$repository_root/src/UI/SolverRouteRow.cs"
     "$repository_root/src/UI/SolverActionPill.cs"
+    "$repository_root/src/UI/SolverActionBar.cs"
 )
 for renderer_path in "${overlay_renderer_paths[@]}"; do
     for mutable_search_type in SolverResult PlanAction PlanCardChoice ModelDb; do

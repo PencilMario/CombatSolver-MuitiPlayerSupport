@@ -53,8 +53,7 @@ internal sealed class SolvedRouteCache(string path)
             Native = writer.Buffer.AsSpan(0, writer.BytePosition).ToArray(),
             root.ContinuationStamp.StateText,
             damage,
-            policy.ShortProfile,
-            policy.DeepProfile,
+            policy.Profile,
             policy.PotionPolicy,
             policy.PotionStrategy.Directives,
             policy.GrowthBudgets,
@@ -67,9 +66,9 @@ internal sealed class SolvedRouteCache(string path)
             policy.FinalBossHpStrategy,
             policy.AcceptableBattleHpLoss,
             policy.StopAtAcceptableBattleHpLoss,
-            policy.ForceShortOnly,
-            policy.ShortBudgetOverrideMilliseconds,
-            policy.DeepBudgetOverrideMilliseconds,
+            policy.FatalGrowthTarget,
+            policy.FixedBudget,
+            policy.BudgetOverrideMilliseconds,
         });
         string key = Convert.ToHexString(SHA256.HashData(identity));
         return new SolvedRouteCache(System.IO.Path.Combine(

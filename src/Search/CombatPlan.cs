@@ -1301,6 +1301,8 @@ internal sealed class SimulationSnapshot(
     public int LiveDeckClutter { get; } = liveDeckClutter;
     public int LiveDeckSize { get; } = liveDeckSize;
     public int OutstandingStolenResource { get; } = outstandingStolenResource;
+    public int? UnrecoveredGold { get; init; }
+    public int? UnrecoveredCards { get; init; }
     public int OffensiveProgressValue { get; } = offensiveProgressValue;
     public int Energy { get; } = energy;
     public int Stars { get; } = stars;
@@ -1377,6 +1379,8 @@ internal sealed record SolverSnapshot(
     SearchBoundaryReason BoundaryReason,
     IReadOnlyList<PredictionGap> PredictionGaps)
 {
+    public int? UnrecoveredGold { get; init; }
+    public int? UnrecoveredCards { get; init; }
     public int GrowthHpCredit { get; init; }
     public GrowthValues GrowthRewards { get; init; }
 }
@@ -1390,18 +1394,9 @@ internal sealed class SolverResult
 {
     public bool WasRestoredFromCache { get; internal set; }
     public SolverResultScope ResultScope { get; internal set; } = SolverResultScope.SearchCompletion;
-    public SolverSearchPhase SearchPhase { get; internal set; } = SolverSearchPhase.Short;
-    public bool DeepSearchTriggered { get; internal set; }
-    public bool DeepSearchImprovedResult { get; internal set; }
     public bool SingleSessionSearch { get; internal set; }
-    public TimeSpan ShortSearchElapsed { get; internal set; }
-    public TimeSpan DeepSearchElapsed { get; internal set; }
     public TimeSpan TotalSearchElapsed { get; internal set; }
     public long TotalWorkerAllocatedBytes { get; internal set; }
-    public int ShortExpandedNodes { get; internal set; }
-    public int DeepExpandedNodes { get; internal set; }
-    public int ShortTransitionCount { get; internal set; }
-    public int DeepTransitionCount { get; internal set; }
     public int TotalGen0Collections { get; internal set; }
     public int TotalGen1Collections { get; internal set; }
     public int TotalGen2Collections { get; internal set; }
