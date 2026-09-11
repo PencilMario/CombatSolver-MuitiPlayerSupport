@@ -1,5 +1,10 @@
 # CombatSolver 测试清单
 
+## 下一版本（开发中，暂不发版）：最终 Boss 直接深搜
+
+- 最终 Boss 的正式路径将 UI/统计短搜检查点归零，沿用既有深搜配置；代码核对进度的 elapsed < checkpoint 与短阶段累计计时均消费该值，药水审计沿用同一检查点。ForceShortOnly 显式约束在该分支前返回，保持测试/API 行为。
+- Release 构建通过（CopyModOnBuild=false），未运行实机或搜索场景，没有内存收益结论。首次构建编译成功、复制阶段因 SlayTheSpire2.exe 占用 DLL 而失败；本地游戏目录尚未部署此开发改动。
+
 ## 0.35.5：偷窃策略
 
 - 定位证据：本机进程 31712 的战斗日志 `combat-7165739b37ab40ecae1120a90a34198a.jsonl` 中 SEARCH_REQUEST 与最终结果均为 PreserveResources，最终零损、outstanding_stolen_resource=20；多次点击保策略也仍为该枚举，按钮没有接反。旧代码的审计合同明确要求先比较战损，已按用户新确认的保资源优先语义修正。

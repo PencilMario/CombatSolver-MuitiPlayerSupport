@@ -277,6 +277,12 @@ internal static partial class CombatSearchCoordinator
             return shortResult;
         }
 
+        if (root.BossHpRelief == BossHpRelief.RunEnding)
+        {
+            shortProfile = shortProfile with { SoftTimeBudgetMilliseconds = 0 };
+            policy.Diagnostics.Info("[CombatSolver/Test] FINAL_BOSS_DIRECT_DEEP short_checkpoint_ms=0");
+        }
+
         // 主搜索从深化宽度开始，短预算仅作为 UI/统计检查点。Beam 宽度增大
         // 不保证跨层候选仍是超集；未找到胜利时可用本层剩余预算进行一次窄 Beam 恢复。
         SolverSearchProfile deepProfile = policy.DeepProfile;

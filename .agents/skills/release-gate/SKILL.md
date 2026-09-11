@@ -118,6 +118,8 @@ Linux 不使用上述 Windows 路径。上传前必须设置 `COMBATSOLVER_MOD_U
 
 ## 6. GitHub 干净提交与推送
 
+用户已确认：以后版本更新发布时同步创建 GitHub Release，并上传该版本最小 ZIP，提供中英玩家更新日志。仅开发、暂不发版和单独推源码仍不创建 Release。发布使用 `gh release create v<版本> releases/CombatSolver-<版本>.zip --verify-tag --notes-file docs/releases/<版本>-RELEASE_NOTES.md`；若本次同版本上传已有成功证据，直接复用，不重复创建或上传。0.35.5 已完成 GitHub Release 上传。
+
 - 读取一次 `git status --short --branch`、当前分支、远端和领先关系。显式暂存本任务的跟踪文件；保留并排除用户其他改动、发布 ZIP、构建产物、日志和创意工坊暂存内容。
 - “干净提交”指提交内容边界干净，不表示删除未跟踪文件、清空工作区或回退用户改动。
 - 没有新改动但本地提交领先远端时直接推送，不创建空提交。需要提交时，一个提交只表达当前这组文档、修复或发布准备。
