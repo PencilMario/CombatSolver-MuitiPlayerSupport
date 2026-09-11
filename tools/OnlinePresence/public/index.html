@@ -58,11 +58,11 @@
         <p id="error" class="error" role="alert" hidden></p>
         <section class="period-comparisons" aria-label="在线人数变化">
           <div><span id="comparison-period">所选时段平均在线</span><strong id="period-average">—</strong><small id="period-coverage">—</small></div>
-          <div><span>环比 · 上一等长时段</span><strong id="previousPeriod-change">—</strong><small id="previousPeriod-detail">—</small></div>
+          <div><span>小时环比 · 最近 1 小时对比前 1 小时</span><strong id="previousPeriod-change">—</strong><small id="previousPeriod-detail">—</small></div>
           <div><span>日同比 · 昨天同时段</span><strong id="previousDay-change">—</strong><small id="previousDay-detail">—</small></div>
           <div><span>周同比 · 上周同时段</span><strong id="previousWeek-change">—</strong><small id="previousWeek-detail">—</small></div>
         </section>
-        <p class="subtle comparison-note">按趋势所选时长比较平均在线人数；只比较双方均有采样的分钟，缺失数据不计作 0。同比窗口向前平移 1 天／7 天，长窗口可能重叠。</p>
+        <p class="subtle comparison-note">小时环比固定比较最近两个完整的 60 分钟窗口，不随趋势视图变化；日／周同比按所选时长前移 1 天／7 天。仅比较双方均有采样的分钟，缺失不计作 0，长同比窗口可能重叠。</p>
         <details id="trend" class="trend">
           <summary>
             在线趋势 <span id="trend-caption">最近 24 小时 · 点击展开</span>

@@ -21,10 +21,15 @@ test('real zero stays valid and zero baseline has no percentage',()=>{
   assert.equal(result.average,0);assert.equal(result.previousPeriod.delta,0);
   assert.equal(result.previousPeriod.percent,null);assert.equal(result.previousPeriod.status,'zero_baseline');
 });
-test('30-day comparison uses preceding 30 days and last-week shifted window',()=>{
+test('7d and 30d views retain identical fixed hourly comparison',()=>{
   const time=now-minute;
-  const result=comparePeriods([{time,count:3},{time:time-30*24*hour,count:1},{time:time-week,count:2}],now,720);
-  assert.equal(result.previousPeriod.start,result.start-30*24*hour);
+  const rows=[{time,count:3},{time:time-hour,count:1},{time:time-week,count:2}];
+  const result=comparePeriods(rows,now,720);
+  assert.equal(result.previousPeriod.start,now-2*hour);
+  assert.equal(result.previousPeriod.end,now-hour);
+  assert.equal(result.previousPeriod.expectedMinutes,60);
+  assert.deepEqual(result.previousPeriod,comparePeriods(rows,now,168).previousPeriod);
+  assert.deepEqual(result.previousPeriod,comparePeriods(rows,now,1).previousPeriod);
   assert.equal(result.previousWeek.start,result.start-week);
   assert.equal(result.previousDay.start,result.start-24*hour);
   assert.equal(result.previousPeriod.delta,2);assert.equal(result.previousWeek.delta,1);

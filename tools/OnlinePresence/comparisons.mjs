@@ -10,19 +10,20 @@ export function comparePeriods(rows, now, hours) {
   for (let t = start; t < end; t += MINUTE) {
     if (counts.has(t)) { sum += counts.get(t); samples++; }
   }
-  function comparison(shift) {
+  function comparison(shift, window = duration) {
+    const windowStart = end - window;
     let current = 0, previous = 0, paired = 0;
-    for (let t = start; t < end; t += MINUTE) {
+    for (let t = windowStart; t < end; t += MINUTE) {
       if (counts.has(t) && counts.has(t - shift)) {
         current += counts.get(t); previous += counts.get(t - shift); paired++;
       }
     }
-    return {start:start-shift,end:end-shift,pairedMinutes:paired,expectedMinutes:duration/MINUTE,
-      coverage:paired/(duration/MINUTE),currentAverage:paired?current/paired:null,
+    return {start:windowStart-shift,end:end-shift,pairedMinutes:paired,expectedMinutes:window/MINUTE,
+      coverage:paired/(window/MINUTE),currentAverage:paired?current/paired:null,
       previousAverage:paired?previous/paired:null,delta:paired?(current-previous)/paired:null,
       percent:paired && previous>0?(current-previous)/previous*100:null,
-      status:paired===0?'missing':previous===0?'zero_baseline':paired<duration/MINUTE?'partial':'complete'};
+      status:paired===0?'missing':previous===0?'zero_baseline':paired<window/MINUTE?'partial':'complete'};
   }
   return {start,end,average:samples?sum/samples:null,sampledMinutes:samples,expectedMinutes:duration/MINUTE,
-    previousPeriod:comparison(duration),previousDay:comparison(86400000),previousWeek:comparison(WEEK)};
+    previousPeriod:comparison(3600000,3600000),previousDay:comparison(86400000),previousWeek:comparison(WEEK)};
 }
