@@ -629,7 +629,7 @@ internal static class SolverOverlay
             _summaryText.Visible = true;
             _summaryText.Text = _searchBestSnapshot is { } snapshot
                 ? SolverUiTokens.AdaptRichTextToActiveTheme(snapshot.SummaryText) +
-                  $"\n{reviewedWorldlinesText}"
+                  $"  │  {reviewedWorldlinesText}"
                 : reviewedWorldlinesText;
         }
         if (_searchProgressBar != null)
