@@ -1,5 +1,20 @@
 # CombatSolver 测试清单
 
+## 下一版本（开发中）：P0 / P1 反馈
+
+| 场景 | 最终 runId | 结果与范围 |
+| --- | --- | --- |
+| NATIVE-HAND-CHOICE-REPLAY | f56df4c5816d490fabbd1ebd8172c8bb | Passed，27.38 秒。燃烧契约原生选牌、投斧两次重放；主动构造选择计划失配，保留原生手牌选择，手动完成后具体出牌动作正常结束。 |
+| TURN-SETUP-UI-TOOLS | 2080e6ad6c7e4907b80ecddb919ce9cc | Passed，30.64 秒。必备工具 T2 准备选牌中停止、重算、再次停止、继续原生选择，返回 Play 后忙碌状态和输入锁均清除；短/深预算各 1000 ms。 |
+| UI-PRIORITY-FEEDBACK | 166804bf580b428dac522d4dca0fddcc | Passed，23.00 秒。主面板启停事件；清理会话且没有 TurnStarted 时恢复面板并保留手动计算；收起时财物提示在战损左侧、新搜索清除旧提示；设置面板从 440 增至 660 高度，内部滚动区增高至少 180，切页正常。 |
+| SEARCH-HP-TARGET-STOP | 60ec179b65e7413a8f3d6b3480d3c60e | Passed，23.50 秒。保留既有零损/阈值/开关/DOP2/禁忌魔典哨兵；狩猎兑现收益后零损停搜（1 节点）；指定一瓶与全局至少一瓶均以一瓶零损获胜并保留额外药水；可重复击杀来源在 3 敌人时保持目标 3。 |
+
+- 所有请求使用独立 headless 实例、120 秒上限并在完成后退出。结构门禁 `search_files=85`，Release 编译 0 警告 / 0 错误。
+- 失配基线 `3d174aeadc8942abbe94d88764b30f48` 明确失败于“原生选择被取消”；修复后手动恢复合同通过。此前初版 fixture `d2aca6c8ae944e63915a4b74c6505258` 错把动作队列临时空闲当作重放完成，改为复用生产 GameAction.CompletionTask 捕获后普通/投斧场景 `263cacd38bb74b19a43af1b8a4485927` 已通过；该初版错误不是产品卡死证据。一次编译失败后的旧产物测试启动被中止，未计为验证。
+- 未复现反馈中的所有“整个游戏进程无响应”情况；也未实际调用 BetterSpire2 的 SL 操作。无可见布局/鼠标验收，没有整场性能或所有第三方组合兼容结论。财物显示合同验证投影和布局，不新增怪物偷窃效果语义结论。
+
+复跑入口为 `tools/run-unattended-test.ps1 -ScenarioId <上述ID> -CharacterId IRONCLAD -EncounterId FUZZY_WURM_CRAWLER_WEAK -PreserveNativeCombatStateForTest -HeadlessInstance <独立名称> -ExitOnComplete -TimeoutSeconds 120`；TOOLS 使用 SILENT，并附 `-ShortSearchBudgetOverrideMilliseconds 1000 -DeepSearchBudgetOverrideMilliseconds 1000 -ForceShortSearchOnly`。
+
 ## 0.35.4：战损目标早停
 
 - `SEARCH-HP-TARGET-STOP` 最终 `f6b4b94d8a6641bf8a6ec2cdd953776b` Passed，22.85 秒；固定 128 节点、1500 ms 短搜，后台独立实例 `hp-target`，120 秒请求上限，完成后退出。

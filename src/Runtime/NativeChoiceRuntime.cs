@@ -410,14 +410,6 @@ internal sealed class NativeChoiceSession : IDisposable
         _surfaceLock = null;
     }
 
-    public void CancelVisibleSurfaceForReplan()
-    {
-        NativeChoiceSurface.Cancel(_firstVisibleRequest.Task.IsCompletedSuccessfully
-            ? _firstVisibleRequest.Task.Result.Surface
-            : null);
-        ReleaseVisibleSurface();
-    }
-
     internal async Task SelectVisibleCardsForTesting(
         NGame host,
         IReadOnlyList<CardModel> selected,

@@ -22,9 +22,9 @@ internal sealed partial class SolverSettingsPanel
     {
         ScrollContainer scroll = new()
         {
-            CustomMinimumSize = new Vector2(0, 310),
+            CustomMinimumSize = new Vector2(0, 120),
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ShrinkBegin,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
             VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
             MouseFilter = MouseFilterEnum.Pass,

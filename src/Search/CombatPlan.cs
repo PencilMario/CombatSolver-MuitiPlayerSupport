@@ -1301,6 +1301,8 @@ internal sealed class SimulationSnapshot(
     public int LiveDeckClutter { get; } = liveDeckClutter;
     public int LiveDeckSize { get; } = liveDeckSize;
     public int OutstandingStolenResource { get; } = outstandingStolenResource;
+    public int? UnrecoveredGold { get; init; }
+    public int? UnrecoveredCards { get; init; }
     public int OffensiveProgressValue { get; } = offensiveProgressValue;
     public int Energy { get; } = energy;
     public int Stars { get; } = stars;
@@ -1377,6 +1379,8 @@ internal sealed record SolverSnapshot(
     SearchBoundaryReason BoundaryReason,
     IReadOnlyList<PredictionGap> PredictionGaps)
 {
+    public int? UnrecoveredGold { get; init; }
+    public int? UnrecoveredCards { get; init; }
     public int GrowthHpCredit { get; init; }
     public GrowthValues GrowthRewards { get; init; }
 }

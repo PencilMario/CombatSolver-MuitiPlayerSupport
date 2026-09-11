@@ -61,6 +61,7 @@ internal sealed record SolverOverlaySnapshot(
     bool HasRisk,
     string? SearchLimitWarningText)
 {
+    public string? UnrecoveredLootText { get; init; }
     public static SolverOverlaySnapshot Capture(SolverResult result, bool unexpectedReplan)
         => CaptureWithReviewedWorldlines(result, unexpectedReplan, reviewedWorldlinesTotal: 0);
 
@@ -257,7 +258,13 @@ internal sealed record SolverOverlaySnapshot(
             turns,
             BuildDetails(result, startTurnNumber, unmirrored, compensated, unexpectedReplan),
             hasRisk,
-            BuildSearchLimitWarning(result.BoundaryReason));
+            BuildSearchLimitWarning(result.BoundaryReason))
+        {
+            UnrecoveredLootText = result.OutstandingStolenResource <= 0 ? null
+                : result.Snapshot.UnrecoveredGold is { } gold && result.Snapshot.UnrecoveredCards is { } cards
+                    ? SolverText.Format($"预计未追回：{cards} 张牌 / {gold} 金币")
+                    : SolverText.Format($"路线结束时未追回 {result.OutstandingStolenResource}"),
+        };
     }
 
     private static SolverOverlayTurnSnapshot CaptureTurn(SolverResult result, int turn)

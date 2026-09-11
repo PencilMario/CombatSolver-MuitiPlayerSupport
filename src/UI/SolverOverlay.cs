@@ -65,6 +65,8 @@ internal static class SolverOverlay
     private static Button? _adoptRouteButton;
     private static Button? _executeButton;
     private static Button? _fullAutoButton;
+    private static Button? _solverEnabledButton;
+    private static Label? _stolenResourceOutcomeLabel;
     private static CheckButton? _autoEnableFullAutoSwitch;
     private static Button? _systemMemoryReleaseButton;
     private static Button? _collapseButton;
@@ -688,6 +690,8 @@ internal static class SolverOverlay
             _potionOutcomeLabel.Visible = false;
         if (_hpOutcomeLabel != null)
             _hpOutcomeLabel.Visible = false;
+        if (_stolenResourceOutcomeLabel != null)
+            _stolenResourceOutcomeLabel.Visible = false;
         if (_hpRecoveredOutcomeLabel != null)
             _hpRecoveredOutcomeLabel.Visible = false;
         if (_deathOutcomeLabel != null)
@@ -772,6 +776,11 @@ internal static class SolverOverlay
     private static void PopulateRoute(SolverOverlaySnapshot snapshot, bool resetScroll)
     {
         SetRouteVisibility(true);
+        if (_stolenResourceOutcomeLabel != null)
+        {
+            _stolenResourceOutcomeLabel.Text = snapshot.UnrecoveredLootText ?? string.Empty;
+            _stolenResourceOutcomeLabel.Visible = snapshot.UnrecoveredLootText != null;
+        }
         if (_potionOutcomeLabel != null)
         {
             _potionOutcomeLabel.Visible = snapshot.ProjectedBattlePotionCount > 0;
@@ -1026,6 +1035,8 @@ internal static class SolverOverlay
         RefreshFeedbackBanner();
 
         bool solverDisabled = SolverController.SolverDisabled;
+        if (_solverEnabledButton != null)
+            _solverEnabledButton.Text = SolverText.Get(solverDisabled ? "求解器：关" : "求解器：开");
         bool searching = SolverController.IsSearching;
         bool adoptingRoute = SolverController.IsAdoptingCurrentRoute;
         bool canAdoptRoute = SolverController.CanAdoptCurrentRoute;
@@ -1395,6 +1406,9 @@ internal static class SolverOverlay
         _potionOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _potionOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         _routeHeadingRow.AddChild(_potionOutcomeLabel);
+        _stolenResourceOutcomeLabel = CreateTextLabel(string.Empty, SolverUiTokens.Type.Body, Danger, FontType.Bold);
+        _stolenResourceOutcomeLabel.Visible = false;
+        _routeHeadingRow.AddChild(_stolenResourceOutcomeLabel);
         _hpOutcomeLabel = CreateTextLabel(SolverText.Get("本局扣血  0 HP"), SolverUiTokens.Type.Body, Success, FontType.Bold);
         _hpOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _hpOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
@@ -1866,6 +1880,10 @@ internal static class SolverOverlay
         _fullAutoButton.CustomMinimumSize = new Vector2(124, SolverUiTokens.Size.ButtonHeight);
         _fullAutoButton.Pressed += OnFullAutoPressed;
         footer.AddChild(_fullAutoButton);
+        _solverEnabledButton = SolverUiTokens.CreateButton(SolverText.Get("求解器：开"), SolverButtonStyle.Secondary);
+        _solverEnabledButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
+        _solverEnabledButton.Pressed += () => SolverController.SetSolverDisabled(!SolverController.SolverDisabled);
+        footer.AddChild(_solverEnabledButton);
 
         HBoxContainer autoStart = new()
         {
@@ -2780,6 +2798,49 @@ internal static class SolverOverlay
             SolverController.BeginCombat(combat);
             SetCollapsed(originalCollapsed);
             RefreshControls();
+        }
+    }
+
+    internal static async Task ExercisePriorityUiForTesting(CombatState combat)
+    {
+        NGame host = NGame.Instance!;
+        SolverSettingsData original = SolverSettings.Current;
+        bool wasCollapsed = _collapsed;
+        try
+        {
+            SolverSettings.ApplyForTesting(original with { AutomaticCalculationEnabled = false });
+            ShowManualCalculationReady(host, false);
+            _solverEnabledButton!.EmitSignal(BaseButton.SignalName.Pressed);
+            if (!SolverController.SolverDisabled || _solverEnabledButton.Text != SolverText.Get("求解器：关"))
+                throw new InvalidOperationException("Main solver toggle did not disable the solver.");
+            _solverEnabledButton.EmitSignal(BaseButton.SignalName.Pressed);
+            if (SolverController.SolverDisabled)
+                throw new InvalidOperationException("Main solver toggle did not re-enable the solver.");
+            SolverController.Reset("test_sl_panel_loss");
+            SolverController.MonitorCombatPresence();
+            if (!IsVisible || SolverController.IsSearching)
+                throw new InvalidOperationException("SL panel recovery ignored manual calculation preference.");
+            SolverOverlaySnapshot snapshot = new(1, "UI test", SolverOverlayTone.Success, "", "", 0, 0, true,
+                "0 HP", 0, 0, false, [], "", false, null)
+            { UnrecoveredLootText = SolverText.Format($"预计未追回：{1} 张牌 / {30} 金币") };
+            ShowResult(host, snapshot);
+            SetCollapsed(true);
+            if (!_stolenResourceOutcomeLabel!.IsVisibleInTree()
+                || _stolenResourceOutcomeLabel.GetIndex() >= _hpOutcomeLabel!.GetIndex())
+                throw new InvalidOperationException("Unrecovered loot was not shown before HP loss in collapsed layout.");
+            ShowSearching(host, 1, false, 0);
+            if (_stolenResourceOutcomeLabel.Visible)
+                throw new InvalidOperationException("New search retained stale loot warning.");
+            SolverSettingsPanel settings = new();
+            host.AddChild(settings);
+            try { await settings.AssertResponsiveHeightForTesting(); }
+            finally { host.RemoveChild(settings); settings.QueueFree(); }
+        }
+        finally
+        {
+            SolverSettings.Update(original);
+            SolverController.SetSolverDisabled(original.SolverDisabled, persist: false);
+            SetCollapsed(wasCollapsed);
         }
     }
 

@@ -311,8 +311,11 @@ internal sealed partial class CombatBeamSolver
             return null;
         }
 
+        int requiredPotionUses = Math.Max(_minimumPotionUses,
+            _potionPolicy == SolverPotionPolicy.RequireAtLeastOne ? 1 : 0);
+        int earlyStopPotionUses = policy.MinimumRequiredPotionUses(battleDamage.PotionsUsedSoFar);
         bool IsEligibleCompleteVictory(SearchNode node)
-            => ExplicitPotionUseCount(node) >= _minimumPotionUses
+            => ExplicitPotionUseCount(node) >= requiredPotionUses
                 && (!_enforcePotionDirectives
                     || _potionStrategy.EvaluateForcedUses(
                             node.Actions,
@@ -325,8 +328,9 @@ internal sealed partial class CombatBeamSolver
                     node.Snapshot.ProjectedPlayerHp);
 
         bool MeetsHpTarget(SearchNode node)
-            => policy.CanStopAtHpTarget
+            => policy.GrowthTargetSatisfied(node.Snapshot.GrowthRewards)
                 && IsEligibleCompleteVictory(node)
+                && ExplicitPotionUseCount(node) <= earlyStopPotionUses
                 && battleDamage.HpLostSoFar + node.Snapshot.CumulativePlayerHpLost <= _acceptableBattleHpLoss;
 
         void ConsiderCompleteVictory(SearchNode node)
@@ -602,6 +606,8 @@ internal sealed partial class CombatBeamSolver
             {
                 GrowthHpCredit = finalSnapshot.GrowthHpCredit,
                 GrowthRewards = finalSnapshot.GrowthRewards,
+                UnrecoveredGold = finalSnapshot.UnrecoveredGold,
+                UnrecoveredCards = finalSnapshot.UnrecoveredCards,
             };
             ValidateOrderedMutationAdmissionLedger(_run);
             SolverResult result = new()

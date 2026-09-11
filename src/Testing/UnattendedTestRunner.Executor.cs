@@ -56,6 +56,16 @@ internal sealed partial class UnattendedTestRunner
                 await runner.AssertHpTargetStopAsync(combatState, player);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "NATIVE-HAND-CHOICE-REPLAY")
+            {
+                await runner.AssertNativeHandChoiceReplayAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "UI-PRIORITY-FEEDBACK")
+            {
+                await SolverOverlay.ExercisePriorityUiForTesting(combatState);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId is "NORMALITY-AUTOPLAY" or "NORMALITY-AUTOPLAY-REPLAY")
             {
                 await runner.AssertNormalityAutoPlayAsync(combatState, player);

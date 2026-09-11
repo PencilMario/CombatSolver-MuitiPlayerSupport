@@ -193,7 +193,7 @@ internal sealed partial class SolverSettingsPanel
             SetStatus(SolverText.Get("已保存，下次搜索生效"), SolverUiTokens.Palette.Success);
         };
         AddBasicRow(solverGrid, SolverText.Get("达到战损目标后停止搜索"), stopAtHpTarget,
-            SolverText.Get("默认开启。找到完整胜利且预计整场扣血不超过下方阈值时停止；0 表示零损。有对应成长卡牌且正在考虑成长收益时继续搜索。下次搜索生效。"));
+            SolverText.Get("默认开启。完整胜利达到战损阈值且没有多用药水时停止；0 表示零损。成长收益尚未满足时继续搜索，击杀成长牌兑现收益后可停止。下次搜索生效。"));
         AddBasicRow(solverGrid, SolverText.Get("提前结束搜索的战损阈值（HP）"), _acceptableBattleHpLoss,
             SolverText.Get("默认 0，即零损。启用上方开关后，找到预计整场扣血不超过此值的完整胜利路线就停止搜索；仅保存成长额度而本场没有对应卡牌时仍可早停。"));
         content.AddChild(solverGrid);
