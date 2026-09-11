@@ -50,7 +50,8 @@ internal static class SolverOverlay
     private static Label? _progressText;
     private static Label? _reviewText;
     private static ProgressBar? _searchProgressBar;
-    private static HBoxContainer? _routeHeadingRow;
+    private static HFlowContainer? _routeHeadingRow;
+    private static PanelContainer? _routeOutcomePanel;
     private static Label? _routeHeadingLabel;
     private static readonly SolverRouteRow[] RouteRows = new SolverRouteRow[SolverWeights.UiTurnRows];
     private static PanelContainer? _detailsPanel;
@@ -1371,11 +1372,14 @@ internal static class SolverOverlay
         lowerStack.AddChild(_body);
 
         _body.AddChild(CreateSummarySection());
-        _routeHeadingRow = new HBoxContainer
+        _routeOutcomePanel = CreateSectionPanel("RouteOutcomePanel");
+        _routeHeadingRow = new HFlowContainer
         {
             MouseFilter = Control.MouseFilterEnum.Ignore,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
+        _routeHeadingRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
+        _routeHeadingRow.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
         _routeHeadingLabel = CreateTextLabel(
             SolverText.Get("推荐路线"),
             SolverUiTokens.Type.Body,
@@ -1399,7 +1403,7 @@ internal static class SolverOverlay
         _stolenResourceOutcomeLabel = CreateTextLabel(string.Empty, SolverUiTokens.Type.Body, Danger, FontType.Bold);
         _stolenResourceOutcomeLabel.Visible = false;
         _routeHeadingRow.AddChild(_stolenResourceOutcomeLabel);
-        _hpOutcomeLabel = CreateTextLabel(SolverText.Get("本局扣血  0 HP"), SolverUiTokens.Type.Body, Success, FontType.Bold);
+        _hpOutcomeLabel = CreateTextLabel(SolverText.Get("本局扣血  0 HP"), SolverUiTokens.Type.Metric, Success, FontType.Bold);
         _hpOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _hpOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         _routeHeadingRow.AddChild(_hpOutcomeLabel);
@@ -1413,7 +1417,9 @@ internal static class SolverOverlay
         _hpRecoveredOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _hpRecoveredOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         _routeHeadingRow.AddChild(_hpRecoveredOutcomeLabel);
-        _body.AddChild(_routeHeadingRow);
+        _routeOutcomePanel.AddChild(_routeHeadingRow);
+        _body.AddChild(_routeOutcomePanel);
+        _body.MoveChild(_routeOutcomePanel, 0);
         VBoxContainer routes = new()
         {
             Name = "Routes",
@@ -1721,12 +1727,13 @@ internal static class SolverOverlay
         _summaryPanel.CustomMinimumSize = new Vector2(0, 64);
         VBoxContainer layout = new() { MouseFilter = Control.MouseFilterEnum.Pass };
         layout.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xxs);
-        HBoxContainer statusRow = new()
+        HFlowContainer statusRow = new()
         {
             MouseFilter = Control.MouseFilterEnum.Pass,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
-        statusRow.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Md);
+        statusRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
+        statusRow.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
         _summaryStatusBadge = new PanelContainer
         {
             MouseFilter = Control.MouseFilterEnum.Ignore,
@@ -1748,7 +1755,7 @@ internal static class SolverOverlay
             FontType.Bold);
         _summaryContextLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         _summaryContextLabel.CustomMinimumSize = new Vector2(104, 24);
-        _summaryContextLabel.ClipText = true;
+        _summaryContextLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         statusRow.AddChild(_summaryContextLabel);
         _summaryText = CreateRichText(SolverUiTokens.Type.Metric);
         _summaryText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
@@ -1764,14 +1771,13 @@ internal static class SolverOverlay
         statusRow.AddChild(_progressText);
         _reviewText = CreateTextLabel(
             string.Empty,
-            SolverUiTokens.Type.Metric,
+            SolverUiTokens.Type.Caption,
             SolverUiTokens.Palette.TextSecondary,
             FontType.Bold);
         _reviewText.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _reviewText.CustomMinimumSize = new Vector2(0, 24);
-        _reviewText.ClipText = true;
+        _reviewText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _reviewText.Visible = false;
-        statusRow.AddChild(_reviewText);
         _detailsButton = new SolverDetailsButton
         {
             Visible = false,
@@ -1779,7 +1785,7 @@ internal static class SolverOverlay
         _detailsButton.Pressed += ToggleDetails;
         MarginContainer detailsSlot = new()
         {
-            CustomMinimumSize = new Vector2(96, 24),
+            CustomMinimumSize = new Vector2(0, 24),
             MouseFilter = Control.MouseFilterEnum.Pass,
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
         };
@@ -1787,6 +1793,7 @@ internal static class SolverOverlay
         statusRow.AddChild(detailsSlot);
         layout.AddChild(statusRow);
         layout.AddChild(_summaryText);
+        layout.AddChild(_reviewText);
         _searchProgressBar = new ProgressBar
         {
             Name = "SearchProgress",
@@ -2081,6 +2088,8 @@ internal static class SolverOverlay
     {
         if (_routeHeadingRow != null)
             _routeHeadingRow.Visible = visible;
+        if (_routeOutcomePanel != null)
+            _routeOutcomePanel.Visible = visible;
         for (int index = 0; index < SolverWeights.UiTurnRows; index++)
             SetRouteRowVisible(index, visible);
         QueueResponsiveLayout();
@@ -2331,13 +2340,13 @@ internal static class SolverOverlay
         if (_settingsButton != null)
             _settingsButton.Visible = !_collapsed;
         // Keep the same outcome controls and presentation state in both layouts.
-        if (_routeHeadingRow != null && _mainStack != null && _body != null)
+        if (_routeOutcomePanel != null && _mainStack != null && _body != null)
         {
             Node parent = _collapsed ? _mainStack : _body;
-            if (_routeHeadingRow.GetParent() != parent)
+            if (_routeOutcomePanel.GetParent() != parent)
             {
-                _routeHeadingRow.Reparent(parent);
-                parent.MoveChild(_routeHeadingRow, _collapsed ? 0 : 1);
+                _routeOutcomePanel.Reparent(parent);
+                parent.MoveChild(_routeOutcomePanel, 0);
             }
         }
         if (_mainStack != null)
@@ -2760,13 +2769,13 @@ internal static class SolverOverlay
             Label outcome = _hpOutcomeLabel!;
             SetCollapsed(true);
             await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
-            Check(outcome.IsVisibleInTree() && !_body!.Visible && _routeHeadingRow!.GetParent() == _mainStack
+            Check(outcome.IsVisibleInTree() && !_body!.Visible && _routeOutcomePanel!.GetParent() == _mainStack
                 && outcome.Text == snapshot.HpOutcomeText && outcome.GetThemeColor("font_color") == Danger, "collapsed loss and color");
             ShowResult(host, snapshot with { HpOutcomeText = "0 HP", ProjectedBattleHpLost = 0 });
             Check(ReferenceEquals(outcome, _hpOutcomeLabel) && outcome.Text == "0 HP"
                 && outcome.GetThemeColor("font_color") == Success, "live update uses same label");
             SetCollapsed(false);
-            Check(_routeHeadingRow!.GetParent() == _body && outcome.IsVisibleInTree(), "expanded placement restored");
+            Check(_routeOutcomePanel!.GetParent() == _body && outcome.IsVisibleInTree(), "expanded placement restored");
             SetCollapsed(true);
             ShowSearching(host, 1, false, 0);
             Check(!outcome.Visible, "new search clears stale loss");
@@ -2816,12 +2825,22 @@ internal static class SolverOverlay
             if (!_stolenResourceOutcomeLabel!.IsVisibleInTree()
                 || _stolenResourceOutcomeLabel.GetIndex() >= _hpOutcomeLabel!.GetIndex())
                 throw new InvalidOperationException("Unrecovered loot was not shown before HP loss in collapsed layout.");
+            if (_routeOutcomePanel!.GetParent() != _mainStack)
+                throw new InvalidOperationException("Collapsed layout lost its result card.");
+            SetCollapsed(false);
+            if (_routeOutcomePanel.GetParent() != _body || _routeOutcomePanel.GetIndex() != 0)
+                throw new InvalidOperationException("Expanded result card was not restored above search status.");
             ShowSearching(host, 1, false, 0);
             if (_stolenResourceOutcomeLabel.Visible)
                 throw new InvalidOperationException("New search retained stale loot warning.");
             SolverSettingsPanel settings = new();
             host.AddChild(settings);
-            try { await settings.AssertResponsiveHeightForTesting(); }
+            try
+            {
+                await settings.AssertResponsiveHeightForTesting();
+                if (!settings.ExerciseThresholdOutsideClickForTesting())
+                    throw new InvalidOperationException("Moved performance threshold failed to save on focus loss.");
+            }
             finally { host.RemoveChild(settings); settings.QueueFree(); }
         }
         finally
