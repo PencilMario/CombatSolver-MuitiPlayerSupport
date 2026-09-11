@@ -13,7 +13,7 @@
 
 ## 配置与产物
 
-配置字段：`TraceToolPath` 指向 dotnet-trace 9.0.661903，`DumpToolPath` 指向 dotnet-dump（可选），`WatcherScriptPath` 指向本仓库 `tools/watch-performance.ps1`，`OutputDirectory` 是本地输出目录，`SourceRevision` 记录源码身份，`SegmentSeconds` 正常使用 300。启动记录另外保存实际 DLL SHA-256，避免把诊断 DLL 和同版本正式 DLL 混淆。
+配置字段：`TraceToolPath` 指向 dotnet-trace 9.0.661903，`DumpToolPath` 保持 null，`WatcherScriptPath` 指向本仓库 `tools/watch-performance.ps1`，`OutputDirectory` 是本地输出目录，`SourceRevision` 记录源码身份。`SegmentSeconds` 正常使用 300，`HandleWindowSeconds` 默认 10（允许 0—30；实际不超过周期的一半）。单采集器交替录制 10 秒句柄窗口和 290 秒普通段，约每五分钟一次句柄窗口；设 0 恢复普通分段。每段的实际模式、provider 和时长写在 collector.jsonl，不按文件编号猜测采集范围。启动记录另外保存实际 DLL SHA-256，避免把诊断 DLL 和同版本正式 DLL 混淆。
 
 每个进程目录包含：
 
@@ -36,12 +36,18 @@
 - 主线程：每帧心跳；每秒帧数、时间分布与最大帧；超过 100 ms 的帧单独记时；求解器 dispatcher 耗时/分配；主线程总分配。上下文每秒采样，瞬时部署以原始 `DEPLOY_START/ACTION/FINISH` 事件为准。
 - 场景：跑局、战斗、房间类型、楼层、遭遇、搜索/部署/全自动、窗口焦点、暂停、限帧和时间倍率。RunManager 的新建、读取、进入房间/章节、退出房间、胜利、放弃、清理及淡入淡出有配对跨度；异步跨度覆盖整个 Task，而不是仅计到第一个 await。
 - 内存：进程工作集、私有字节、峰值；系统可用物理内存/提交额度；累计缺页（含软缺页，不能直接称为磁盘换页）；进程 I/O；托管已分配量、堆大小、碎片、已提交量、各代回收次数、暂停、固定对象与终结队列、GC 模式。
+- 包装登记：每秒从线程安全的 GodotObjectInstances/OtherInstances 读取数量，写入 `wrapperRegistry`，不枚举或持有弱引用目标；未提供探针的独立测试进程记录 null。登记数量不等于 GC 句柄总数。
+- 句柄窗口：保留 GCHandle 创建/销毁事件，结合分配抽样与可用事件栈追查来源。窗口间的事件没有采集，句柄 ID 会重用，不能用跨窗差值当作全程泄漏量。并非每条句柄事件都有可解析栈；分析必须给出实际栈覆盖率。
 - CPU/线程：进程用户态/内核态累计 CPU；每五秒各 OS 线程 CPU 和等待状态；线程池排队/完成、活动 Timer、句柄数。主线程原生 ID 写在启动记录中。
 - 引擎：Godot 提供的节点、孤立节点、资源、纹理/显存、绘制调用、物理及管线编译等 monitors。发行版不提供的 monitor 可能是 0，不能据此断言对应占用为零。
 - 引用：仅用弱引用追踪见过的跑局、战斗、结果，记录存活时间与经历的 Gen2 数。最多 256 个槽，容量淘汰数量显式记录。存活不是泄漏定论；内存 dump 才能追到具体 GC root。记录器本身不强持有这些游戏对象。
 - Mod：程序集版本/路径与 Harmony 原方法、补丁方法、owner、优先级每分钟取一次。调用栈与这份清单用于归属，安装某 Mod 或它出现在栈中本身不证明它导致卡顿。
 
 采样线程时间包含等待，**不等于 CPU 占比**；与线程 CPU 增量、帧和锁竞争联合判断。此配置不是 Windows 内核调度/GPU 驱动跟踪，纯原生热点不保证有完整符号。分段退出/重新附加有空窗，采集器记录段起止，分析时必须报告覆盖空窗和 EventPipe 丢事件数。诊断有自身成本：主线程捕获、清单捕获、后台采样耗时及采集器 CPU/内存均留证，不能用这次带诊断的跑局直接宣称正式版帧率。
+
+GC 发起者要读取 `GCTriggered` 的关联栈，不能因为 `GCStart` 没有栈就认定未采集。EventPipe 将关联栈保存在 stack blocks；独立 `ClrStackWalk` 事件数为零不等于没有栈。`PerformanceRecordingTests trace-stacks <nettrace 或 etlx>` 验证关联栈并输出触发时间和来源；`trace-handles <nettrace>` 验证创建/销毁事件。关键词依据 [Microsoft GC Handles 说明](https://devblogs.microsoft.com/dotnet/?p=26461) 和 [官方 TraceEvent 解析器](https://github.com/microsoft/perfview/blob/main/src/TraceEvent/Parsers/ClrTraceEventParser.cs.base)。Stack 位持续开启，GCHandle 位仅在窗口开启；这不是堆转储，不能承诺完整强引用根链。
+
+Collector 的 complete 仅表示采集工具退出、文件与压缩收尾，`traceIntegrity=requires_parser_validation` 明确保留完整性验证。文件是否截断、是否丢事件仍须实际解析，尤其是进程退出时的最后一段。
 
 ## 所有权与故障处理
 

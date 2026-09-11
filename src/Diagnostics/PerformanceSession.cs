@@ -5,12 +5,15 @@ using System.Threading.Channels;
 
 namespace CombatSolver;
 
+internal readonly record struct WrapperRegistrySnapshot(int GodotObjects, int OtherWrappers);
+
 // Local, opt-in diagnostics. The writer accepts scalar snapshots only; it never owns game models.
 internal sealed class PerformanceSession : IDisposable
 {
     private readonly Channel<object> _events = Channel.CreateBounded<object>(8192);
     private readonly Task _writer;
     private readonly Process _process = Process.GetCurrentProcess();
+    private readonly Func<WrapperRegistrySnapshot>? _wrapperRegistry;
     private long _dropped;
     private long _heartbeat = Stopwatch.GetTimestamp();
     private int _stopping;
@@ -19,8 +22,9 @@ internal sealed class PerformanceSession : IDisposable
     internal long Dropped => Interlocked.Read(ref _dropped);
     internal static long Now => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
-    internal PerformanceSession(string directory)
+    internal PerformanceSession(string directory, Func<WrapperRegistrySnapshot>? wrapperRegistry = null)
     {
+        _wrapperRegistry = wrapperRegistry;
         Directory.CreateDirectory(directory);
         _writer = Task.Factory.StartNew(() => Run(directory), CancellationToken.None,
             TaskCreationOptions.LongRunning, TaskScheduler.Default);
@@ -78,6 +82,7 @@ internal sealed class PerformanceSession : IDisposable
                         serverGc = System.Runtime.GCSettings.IsServerGC, generations, memory,
                         poolThreads = ThreadPool.ThreadCount, poolPending = ThreadPool.PendingWorkItemCount,
                         poolCompleted = ThreadPool.CompletedWorkItemCount, timers = Timer.ActiveCount,
+                        wrapperRegistry = _wrapperRegistry?.Invoke(),
                         dropped = Dropped, samplerMs = Stopwatch.GetElapsedTime(workStart).TotalMilliseconds
                     }));
                     if (samples++ % 5 == 0) WriteThreads(output);

@@ -27,9 +27,11 @@
 
 第 7 段 76 条大于 100 ms 长帧中，56 条至少 80% 的帧间隔被 GC 的 SuspendEE→RestartEE 区间覆盖。该段停止托管线程区间合计约 37.07 秒；相同时间范围内每秒采样的 `GC.GetTotalPauseDuration` 增量约 31.50 秒。两者边界及统计口径不同，不把它们混作同一个“GC 执行时间”。原始长帧也不是 CPU 时间。
 
-原版 `PreloadManager.LoadRoomAssets` 在资源加载完成后执行 `GC.Collect()`，`LoadRunAssets`、`LoadActAssets` 也有同样入口。这解释了加载房间会主动碰到昂贵回收的机制。上述 GCStart 事件没有附带调用栈，因此不能逐次断言所有主线程 Induced 都由这一方法调用。对应 EnterRoomInternal 跨度分别约 1.97、2.06、2.01 秒，与长 GC 时间吻合。
+原版 `PreloadManager.LoadRoomAssets` 在资源加载完成后执行 `GC.Collect()`，`LoadRunAssets`、`LoadActAssets` 也有同样入口。后续补读 GCTriggered 的关联栈，已确认表中三次主线程 Induced 都来自 LoadRoomAssets。对应 EnterRoomInternal 跨度分别约 1.97、2.06、2.01 秒，与长 GC 时间吻合。
 
-16:57:20 的大暂停发生在我们 `combat_ended` 后台回收请求之前：后台请求时间为 16:57:20.656 附近，而这个长帧到此刚结束。不能误把随后那次后台回收当作这 2.82 秒暂停的发起者。
+16:57:20 的大暂停由 `SearchGcPolicy.DescribeProcessMemory → RequestReclaimLocked → ReclaimAfterReferenceReleaseBoundaryAsync` 路径的分配触发 Gen0。日志请求记录在 16:57:20.656 附近才写出，因为构造这条日志时就触发了 GC；不能仅用日志落盘时间认定请求尚未开始。这与随后显式发起的后台 Gen2 是两次不同事件。
+
+分析修正：初次只读 GCStart（无栈），漏读了 GCTriggered。旧第 7 段 102 条 GCTriggered 均有关联栈，根本不需要为这些栈重录；本段有 19 次 LoadRoomAssets 触发与 14 次本 Mod 后台收集触发。派生 `trigger-origins.json` 保留事件时间和来源。该修正定位的是 GC 触发者，不是旧对象的完整强引用持有者；不能把 2.82 秒 GC 暂停说成 DescribeProcessMemory 的独占执行耗时。
 
 ## 为什么更容易越打越卡
 

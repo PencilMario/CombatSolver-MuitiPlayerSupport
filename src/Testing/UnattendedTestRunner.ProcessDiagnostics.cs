@@ -8,6 +8,10 @@ internal sealed partial class UnattendedTestRunner
 {
     private async Task AssertProcessDiagnosticsAsync()
     {
+        WrapperRegistrySnapshot wrappers = await Task.Run(PerformanceRecording.CreateWrapperRegistryProbe());
+        if (wrappers.GodotObjects <= 0 || wrappers.OtherWrappers <= 0)
+            throw new InvalidOperationException("Live Godot registry counters were not available to the background sampler.");
+        _completedChecks.Add("ProcessDiagnostics:BackgroundGodotRegistryCounts");
         var manager = RunManager.Instance;
         var service = manager.NetService;
         PropertyInfo property = typeof(RunManager).GetProperty(nameof(RunManager.NetService))!;

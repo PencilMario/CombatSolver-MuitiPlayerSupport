@@ -15,7 +15,7 @@ namespace CombatSolver;
 internal sealed partial class PerformanceRecording : Node
 {
     private sealed record Configuration(string TraceToolPath, string WatcherScriptPath, string OutputDirectory,
-        string SourceRevision, int SegmentSeconds = 300, string? DumpToolPath = null);
+        string SourceRevision, int SegmentSeconds = 300, string? DumpToolPath = null, int HandleWindowSeconds = 10);
     private sealed record Tracked(long Id, string Kind, WeakReference<object> Reference, long CreatedMs, int Gen2);
     private static PerformanceRecording? _instance;
     private static PerformanceSession? _processSession;
@@ -81,11 +81,13 @@ internal sealed partial class PerformanceRecording : Node
                 ?? throw new InvalidDataException("Performance recording configuration is empty.");
             if (config.SegmentSeconds < 10 || config.SegmentSeconds > 1800)
                 throw new InvalidDataException("SegmentSeconds must be between 10 and 1800.");
+            if (config.HandleWindowSeconds < 0 || config.HandleWindowSeconds > 30)
+                throw new InvalidDataException("HandleWindowSeconds must be between 0 and 30.");
             if (!File.Exists(config.TraceToolPath) || !File.Exists(config.WatcherScriptPath))
                 throw new FileNotFoundException("Performance trace tool or watcher script is missing.");
             _canSnapshot = config.DumpToolPath != null && File.Exists(config.DumpToolPath);
             _directory = Path.Combine(config.OutputDirectory, DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + System.Environment.ProcessId);
-            _processSession = _session = new PerformanceSession(_directory);
+            _processSession = _session = new PerformanceSession(_directory, CreateWrapperRegistryProbe());
             _processDirectory = _directory;
             _processCanSnapshot = _canSnapshot;
             GetTree().Root.TreeExiting += StopProcessRecording;
@@ -93,7 +95,7 @@ internal sealed partial class PerformanceRecording : Node
             _lifecyclePatches = PerformanceLifecycle.Start();
             _session.Write(new { kind = "start", utcMs = PerformanceSession.Now, pid = System.Environment.ProcessId,
                 mainThread = System.Environment.CurrentManagedThreadId, nativeMainThread = OperatingSystem.IsWindows() ? GetCurrentThreadId() : 0,
-                config.SourceRevision, config.SegmentSeconds, version = typeof(Entry).Assembly.GetName().Version?.ToString(),
+                config.SourceRevision, config.SegmentSeconds, config.HandleWindowSeconds, version = typeof(Entry).Assembly.GetName().Version?.ToString(),
                 runtime = RuntimeInformation.FrameworkDescription, os = RuntimeInformation.OSDescription,
                 assemblySha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(typeof(Entry).Assembly.Location))),
                 onlineStatistics = SolverSettings.Current.OnlineStatisticsEnabled,
@@ -240,6 +242,18 @@ internal sealed partial class PerformanceRecording : Node
         _status.Modulate = failed ? Colors.Red : healthy ? Colors.LightGreen : Colors.Yellow;
     }
 
+    internal static Func<WrapperRegistrySnapshot> CreateWrapperRegistryProbe()
+    {
+        Type tracker = typeof(Node).Assembly.GetType("Godot.DisposablesTracker", throwOnError: true)!;
+        const BindingFlags flags = BindingFlags.Static | BindingFlags.NonPublic;
+        var objects = (System.Collections.ICollection)(tracker.GetProperty("GodotObjectInstances", flags)
+            ?? throw new MissingMemberException(tracker.FullName, "GodotObjectInstances")).GetValue(null)!;
+        var wrappers = (System.Collections.ICollection)(tracker.GetProperty("OtherInstances", flags)
+            ?? throw new MissingMemberException(tracker.FullName, "OtherInstances")).GetValue(null)!;
+        // Counts only: no traversal or promotion of weak targets into diagnostic state.
+        return () => new(objects.Count, wrappers.Count);
+    }
+
     private void Inventory()
     {
         long started = Stopwatch.GetTimestamp();
@@ -261,9 +275,13 @@ internal sealed partial class PerformanceRecording : Node
     {
         if (info == null) return [];
         return new[] { ("prefix", info.Prefixes), ("postfix", info.Postfixes), ("transpiler", info.Transpilers), ("finalizer", info.Finalizers) }
-            .SelectMany(group => group.Item2.Select(p => (object)new { type = group.Item1, p.owner, p.priority,
-                method = p.PatchMethod.DeclaringType?.FullName + "." + p.PatchMethod.Name,
-                assembly = p.PatchMethod.DeclaringType?.Assembly.FullName })).ToArray();
+            .SelectMany(group => group.Item2.Select(p =>
+            {
+                MethodInfo method = p.PatchMethod;
+                return (object)new { type = group.Item1, p.owner, p.priority,
+                    method = method.DeclaringType?.FullName + "." + method.Name,
+                    assembly = method.DeclaringType?.Assembly.FullName };
+            })).ToArray();
     }
 
     public override void _ExitTree()

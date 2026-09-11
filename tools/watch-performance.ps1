@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory)][int]$TargetProcessId,
     [Parameter(Mandatory)][string]$SessionDirectory,
     [Parameter(Mandatory)][string]$TraceToolPath,
-    [int]$SegmentSeconds = 300,
+    [ValidateRange(10, 1800)][int]$SegmentSeconds = 300,
     [string]$GameLogDirectory = ''
 )
 $ErrorActionPreference = 'Stop'
@@ -18,11 +18,15 @@ $dump = $null
 $dumpRequest = 0L
 $dumpPath = ''
 $dumpTool = $null
+$handleWindowSeconds = 10
 $configurationPath = Join-Path $SessionDirectory 'configuration.json'
 if ([IO.File]::Exists($configurationPath)) {
     $configuration = [IO.File]::ReadAllText($configurationPath) | ConvertFrom-Json
     $dumpTool = $configuration.DumpToolPath
+    if ($null -ne $configuration.HandleWindowSeconds) { $handleWindowSeconds = [int]$configuration.HandleWindowSeconds }
 }
+if ($handleWindowSeconds -lt 0 -or $handleWindowSeconds -gt 30) { throw 'HandleWindowSeconds must be between 0 and 30.' }
+$handleWindowSeconds = [Math]::Min($handleWindowSeconds, [int][Math]::Floor($SegmentSeconds / 2))
 function Record($value) {
     $value.utcMs = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     [IO.File]::AppendAllText($journalPath, (($value | ConvertTo-Json -Compress -Depth 8) + "`n"))
@@ -88,7 +92,7 @@ function PollCompression {
 try {
     $target = [Diagnostics.Process]::GetProcessById($TargetProcessId)
     $startedAt = $target.StartTime.ToUniversalTime()
-    Record @{ kind = 'start'; target = $TargetProcessId; processStart = $startedAt.ToString('O'); segmentSeconds = $SegmentSeconds; tool = $TraceToolPath }
+    Record @{ kind = 'start'; target = $TargetProcessId; processStart = $startedAt.ToString('O'); segmentSeconds = $SegmentSeconds; handleWindowSeconds = $handleWindowSeconds; tool = $TraceToolPath }
     $segment = 0
     $totalBytes = 0L
     while (!$target.HasExited) {
@@ -100,13 +104,19 @@ try {
         $tracePath = Join-Path $SessionDirectory ('trace-{0:D4}.nettrace' -f $segment)
         $stdoutPath = Join-Path $SessionDirectory ('trace-{0:D4}.stdout.txt' -f $segment)
         $stderrPath = Join-Path $SessionDirectory ('trace-{0:D4}.stderr.txt' -f $segment)
-        $duration = [TimeSpan]::FromSeconds($SegmentSeconds).ToString('dd\:hh\:mm\:ss')
+        # One collector alternates a bounded handle window with the normal trace. Stack
+        # events remain enabled in both, including callers that explicitly trigger GC.
+        $handleWindow = $handleWindowSeconds -gt 0 -and ($segment % 2 -eq 1)
+        $durationSeconds = if ($handleWindow) { $handleWindowSeconds } elseif ($handleWindowSeconds -gt 0) { $SegmentSeconds - $handleWindowSeconds } else { $SegmentSeconds }
+        $mode = if ($handleWindow) { 'gc_handles' } else { 'standard' }
+        $providers = if ($handleWindow) { 'Microsoft-Windows-DotNETRuntime:0x104003C01F:5' } else { 'Microsoft-Windows-DotNETRuntime:0x104003C01D:5' }
+        $duration = [TimeSpan]::FromSeconds($durationSeconds).ToString('dd\:hh\:mm\:ss')
         Health 'starting' $tracePath
-        Record @{ kind = 'segment_start'; segment = $segment; path = $tracePath }
+        Record @{ kind = 'segment_start'; segment = $segment; path = $tracePath; mode = $mode; durationSeconds = $durationSeconds; providers = $providers }
         # Start-Process joins arguments; quote the output path explicitly. Other arguments are fixed values/integers.
         $arguments = @('collect', '--process-id', "$TargetProcessId", '--duration', $duration,
             '--buffersize', '128', '--profile', 'dotnet-common,dotnet-sampled-thread-time',
-            '--providers', 'Microsoft-Windows-DotNETRuntime:0x100003C01D:5',
+            '--providers', $providers,
             '--output', ('"' + $tracePath + '"'))
         $collector = Start-Process -FilePath $TraceToolPath -ArgumentList $arguments -PassThru -WindowStyle Hidden `
             -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath
@@ -128,7 +138,7 @@ try {
             Record @{ kind = 'collector_sample'; segment = $segment; bytes = $bytes; status = $status;
                 targetExited = $target.HasExited; collectorCpuMs = $collector.TotalProcessorTime.TotalMilliseconds;
                 collectorWorkingSet = $collector.WorkingSet64; freeDisk = $drive.AvailableFreeSpace }
-            if (!$target.HasExited -and ([DateTime]::UtcNow - $start).TotalSeconds -gt ($SegmentSeconds + 120)) {
+            if (!$target.HasExited -and ([DateTime]::UtcNow - $start).TotalSeconds -gt ($durationSeconds + 120)) {
                 throw 'Trace collector exceeded segment duration plus 120 seconds; capture is incomplete.'
             }
             if ($target.HasExited -and ([DateTime]::UtcNow - $lastGrowth).TotalSeconds -gt 30) {
@@ -141,7 +151,7 @@ try {
         $code = $collector.ExitCode
         $bytes = if ([IO.File]::Exists($tracePath)) { ([IO.FileInfo]::new($tracePath)).Length } else { 0L }
         $totalBytes += $bytes
-        Record @{ kind = 'segment_end'; segment = $segment; exitCode = $code; bytes = $bytes; elapsedSeconds = ([DateTime]::UtcNow - $start).TotalSeconds }
+        Record @{ kind = 'segment_end'; segment = $segment; exitCode = $code; bytes = $bytes; mode = $mode; durationSeconds = $durationSeconds; elapsedSeconds = ([DateTime]::UtcNow - $start).TotalSeconds }
         $collector.Dispose()
         $collector = $null
         $target.Refresh()
@@ -163,8 +173,8 @@ try {
     if ($GameLogDirectory -and [IO.File]::Exists((Join-Path $GameLogDirectory 'godot.log'))) {
         Copy-Item -LiteralPath (Join-Path $GameLogDirectory 'godot.log') -Destination (Join-Path $SessionDirectory 'godot.log')
     }
-    Record @{ kind = 'complete'; segments = $segment; totalTraceBytes = $totalBytes }
-    Health 'complete' 'Game process exited; all trace segments finalized.' $totalBytes
+    Record @{ kind = 'complete'; segments = $segment; totalTraceBytes = $totalBytes; traceIntegrity = 'requires_parser_validation' }
+    Health 'complete' 'Collector exited and files finalized; trace integrity requires parser validation.' $totalBytes
 }
 catch {
     if ($null -ne $collector -and !$collector.HasExited) { $collector.Kill() }

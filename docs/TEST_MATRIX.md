@@ -4,6 +4,10 @@
 
 ### 26356 三层卡顿修复
 
+- 录制升级独立目标运行 36 秒，测试周期 20 秒（10 秒句柄/10 秒普通段），watcher 三段收尾并压缩，目标 writer/drain/停顿心跳合同通过。第一段 17,338 次句柄创建、17,274 次销毁，EventsLost=0；第二段没有句柄事件，窗口隔离有效。外层临时 PowerShell 包装误把未设置的 LASTEXITCODE 当失败；collector-health 为 complete，目标 stdout 为 PASS，随后按实际产物解析验证，未重复录制。
+- EventPipe 栈验证初版错误地要求独立 ClrStackWalk 非零，已修正为读取 ETLX 关联栈：第一段 32/17,338 条句柄创建有栈，540/540 条 GCTriggered 有栈，不能声称每个句柄都有栈。旧第 7 段 102/102 条 GCTriggered 有栈。新增 `trace-stacks` 输出触发时间/来源；句柄事件验证与栈关联验证分别执行。
+- `PerformanceRecordingTests registry` 验证后台计数落入 timeline；`PROCESS-DIAGNOSTICS` / `8c08835ad3e64332b3085eb19de2b858` Passed，22.92 秒，真实 Godot 两个弱登记容器可在后台读取数量，原跨战斗摘要与读档心跳合同保持。没有新的玩家长局性能或完整 GC root 证据。
+
 - `NODE-POOL-LIFETIME` / `374081022814401586f01f02b9e8db49` Passed，23.01 秒。实际调用 NCard/NGridCardHolder 的已打补丁泛型方法，各复用 200 次；验证出站、入站、子节点递归、离树目标保留以及包装登记无正增长（-2071 / 0，首项包含同期终结器清理，不能解释成精确释放数量）。没有用静态 helper 替代生产入口。
 - `SEARCH-HP-TARGET-STOP` / `9f80fe8fcdba48e7b82aad50b49b965d` Passed，8.58 秒，零损/阈值/成长/药水早停合同保持。没有运行完整三层可见 A/B。
 - `CombatSolver.GcPolicyChecks` 默认 20 项通过，覆盖刚回收后少量分配、整层超过区域容量、有效预测可回收、缺失预测、NoGC 丢失及累计指标；`memory` 通过玩家物理压力样本、碎片选择及真实一次压缩/常规收集。碎片选择使用玩家数值作为输入，实际收集发生在小测试进程，不据此推断大堆暂停收益。`scopes` 8 项通过。
