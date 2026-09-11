@@ -8,10 +8,14 @@ namespace CombatSolver;
 internal sealed partial class SolverRelicStrategyPanel : PanelContainer
 {
     internal const float PreferredWidth = 390f;
-    private sealed record Row(RelicCounterCatalog.Entry Entry, CheckButton Enabled, SpinBox Minimum, SpinBox Maximum, SpinBox Hp, Label Status);
+    private sealed record Row(RelicCounterCatalog.Entry Entry, CheckButton Enabled, SpinBox Minimum, SpinBox Maximum, SpinBox Hp, Label Status, Control Card, TextureRect Icon);
     private readonly List<Row> _rows = [];
     private readonly CheckButton _enabled;
     private bool _refreshing;
+    private readonly VBoxContainer _cards = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+    private readonly CheckButton _showUnowned;
+    private readonly Label _empty;
+    private ulong _lastOwnedMask = ulong.MaxValue;
     public event Action<bool, RelicCounterRule[]>? PolicyChanged;
 
     public SolverRelicStrategyPanel()
@@ -23,45 +27,81 @@ internal sealed partial class SolverRelicStrategyPanel : PanelContainer
         AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(SolverUiTokens.Palette.Surface,
             SolverUiTokens.Palette.BorderSubtle, SolverUiTokens.Radius.Medium, SolverUiTokens.Spacing.Sm, SolverUiTokens.Spacing.Sm));
         VBoxContainer layout = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        layout.AddThemeConstantOverride("separation", 10);
         AddChild(layout);
         HBoxContainer master = new();
-        Label title = Text("控制战斗结束时的遗物计数");
+        Label title = SolverUiTokens.CreateLabel(SolverText.Get("遗物计数策略"), SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary);
         title.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        title.Name = "StrategyHeading";
         master.AddChild(title);
         _enabled = SolverSettingsPanel.CreateToggle();
         _enabled.Name = "RelicStrategyEnabled";
         master.AddChild(_enabled);
         layout.AddChild(master);
-        layout.AddChild(Text("总开关与单项开关同时开启才生效。范围包含两端；每项达标最多折算一次额外战损，多个遗物额度相加。"));
-        layout.AddChild(Text("只考虑当前持有的遗物。计数目标满足后，仍按原战损、成长和药水条件达标早停。"));
+        Label hint = Text("设好结束计数，达标后仍可早停。");
+        hint.TooltipText = SolverText.Get("总开关与单项开关同时开启才生效。范围包含两端；每项达标最多折算一次额外战损，多个遗物额度相加。")
+            + "\n" + SolverText.Get("只考虑当前持有的遗物。计数目标满足后，仍按原战损、成长和药水条件达标早停。");
+        layout.AddChild(hint);
+        HBoxContainer filter = new();
+        filter.AddChild(Text("显示未持有"));
+        _showUnowned = SolverSettingsPanel.CreateToggle();
+        filter.AddChild(_showUnowned);
+        layout.AddChild(filter);
         ScrollContainer scroll = new() { SizeFlagsVertical = SizeFlags.ExpandFill, SizeFlagsHorizontal = SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new(0, 160) };
         VBoxContainer rows = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         rows.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        _cards.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        _empty = Text("当前没有可卡数的遗物。打开“显示未持有”可提前配置。");
+        rows.AddChild(_empty);
+        rows.AddChild(_cards);
         foreach (var entry in RelicCounterCatalog.All)
         {
             RelicModel relic = entry.Canonical();
-            VBoxContainer group = new();
+            PanelContainer card = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            card.AddThemeStyleboxOverride("panel", SolverUiTokens.CreateBox(SolverUiTokens.Palette.Surface,
+                SolverUiTokens.Palette.BorderSubtle, SolverUiTokens.Radius.Medium, 10, 8));
+            VBoxContainer group = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            group.AddThemeConstantOverride("separation", 10);
+            card.AddChild(group);
             HBoxContainer heading = new();
+            heading.AddThemeConstantOverride("separation", 10);
+            TextureRect icon = RelicIcon(relic, 40);
+            heading.AddChild(icon);
+            VBoxContainer identity = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ShrinkCenter };
             Label name = SolverUiTokens.CreateLabel(relic.Title.GetFormattedText(), SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary);
             name.SizeFlagsHorizontal = SizeFlags.ExpandFill;
             name.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-            heading.AddChild(name);
+            identity.AddChild(name);
+            Label status = Text("未持有");
+            identity.AddChild(status);
+            heading.AddChild(identity);
             CheckButton toggle = SolverSettingsPanel.CreateToggle();
             toggle.Name = entry.Id + "Enabled";
             heading.AddChild(toggle);
             group.AddChild(heading);
-            Label status = Text("未持有");
-            group.AddChild(status);
             HBoxContainer values = new();
-            SpinBox minimum = Number(values, "最小", entry.Period - 1);
-            SpinBox maximum = Number(values, "最大", entry.Period - 1);
-            SpinBox hp = Number(values, "额外战损", 1000);
+            values.AddThemeConstantOverride("separation", 12);
+            VBoxContainer range = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsStretchRatio = 1.6f };
+            range.AddChild(Text("结束计数范围"));
+            HBoxContainer bounds = new();
+            SpinBox minimum = Number(bounds, entry.Period - 1, 62);
+            bounds.AddChild(Text("—", localized: true));
+            SpinBox maximum = Number(bounds, entry.Period - 1, 62);
+            minimum.TooltipText = SolverText.Get("最小");
+            maximum.TooltipText = SolverText.Get("最大");
+            range.AddChild(bounds);
+            values.AddChild(range);
+            VBoxContainer cost = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+            cost.AddChild(Text("愿付额外战损"));
+            HBoxContainer costInput = new();
+            SpinBox hp = Number(costInput, 1000, 100);
             hp.Suffix = "HP";
+            cost.AddChild(costInput);
+            values.AddChild(cost);
             group.AddChild(values);
-            rows.AddChild(group);
-            rows.AddChild(new HSeparator());
-            Row row = new(entry, toggle, minimum, maximum, hp, status);
+            _cards.AddChild(card);
+            Row row = new(entry, toggle, minimum, maximum, hp, status, card, icon);
             _rows.Add(row);
             toggle.Toggled += _ => Publish();
             minimum.ValueChanged += _ => { if (!_refreshing && minimum.Value > maximum.Value) maximum.SetValueNoSignal(minimum.Value); Publish(); };
@@ -72,14 +112,16 @@ internal sealed partial class SolverRelicStrategyPanel : PanelContainer
         VBoxContainer inventory = new() { Visible = false, SizeFlagsHorizontal = SizeFlags.ExpandFill };
         foreach (RelicModel relic in ModelDb.AllRelics.Where(relic => RelicCounterCatalog.Identify(relic) == null
             && relic.GetType().GetProperty(nameof(RelicModel.DisplayAmount))!.DeclaringType != typeof(RelicModel)))
-            inventory.AddChild(Text(relic.Title.GetFormattedText() + " — " + SolverText.Get(RelicCounterCatalog.UnavailableReason(relic)), localized: true));
-        inventory.AddChild(Text(ModelDb.Relic<Lantern>().Title.GetFormattedText() + " — " + SolverText.Get("首回合触发，没有跨战斗计数。"), localized: true));
+            AddUnavailable(inventory, relic, RelicCounterCatalog.UnavailableReason(relic));
+        AddUnavailable(inventory, ModelDb.Relic<Lantern>(), "首回合触发，没有跨战斗计数。");
         others.Toggled += visible => inventory.Visible = visible;
         rows.AddChild(others);
         rows.AddChild(inventory);
         scroll.AddChild(rows);
         layout.AddChild(scroll);
         _enabled.Toggled += _ => Publish();
+        _showUnowned.Toggled += _ => Refresh(SolverController.IsDeploying);
+        SolverUiTokens.StyleStrategyPanel(this);
         Refresh(false);
     }
 
@@ -91,15 +133,33 @@ internal sealed partial class SolverRelicStrategyPanel : PanelContainer
         return label;
     }
 
-    private static SpinBox Number(HBoxContainer parent, string label, int maximum)
+    private static TextureRect RelicIcon(RelicModel relic, int size) => new()
     {
-        VBoxContainer column = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        column.AddChild(Text(label));
+        Texture = relic.Icon, CustomMinimumSize = new(size, size),
+        ExpandMode = TextureRect.ExpandModeEnum.IgnoreSize,
+        StretchMode = TextureRect.StretchModeEnum.KeepAspectCentered,
+        SizeFlagsVertical = SizeFlags.ShrinkCenter,
+        TooltipText = relic.Title.GetFormattedText(),
+    };
+
+    private static void AddUnavailable(VBoxContainer parent, RelicModel relic, string reason)
+    {
+        HBoxContainer row = new();
+        row.AddThemeConstantOverride("separation", 8);
+        row.AddChild(RelicIcon(relic, 32));
+        VBoxContainer description = new() { SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        description.AddChild(SolverUiTokens.CreateLabel(relic.Title.GetFormattedText(), SolverUiTokens.Type.Body, SolverUiTokens.Palette.TextPrimary));
+        description.AddChild(Text(reason));
+        row.AddChild(description);
+        parent.AddChild(row);
+    }
+
+    private static SpinBox Number(HBoxContainer parent, int maximum, int width)
+    {
         SpinBox input = new() { MinValue = 0, MaxValue = maximum, Step = 1, Rounded = true,
-            CustomMinimumSize = new(100, 34), SizeFlagsHorizontal = SizeFlags.ExpandFill, UpdateOnTextChanged = false };
+            CustomMinimumSize = new(width, 40), SizeFlagsHorizontal = SizeFlags.ExpandFill, UpdateOnTextChanged = false };
         input.GetLineEdit().FocusExited += input.Apply;
-        column.AddChild(input);
-        parent.AddChild(column);
+        parent.AddChild(input);
         return input;
     }
 
@@ -112,6 +172,7 @@ internal sealed partial class SolverRelicStrategyPanel : PanelContainer
             _enabled.Disabled = disabled;
             _enabled.SetPressedNoSignal(settings.RelicStrategyEnabled);
             var state = CombatManager.Instance.DebugOnlyGetState();
+            ulong ownedMask = 0;
             foreach (Row row in _rows)
             {
                 var rule = settings.RelicCounterRules.SingleOrDefault(rule => rule.Id == row.Entry.Id)
@@ -126,7 +187,18 @@ internal sealed partial class SolverRelicStrategyPanel : PanelContainer
                 }
                 bool owned = state?.Players.SelectMany(player => player.Relics).Any(relic => !relic.IsMelted && RelicCounterCatalog.Identify(relic) == row.Entry.Id) == true;
                 row.Status.Text = SolverText.Get(owned ? "已持有" : "未持有");
+                row.Card.Visible = owned || _showUnowned.ButtonPressed;
+                if (owned) ownedMask |= 1UL << (int)row.Entry.Id;
             }
+            if (ownedMask != _lastOwnedMask)
+            {
+                int position = 0;
+                foreach (Row row in _rows.Where(row => (ownedMask & (1UL << (int)row.Entry.Id)) != 0)
+                    .Concat(_rows.Where(row => (ownedMask & (1UL << (int)row.Entry.Id)) == 0)))
+                    _cards.MoveChild(row.Card, position++);
+                _lastOwnedMask = ownedMask;
+            }
+            _empty.Visible = ownedMask == 0 && !_showUnowned.ButtonPressed;
         }
         finally { _refreshing = false; }
     }
@@ -158,6 +230,7 @@ internal sealed partial class SolverRelicStrategyPanel : PanelContainer
         bool independent = changed is { Length: 10 } && !changed[0].Enabled && changed[0].HpAllowance == 7
             && changed.Skip(1).All(rule => rule.Enabled);
         _enabled.ButtonPressed = false;
-        return independent && enabled == false && changed![0].HpAllowance == 7;
+        return independent && enabled == false && changed![0].HpAllowance == 7
+            && _rows.All(row => row.Icon.Texture != null && row.Card.GetParent() == _cards);
     }
 }

@@ -1173,10 +1173,10 @@ internal static class SolverOverlay
         if (_cornerResizeHandle != null)
             _cornerResizeHandle.Modulate = modulate;
         if (_potionStrategyPanel != null)
-            _potionStrategyPanel.Modulate = modulate;
+            _potionStrategyPanel.Modulate = Colors.White;
         if (_growthStrategyPanel != null)
-            _growthStrategyPanel.Modulate = modulate;
-        if (_relicStrategyPanel != null) _relicStrategyPanel.Modulate = modulate;
+            _growthStrategyPanel.Modulate = Colors.White;
+        if (_relicStrategyPanel != null) _relicStrategyPanel.Modulate = Colors.White;
     }
 
     public static void ApplyConfiguredTheme()
@@ -2989,6 +2989,13 @@ internal static class SolverOverlay
             && bounds.Position.X >= 0 && bounds.Position.Y >= 0 && bounds.End.X <= viewport.X && bounds.End.Y <= viewport.Y;
         ToggleGrowthStrategy();
         valid &= !_relicStrategyPanel.Visible && _growthStrategyPanel!.Visible;
+        ApplyOverlayOpacity();
+        foreach (PanelContainer strategy in new PanelContainer[] { _relicStrategyPanel, _growthStrategyPanel!, _potionStrategyPanel! })
+        {
+            valid &= strategy.Modulate.A == 1f && ((StyleBoxFlat)strategy.GetThemeStylebox("panel")).BgColor.A == 1f;
+            IEnumerable<Node> Descendants(Node node) => node.GetChildren().SelectMany(child => new[] { child }.Concat(Descendants(child)));
+            valid &= Descendants(strategy).OfType<LineEdit>().All(edit => edit.GetThemeFontSize("font_size") == 16);
+        }
         ToggleGrowthStrategy();
         return valid;
     }
