@@ -184,8 +184,18 @@ internal sealed partial class SolverSettingsPanel
             _searchCompletionNotificationPolicy,
             SolverText.Get("搜索成功、失败、停止或结果过期时发送 Windows 系统通知和提示音。可关闭、仅在游戏不处于前台时通知，或始终通知；其他平台不会调用 Windows 接口。"));
         _acceptableBattleHpLoss = CreateAcceptableBattleHpLossInput();
+        CheckButton stopAtHpTarget = CreateToggle();
+        _reloadInputs.Add(data => stopAtHpTarget.ButtonPressed = data.StopAtAcceptableBattleHpLoss);
+        stopAtHpTarget.Toggled += enabled =>
+        {
+            if (_loading) return;
+            SolverSettings.Update(SolverSettings.Current with { StopAtAcceptableBattleHpLoss = enabled });
+            SetStatus(SolverText.Get("已保存，下次搜索生效"), SolverUiTokens.Palette.Success);
+        };
+        AddBasicRow(solverGrid, SolverText.Get("达到战损目标后停止搜索"), stopAtHpTarget,
+            SolverText.Get("默认开启。找到完整胜利且预计整场扣血不超过下方阈值时停止；0 表示零损。有对应成长卡牌且正在考虑成长收益时继续搜索。下次搜索生效。"));
         AddBasicRow(solverGrid, SolverText.Get("提前结束搜索的战损阈值（HP）"), _acceptableBattleHpLoss,
-            SolverText.Get("找到预计整场战损不超过此值的完整胜利路线时，可提前结束搜索。默认 0。有成长目标或非零成长额度时不生效；下次搜索生效。"));
+            SolverText.Get("默认 0，即零损。启用上方开关后，找到预计整场扣血不超过此值的完整胜利路线就停止搜索；仅保存成长额度而本场没有对应卡牌时仍可早停。"));
         content.AddChild(solverGrid);
 
         content.AddChild(CreateSectionHeading(SolverText.Get("幕末 Boss")));

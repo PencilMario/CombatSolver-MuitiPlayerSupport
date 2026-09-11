@@ -90,6 +90,7 @@ PR #43 集成修正：Mod 使用独立文件复制，游戏程序继续使用硬
 
 ## 3. Search
 
+`SearchPolicySnapshot.CanStopAtHpTarget` 统一默认开启的战损目标早停与实际成长目标例外。主线程根据本场卡牌冻结 HasGrowthTargets，额度本身不代表持有对应牌。Phases 在已准入候选提交时检查完整胜利与强制用药要求，命中后排空当前父节点/并行批次，释放后续工作并从达标候选收尾；Coordinator 在补充搜索结果边界沿用同一开关与阈值。
 `GrowthCostPolicy` 管理至亮之焰单场累计最大生命消耗的准入；成本属于 SimulatedCombatState 的独立分支值，从主线程原生出牌历史捕获，经 Fork 复制并进入指纹/续用文本。`ResolveRoundChoiceBranches` 与 `ResolveTurnSetupChoices` 在产出候选前统一拒绝超额分支，实际模拟仍执行原有效果。禁忌魔典的收益计数在已有 CardPowerOnPlaySupport 中记入 GrowthValues，允许额度由成长策略设置决定。
 
 `CombatSearchCoordinator.FailureRecovery` 在请求级完成主搜索与药水审计后，管理无完整胜利的有限追加搜索。它扩大搜索配置、保留请求剩余时间并比较已有质量；交接结果优先返回，每轮内存观测独立起算。四档内置节点预算由 `SolverSettings` / `SolverSearchProfile` 声明，Custom 保留显式设置。

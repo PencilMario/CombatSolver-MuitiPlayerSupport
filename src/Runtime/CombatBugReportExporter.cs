@@ -1172,6 +1172,7 @@ internal static class CombatBugReportExporter
             settings.ActTransitionBossHpStrategy,
             settings.FinalBossHpStrategy,
             settings.AcceptableBattleHpLoss,
+            settings.StopAtAcceptableBattleHpLoss,
             settings.GrowthBudgets,
             settings.BrightestFlameMaxHpLossLimit,
             settings.IgnoreLongTermRewards,
@@ -1270,7 +1271,7 @@ internal static class CombatBugReportExporter
         {
             "solverDisabled", "automaticCalculationEnabled", "stopFullAutoOnCombatEnd", "stopFullAutoOnDeathTurn",
             "stopFullAutoOnWorseRecalculation", "enableDetailedDiagnosticLogs", "potionDirectives",
-            "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "growthBudgets", "brightestFlameMaxHpLossLimit", "performancePreset",
+            "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "stopAtAcceptableBattleHpLoss", "growthBudgets", "brightestFlameMaxHpLossLimit", "performancePreset",
             "searchMaxDegreeOfParallelism", "shortTimeLimitSeconds", "deepTimeLimitSeconds", "enableNoGcRegion",
             "noGcRegionBudgetGigabytes", "shortBeamWidth", "deepBeamWidth", "shortMaxExpandedNodes", "deepMaxExpandedNodes",
             "shortMaxCardBranchesPerNode", "deepMaxCardBranchesPerNode", "shortMaxPileChoiceBranchesPerAction",

@@ -66,6 +66,7 @@ internal sealed class SolvedRouteCache(string path)
             policy.ActTransitionBossHpStrategy,
             policy.FinalBossHpStrategy,
             policy.AcceptableBattleHpLoss,
+            policy.StopAtAcceptableBattleHpLoss,
             policy.ForceShortOnly,
             policy.ShortBudgetOverrideMilliseconds,
             policy.DeepBudgetOverrideMilliseconds,

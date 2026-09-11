@@ -1,5 +1,17 @@
 # CombatSolver 测试清单
 
+## 0.35.4：战损目标早停
+
+- `SEARCH-HP-TARGET-STOP` 最终 `f6b4b94d8a6641bf8a6ec2cdd953776b` Passed，22.85 秒；固定 128 节点、1500 ms 短搜，后台独立实例 `hp-target`，120 秒请求上限，完成后退出。
+- 缺少对应卡牌而保存禁忌魔典额度 12 时，HasGrowthTargets=false，默认早停仍有效。同根 1 HP 敌人、打击/防御/痛击/燃烧：开启展开 1 个节点，关闭展开 4 个，均完整零损胜利。此数值仅是最小功能对照，不代表整场性能。
+- 合同注入已累计损失 3 HP，阈值 3 达标、阈值 0 不达标、开关关闭不达标；用于检查整场累计口径，不声称原生受伤差分。12 HP 敌人场景实际最大并发 2、展开 5 个节点，排空后返回完整零损胜利。
+- 加入禁忌魔典后恢复成长例外，即使能立即零损击杀仍取得 1 次删牌收益；忽略局外收益时恢复早停。默认值和关闭后的序列化往返通过。初轮 `f705ffede7d6435b952a0d6c2b453bd6` 已通过基础合同，最终扩展了真正双 lane 场景并覆盖补充搜索出口源码改动后的运行。
+- Release 编译 0 警告 / 0 错误，结构门禁 search_files=85。没有可见游戏测试、完整跑局或独立多药水后验场景结论。
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId SEARCH-HP-TARGET-STOP -CharacterId IRONCLAD -EncounterId FUZZY_WURM_CRAWLER_WEAK -PreserveNativeCombatStateForTest -HeadlessInstance hp-target -ExitOnComplete -TimeoutSeconds 120
+```
+
 ## 0.35.4：按钮区与收起显示
 
 - `UI-COMPACT-QOL` / `fe936f87a2764f329398710cbc41c885` Passed，22.42 秒，专用 headless 实例 `compact-qol`，120 秒上限，完成后退出。

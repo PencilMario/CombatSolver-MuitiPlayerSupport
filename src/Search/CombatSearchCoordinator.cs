@@ -599,6 +599,11 @@ internal static partial class CombatSearchCoordinator
                 shortCheckpointMilliseconds ?? profile.SoftTimeBudgetMilliseconds,
                 posteriorDeepTriggered);
             searches.Add(posterior);
+            if (HasReachedAcceptableBattleHpLoss(policy, posterior))
+            {
+                MergeAuditTotals(posterior, searches.ToArray());
+                return posterior;
+            }
 
             bool posteriorWon = posterior.Snapshot.AllEnemiesDead
                 && !posterior.Snapshot.PlayerDead
@@ -651,6 +656,11 @@ internal static partial class CombatSearchCoordinator
                 shortCheckpointMilliseconds ?? profile.SoftTimeBudgetMilliseconds,
                 linkedDeepTriggered);
             searches.Add(linkedPosterior);
+            if (HasReachedAcceptableBattleHpLoss(policy, linkedPosterior))
+            {
+                MergeAuditTotals(linkedPosterior, searches.ToArray());
+                return linkedPosterior;
+            }
 
             bool linkedWon = linkedPosterior.Snapshot.AllEnemiesDead
                 && !linkedPosterior.Snapshot.PlayerDead
@@ -707,6 +717,11 @@ internal static partial class CombatSearchCoordinator
                 shortCheckpointMilliseconds ?? profile.SoftTimeBudgetMilliseconds,
                 posteriorDeepTriggered);
             searches.Add(resourceDefensePosterior);
+            if (HasReachedAcceptableBattleHpLoss(policy, resourceDefensePosterior))
+            {
+                MergeAuditTotals(resourceDefensePosterior, searches.ToArray());
+                return resourceDefensePosterior;
+            }
 
             if (IsBetterCompletedResult(root, policy, resourceDefensePosterior, selected))
                 selected = resourceDefensePosterior;
@@ -752,6 +767,11 @@ internal static partial class CombatSearchCoordinator
                 shortCheckpointMilliseconds ?? profile.SoftTimeBudgetMilliseconds,
                 resourceDeepTriggered);
             searches.Add(resourcePosterior);
+            if (HasReachedAcceptableBattleHpLoss(policy, resourcePosterior))
+            {
+                MergeAuditTotals(resourcePosterior, searches.ToArray());
+                return resourcePosterior;
+            }
 
             bool resourceWon = resourcePosterior.Snapshot.AllEnemiesDead
                 && !resourcePosterior.Snapshot.PlayerDead
@@ -810,6 +830,11 @@ internal static partial class CombatSearchCoordinator
                 shortCheckpointMilliseconds ?? profile.SoftTimeBudgetMilliseconds,
                 jointDeepTriggered);
             searches.Add(jointPosterior);
+            if (HasReachedAcceptableBattleHpLoss(policy, jointPosterior))
+            {
+                MergeAuditTotals(jointPosterior, searches.ToArray());
+                return jointPosterior;
+            }
 
             bool jointWon = jointPosterior.Snapshot.AllEnemiesDead
                 && !jointPosterior.Snapshot.PlayerDead
@@ -881,6 +906,11 @@ internal static partial class CombatSearchCoordinator
                 shortCheckpointMilliseconds ?? profile.SoftTimeBudgetMilliseconds,
                 defensiveDeepTriggered);
             searches.Add(defensivePosterior);
+            if (HasReachedAcceptableBattleHpLoss(policy, defensivePosterior))
+            {
+                MergeAuditTotals(defensivePosterior, searches.ToArray());
+                return defensivePosterior;
+            }
 
             bool defensiveWon = defensivePosterior.Snapshot.AllEnemiesDead
                 && !defensivePosterior.Snapshot.PlayerDead
@@ -994,6 +1024,11 @@ internal static partial class CombatSearchCoordinator
                     shortCheckpointMilliseconds ?? profile.SoftTimeBudgetMilliseconds,
                     posteriorDeepTriggered);
                 searches.Add(posterior);
+                if (HasReachedAcceptableBattleHpLoss(policy, posterior))
+                {
+                    MergeAuditTotals(posterior, searches.ToArray());
+                    return posterior;
+                }
 
                 bool posteriorWon = posterior.Snapshot.AllEnemiesDead
                     && !posterior.Snapshot.PlayerDead
@@ -1053,6 +1088,11 @@ internal static partial class CombatSearchCoordinator
                         shortCheckpointMilliseconds ?? profile.SoftTimeBudgetMilliseconds,
                         pairDeepTriggered);
                     searches.Add(pairPosterior);
+                    if (HasReachedAcceptableBattleHpLoss(policy, pairPosterior))
+                    {
+                        MergeAuditTotals(pairPosterior, searches.ToArray());
+                        return pairPosterior;
+                    }
 
                     bool pairWon = pairPosterior.Snapshot.AllEnemiesDead
                         && !pairPosterior.Snapshot.PlayerDead
@@ -1116,6 +1156,11 @@ internal static partial class CombatSearchCoordinator
                         shortCheckpointMilliseconds ?? profile.SoftTimeBudgetMilliseconds,
                         defensiveDeepTriggered);
                     searches.Add(defensivePosterior);
+                    if (HasReachedAcceptableBattleHpLoss(policy, defensivePosterior))
+                    {
+                        MergeAuditTotals(defensivePosterior, searches.ToArray());
+                        return defensivePosterior;
+                    }
 
                     bool defensiveWon = defensivePosterior.Snapshot.AllEnemiesDead
                         && !defensivePosterior.Snapshot.PlayerDead
@@ -1672,7 +1717,7 @@ internal static partial class CombatSearchCoordinator
     internal static bool HasReachedAcceptableBattleHpLoss(
         SearchPolicySnapshot policy,
         SolverResult result)
-        => !policy.EffectiveHasGrowthTargets && HasReachedAcceptableBattleHpLoss(
+        => policy.CanStopAtHpTarget && HasReachedAcceptableBattleHpLoss(
             IsCompleteVictory(result),
             result.ProjectedBattleHpLost,
             policy.AcceptableBattleHpLoss);

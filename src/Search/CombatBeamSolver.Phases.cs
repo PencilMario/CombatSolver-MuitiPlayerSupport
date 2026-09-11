@@ -311,25 +311,31 @@ internal sealed partial class CombatBeamSolver
             return null;
         }
 
-        void ConsiderCompleteVictory(SearchNode node)
-        {
-            if (ExplicitPotionUseCount(node) < _minimumPotionUses
-                || _enforcePotionDirectives
-                    && !_potionStrategy.EvaluateForcedUses(
+        bool IsEligibleCompleteVictory(SearchNode node)
+            => ExplicitPotionUseCount(node) >= _minimumPotionUses
+                && (!_enforcePotionDirectives
+                    || _potionStrategy.EvaluateForcedUses(
                             node.Actions,
                             root.HasRenewablePotionShapedRock)
-                        .AllForcedUsesSatisfied
-                || !SolverInterimResultOrdering.IsCompleteVictory(
+                        .AllForcedUsesSatisfied)
+                && SolverInterimResultOrdering.IsCompleteVictory(
                     node.ActionCount,
                     node.Snapshot.AllEnemiesDead,
                     node.Snapshot.PlayerDead,
-                    node.Snapshot.ProjectedPlayerHp))
-            {
+                    node.Snapshot.ProjectedPlayerHp);
+
+        bool MeetsHpTarget(SearchNode node)
+            => policy.CanStopAtHpTarget
+                && IsEligibleCompleteVictory(node)
+                && battleDamage.HpLostSoFar + node.Snapshot.CumulativePlayerHpLost <= _acceptableBattleHpLoss;
+
+        void ConsiderCompleteVictory(SearchNode node)
+        {
+            if (!IsEligibleCompleteVictory(node))
                 return;
-            }
 
             SolverInterimResult candidate = SummarizeCandidate(node, won: true);
-            if (!_hasGrowthTargets && candidate.ProjectedBattleHpLost <= _acceptableBattleHpLoss)
+            if (MeetsHpTarget(node))
             {
                 acceptableBattleHpLossReached = true;
                 policy.Diagnostics.Info(
@@ -1460,6 +1466,7 @@ internal sealed partial class CombatBeamSolver
                             potionBoundaryFallbackScore = child.Score;
                         }
                         ended.Add(child);
+                        acceptableBattleHpLossReached |= MeetsHpTarget(child);
                     }
                     else
                         nextPlays.Add(child);
@@ -1507,6 +1514,7 @@ internal sealed partial class CombatBeamSolver
                 {
                     SearchMemoryPressureSignal signal = policy.MemoryPressureSignal;
                     bool hasMoreParents = activeIndex < active.Count
+                        && !acceptableBattleHpLossReached
                         && _run.Expanded < _profile.MaxExpandedNodes;
                     // With no further parent admission, prune first. Even an unexpected region
                     // exit can be handled at that smaller graph before the next search layer.
@@ -1561,7 +1569,7 @@ internal sealed partial class CombatBeamSolver
 
                 if (expansionParallelism == 1)
                 {
-                    while (activeIndex < active.Count)
+                    while (activeIndex < active.Count && !acceptableBattleHpLossReached)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
                         ExpandNextSerially();
@@ -1572,6 +1580,7 @@ internal sealed partial class CombatBeamSolver
                 else
                 {
                     while (activeIndex < active.Count
+                           && !acceptableBattleHpLossReached
                            && _run.Expanded < _profile.MaxExpandedNodes)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
@@ -1714,7 +1723,19 @@ internal sealed partial class CombatBeamSolver
                     }
                 }
                 for (; activeIndex < active.Count; activeIndex++)
-                    ReleaseNodeLimitSnapshot(active[activeIndex]);
+                {
+                    if (acceptableBattleHpLossReached)
+                        active[activeIndex].Snapshot.ReleaseSimulator();
+                    else
+                        ReleaseNodeLimitSnapshot(active[activeIndex]);
+                }
+                if (acceptableBattleHpLossReached)
+                {
+                    foreach (SearchNode pending in nextPlays)
+                        pending.Snapshot.ReleaseSimulator();
+                    active = [];
+                    break;
+                }
                 if (nextPlays.Count > 0)
                 {
                     EnsureMemoryForIndivisibleCommit(
@@ -1775,6 +1796,12 @@ internal sealed partial class CombatBeamSolver
 
             List<SearchNode> completedCandidates =
                 [.. completed, .. ended.Where(node => node.IsTerminal)];
+            if (acceptableBattleHpLossReached)
+            {
+                List<SearchNode> reached = completedCandidates.Where(MeetsHpTarget).ToList();
+                ReleaseDroppedSnapshots(completedCandidates, reached);
+                completedCandidates = reached;
+            }
             List<SearchNode> rankedCompletedCandidates = Retention.RankFinal(completedCandidates);
             ReleaseDroppedSnapshots(completedCandidates, rankedCompletedCandidates);
             completed = rankedCompletedCandidates;
@@ -1790,7 +1817,7 @@ internal sealed partial class CombatBeamSolver
                 if (!candidate.IsTerminal)
                     turnPruneCandidateCount++;
             }
-            if (turnPruneCandidateCount > 0)
+            if (turnPruneCandidateCount > 0 && !acceptableBattleHpLossReached)
             {
                 EnsureMemoryForIndivisibleCommit(
                     PruneAllocationReserve(turnPruneCandidateCount),
@@ -1800,7 +1827,9 @@ internal sealed partial class CombatBeamSolver
                     endedNodes: ended.Count);
             }
             long turnPruneAllocatedBefore = policy.MemoryPressureSignal.AllocatedBytes;
-            frontier = Prune(ended.Where(node => !node.IsTerminal));
+            frontier = acceptableBattleHpLossReached
+                ? []
+                : Prune(ended.Where(node => !node.IsTerminal));
             ObservePruneAllocation(
                 Math.Max(
                     0,
@@ -1933,6 +1962,12 @@ internal sealed partial class CombatBeamSolver
             && potionBoundaryFallback != null)
         {
             finalPool.Add(RefreshReleasedFallback(potionBoundaryFallback));
+        }
+        if (acceptableBattleHpLossReached)
+        {
+            List<SearchNode> reached = finalPool.Where(MeetsHpTarget).ToList();
+            ReleaseDroppedSnapshots(finalPool, reached);
+            finalPool = reached;
         }
         List<SearchNode> finalCandidates = Retention.RankFinal(finalPool);
         ReleaseDroppedSnapshots(finalPool, finalCandidates);

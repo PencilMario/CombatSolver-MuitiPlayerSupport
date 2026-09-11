@@ -102,10 +102,11 @@ internal sealed partial class UnattendedTestRunner
         settings["growthBudgets"] = recorded["growthBudgets"]?.DeepClone()
             ?? JsonSerializer.SerializeToNode(default(GrowthValues), UnattendedTestFiles.JsonOptions);
         settings["brightestFlameMaxHpLossLimit"] = recorded["brightestFlameMaxHpLossLimit"]?.DeepClone();
+        settings["stopAtAcceptableBattleHpLoss"] = recorded["stopAtAcceptableBattleHpLoss"]?.DeepClone() ?? JsonValue.Create(true);
         // Archives recorded before the ignore switch existed considered long-term rewards.
         settings["ignoreLongTermRewards"] = recorded["ignoreLongTermRewards"]?.DeepClone()
             ?? JsonSerializer.SerializeToNode(false, UnattendedTestFiles.JsonOptions);
-        foreach (string name in new[] { "potionDirectives", "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism" })
+        foreach (string name in new[] { "potionDirectives", "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "stopAtAcceptableBattleHpLoss", "searchMaxDegreeOfParallelism" })
             settings[name] = recorded[name]?.DeepClone() ?? throw new InvalidDataException($"missing_policy:{name}");
         SolverSearchProfile shortProfile = recorded["shortProfile"]!.Deserialize<SolverSearchProfile>(UnattendedTestFiles.JsonOptions)!;
         SolverSearchProfile deepProfile = recorded["deepProfile"]!.Deserialize<SolverSearchProfile>(UnattendedTestFiles.JsonOptions)!;
@@ -176,7 +177,7 @@ internal sealed partial class UnattendedTestRunner
         JsonObject policy = recorded == null ? new JsonObject() : (JsonObject)recorded.DeepClone();
         if (recorded == null && _checkpointImport["legacySettings"] is JsonObject legacy)
         {
-            foreach (string key in new[] { "potionPolicy", "potionDirectives", "growthBudgets", "brightestFlameMaxHpLossLimit", "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism" })
+            foreach (string key in new[] { "potionPolicy", "potionDirectives", "growthBudgets", "brightestFlameMaxHpLossLimit", "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "stopAtAcceptableBattleHpLoss", "searchMaxDegreeOfParallelism" })
                 if (legacy[key] != null)
                     policy[key] = legacy[key]!.DeepClone();
             if (_checkpointImport["legacySearchProfiles"] is JsonObject profiles)
@@ -190,7 +191,7 @@ internal sealed partial class UnattendedTestRunner
             HashSet<string> allowed = new(StringComparer.Ordinal)
             {
                 "potionPolicy", "potionDirectives", "growthBudgets", "brightestFlameMaxHpLossLimit", "actTransitionBossHpStrategy", "finalBossHpStrategy",
-                "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism", "shortProfile", "deepProfile", "forceShortOnly",
+                "acceptableBattleHpLoss", "stopAtAcceptableBattleHpLoss", "searchMaxDegreeOfParallelism", "shortProfile", "deepProfile", "forceShortOnly",
             };
             foreach ((string key, JsonNode? value) in overrides)
             {
@@ -201,7 +202,7 @@ internal sealed partial class UnattendedTestRunner
             _writer.ReplayVerification!["policyOverrides"] = overrides.DeepClone();
         }
         string[] required = ["potionPolicy", "potionDirectives", "actTransitionBossHpStrategy", "finalBossHpStrategy",
-            "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism", "shortProfile", "deepProfile"];
+            "acceptableBattleHpLoss", "stopAtAcceptableBattleHpLoss", "searchMaxDegreeOfParallelism", "shortProfile", "deepProfile"];
         string[] missing = required.Where(key => policy[key] == null).ToArray();
         _writer.ReplayVerification!["missingPolicyFields"] = JsonSerializer.SerializeToNode(missing);
         if (missing.Length > 0 && _request.ReplayMode is "SearchOnly" or "DeploySolver")

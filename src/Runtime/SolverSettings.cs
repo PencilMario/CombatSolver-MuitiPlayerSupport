@@ -85,6 +85,7 @@ internal sealed record SolverSettingsData
     public BossHpStrategy ActTransitionBossHpStrategy { get; init; } = BossHpStrategy.ProgressionFirst;
     public BossHpStrategy FinalBossHpStrategy { get; init; } = BossHpStrategy.ProgressionFirst;
     public int AcceptableBattleHpLoss { get; init; }
+    public bool StopAtAcceptableBattleHpLoss { get; init; } = true;
     public int PerformanceMigrationVersion { get; init; }
     public SolverPerformancePreset? PerformancePreset { get; init; } = SolverPerformancePreset.Medium;
     public int? SearchMaxDegreeOfParallelism { get; init; }
@@ -136,6 +137,7 @@ internal sealed record SolverSettingsSnapshot(
     SolverDeploymentFastMode DeploymentFastMode,
     double DeploymentInterActionDelaySeconds)
 {
+    public bool StopAtAcceptableBattleHpLoss { get; init; } = true;
     public GrowthValues GrowthBudgets { get; init; }
     public int? BrightestFlameMaxHpLossLimit { get; init; }
     public bool IgnoreLongTermRewards { get; init; }
@@ -305,6 +307,7 @@ internal static class SolverSettings
             data.DeploymentInterActionDelaySeconds ?? 0d)
         {
             GrowthBudgets = data.GrowthBudgets,
+            StopAtAcceptableBattleHpLoss = data.StopAtAcceptableBattleHpLoss,
             BrightestFlameMaxHpLossLimit = data.BrightestFlameMaxHpLossLimit,
             IgnoreLongTermRewards = data.IgnoreLongTermRewards,
         };

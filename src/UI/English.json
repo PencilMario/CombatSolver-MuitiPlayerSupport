@@ -1,4 +1,7 @@
 {
+  "达到战损目标后停止搜索": "Stop when HP loss target is met",
+  "默认开启。找到完整胜利且预计整场扣血不超过下方阈值时停止；0 表示零损。有对应成长卡牌且正在考虑成长收益时继续搜索。下次搜索生效。": "Enabled by default. Stop once a complete winning route meets the HP loss threshold below; 0 means no HP loss. Continue for growth rewards when relevant cards are present. Applies to the next search.",
+  "默认 0，即零损。启用上方开关后，找到预计整场扣血不超过此值的完整胜利路线就停止搜索；仅保存成长额度而本场没有对应卡牌时仍可早停。": "Default: 0 (no HP loss). With the switch above enabled, stop at a complete winning route whose total combat HP loss is within this limit. Saved growth allowances do not prevent early stopping when the relevant cards are absent.",
   "开战自动": "Auto-start",
   "每场战斗开始时自动开启全自动。本场手动停止后保持停止，下场战斗再次开启。": "Enable full auto at the start of each combat. Stopping it manually keeps it stopped for this combat; it starts again next combat.",
   "限制{0}的最大生命消耗": "Limit {0} max HP cost",

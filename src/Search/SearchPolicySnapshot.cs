@@ -24,6 +24,8 @@ internal sealed record SearchPolicySnapshot(
     public GrowthValues GrowthBudgets { get; init; }
     public int? BrightestFlameMaxHpLossLimit { get; init; }
     public bool HasGrowthTargets { get; init; }
+    public bool StopAtAcceptableBattleHpLoss { get; init; } = true;
+    public bool CanStopAtHpTarget => StopAtAcceptableBattleHpLoss && !EffectiveHasGrowthTargets;
 
     /// <summary>
     /// 不考虑局外收益。玩家填的额度原样留在 <see cref="GrowthBudgets"/> 里，折算只在

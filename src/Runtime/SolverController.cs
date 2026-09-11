@@ -498,9 +498,9 @@ internal static class SolverController
             // 这里记的是玩家填的原始值；「不考虑局外收益」的折算交给快照上的 Effective* 一处做，
             // 免得两边各判一次而走岔。问题包里两样都在，方便看出当时是填了额度还是开了开关。
             GrowthBudgets = settings.GrowthBudgets,
+            StopAtAcceptableBattleHpLoss = settings.StopAtAcceptableBattleHpLoss,
             BrightestFlameMaxHpLossLimit = settings.BrightestFlameMaxHpLossLimit,
-            HasGrowthTargets = settings.GrowthBudgets.IsEnabled
-                || state.Players.SelectMany(player => player.PlayerCombatState!.AllCards).Any(GrowthValues.HasTarget),
+            HasGrowthTargets = state.Players.SelectMany(player => player.PlayerCombatState!.AllCards).Any(GrowthValues.HasTarget),
             IgnoreLongTermRewards = settings.IgnoreLongTermRewards,
         };
         CombatBugReportExporter.RecordSearchPolicy(state, policy);
