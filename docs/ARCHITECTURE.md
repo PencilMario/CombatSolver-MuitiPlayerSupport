@@ -14,7 +14,7 @@
 
 `CombatDiagnosticJournal` 仍按战斗保留详细诊断，额外向有界进程日志复制 GC/分配预算/主线程帧摘要，供跨战斗关联。高频显示与节点日志不复制。`SearchGcPolicy` 分别记录收集完成后的堆状态和重启 NoGC 后的状态，诊断采样不改变收集策略。
 
-`SmartLayerMemoryForecast` 只决定有证据能改善容量的可选层间回收：完整层超过新区域容量、缺少预测或当前区域新分配低于 max(64 MiB, 区域限额/4)时沿用每批准入。`SearchGcPolicy` 根据最近完成的堆统计选择一次收集：碎片至少 1 GiB 且至少占堆一半时压缩，否则沿用已确认完成的后台收集；搜索中和搜索后共用选择器，手动回收继续强制压缩。算法层不调用 GC。
+`SmartLayerMemoryForecast` 只决定有证据能改善容量的可选层间回收：完整层超过新区域容量、缺少预测或当前区域新分配低于 max(64 MiB, 区域限额/4)时沿用每批准入。`SearchGcPolicy` 的自动回收请求已确认完成的后台收集；搜索中和搜索后保持同一路径，手动回收继续强制压缩。最新实机 trace 已证明按碎片比例自动压缩会造成数秒停顿，因此碎片比例不再决定自动压缩。算法层不调用 GC。
 
 `NodePoolSignalLifetimePatch` 补齐原版 `NodePool<T>` 递归信号清理的包装所有权：返回的 typed array 通过底层 Array 释放；字典、Variant、从原生转换得到的新 StringName 在作用域退出时释放。节点与 Callable 的目标不属于此作用域，保留原解绑条件；原版 Free 的对象池账本和 OnFreedToPool 保持原调用链。NCard 与 NGridCardHolder 的共享泛型方法分别由真实方法合同覆盖。
 
@@ -52,6 +52,7 @@ Entry / turn hooks
 | `src/Runtime/CombatRootSnapshot.cs` | 主线程捕获完整预测根，比较捕获前后 live 状态，并向 worker 提供 Fork 根 | worker 惰性读取 live 战斗 |
 | `src/Runtime/ContinuationStamp.cs` | 跨回合 live/predicted 状态文本、首个差异与完整差异；九条战斗 RNG 使用计数器与四段内部状态共同核对 | Beam 状态去重 |
 | `src/Runtime/SolvedRouteCache.cs` | 主线程捕获路线记录键；后台按完整根与策略读写本地路线副本，独立于战斗会话和 SL 入口；Forecast 使用新根对象 | 搜索策略、原生存档修改、保留旧战斗对象 |
+| `src/Runtime/DynamicVarCloneMetadataPatches.cs` | 模拟域精确复制 BaseLib 提示/升级及 Ritsu 提示元数据，只为已有值建立弱表项；保留 live 行为 | 通用 SpireField 工厂替换、丢弃升级值、清空全局弱表 |
 | `src/Runtime/BaseLibCloneConcurrencyPatch.cs` | BaseLib 克隆扩展存在时，让原版 `MutableClone` 与内嵌模拟的模型深克隆共用窄串行边界，保护其全局弱表 | 整段搜索串行化、BaseLib 业务语义与候选政策 |
 | `src/Runtime/PowerDynamicVarWarmup.cs` | 主线程根捕获时物化规范 Power 与当前战斗 Power 的显示变量 | 搜索评分、Power 语义与 worker 本地化 |
 | `src/Runtime/PowerDynamicVarMaterializationGuardPatch.cs` | 搜索模拟惰性创建 Power 显示变量时立即报告根捕获缺失 | Power 语义、显示内容与搜索阶段串行化 |

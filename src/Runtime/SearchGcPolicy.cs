@@ -1527,7 +1527,7 @@ internal static class SearchGcPolicy
                     Entry.Logger.Info(
                         $"[CombatSolver/Test] HEAP_RECLAIM reason={reason} " +
                         $"reclaim_id={reclaimSequence} " +
-                        $"mode={(trimWorkingSet ? "blocking_compacting_working_set_trim" : completedCollection.Kind == "full_blocking_compacting" ? "fragmentation_compacting" : "background_requested_non_compacting")} " +
+                        $"mode={(trimWorkingSet ? "blocking_compacting_working_set_trim" : "background_requested_non_compacting")} " +
                         $"no_gc_region_ended={endNoGcRegion} " +
                         $"forced_gen2=true gen2_delta={generation2Collections} " +
                         $"elapsed_ms={stopwatch.Elapsed.TotalMilliseconds:F1} " +
@@ -1737,36 +1737,12 @@ internal static class SearchGcPolicy
         }
     }
 
-    internal static bool ShouldCompactAutomaticReclaim(long heapBytes, long fragmentedBytes)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(heapBytes);
-        ArgumentOutOfRangeException.ThrowIfNegative(fragmentedBytes);
-        return fragmentedBytes >= 1024L * 1024 * 1024
-            && fragmentedBytes >= heapBytes - fragmentedBytes;
-    }
-
     private static Task<BackgroundGen2Completion> CollectGeneration2ForAutomaticReclaimAsync(
         bool inSearchCheckpoint = false)
-    {
-        GCMemoryInfo memory = GC.GetGCMemoryInfo();
-        return CollectGeneration2ForAutomaticReclaimAsync(memory.HeapSizeBytes, memory.FragmentedBytes, inSearchCheckpoint);
-    }
+        => CollectGeneration2InBackgroundAsync(inSearchCheckpoint);
 
-    internal static async Task<string> CollectAutomaticReclaimForTesting(long heapBytes, long fragmentedBytes)
-        => (await CollectGeneration2ForAutomaticReclaimAsync(heapBytes, fragmentedBytes, false)).Kind;
-
-    private static Task<BackgroundGen2Completion> CollectGeneration2ForAutomaticReclaimAsync(
-        long heapBytes, long fragmentedBytes, bool inSearchCheckpoint)
-    {
-        // Select one collection using the last completed heap observation. A previous
-        // successful compaction clears the condition; do not append a second GC after each BGC.
-        if (ShouldCompactAutomaticReclaim(heapBytes, fragmentedBytes))
-        {
-            Entry.Logger.Info($"[CombatSolver/Test] GC_FRAGMENTATION_COMPACTION heap={heapBytes} fragmented={fragmentedBytes}");
-            return Task.FromResult(CollectGeneration2ForManualMemoryRelease());
-        }
-        return CollectGeneration2InBackgroundAsync(inSearchCheckpoint);
-    }
+    internal static async Task<string> CollectAutomaticReclaimForTesting()
+        => (await CollectGeneration2ForAutomaticReclaimAsync()).Kind;
 
     private static BackgroundGen2Completion CollectGeneration2ForManualMemoryRelease()
     {
@@ -2140,7 +2116,7 @@ internal static class SearchGcPolicy
             Entry.Logger.Info(
                 $"[CombatSolver/Test] HEAP_RECLAIM reason=in_search_memory_checkpoint " +
                 $"trigger={reason} " +
-                $"mode={(completedCollection.Kind == "full_blocking_compacting" ? "fragmentation_compacting" : "background_requested_non_compacting")} no_gc_region_ended={endNoGcRegion} " +
+                $"mode=background_requested_non_compacting no_gc_region_ended={endNoGcRegion} " +
                 $"completion_kind={completedCollection.Kind ?? "none"} " +
                 $"completion_index={completedCollection.Index} " +
                 $"collection_requests={completedCollection.Requests} " +

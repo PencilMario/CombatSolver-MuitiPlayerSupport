@@ -9,16 +9,8 @@ internal static class GcMemoryBudgetChecks
         const long heap = 5885806336;
         const long fragmented = 4364757576;
         const long live = 1712933896;
-        Require(SearchGcPolicy.ShouldCompactAutomaticReclaim(6140073192, 4638342456), "Player's 75% fragmented heap selects compaction.");
-        Require(!SearchGcPolicy.ShouldCompactAutomaticReclaim(1505013936, 230381296), "Post-compaction sized holes do not trigger another compaction.");
-        Require(!SearchGcPolicy.ShouldCompactAutomaticReclaim(512 * 1024 * 1024, 400 * 1024 * 1024), "Small fragmented heaps retain background collection.");
-        Require(!SearchGcPolicy.ShouldCompactAutomaticReclaim(8L * 1024 * 1024 * 1024, 1024L * 1024 * 1024), "Large heaps with low fragmentation retain background collection.");
-        int collectionsBefore = GC.CollectionCount(2);
-        string kind = SearchGcPolicy.CollectAutomaticReclaimForTesting(6140073192, 4638342456).GetAwaiter().GetResult();
-        Require(kind == "full_blocking_compacting" && GC.GetGCMemoryInfo(GCKind.FullBlocking).Compacted
-            && GC.CollectionCount(2) == collectionsBefore + 1, "High fragmentation selects one real compacting Gen2, not a background-plus-compaction pair.");
-        kind = SearchGcPolicy.CollectAutomaticReclaimForTesting(1505013936, 230381296).GetAwaiter().GetResult();
-        Require(kind is "background" or "full_blocking", "Low fragmentation uses the existing confirmed background path.");
+        string kind = SearchGcPolicy.CollectAutomaticReclaimForTesting().GetAwaiter().GetResult();
+        Require(kind is "background" or "full_blocking", "Automatic reclaim requests the confirmed background path; compaction remains manual.");
         long reusable = SearchGcPolicy.CalculateReusableHeapBytes(heap, fragmented, live);
         long capacity = SearchGcPolicy.CalculateAllocationCapacity(16000000000, limit, physical, reusable);
         Require(reusable == 4172872440 && capacity == 6938945322, "Player trace must retain reclaimed heap allocation capacity.");

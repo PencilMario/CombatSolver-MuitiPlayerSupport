@@ -1126,6 +1126,15 @@ foreach ($check in @(
 }
 
 $mirrorRegistryPath = Join-Path $repositoryRoot "src\Engine\Common\Mirrors\MethodMirrorRegistry.cs"
+$dynamicVarMetadataPath = Join-Path $repositoryRoot "src\Runtime\DynamicVarCloneMetadataPatches.cs"
+foreach ($rule in @('SimulationNotificationIsolation.IsActive', '"DynamicVarUpgrades"', 'table.TryGetValue(source', 'Tips.TryGetValue(__0')) {
+    if (-not (Select-String -LiteralPath $dynamicVarMetadataPath -SimpleMatch $rule -Quiet)) {
+        $violations.Add("DynamicVarCloneMetadataPatches.cs: missing sparse metadata boundary '$rule'")
+    }
+}
+if (Select-String -LiteralPath $dynamicVarMetadataPath -SimpleMatch '.Clear()' -Quiet) {
+    $violations.Add('DynamicVarCloneMetadataPatches.cs: global metadata clearing is forbidden')
+}
 $mirrorDescriptorPath = Join-Path $repositoryRoot "src\Engine\Common\Mirrors\MethodMirrorRegistryDescriptor.cs"
 $coverageCatalogPath = Join-Path $repositoryRoot "tools\CoverageCatalog\Program.cs"
 foreach ($check in @(

@@ -4,6 +4,8 @@
 
 ### 26356 三层卡顿修复
 
+后续 6020 录制修复：`DYNAMIC-VAR-METADATA` / `57b289699aa045f39cf330a4b157eee7` Passed（22.72 秒）。隔离游戏源补入玩家 BaseLib，验证真实 Clone 的 live 空登记基线、模拟连续 2000 次零空登记、自定义提示、升级数值、两代克隆及父子独立。首个 `18c136b84cbe4cd3b2bbbbdab8980335` 因隔离环境缺 BaseLib 明确 Failed，补齐依赖后运行。复跑命令使用 `-ScenarioId DYNAMIC-VAR-METADATA -Sts2GameRoot <含BaseLib的隔离游戏源> -HeadlessInstance dynamic-var-metadata -TimeoutSeconds 120`；不可把无 BaseLib 环境当该合同通过。独立 `GcPolicyChecks memory`、`checkpoint` 通过，自动模式要求后台请求并确认完成，原高碎片自动压缩已撤回。以下压缩验证为此前历史证据；本轮没有修复后三层可见对照。
+
 - 录制升级独立目标运行 36 秒，测试周期 20 秒（10 秒句柄/10 秒普通段），watcher 三段收尾并压缩，目标 writer/drain/停顿心跳合同通过。第一段 17,338 次句柄创建、17,274 次销毁，EventsLost=0；第二段没有句柄事件，窗口隔离有效。外层临时 PowerShell 包装误把未设置的 LASTEXITCODE 当失败；collector-health 为 complete，目标 stdout 为 PASS，随后按实际产物解析验证，未重复录制。
 - EventPipe 栈验证初版错误地要求独立 ClrStackWalk 非零，已修正为读取 ETLX 关联栈：第一段 32/17,338 条句柄创建有栈，540/540 条 GCTriggered 有栈，不能声称每个句柄都有栈。旧第 7 段 102/102 条 GCTriggered 有栈。新增 `trace-stacks` 输出触发时间/来源；句柄事件验证与栈关联验证分别执行。
 - `PerformanceRecordingTests registry` 验证后台计数落入 timeline；`PROCESS-DIAGNOSTICS` / `8c08835ad3e64332b3085eb19de2b858` Passed，22.92 秒，真实 Godot 两个弱登记容器可在后台读取数量，原跨战斗摘要与读档心跳合同保持。没有新的玩家长局性能或完整 GC root 证据。

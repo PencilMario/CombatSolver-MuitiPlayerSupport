@@ -928,6 +928,10 @@ EOF
 for private_registry_field in '"_registrations"' '"_inferrer"' '"_strictInferrer"'; do
     forbid_fixed "$coverage_catalog_path" "$private_registry_field" 'private registry reflection returned:'
 done
+for rule in 'SimulationNotificationIsolation.IsActive' '"DynamicVarUpgrades"' 'table.TryGetValue(source' 'Tips.TryGetValue(__0'; do
+    require_fixed "$repository_root/src/Runtime/DynamicVarCloneMetadataPatches.cs" "$rule" 'missing sparse metadata boundary'
+done
+forbid_fixed "$repository_root/src/Runtime/DynamicVarCloneMetadataPatches.cs" '.Clear()' 'global metadata clearing is forbidden:'
 forbid_fixed \
     "$repository_root/src/Search/SimulatedCombatState.cs" \
     '_monsterAiStates?.Remove(creature)' \
