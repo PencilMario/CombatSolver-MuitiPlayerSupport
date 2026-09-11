@@ -6715,6 +6715,10 @@ internal sealed partial class CombatBeamSolver
                     return survivalComparison;
             }
 
+            int recoveryComparison = TheftEncounterStrategy.CompareRecovery(_theftPolicy,
+                leftWon, leftSnapshot.OutstandingStolenResource, rightWon, rightSnapshot.OutstandingStolenResource);
+            if (recoveryComparison != 0)
+                return recoveryComparison;
             int comparison = SolverInterimResultOrdering.ComparePrimaryQuality(
                 leftWon,
                 StrategicHpDeficit(leftSnapshot, leftWon),

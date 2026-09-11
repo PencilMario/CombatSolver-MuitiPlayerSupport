@@ -51,6 +51,11 @@ internal sealed partial class UnattendedTestRunner
                 await SolverOverlay.ExerciseCompactQolForTesting(combatState);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "THEFT-RECOVERY-POLICY")
+            {
+                await AssertTheftRecoveryPolicyAsync(combatState);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "SEARCH-HP-TARGET-STOP")
             {
                 await runner.AssertHpTargetStopAsync(combatState, player);

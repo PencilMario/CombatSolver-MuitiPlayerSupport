@@ -158,6 +158,7 @@ internal sealed record SolverInterimResult(
     double Score,
     int? CombatEndedTurn = null)
 {
+    public SolverTheftPolicy? TheftPolicy { get; init; }
     public int GrowthHpCredit { get; init; }
     public int GrowthRewardCount { get; init; }
 }

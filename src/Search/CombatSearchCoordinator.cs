@@ -1435,7 +1435,9 @@ internal static partial class CombatSearchCoordinator
                 hpSaved,
                 hpRequired,
                 protectsLoot);
-            if (acceptable)
+            bool improvesSelection = acceptable && (policy.TheftPolicy != SolverTheftPolicy.PreserveResources
+                || IsBetterCompletedResult(root, policy, candidate, selected));
+            if (improvesSelection)
             {
                 candidate.PotionHpSaved = hpSaved;
                 candidate.PotionHpRequired = hpRequired;
@@ -1446,7 +1448,7 @@ internal static partial class CombatSearchCoordinator
                 $"[CombatSolver/Test] SMART_POTION_GRADIENT layer={potionCount} " +
                 $"won={candidateWon} hp_deficit={candidateDeficit} saved={hpSaved} " +
                 $"required={hpRequired} protects_loot={protectsLoot} acceptable={acceptable} " +
-                $"selected={acceptable} " +
+                $"selected={improvesSelection} " +
                 $"expanded={candidate.ExpandedNodes} transitions={candidate.TransitionCount} " +
                 $"choice_branches={candidate.ChoiceBranchesEvaluated} " +
                 $"elapsed_ms={candidate.Elapsed.TotalMilliseconds:F1} " +
@@ -1455,7 +1457,7 @@ internal static partial class CombatSearchCoordinator
                 $"incumbent_turn={primaryIncumbent?.CombatEndedTurn.ToString() ?? "-"} " +
                 $"incumbent_pruned={candidate.PrimaryIncumbentBranchesPruned} " +
                 $"incumbent_updates={candidate.PrimaryIncumbentUpdates}");
-            if (acceptable)
+            if (acceptable && TheftEncounterStrategy.RecoverySatisfied(policy.TheftPolicy, selected.OutstandingStolenResource))
                 break;
         }
 
@@ -1631,6 +1633,7 @@ internal static partial class CombatSearchCoordinator
             Score: result.BestNode.Score)
         {
             GrowthHpCredit = result.Snapshot.GrowthHpCredit,
+            TheftPolicy = policy.TheftPolicy,
             GrowthRewardCount = result.Snapshot.GrowthRewards.Total,
         };
 
@@ -1664,6 +1667,10 @@ internal static partial class CombatSearchCoordinator
         SolverInterimResult candidate,
         SolverInterimResult current)
     {
+        int recovery = TheftEncounterStrategy.CompareRecovery(theftPolicy,
+            candidate.Won, candidate.OutstandingStolenResource, current.Won, current.OutstandingStolenResource);
+        if (recovery != 0)
+            return recovery < 0;
         int primaryQuality = SolverInterimResultOrdering.ComparePrimaryQuality(
             candidate.Won,
             candidate.StrategicHpDeficit,
@@ -1695,7 +1702,13 @@ internal static partial class CombatSearchCoordinator
         SearchPolicySnapshot policy,
         SolverResult candidate,
         SolverResult current)
-        => SolverInterimResultOrdering.ComparePrimaryQuality(
+    {
+        int recovery = TheftEncounterStrategy.CompareRecovery(policy.TheftPolicy,
+            IsCompleteVictory(candidate), candidate.OutstandingStolenResource,
+            IsCompleteVictory(current), current.OutstandingStolenResource);
+        if (recovery != 0)
+            return recovery;
+        return SolverInterimResultOrdering.ComparePrimaryQuality(
             IsCompleteVictory(candidate),
             StrategicHpDeficit(root, policy, candidate),
             candidate.CombatEndedTurn,
@@ -1706,6 +1719,7 @@ internal static partial class CombatSearchCoordinator
             current.Snapshot.GrowthHpCredit,
             candidate.Snapshot.GrowthRewards.Total,
             current.Snapshot.GrowthRewards.Total);
+    }
 
     private static bool IsCompleteVictory(SolverResult result)
         => SolverInterimResultOrdering.IsCompleteVictory(
@@ -1718,6 +1732,7 @@ internal static partial class CombatSearchCoordinator
         SearchPolicySnapshot policy,
         SolverResult result)
         => policy.GrowthTargetSatisfied(result.Snapshot.GrowthRewards)
+            && TheftEncounterStrategy.RecoverySatisfied(policy.TheftPolicy, result.OutstandingStolenResource)
             && result.PotionCount == policy.MinimumRequiredPotionUses(result.BattlePotionsUsedSoFar)
             && policy.PotionStrategy.EvaluateForcedUses(result.BestNode.Actions, renewablePotionShapedRock: false).AllForcedUsesSatisfied
             && HasReachedAcceptableBattleHpLoss(
@@ -1735,7 +1750,9 @@ internal static partial class CombatSearchCoordinator
         CombatRootSnapshot root,
         SearchPolicySnapshot policy,
         SolverResult result)
-        => !policy.EffectiveHasGrowthTargets && HasReachedProvablePrimaryQualityLowerBound(
+        => !policy.EffectiveHasGrowthTargets
+            && TheftEncounterStrategy.RecoverySatisfied(policy.TheftPolicy, result.OutstandingStolenResource)
+            && HasReachedProvablePrimaryQualityLowerBound(
             IsCompleteVictory(result),
             StrategicHpDeficit(root, policy, result),
             result.CombatEndedTurn,

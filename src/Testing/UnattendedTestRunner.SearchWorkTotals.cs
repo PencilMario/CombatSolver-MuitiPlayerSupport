@@ -24,11 +24,11 @@ internal sealed partial class UnattendedTestRunner
             EnemyHp: 0,
             Score: 1_000,
             CombatEndedTurn: 3);
-        if (CombatSearchCoordinator.IsBetterPotionPolicyResult(
+        if (!CombatSearchCoordinator.IsBetterPotionPolicyResult(
                 SolverTheftPolicy.PreserveResources,
                 onePotionAudit,
                 twoPotionPrimary)
-            || !CombatSearchCoordinator.IsBetterPotionPolicyResult(
+            || CombatSearchCoordinator.IsBetterPotionPolicyResult(
                 SolverTheftPolicy.PreserveResources,
                 twoPotionPrimary,
                 onePotionAudit)
@@ -42,7 +42,7 @@ internal sealed partial class UnattendedTestRunner
                 twoPotionPrimary))
         {
             throw new InvalidOperationException(
-                "RequireAtLeastOne 审计没有先按胜利、战损、回合选择，再使用资源与药水尾键。");
+                "保资源策略必须在胜利前提下优先追回资源，再比较战损与药水。");
         }
 
         static SearchSolverWorkContribution Work(int unit, bool deep) => new(

@@ -311,7 +311,7 @@ internal sealed partial class CombatBeamSolver
     private List<SearchNode> ApplyPrimaryIncumbentBound(List<SearchNode> retained)
     {
         // Per-event growth can repeat; the HP-only floor is not a bound on this objective.
-        if (_hasGrowthTargets || _primaryIncumbent is not { } incumbent)
+        if (_hasGrowthTargets || _theftPolicy == SolverTheftPolicy.PreserveResources || _primaryIncumbent is not { } incumbent)
             return retained;
 
         List<SearchNode> bounded = ApplyPrimaryIncumbentBound(
@@ -444,7 +444,7 @@ internal sealed partial class CombatBeamSolver
         IReadOnlyList<SearchNode> retained,
         int completedTurnLayers)
     {
-        if (_hasGrowthTargets)
+        if (_hasGrowthTargets || _theftPolicy == SolverTheftPolicy.PreserveResources)
             return false;
         bool canEstablishPotionFreeIncumbent = _minimumPotionUses == 0
             && _potionPolicy is SolverPotionPolicy.Disabled or SolverPotionPolicy.Smart;

@@ -242,6 +242,7 @@ internal sealed partial class CombatBeamSolver
                 CombatEndedTurn: won ? node.Snapshot.CombatEndedTurn : null)
             {
                 GrowthHpCredit = node.Snapshot.GrowthHpCredit,
+                TheftPolicy = _theftPolicy,
                 GrowthRewardCount = node.Snapshot.GrowthRewards.Total,
             };
         }
@@ -329,6 +330,7 @@ internal sealed partial class CombatBeamSolver
 
         bool MeetsHpTarget(SearchNode node)
             => policy.GrowthTargetSatisfied(node.Snapshot.GrowthRewards)
+                && TheftEncounterStrategy.RecoverySatisfied(_theftPolicy, node.Snapshot.OutstandingStolenResource)
                 && IsEligibleCompleteVictory(node)
                 && ExplicitPotionUseCount(node) <= earlyStopPotionUses
                 && battleDamage.HpLostSoFar + node.Snapshot.CumulativePlayerHpLost <= _acceptableBattleHpLoss;
