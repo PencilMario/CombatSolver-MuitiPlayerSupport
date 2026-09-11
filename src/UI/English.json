@@ -137,6 +137,7 @@
   "[color={0}]正在计算当前回合，等待可存活候选…[/color]": "[color={0}]Searching this turn for a survivable candidate…[/color]",
   "等待当前回合候选…": "Waiting for a candidate…",
   "推荐路线": "Recommended route",
+  "当前路线摘要": "Current route summary",
   "预计路线结果": "Projected outcome",
   "当前搜索进度": "Current search progress",
   "已卡：{0}": "Counters aligned: {0}",
