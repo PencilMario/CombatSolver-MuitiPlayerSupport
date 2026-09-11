@@ -289,54 +289,92 @@ internal static partial class CombatSearchCoordinator
                 $"beam={deepProfile.BeamWidth}->45 reason=preserve_survival_routes");
             deepProfile = deepProfile with { BeamWidth = 45 };
         }
-        SolverResult result = SolveWithNarrowBeamRecovery(
+        // 一轮完整的深化搜索：主搜索（Smart 时先按无主动用药跑）＋补充审计。抬节点上限重搜时
+        // 原样再走一遍，所以抽成一个本地函数；每一轮自带一只秒表，补充审计那边算剩余预算靠它。
+        SolverResult? takeoverResult = null;
+        bool passSettled = false;
+        SolverResult RunDeepPass(SolverSearchProfile passProfile, Stopwatch passClock)
+        {
+            SolverResult passResult = SolveWithNarrowBeamRecovery(
+                root,
+                policy,
+                passProfile,
+                cancellationToken,
+                cancellationToken,
+                (attemptProfile, attemptCancellationToken) => new CombatBeamSolver(
+                    root,
+                    displayNames,
+                    battleDamage,
+                    policy,
+                    attemptCancellationToken,
+                    progressCallback,
+                    attemptProfile,
+                    shortCheckpointMilliseconds: shortProfile.SoftTimeBudgetMilliseconds,
+                    potionPolicyOverride: initialPotionPolicyOverride).Solve());
+            ObserveSmartLayerMemory(
+                policy, memoryForecast, primaryAllocatedAtStart, primaryTransitionsAtStart,
+                passResult, passProfile, completedPotionCount: 0);
+            if (policy.MeasurePhasePerformance)
+                policy.Diagnostics.Info(SolverDiagnostics.DescribeSearchPhasePerformance(passResult));
+            bool passDeepTriggered =
+                passResult.Elapsed.TotalMilliseconds > shortProfile.SoftTimeBudgetMilliseconds;
+            passResult.SearchPhase = passDeepTriggered ? SolverSearchPhase.Deep : SolverSearchPhase.Short;
+            passResult.DeepSearchTriggered = passDeepTriggered;
+            passResult.DeepSearchImprovedResult = false;
+            passResult.SingleSessionSearch = true;
+            PopulateSingleSessionTotals(
+                passResult, shortProfile.SoftTimeBudgetMilliseconds, passDeepTriggered);
+            interimResultCallback?.Invoke(passResult);
+            if (ResolveTakeoverResult(passResult, policy.Interaction) is { } passTakeover)
+            {
+                takeoverResult = passTakeover;
+                return passResult;
+            }
+            if (!policy.PotionStrategy.HasForcedDirectives)
+            {
+                if (HasReachedAcceptableBattleHpLoss(policy, passResult))
+                {
+                    passSettled = true;
+                    return passResult;
+                }
+                passResult = RunSupplementalAudits(
+                    root,
+                    displayNames,
+                    battleDamage,
+                    policy,
+                    cancellationToken,
+                    progressCallback,
+                    passProfile,
+                    shortProfile.SoftTimeBudgetMilliseconds,
+                    passClock,
+                    passResult,
+                    memoryForecast,
+                    interimResultCallback);
+            }
+            return passResult;
+        }
+
+        SolverResult result = RunDeepPass(deepProfile, requestClock);
+        if (takeoverResult != null)
+            return takeoverResult;
+        // 打到可接受战损就收手那一条和改动之前一样直接返回，连 SEARCH_SESSION 都不打。
+        if (passSettled)
+            return result;
+        result = EscalateSearchWhenNoVictory(
             root,
             policy,
             deepProfile,
-            cancellationToken,
-            cancellationToken,
-            (attemptProfile, attemptCancellationToken) => new CombatBeamSolver(
-                root,
-                displayNames,
-                battleDamage,
-                policy,
-                attemptCancellationToken,
-                progressCallback,
-                attemptProfile,
-                shortCheckpointMilliseconds: shortProfile.SoftTimeBudgetMilliseconds,
-                potionPolicyOverride: initialPotionPolicyOverride).Solve());
-        ObserveSmartLayerMemory(
-            policy, memoryForecast, primaryAllocatedAtStart, primaryTransitionsAtStart,
-            result, deepProfile, completedPotionCount: 0);
-        if (policy.MeasurePhasePerformance)
-            policy.Diagnostics.Info(SolverDiagnostics.DescribeSearchPhasePerformance(result));
-        bool deepTriggered = result.Elapsed.TotalMilliseconds > shortProfile.SoftTimeBudgetMilliseconds;
-        result.SearchPhase = deepTriggered ? SolverSearchPhase.Deep : SolverSearchPhase.Short;
-        result.DeepSearchTriggered = deepTriggered;
-        result.DeepSearchImprovedResult = false;
-        result.SingleSessionSearch = true;
-        PopulateSingleSessionTotals(result, shortProfile.SoftTimeBudgetMilliseconds, deepTriggered);
-        interimResultCallback?.Invoke(result);
-        if (ResolveTakeoverResult(result, policy.Interaction) is { } takeoverResult)
+            requestClock,
+            result,
+            RunDeepPass,
+            () => takeoverResult != null
+                || passSettled
+                || cancellationToken.IsCancellationRequested
+                || policy.Interaction?.CurrentTakeoverRequest != null);
+        if (takeoverResult != null)
             return takeoverResult;
-        if (!policy.PotionStrategy.HasForcedDirectives)
-        {
-            if (HasReachedAcceptableBattleHpLoss(policy, result))
-                return result;
-            result = RunSupplementalAudits(
-                root,
-                displayNames,
-                battleDamage,
-                policy,
-                cancellationToken,
-                progressCallback,
-                deepProfile,
-                shortProfile.SoftTimeBudgetMilliseconds,
-                requestClock,
-                result,
-                memoryForecast,
-                interimResultCallback);
-        }
+        if (passSettled)
+            return result;
         policy.Diagnostics.Info(
             $"[CombatSolver/Test] SEARCH_SESSION mode=single_anytime " +
             $"short_checkpoint_ms={shortProfile.SoftTimeBudgetMilliseconds} " +
