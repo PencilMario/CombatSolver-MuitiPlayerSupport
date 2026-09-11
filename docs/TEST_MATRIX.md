@@ -1,6 +1,17 @@
 # CombatSolver 测试清单
 
-## 0.35.5：古代卡牌成长策略与累计成本
+## 0.35.4：按钮区与收起显示
+
+- `UI-COMPACT-QOL` / `fe936f87a2764f329398710cbc41c885` Passed，22.42 秒，专用 headless 实例 `compact-qol`，120 秒上限，完成后退出。
+- 检查开关默认关闭、切换事件更新设置及序列化往返、下场开启、自动计算关闭时仍接入全自动、手动停止后刷新不重开、下一场重开、关闭偏好后下一场关闭。
+- 直接渲染只读路线投影：收起后原 Label 可见且 Body 隐藏，7 HP 显示危险色，原位更新 0 HP 变为成功色，展开后归位，新搜索隐藏旧战损，未知投影保持问号和灰色。
+- Release 编译 0 警告 / 0 错误，结构门禁 `search_files=85`。未做可见布局/鼠标验收；该 fixture 不证明整场自动部署或开局选牌完整链。
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId UI-COMPACT-QOL -CharacterId IRONCLAD -EncounterId FUZZY_WURM_CRAWLER_WEAK -PreserveNativeCombatStateForTest -HeadlessInstance compact-qol -ExitOnComplete -TimeoutSeconds 120
+```
+
+### 古代卡牌成长策略与累计成本（本批此前证据）
 
 - `GROWTH-ANCIENT-POLICY` / `f9031db3e06441dcaa38a76db4c8b693` Passed，26.09 秒，IRONCLAD / FUZZY_WURM_CRAWLER_WEAK。专用后台实例、120 秒上限、1500 ms 短搜；测试完成后退出。
 - 真实 CardModel/原生出牌与模拟完整 MoveStateSnapshot 对照：ECHO_FORM_POWER 重放 BRIGHTEST_FLAME 两次，共记 4 点最大生命消耗；随后 FORBIDDEN_GRIMOIRE 记 1 次删牌收益，独立额度 12 HP。原生历史重新捕获保持 4，Fork 增量不污染父分支，BeginSideTurn 保持累计成本。

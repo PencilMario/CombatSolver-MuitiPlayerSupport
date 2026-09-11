@@ -65,6 +65,7 @@ internal static class SolverOverlay
     private static Button? _adoptRouteButton;
     private static Button? _executeButton;
     private static Button? _fullAutoButton;
+    private static CheckButton? _autoEnableFullAutoSwitch;
     private static Button? _systemMemoryReleaseButton;
     private static Button? _collapseButton;
     private static Button? _settingsButton;
@@ -1077,6 +1078,8 @@ internal static class SolverOverlay
 
         _fullAutoButton.Text = SolverController.FullAutoEnabled ? SolverText.Get("全自动：开") : SolverText.Get("全自动：关");
         _fullAutoButton.Disabled = solverDisabled || adoptingRoute;
+        if (_autoEnableFullAutoSwitch != null)
+            _autoEnableFullAutoSwitch.ButtonPressed = SolverSettings.Current.AutoEnableFullAuto;
         if (_renderedFullAutoStyle != SolverController.FullAutoEnabled)
         {
             SolverUiTokens.ApplyButtonStyle(
@@ -1864,6 +1867,26 @@ internal static class SolverOverlay
         _fullAutoButton.Pressed += OnFullAutoPressed;
         footer.AddChild(_fullAutoButton);
 
+        HBoxContainer autoStart = new()
+        {
+            MouseFilter = Control.MouseFilterEnum.Pass,
+            SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
+            TooltipText = SolverText.Get("每场战斗开始时自动开启全自动。本场手动停止后保持停止，下场战斗再次开启。"),
+        };
+        autoStart.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
+        autoStart.AddChild(CreateTextLabel(SolverText.Get("开战自动"), SolverUiTokens.Type.Caption, TextPrimary));
+        _autoEnableFullAutoSwitch = SolverSettingsPanel.CreateToggle();
+        _autoEnableFullAutoSwitch.CustomMinimumSize = new Vector2(40, 24);
+        _autoEnableFullAutoSwitch.TooltipText = autoStart.TooltipText;
+        _autoEnableFullAutoSwitch.ButtonPressed = SolverSettings.Current.AutoEnableFullAuto;
+        _autoEnableFullAutoSwitch.Toggled += enabled =>
+        {
+            if (SolverSettings.Current.AutoEnableFullAuto != enabled)
+                SolverSettings.Update(SolverSettings.Current with { AutoEnableFullAuto = enabled });
+        };
+        autoStart.AddChild(_autoEnableFullAutoSwitch);
+        footer.AddChild(autoStart);
+
         _memoryUsageBar = new SolverMemoryUsageBar
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -2307,6 +2330,16 @@ internal static class SolverOverlay
 
     private static void ApplyContentVisibility()
     {
+        // Keep the same outcome controls and presentation state in both layouts.
+        if (_routeHeadingRow != null && _mainStack != null && _body != null)
+        {
+            Node parent = _collapsed ? _mainStack : _body;
+            if (_routeHeadingRow.GetParent() != parent)
+            {
+                _routeHeadingRow.Reparent(parent);
+                parent.MoveChild(_routeHeadingRow, _collapsed ? 0 : 1);
+            }
+        }
         if (_mainStack != null)
             _mainStack.Visible = !_settingsVisible || _collapsed;
         if (_body != null)
@@ -2687,6 +2720,67 @@ internal static class SolverOverlay
             return;
         SolverController.SetTheftPolicy(host, state, policy);
         RefreshControls();
+    }
+
+    internal static async Task ExerciseCompactQolForTesting(CombatState combat)
+    {
+        static void Check(bool value, string message)
+        {
+            if (!value) throw new InvalidOperationException("Compact UI: " + message);
+        }
+        NGame host = NGame.Instance ?? throw new InvalidOperationException("UI test requires a game host.");
+        SolverSettingsData original = SolverSettings.Current;
+        bool originalCollapsed = _collapsed;
+        try
+        {
+            Check(!new SolverSettingsData().AutoEnableFullAuto, "opt-in default");
+            SolverSettings.ApplyForTesting(original with { AutoEnableFullAuto = false, AutomaticCalculationEnabled = false });
+            SolverController.BeginCombat(combat);
+            EnsureCreated(host);
+            RefreshControls();
+            Check(!_autoEnableFullAutoSwitch!.ButtonPressed && !SolverController.FullAutoEnabled, "off at combat start");
+            _autoEnableFullAutoSwitch.ButtonPressed = true;
+            Check(SolverSettings.RoundTripForTesting(SolverSettings.Current).AutoEnableFullAuto, "switch persists");
+            Check(!SolverController.FullAutoEnabled, "preference applies at next combat");
+            SolverController.BeginCombat(combat);
+            Check(SolverController.FullAutoEnabled && SolverController.PrepareAutomaticSearchForTurn(host, combat), "start with manual calculation preference");
+            SolverController.SetFullAuto(host, combat, false);
+            RefreshControls();
+            Check(!SolverController.PrepareAutomaticSearchForTurn(host, combat) && !SolverController.FullAutoEnabled
+                && _autoEnableFullAutoSwitch.ButtonPressed, "manual stop remains stopped");
+            SolverController.BeginCombat(combat);
+            Check(SolverController.FullAutoEnabled, "next combat re-arms");
+            _autoEnableFullAutoSwitch.ButtonPressed = false;
+            SolverController.BeginCombat(combat);
+            Check(!SolverController.FullAutoEnabled, "disabled preference applies next combat");
+
+            SolverOverlaySnapshot snapshot = new(1, "UI test", SolverOverlayTone.Success, "", "", 0, 7, true,
+                SolverText.Format($"本局扣血  {7} HP"), 0, 0, false, [], "", false, null);
+            ShowResult(host, snapshot);
+            Label outcome = _hpOutcomeLabel!;
+            SetCollapsed(true);
+            await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
+            Check(outcome.IsVisibleInTree() && !_body!.Visible && _routeHeadingRow!.GetParent() == _mainStack
+                && outcome.Text == snapshot.HpOutcomeText && outcome.GetThemeColor("font_color") == Danger, "collapsed loss and color");
+            ShowResult(host, snapshot with { HpOutcomeText = "0 HP", ProjectedBattleHpLost = 0 });
+            Check(ReferenceEquals(outcome, _hpOutcomeLabel) && outcome.Text == "0 HP"
+                && outcome.GetThemeColor("font_color") == Success, "live update uses same label");
+            SetCollapsed(false);
+            Check(_routeHeadingRow!.GetParent() == _body && outcome.IsVisibleInTree(), "expanded placement restored");
+            SetCollapsed(true);
+            ShowSearching(host, 1, false, 0);
+            Check(!outcome.Visible, "new search clears stale loss");
+            ShowResult(host, snapshot with { ProjectedBattleHpLossKnown = false, HpOutcomeText = "? HP" });
+            Check(outcome.IsVisibleInTree() && outcome.Text == "? HP"
+                && outcome.GetThemeColor("font_color") == TextMuted, "unknown loss stays unknown");
+        }
+        finally
+        {
+            SolverSettings.Update(original);
+            SolverController.BeginCombat(combat);
+            SetCollapsed(originalCollapsed);
+            RefreshControls();
+        }
     }
 
     internal static async Task<bool> ExerciseGrowthPolicyUiForTesting()

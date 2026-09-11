@@ -247,7 +247,7 @@ internal static class PlayerTurnSetupCoordinator
             || !_activeOperation.IsCompleted
             || !Entry.Enabled
             || SolverController.SolverDisabled
-            || !SolverController.AutomaticCalculationEnabled
+            || (!SolverController.AutomaticCalculationEnabled && !SolverController.FullAutoEnabled)
             || SolverController.IsMultiplayerSession
             || SolverController.AutomaticSearchPaused
             || !ReferenceEquals(LocalContext.GetMe(manager.DebugOnlyGetState()), player)

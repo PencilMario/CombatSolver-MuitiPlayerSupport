@@ -1,4 +1,6 @@
 {
+  "开战自动": "Auto-start",
+  "每场战斗开始时自动开启全自动。本场手动停止后保持停止，下场战斗再次开启。": "Enable full auto at the start of each combat. Stopping it manually keeps it stopped for this combat; it starts again next combat.",
   "限制{0}的最大生命消耗": "Limit {0} max HP cost",
   "每场最多消耗": "Max HP per combat",
   "关闭时不限；开启后按整场战斗累计消耗计算，重算和跨回合不会恢复额度。修改后重新计算路线。": "Unlimited when off. When enabled, costs accumulate throughout the combat, across recalculations and turns. Changing this setting recalculates the route.",

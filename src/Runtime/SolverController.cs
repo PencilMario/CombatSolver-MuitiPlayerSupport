@@ -511,6 +511,9 @@ internal static class SolverController
     {
         AssertMainThread();
         ResetCore("combat_starting");
+        _combat.FullAutoEnabled = !_solverDisabled
+            && state is CombatState { Players.Count: 1 }
+            && SolverSettings.Current.AutoEnableFullAuto;
         DeployedCardIdsForTesting.Clear();
         DeployedPotionIdsForTesting.Clear();
         LastDeployedActionStartedAtMillisecondsForTesting = 0;
@@ -1422,7 +1425,7 @@ internal static class SolverController
             Entry.Logger.Info(
                 $"[CombatSolver/Test] AUTOMATIC_SEARCH_STOP_CLEARED stopped_turn={stoppedTurn} current_turn={turn}");
         }
-        if (!AutomaticCalculationEnabled)
+        if (!AutomaticCalculationEnabled && !FullAutoEnabled)
         {
             SolverOverlay.ShowManualCalculationReady(host, HasCalculatedThisCombat);
             return false;

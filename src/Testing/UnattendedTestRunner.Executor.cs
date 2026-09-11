@@ -46,6 +46,11 @@ internal sealed partial class UnattendedTestRunner
                 await runner.AssertAncientGrowthPolicyAsync(combatState, player);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "UI-COMPACT-QOL")
+            {
+                await SolverOverlay.ExerciseCompactQolForTesting(combatState);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId is "NORMALITY-AUTOPLAY" or "NORMALITY-AUTOPLAY-REPLAY")
             {
                 await runner.AssertNormalityAutoPlayAsync(combatState, player);
