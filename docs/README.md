@@ -7,6 +7,7 @@
 | 要查什么 | 入口 |
 |---|---|
 | 组件职责、状态所有权和调用链 | [架构与职责地图](ARCHITECTURE.md) |
+| 当前 UI 重设计、按钮区整理与 Gemini 建议审计 | [UI 建议复核与重构方案](audits/ui-redesign-gemini-review-20260911.md) |
 | 本批未发布改动、版本演进与开发记录 | [开发笔记](DEVELOPMENT_NOTES.md) |
 | 已执行测试、复跑方式和未验证范围 | [测试矩阵](TEST_MATRIX.md) |
 | 跨跑局卡顿、第三方 Mod 性能取证 | [进程全程性能录制](performance/long-session-recording.md) |
