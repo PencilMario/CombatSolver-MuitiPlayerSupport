@@ -91,7 +91,7 @@ internal sealed record SolverSettingsData
     [JsonIgnore]
     public SolverPotionPolicy PotionPolicy { get; init; } = SolverPotionPolicy.Smart;
     public PersistedPotionDirective[] PotionDirectives { get; init; } = [];
-    public bool RelicStrategyEnabled { get; init; }
+    public bool RelicStrategyEnabled { get; init; } = true;
     public RelicCounterRule[] RelicCounterRules { get; init; } = [];
     public GrowthValues GrowthBudgets { get; init; }
     public int? BrightestFlameMaxHpLossLimit { get; init; }
