@@ -40,7 +40,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 
 `-VerifyIncrementalSearch`（PowerShell）/ `--verify-incremental-search`（Bash）会逐转移执行完整回放，只用于正确性，不能与性能门槛组合，也不能引用其时间或分配作为生产性能。
 
-单会话正常搜索从 Deep profile 开始；输出的 `phase` / `deep_triggered` 由单次 solver 是否跨过 Short 时间检查点派生。优化后跨过该阈值时，先核对实际 profile、节点/转移预算、工作计数和动作，再把这两个标签与耗时一起报告；不能把标签变化误判为切换短搜，也不能把它们冒充固定工作量字段。保留原始比较与分类修正依据，不删除样本或改变耗时门槛。
+正常搜索使用单一 `SearchPolicySnapshot.Profile`，不再有 Short/Deep 阶段或检查点；进度只表达搜索工作阶段。测试用 `FixedBudget` 与显式小节点/时间预算，统计请求总工作量与总耗时。历史 Short/Deep 日志只能按其原实现解释，不可当成当前阶段或固定工作量字段。
 
 ## 2. 判断瓶颈所在职责
 
@@ -80,7 +80,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - 并行 worker 只能拥有 lane-local 模拟、缓存、节流和原始候选；transposition、dominance、fallback、预算与最终接收顺序仍由 coordinator 独占。固定 lane 应在一次 `Solve` 内复用，禁止回到每父节点 `Task.Run` / 新建 solver。
 - 外层最多预约 `2×DOP` 父节点，已准入作业内同时模拟最多 DOP；自然 singleton 也使用同一调度器。准备动作表后，每父节点独立 Fork gate 串行生成 seed，lane 在 gate 外独占模拟。动态选择预算及 occurrence collector 属于一条完整动作链，不并发消费同一个预算。药水/目标是独立作业，全部卡牌/选择/药水完成后才执行 EndTurn 并发布父节点 stand-pat 基线。coordinator 归并 worker 指标后才能复用 lane，按动作/药水原序聚合，只提交完成父节点的连续前缀。内部不能新准入父节点或做 GC checkpoint；原父节点高水位预约覆盖所有在途结果，数量界不当作硬字节界。异常停止派发、排空全部 lane 后才释放 probe/batch/root；高分支场景必须同时看峰值图和分配。
 - 保路元数据并行必须冻结本次候选、父排名、已选集合和 lease 账本，逐索引或逐组独占写回；分组与最终拼接不得按完成次序进行。观察请求先收集、再按原组序应用，不能让 worker 修改共享统计或保留账本。复用已经排空的固定 lane，不使用未限并发的 `Parallel.For`；取消和错误也须等待所有已派发作业，完整记入其分配并传播原 token/异常。合同覆盖双 lane、逐槽一次写入、失败后复用和实际 NoGC 回收边界。
-- 待命探针并行只覆盖原保路会访问的未缓存状态，保留首次原代表；不扩大候选集合。复用同一固定 lane，coordinator 独占缓存，worker 只交出标量；临时快照在发布前释放，失败和取消必须排空。最终 Deep 固定节点合同同时覆盖 DOP1/DOP2、在途取消/失败和原根复用，普通 Short 合同不能代替这一边界。
+- 待命探针并行只覆盖原保路会访问的未缓存状态，保留首次原代表；不扩大候选集合。复用同一固定 lane，coordinator 独占缓存，worker 只交出标量；临时快照在发布前释放，失败和取消必须排空。最终固定节点合同同时覆盖 DOP1/DOP2、在途取消/失败和原根复用，普通单线程小预算合同不能代替这一边界。
 - 只有容器进入 `SearchRunContext` 的有界空闲池；每个发布批次必须持有独立 lease，归还前清空引用，旧 Dispose 不得触碰后来租户。不得池化 simulator/model。
 - 首层回放并行必须先证明原动态预算必定覆盖这些物理回放：N≥2 且语义最终额度和回放额度都≥N、选择非空时，原 ceil 租约递推保证每个兄弟的第一次回放必经。frontier 只暂存这 N 次结果，原序续接消费逻辑额度；嵌套选择与实例补充不并发。不能把各兄弟预先固定为平均总配额，也不能在预算不足时猜测准入；合同覆盖饱和、无效、混合消耗与512上限。
 - Snapshot 临时牌列表只由当前 `_run` / lane 租用，维持 Discard → Draw → Hand 拼接顺序和原稳定洗牌。归还清空引用，只留一个容量不超过 4096 的列表；租用代次防止复制的旧 lease 清空新租户，禁止把列表存入返回快照或策略上下文。

@@ -472,17 +472,15 @@ internal static class SolverController
                 $"实际为 {maxDegreeOfParallelism}。");
         }
         SearchPolicySnapshot policy = new(
-            settings.ShortProfile,
-            settings.DeepProfile,
+            settings.Profile,
             settings.PotionPolicy,
             CapturePotionStrategy(state, settings.PotionPolicy),
             settings.EnableDetailedDiagnosticLogs,
             UnattendedTestRunner.VerifyIncrementalSearch,
-            UnattendedTestRunner.ForceShortSearchOnly,
+            UnattendedTestRunner.FixedSearchBudget,
             UnattendedTestRunner.MeasureSearchPhases,
             maxDegreeOfParallelism,
-            UnattendedTestRunner.ShortSearchBudgetOverrideMilliseconds,
-            UnattendedTestRunner.DeepSearchBudgetOverrideMilliseconds,
+            UnattendedTestRunner.SearchBudgetOverrideMilliseconds,
             includeTurnSetup,
             theftPolicy,
             settings.ActTransitionBossHpStrategy,
@@ -541,7 +539,7 @@ internal static class SolverController
             return;
         if (!_combat.ReviewedWorldlineResults.Add(result))
             return;
-        long reviewed = (long)result.ShortExpandedNodes + result.DeepExpandedNodes;
+        long reviewed = result.TotalExpandedNodes;
         _combat.ReviewedWorldlinesTotal = checked(_combat.ReviewedWorldlinesTotal + reviewed);
     }
 
@@ -1140,8 +1138,7 @@ internal static class SolverController
                 $"max_dop={searchPolicy.MaxDegreeOfParallelism}");
             Entry.Logger.Info(SolverDiagnostics.DescribeStart(
                 state,
-                settings.ShortProfile,
-                settings.DeepProfile));
+                settings.Profile));
 
             setupStage = "worker_schedule";
             SolvedRouteCache routeCache = SolvedRouteCache.Capture(state, rootSnapshot, searchPolicy, battleDamage);

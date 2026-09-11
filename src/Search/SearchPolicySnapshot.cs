@@ -3,17 +3,15 @@ namespace CombatSolver;
 internal readonly record struct FatalGrowthSearchTarget(GrowthSource Source, int KillCount);
 
 internal sealed record SearchPolicySnapshot(
-    SolverSearchProfile ShortProfile,
-    SolverSearchProfile DeepProfile,
+    SolverSearchProfile Profile,
     SolverPotionPolicy PotionPolicy,
     PotionStrategySnapshot PotionStrategy,
     bool DetailedDiagnostics,
     bool VerifyIncrementalSearch,
-    bool ForceShortOnly,
+    bool FixedBudget,
     bool MeasurePhasePerformance,
     int MaxDegreeOfParallelism,
-    int? ShortBudgetOverrideMilliseconds,
-    int? DeepBudgetOverrideMilliseconds,
+    int? BudgetOverrideMilliseconds,
     bool IncludeTurnSetup,
     SolverTheftPolicy? TheftPolicy,
     BossHpStrategy ActTransitionBossHpStrategy,

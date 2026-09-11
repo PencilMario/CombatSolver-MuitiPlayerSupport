@@ -69,8 +69,8 @@ internal sealed partial class UnattendedTestRunner
             GrowthBudgets = default,
             AcceptableBattleHpLoss = 100,
             PotionPolicy = SolverPotionPolicy.Disabled,
-            ForceShortOnly = true,
-            ShortBudgetOverrideMilliseconds = 1500,
+            FixedBudget = true,
+            BudgetOverrideMilliseconds = 1500,
             MaxDegreeOfParallelism = 1,
             VerifyIncrementalSearch = true,
         };

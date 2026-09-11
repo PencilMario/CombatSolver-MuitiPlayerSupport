@@ -255,9 +255,7 @@ internal static partial class CombatSearchCoordinator
     {
         ArgumentOutOfRangeException.ThrowIfNegative(expandedNodes);
         ArgumentOutOfRangeException.ThrowIfNegative(elapsedMilliseconds);
-        SolverSearchProfile standard = profile.Phase == SolverSearchPhase.Short
-            ? SolverSearchProfile.Short
-            : SolverSearchProfile.Deep;
+        SolverSearchProfile standard = SolverSearchProfile.Default;
         long remainingNodes = profile.MaxExpandedNodes - expandedNodes;
         long remainingMilliseconds = profile.SoftTimeBudgetMilliseconds - elapsedMilliseconds;
         if (profile.BeamWidth <= standard.BeamWidth

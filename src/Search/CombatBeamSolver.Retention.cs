@@ -202,8 +202,7 @@ internal sealed partial class CombatBeamSolver
             // Every independent retention channel must finish before the ordered coordinator.
             // In particular a late opening-channel winner with an inherited lease must pay this
             // layer's ordered admission (or lose only that lease) before CycleRegion arbitration.
-            if (_profile.Phase == SolverSearchPhase.Deep
-                && pool.Count > _profile.BeamWidth
+            if (pool.Count > _profile.BeamWidth
                 && root.HasUnusedCardReplayAllocator)
             {
                 int channelWidth = Math.Clamp(_profile.BeamWidth / 12, 6, 12);

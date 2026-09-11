@@ -51,6 +51,16 @@ internal sealed partial class UnattendedTestRunner
                 await SolverOverlay.ExerciseCompactQolForTesting(combatState);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "PROCESS-DIAGNOSTICS")
+            {
+                await runner.AssertProcessDiagnosticsAsync();
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "SINGLE-SEARCH-PROFILE")
+            {
+                await runner.AssertSingleSearchProfileAsync(combatState);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "THEFT-RECOVERY-POLICY")
             {
                 await AssertTheftRecoveryPolicyAsync(combatState);
@@ -1129,7 +1139,7 @@ internal sealed partial class UnattendedTestRunner
                 testSettings = testSettings with
                 {
                     PerformancePreset = SolverPerformancePreset.Custom,
-                    ShortMaxCardBranchesPerNode = shortMaxCardBranches,
+                    SearchMaxCardBranchesPerNode = shortMaxCardBranches,
                 };
             }
             if (request.DeepMaxCardBranchesPerNodeForTest is { } deepMaxCardBranches)
@@ -1137,7 +1147,7 @@ internal sealed partial class UnattendedTestRunner
                 testSettings = testSettings with
                 {
                     PerformancePreset = SolverPerformancePreset.Custom,
-                    DeepMaxCardBranchesPerNode = deepMaxCardBranches,
+                    SearchMaxCardBranchesPerNode = deepMaxCardBranches,
                 };
             }
             SolverSettings.ApplyForTesting(testSettings with
@@ -1166,7 +1176,7 @@ internal sealed partial class UnattendedTestRunner
                 runner._writer.ReplayVerification["executedPolicy"] = System.Text.Json.JsonSerializer.SerializeToNode(
                     new { snapshot.PotionPolicy, SolverSettings.Current.PotionDirectives,
                         snapshot.ActTransitionBossHpStrategy, snapshot.FinalBossHpStrategy,
-                        snapshot.ShortProfile, snapshot.DeepProfile, snapshot.SearchMaxDegreeOfParallelism },
+                        snapshot.Profile, snapshot.SearchMaxDegreeOfParallelism },
                     UnattendedTestFiles.JsonOptions);
             if (request.EnableNoGcRegionForTest is { } expectedNoGcEnabled
                 && snapshot.EnableNoGcRegion != expectedNoGcEnabled)
@@ -1175,17 +1185,17 @@ internal sealed partial class UnattendedTestRunner
                     $"No-GC 开关为 {snapshot.EnableNoGcRegion}，预期 {expectedNoGcEnabled}。");
             }
             if (request.ShortMaxCardBranchesPerNodeForTest is { } expectedShortBranches
-                && snapshot.ShortProfile.MaxCardBranchesPerNode != expectedShortBranches)
+                && snapshot.Profile.MaxCardBranchesPerNode != expectedShortBranches)
             {
                 throw new InvalidOperationException(
-                    $"短搜单节点出牌分支为 {snapshot.ShortProfile.MaxCardBranchesPerNode}，" +
+                    $"短搜单节点出牌分支为 {snapshot.Profile.MaxCardBranchesPerNode}，" +
                     $"预期 {expectedShortBranches}。");
             }
             if (request.DeepMaxCardBranchesPerNodeForTest is { } expectedDeepBranches
-                && snapshot.DeepProfile.MaxCardBranchesPerNode != expectedDeepBranches)
+                && snapshot.Profile.MaxCardBranchesPerNode != expectedDeepBranches)
             {
                 throw new InvalidOperationException(
-                    $"深搜单节点出牌分支为 {snapshot.DeepProfile.MaxCardBranchesPerNode}，" +
+                    $"深搜单节点出牌分支为 {snapshot.Profile.MaxCardBranchesPerNode}，" +
                     $"预期 {expectedDeepBranches}。");
             }
             if (request.NoGcRegionBudgetGigabytesForTest is { } expectedNoGcGigabytes)

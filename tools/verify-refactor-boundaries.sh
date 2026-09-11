@@ -301,6 +301,10 @@ require_fixed "$repository_root/src/Engine/InCombat/Mirrors/Hooks/Card/ShouldPla
 
 for file in "${search_files[@]}"; do
     for reference in \
+        'SolverSearchPhase' \
+        'ShortProfile' \
+        'DeepProfile' \
+        'shortCheckpointMilliseconds' \
         'SolverSettings.Current' \
         'Entry.Logger' \
         'SolverController' \

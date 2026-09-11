@@ -1,9 +1,13 @@
 # CombatSolver 测试清单
 
-## 下一版本（开发中，暂不发版）：最终 Boss 直接深搜
+## 下一版本（开发中，暂不发版）：统一搜索预算与进程诊断
 
-- 最终 Boss 的正式路径将 UI/统计短搜检查点归零，沿用既有深搜配置；代码核对进度的 elapsed < checkpoint 与短阶段累计计时均消费该值，药水审计沿用同一检查点。ForceShortOnly 显式约束在该分支前返回，保持测试/API 行为。
-- Release 构建通过（CopyModOnBuild=false），未运行实机或搜索场景，没有内存收益结论。首次构建编译成功、复制阶段因 SlayTheSpire2.exe 占用 DLL 而失败；本地游戏目录尚未部署此开发改动。
+- SINGLE-SEARCH-PROFILE / `2fb11ffdc6c649bca3838cab87dffbf0` Passed，22.68 秒：旧 deep 自定义参数迁移、保存重载、四档预算、单搜索进度、请求工作累计与固定小预算。
+- SEARCH-HP-TARGET-STOP / `8313b1d83703473bb5dc1c751bd2700b` Passed，7.75 秒：零损、阈值、并行、成长目标、必要药水和额外药水保留。
+- THEFT-RECOVERY-POLICY / `88dca2a1337d47b3bfef439169922998` Passed，7.27 秒：策略合同与固定小预算搜索。没有据此宣称完整玩家战斗路线质量或内存收益。
+- UI-LOCALIZATION / `b794090ac5584fa8a06ab8f18c31844e` Passed，9.78 秒：设置、动态状态和中英切换。PROCESS-DIAGNOSTICS / `75fe89832e6b472c88f82ebec29df2a4` Passed，22.33 秒：模拟 State 存在而 NetService 未就绪的读档窗口，调用真实心跳 Process；验证切换战斗后 GC 摘要仍在进程日志、高频显示采样未被复制。
+- CheckpointTool self-test 31 项断言通过，包括新单配置政策比较、旧政策保留及不同代预算不冒充同一政策；Windows 结构门禁通过。Bash 入口同步了协议与结构约束，未在 Linux 实际启动游戏。
+- 最新可见进程 27996 的最后一场 combat_ended 回收：managed live 2.157→2.057 GB、private 15.581→14.451 GB，working set 6.746→6.740 GB。原日志删除了前序战斗，不能从该样本证明长局卡顿根因；未开启新 trace 或可见性能测试。
 
 ## 0.35.5：偷窃策略
 

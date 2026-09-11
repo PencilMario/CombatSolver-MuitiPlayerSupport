@@ -128,52 +128,43 @@ internal sealed partial class SolverSettingsPanel
         advanced.AddChild(CreateSectionHeading(SolverText.Get("自定义搜索参数")));
         GridContainer searchGrid = new()
         {
-            Columns = 3,
+            Columns = 2,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             MouseFilter = MouseFilterEnum.Pass,
         };
         searchGrid.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
         searchGrid.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Sm);
         AddGridHeader(searchGrid, SolverText.Get("配置项"));
-        AddGridHeader(searchGrid, SolverText.Get("快搜"));
-        AddGridHeader(searchGrid, SolverText.Get("深搜"));
+        AddGridHeader(searchGrid, SolverText.Get("搜索预算"));
         AddDoubleRow(
             searchGrid,
             SolverText.Get("时间上限（秒）"),
-            data => SolverSettings.ResolvePerformanceValues(data).ShortProfile.SoftTimeBudgetMilliseconds / 1000d,
-            (data, value) => AsCustomPerformance(data with { ShortTimeLimitSeconds = value }),
-            data => SolverSettings.ResolvePerformanceValues(data).DeepProfile.SoftTimeBudgetMilliseconds / 1000d,
-            (data, value) => AsCustomPerformance(data with { DeepTimeLimitSeconds = value }),
+            data => SolverSettings.ResolvePerformanceValues(data).Profile.SoftTimeBudgetMilliseconds / 1000d,
+            (data, value) => AsCustomPerformance(data with { SearchTimeLimitSeconds = value }),
             0.1d,
             600d,
-            SolverText.Get("搜索达到该时间后停止当前阶段。提高后可搜索更久，可能找到更好路线，也会更晚显示结果；快搜负责先给结果，深搜负责继续优化。"));
+            SolverText.Get("搜索使用一套时间预算，期间持续更新当前最好路线；达到停止条件时提前结束。"));
         AddIntRow(
             searchGrid,
             SolverText.Get("Beam 宽度"),
-            data => SolverSettings.ResolvePerformanceValues(data).ShortProfile.BeamWidth,
-            (data, value) => AsCustomPerformance(data with { ShortBeamWidth = value }),
-            data => SolverSettings.ResolvePerformanceValues(data).DeepProfile.BeamWidth,
-            (data, value) => AsCustomPerformance(data with { DeepBeamWidth = value }),
+            data => SolverSettings.ResolvePerformanceValues(data).Profile.BeamWidth,
+            (data, value) => AsCustomPerformance(data with { SearchBeamWidth = value }),
             1,
             512,
             SolverText.Get("每层保留的候选路线数量。提高后更不容易过早淘汰好路线，但会明显增加计算量和内存占用。"));
         AddIntRow(
             searchGrid,
             SolverText.Get("节点上限"),
-            data => SolverSettings.ResolvePerformanceValues(data).ShortProfile.MaxExpandedNodes,
-            (data, value) => AsCustomPerformance(data with { ShortMaxExpandedNodes = value }),
-            data => SolverSettings.ResolvePerformanceValues(data).DeepProfile.MaxExpandedNodes,
-            (data, value) => AsCustomPerformance(data with { DeepMaxExpandedNodes = value }),
+            data => SolverSettings.ResolvePerformanceValues(data).Profile.MaxExpandedNodes,
+            (data, value) => AsCustomPerformance(data with { SearchMaxExpandedNodes = value }),
             100,
             100_000,
             SolverText.Get("单次搜索最多展开的状态数量。提高后搜索范围更大，也会增加耗时和内存占用。"));
         AddIntRow(
             searchGrid,
             SolverText.Get("单节点出牌分支"),
-            data => SolverSettings.ResolvePerformanceValues(data).ShortProfile.MaxCardBranchesPerNode,
-            (data, value) => AsCustomPerformance(data with { ShortMaxCardBranchesPerNode = value }),
-            data => SolverSettings.ResolvePerformanceValues(data).DeepProfile.MaxCardBranchesPerNode,
-            (data, value) => AsCustomPerformance(data with { DeepMaxCardBranchesPerNode = value }),
+            data => SolverSettings.ResolvePerformanceValues(data).Profile.MaxCardBranchesPerNode,
+            (data, value) => AsCustomPerformance(data with { SearchMaxCardBranchesPerNode = value }),
             1,
             100,
             SolverText.Get("每个状态最多继续尝试的出牌动作数量。提高后能覆盖更多出牌顺序，但会放大后续搜索量。"));
@@ -220,10 +211,10 @@ internal sealed partial class SolverSettingsPanel
     private OptionButton CreatePerformancePresetInput()
     {
         OptionButton input = CreateOptionInput(260);
-        input.AddItem(SolverText.Get("低档（5 / 60 秒）"), (int)SolverPerformancePreset.Low);
-        input.AddItem(SolverText.Get("中档（默认，8 / 120 秒）"), (int)SolverPerformancePreset.Medium);
-        input.AddItem(SolverText.Get("高档（12 / 180 秒）"), (int)SolverPerformancePreset.High);
-        input.AddItem(SolverText.Get("极高（20 / 300 秒）"), (int)SolverPerformancePreset.VeryHigh);
+        input.AddItem(SolverText.Get("低档（60 秒）"), (int)SolverPerformancePreset.Low);
+        input.AddItem(SolverText.Get("中档（默认，120 秒）"), (int)SolverPerformancePreset.Medium);
+        input.AddItem(SolverText.Get("高档（180 秒）"), (int)SolverPerformancePreset.High);
+        input.AddItem(SolverText.Get("极高（300 秒）"), (int)SolverPerformancePreset.VeryHigh);
         input.AddItem(SolverText.Get("自定义"), (int)SolverPerformancePreset.Custom);
         input.ItemSelected += index =>
         {
@@ -270,8 +261,6 @@ internal sealed partial class SolverSettingsPanel
     private void AddIntRow(
         GridContainer grid,
         string label,
-        Func<SolverSettingsData, int> getShort,
-        Func<SolverSettingsData, int, SolverSettingsData> setShort,
         Func<SolverSettingsData, int> getDeep,
         Func<SolverSettingsData, int, SolverSettingsData> setDeep,
         int minimum,
@@ -279,21 +268,16 @@ internal sealed partial class SolverSettingsPanel
         string tooltip)
     {
         Label rowLabel = CreateRowLabel(label);
-        LineEdit shortInput = CreateRequiredIntInput(getShort, setShort, minimum, maximum);
         LineEdit deepInput = CreateRequiredIntInput(getDeep, setDeep, minimum, maximum);
         ApplyTooltip(rowLabel, tooltip);
-        ApplyTooltip(shortInput, tooltip);
         ApplyTooltip(deepInput, tooltip);
         grid.AddChild(rowLabel);
-        grid.AddChild(shortInput);
         grid.AddChild(deepInput);
     }
 
     private void AddDoubleRow(
         GridContainer grid,
         string label,
-        Func<SolverSettingsData, double> getShort,
-        Func<SolverSettingsData, double, SolverSettingsData> setShort,
         Func<SolverSettingsData, double> getDeep,
         Func<SolverSettingsData, double, SolverSettingsData> setDeep,
         double minimum,
@@ -301,13 +285,10 @@ internal sealed partial class SolverSettingsPanel
         string tooltip)
     {
         Label rowLabel = CreateRowLabel(label);
-        LineEdit shortInput = CreateRequiredDoubleInput(getShort, setShort, minimum, maximum);
         LineEdit deepInput = CreateRequiredDoubleInput(getDeep, setDeep, minimum, maximum);
         ApplyTooltip(rowLabel, tooltip);
-        ApplyTooltip(shortInput, tooltip);
         ApplyTooltip(deepInput, tooltip);
         grid.AddChild(rowLabel);
-        grid.AddChild(shortInput);
         grid.AddChild(deepInput);
     }
 

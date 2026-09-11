@@ -5,6 +5,10 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $searchRoot = Join-Path $repositoryRoot "src\Search"
 
 $forbiddenSearchReferences = @(
+    "SolverSearchPhase",
+    "ShortProfile",
+    "DeepProfile",
+    "shortCheckpointMilliseconds",
     "SolverSettings.Current",
     "Entry.Logger",
     "SolverController",

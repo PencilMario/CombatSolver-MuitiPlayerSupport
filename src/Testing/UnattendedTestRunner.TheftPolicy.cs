@@ -24,11 +24,11 @@ internal sealed partial class UnattendedTestRunner
 
         SearchPolicySnapshot policy = SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat,
             includeTurnSetup: false, theftPolicy: SolverTheftPolicy.PreserveResources);
-        SolverSearchProfile profile = policy.ShortProfile with { MaxExpandedNodes = 256, SoftTimeBudgetMilliseconds = 1500 };
+        SolverSearchProfile profile = policy.Profile with { MaxExpandedNodes = 256, SoftTimeBudgetMilliseconds = 1500 };
         policy = policy with
         {
-            ShortProfile = profile, DeepProfile = profile, ForceShortOnly = true,
-            ShortBudgetOverrideMilliseconds = 1500, DeepBudgetOverrideMilliseconds = 1500,
+            Profile = profile, FixedBudget = true,
+            BudgetOverrideMilliseconds = 1500,
             VerifyIncrementalSearch = false,
         };
         CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);

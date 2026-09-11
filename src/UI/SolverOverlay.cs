@@ -684,7 +684,7 @@ internal static class SolverOverlay
         if (_searchProgressBar != null)
         {
             _searchProgressBar.Visible = true;
-            _searchProgressBar.MaxValue = SolverSearchProfile.Short.MaxExpandedNodes;
+            _searchProgressBar.MaxValue = SolverSearchProfile.Default.MaxExpandedNodes;
             _searchProgressBar.Value = 0;
         }
         SetRouteVisibility(true);
@@ -1806,7 +1806,7 @@ internal static class SolverOverlay
         {
             Name = "SearchProgress",
             MinValue = 0,
-            MaxValue = SolverSearchProfile.Short.MaxExpandedNodes,
+            MaxValue = SolverSearchProfile.Default.MaxExpandedNodes,
             Value = 0,
             ShowPercentage = false,
             CustomMinimumSize = new Vector2(0, 4),

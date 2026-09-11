@@ -412,7 +412,7 @@ internal sealed record SolverOverlaySnapshot(
             ? SolverText.Format($"[color={SolverUiTokens.Palette.TextMutedHex}]搜索[/color]  战斗状态一致，恢复已记录路线  │  本次 0 节点")
             : result.WasReused
             ? SolverText.Format($"[color={SolverUiTokens.Palette.TextMutedHex}]搜索[/color]  跨回合状态一致，复用既有路线  │  本回合 0 节点")
-            : SolverText.Format($"[color={SolverUiTokens.Palette.TextMutedHex}]搜索[/color]  {(result.DeepSearchTriggered ? SolverText.Get("深化") : SolverText.Get("快速"))}  │  {result.ExpandedNodes} 节点  │  置换剪枝 {result.TranspositionBranchesPruned}  │  {result.TotalSearchElapsed.TotalMilliseconds:F0} ms");
+            : SolverText.Format($"[color={SolverUiTokens.Palette.TextMutedHex}]搜索[/color]  {result.ExpandedNodes} 节点  │  置换剪枝 {result.TranspositionBranchesPruned}  │  {result.TotalSearchElapsed.TotalMilliseconds:F0} ms");
         List<string> detailLines =
         [
             searchDetails,

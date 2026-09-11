@@ -52,10 +52,9 @@ internal sealed partial class UnattendedTestRunner
     internal static bool IsReplayingRecordedInputs => CombatReplayRecording.TestObserver != null;
     public static bool AutomaticTurnSearchEnabled => Host.AutomaticTurnSearchEnabled;
     public static bool VerifyIncrementalSearch => Host.VerifyIncrementalSearch;
-    public static bool ForceShortSearchOnly => Host.ForceShortSearchOnly;
+    public static bool FixedSearchBudget => Host.FixedSearchBudget;
     public static bool MeasureSearchPhases => Host.MeasureSearchPhases;
-    public static int? ShortSearchBudgetOverrideMilliseconds => Host.ShortSearchBudgetOverrideMilliseconds;
-    public static int? DeepSearchBudgetOverrideMilliseconds => Host.DeepSearchBudgetOverrideMilliseconds;
+    public static int? SearchBudgetOverrideMilliseconds => Host.SearchBudgetOverrideMilliseconds;
     public static int? SearchMaxDegreeOfParallelismOverride => Host.SearchMaxDegreeOfParallelismOverride;
 
     private readonly NGame _host;

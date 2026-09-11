@@ -6,6 +6,14 @@
 
 ## 1. 运行链
 
+### 单一搜索预算与兼容边界
+
+`SolverSettings` 将四档或自定义配置解析为一个 `Profile`，主线程冻结到 `SearchPolicySnapshot`。`CombatSearchCoordinator` 的主搜索、药水审计与恢复使用同一套预算维度；`FixedBudget` 只限制无胜利后的预算扩展，测试/API 可显式覆盖时间。Search 不再包含 Short/Deep 配置、枚举、检查点或分段累计统计；两端结构门禁禁止这些符号回流。`SearchRequestWorkTotals` 按请求累计唯一 elapsed 和工作计数。
+
+旧设置的 deep 字段仅在反序列化边界迁移至 search 字段，保存只写新字段；旧归档读取 deepProfile，新的回放政策覆盖文件使用 profile/fixedBudget。旧无人请求的 forceShortSearchOnly 与短/深时间字段在 ProtocolHost 入口转成固定预算；已退休的阶段断言参数不再接受。UI 设置只渲染单列预算。
+
+`CombatDiagnosticJournal` 仍按战斗保留详细诊断，额外向有界进程日志复制 GC/分配预算/主线程帧摘要，供跨战斗关联。高频显示与节点日志不复制。`SearchGcPolicy` 分别记录收集完成后的堆状态和重启 NoGC 后的状态，诊断采样不改变收集策略。
+
 可选的 `src/Diagnostics/PerformanceRecording.cs` 是主线程标量采样和状态提示入口，由 Dispatcher 安装；`PerformanceSession.cs` 拥有进程级有界队列、后台文件写入及 OS/GC 采样；`PerformanceLifecycle.cs` 仅计量跑局/房间异步生命周期。节点重建复用同一进程写入器，游戏对象只以弱引用追踪。`tools/watch-performance.ps1` 在独立进程采集 EventPipe 和用户明确触发的 Heap dump；配置文件存在时才启用。诊断不修改搜索政策、GC 模式或第三方行为，详情见 [全程性能录制](performance/long-session-recording.md)。
 
 ```text

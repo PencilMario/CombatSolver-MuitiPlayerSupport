@@ -1,4 +1,9 @@
 {
+  "低档（60 秒）": "Low (60 s)",
+  "中档（默认，120 秒）": "Medium (default, 120 s)",
+  "高档（180 秒）": "High (180 s)",
+  "极高（300 秒）": "Very High (300 s)",
+  "搜索使用一套时间预算，期间持续更新当前最好路线；达到停止条件时提前结束。": "Search uses a single time budget and continuously updates the best route. It ends early when stop conditions are met.",
   "控制求解器启停与自动计算。自动开启全自动可在主界面右侧设置。": "Control the solver and automatic calculation. Configure automatic auto-play on the right of the main panel.",
   "出牌速度": "Play speed",
   "调整自动执行的节奏，下次执行生效。": "Adjust playback pacing. Applies to the next execution.",
@@ -217,7 +222,7 @@
   "选择": "Choose",
   "[color={0}]搜索[/color]  战斗状态一致，恢复已记录路线  │  本次 0 节点": "[color={0}]Search[/color]  Combat state matched; recorded route restored  │  0 nodes",
   "[color={0}]搜索[/color]  跨回合状态一致，复用既有路线  │  本回合 0 节点": "[color={0}]Search[/color]  Turn state matched; prior route reused  │  0 nodes",
-  "[color={0}]搜索[/color]  {1}  │  {2} 节点  │  置换剪枝 {3}  │  {4:F0} ms": "[color={0}]Search[/color]  {1}  │  {2} nodes  │  {3} transpositions pruned  │  {4:F0} ms",
+  "[color={0}]搜索[/color]  {1} 节点  │  置换剪枝 {2}  │  {3:F0} ms": "[color={0}]Search[/color]  {1} nodes  │  {2} transpositions pruned  │  {3:F0} ms",
   "深化": "Deep",
   "快速": "Fast",
   "[color={0}]运行[/color]  后台分配 {1} MB  │  GC {2}/{3}/{4}  │  暂停 {5:F1} ms  │  延迟探测 {6}": "[color={0}]Runtime[/color]  Worker allocation {1} MB  │  GC {2}/{3}/{4}  │  Pause {5:F1} ms  │  Latency probes {6}",

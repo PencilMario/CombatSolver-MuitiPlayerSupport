@@ -1,13 +1,6 @@
 namespace CombatSolver;
 
-internal enum SolverSearchPhase
-{
-    Short,
-    Deep,
-}
-
 internal sealed record SolverSearchProfile(
-    SolverSearchPhase Phase,
     int BeamWidth,
     int MaxExpandedNodes,
     int MaxCardBranchesPerNode,
@@ -18,17 +11,7 @@ internal sealed record SolverSearchProfile(
     // Internal to the existing failed-layer retry; never enabled for a normal primary solve.
     public bool RecoverDeferredTurnFrontier { get; init; }
 
-    public static SolverSearchProfile Short { get; } = new(
-        SolverSearchPhase.Short,
-        BeamWidth: 24,
-        MaxExpandedNodes: 4_800,
-        MaxCardBranchesPerNode: 20,
-        MaxPileChoiceBranchesPerAction: 10,
-        MaxHandChoiceBranchesPerAction: 12,
-        SoftTimeBudgetMilliseconds: 8_000);
-
-    public static SolverSearchProfile Deep { get; } = new(
-        SolverSearchPhase.Deep,
+    public static SolverSearchProfile Default { get; } = new(
         BeamWidth: 60,
         MaxExpandedNodes: 24_000,
         MaxCardBranchesPerNode: 32,

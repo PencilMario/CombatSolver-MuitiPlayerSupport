@@ -30,10 +30,10 @@ internal sealed partial class UnattendedTestRunner
             SetEnergy(player, 3);
             SearchPolicySnapshot policy = SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null) with
             {
-                ForceShortOnly = true, ShortBudgetOverrideMilliseconds = 1500,
+                FixedBudget = true, BudgetOverrideMilliseconds = 1500,
                 PotionPolicy = SolverPotionPolicy.Disabled, MaxDegreeOfParallelism = 1,
                 DetailedDiagnostics = false, VerifyIncrementalSearch = false,
-                ShortProfile = SolverSearchProfile.Short with { MaxExpandedNodes = 128 },
+                Profile = SolverSearchProfile.Default with { MaxExpandedNodes = 128 },
             };
             Check(policy.StopAtAcceptableBattleHpLoss && !policy.HasGrowthTargets && policy.CanStopAtHpTarget,
                 "saved allowance without matching cards permits stopping");
@@ -46,7 +46,7 @@ internal sealed partial class UnattendedTestRunner
             Check(stopped.Snapshot.AllEnemiesDead && stopped.ProjectedBattleHpLost == 0, "zero-loss complete victory");
             SolverResult continued = await Search(policy with { StopAtAcceptableBattleHpLoss = false });
             Check(continued.Snapshot.AllEnemiesDead && continued.ProjectedBattleHpLost == 0
-                && stopped.ShortExpandedNodes < continued.ShortExpandedNodes, "switch stops before remaining combinations");
+                && stopped.TotalExpandedNodes < continued.TotalExpandedNodes, "switch stops before remaining combinations");
             SolverResult threshold = await Search(policy with { AcceptableBattleHpLoss = 3 }, alreadyLost: 3);
             Check(threshold.ProjectedBattleHpLost == 3
                 && CombatSearchCoordinator.HasReachedAcceptableBattleHpLoss(policy with { AcceptableBattleHpLoss = 3 }, threshold)
@@ -68,7 +68,7 @@ internal sealed partial class UnattendedTestRunner
             SolverResult rewarded = await Search(policy with { HasGrowthTargets = growth.HasGrowthTargets });
             Check(rewarded.Snapshot.AllEnemiesDead && rewarded.Snapshot.GrowthRewards.ForbiddenGrimoire == 1,
                 "growth opportunity survives immediate zero-loss kill");
-            _completedChecks.Add($"HpTargetStop:zero_nodes={stopped.ShortExpandedNodes}:off_nodes={continued.ShortExpandedNodes}:parallel_nodes={parallel.ShortExpandedNodes}:threshold3:growth_reward1");
+            _completedChecks.Add($"HpTargetStop:zero_nodes={stopped.TotalExpandedNodes}:off_nodes={continued.TotalExpandedNodes}:parallel_nodes={parallel.TotalExpandedNodes}:threshold3:growth_reward1");
             await ClearPlayerPilesAsync(player);
             foreach (string id in new[] { "THE_HUNT", "STRIKE_IRONCLAD", "DEFEND_IRONCLAD" })
                 await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = id, Pile = "Hand" });
