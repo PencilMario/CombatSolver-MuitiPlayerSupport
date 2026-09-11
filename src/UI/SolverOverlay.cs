@@ -1719,6 +1719,7 @@ internal static class SolverOverlay
 
     private static Control CreateSummarySection()
     {
+        const int summaryFontSize = 16;
         _summaryPanel = CreateSectionPanel("SummaryPanel");
         _summaryPanel.MouseFilter = Control.MouseFilterEnum.Pass;
         _summaryPanel.CustomMinimumSize = Vector2.Zero;
@@ -1746,14 +1747,14 @@ internal static class SolverOverlay
         };
         _summaryStateLabel = CreateTextLabel(
             SolverText.Get("等待战斗状态"),
-            SolverUiTokens.Type.Metric,
+            summaryFontSize,
             TextMuted,
             FontType.Bold);
         _summaryStatusBadge.AddChild(_summaryStateLabel);
         statusRow.AddChild(_summaryStatusBadge);
         _summaryContextLabel = CreateTextLabel(
             string.Empty,
-            SolverUiTokens.Type.Metric,
+            summaryFontSize,
             SolverUiTokens.Palette.TextSecondary,
             FontType.Bold);
         _summaryContextLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
@@ -1761,14 +1762,14 @@ internal static class SolverOverlay
         _summaryContextLabel.AutowrapMode = TextServer.AutowrapMode.Off;
         _summaryContextLabel.Visible = false;
         statisticsRow.AddChild(_summaryContextLabel);
-        _summaryText = CreateRichText(SolverUiTokens.Type.Body);
+        _summaryText = CreateRichText(summaryFontSize);
         _summaryText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _summaryText.FitContent = true;
         _summaryText.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _summaryText.CustomMinimumSize = new Vector2(0, 24);
         _summaryText.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         _summaryText.ApplyLocaleFontSubstitution(FontType.Bold, "normal_font");
-        _progressText = CreateTextLabel(string.Empty, SolverUiTokens.Type.Metric, TextPrimary, FontType.Bold);
+        _progressText = CreateTextLabel(string.Empty, summaryFontSize, TextPrimary, FontType.Bold);
         _progressText.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         _progressText.CustomMinimumSize = new Vector2(0, 24);
         _progressText.AutowrapMode = TextServer.AutowrapMode.Off;
@@ -1776,7 +1777,7 @@ internal static class SolverOverlay
         statisticsRow.AddChild(_progressText);
         _reviewText = CreateTextLabel(
             string.Empty,
-            SolverUiTokens.Type.Caption,
+            summaryFontSize,
             SolverUiTokens.Palette.TextSecondary,
             FontType.Bold);
         _reviewText.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
