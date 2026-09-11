@@ -38,10 +38,6 @@ internal sealed partial class SolverRelicStrategyPanel : PanelContainer
         _enabled.Name = "RelicStrategyEnabled";
         master.AddChild(_enabled);
         layout.AddChild(master);
-        Label hint = Text("设好结束计数，达标后仍可早停。");
-        hint.TooltipText = SolverText.Get("总开关与单项开关同时开启才生效。范围包含两端；每项达标最多折算一次额外战损，多个遗物额度相加。")
-            + "\n" + SolverText.Get("只考虑当前持有的遗物。计数目标满足后，仍按原战损、成长和药水条件达标早停。");
-        layout.AddChild(hint);
         HBoxContainer filter = new();
         filter.AddChild(Text("显示未持有"));
         _showUnowned = SolverSettingsPanel.CreateToggle();
