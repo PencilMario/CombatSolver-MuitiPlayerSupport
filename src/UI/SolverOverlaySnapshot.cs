@@ -150,8 +150,7 @@ internal sealed record SolverOverlaySnapshot(
             preview.StartTurnNumber,
             SolverText.Format($"求解器当前考虑 · 已演化至第 {furthestTurn} 回合"),
             SolverOverlayTone.Accent,
-            SolverText.Format($"[color={SolverUiTokens.Palette.WarningHex}]求解器当前考虑，尚未验证  │  ") +
-            SolverText.Format($"路线可能继续变化或回跳[/color]"),
+            SolverText.Format($"[color={SolverUiTokens.Palette.WarningHex}]路线可能继续变化或回跳[/color]"),
             string.Empty,
             preview.ProjectedBattlePotionCount,
             preview.ProjectedBattleHpLost,

@@ -37,7 +37,7 @@ internal static class SolverActionPill
             Alignment = BoxContainer.AlignmentMode.Begin,
             SizeFlagsVertical = Control.SizeFlags.ShrinkCenter,
         };
-        content.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
+        content.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
         content.AddChild(new ColorRect
         {
             Color = border,
@@ -47,10 +47,11 @@ internal static class SolverActionPill
         });
         Label titleLabel = SolverUiTokens.CreateLabel(
             action.Title,
-            SolverUiTokens.Type.Metric,
+            SolverUiTokens.Type.Body,
             killed ? SolverUiTokens.Palette.Success : SolverUiTokens.Palette.TextPrimary,
             FontType.Bold);
         content.AddChild(titleLabel);
+        titleLabel.CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ActionPillHeight);
         refreshers.Add(updated => titleLabel.Text = updated.Title);
         if (action.ReplayCount > 0)
         {
@@ -65,7 +66,7 @@ internal static class SolverActionPill
         if (!string.IsNullOrEmpty(action.TargetName))
         {
             content.AddChild(SolverUiTokens.CreateLabel(
-                $"➔  {action.TargetName}",
+                $"→ {action.TargetName}",
                 SolverUiTokens.Type.Body,
                 SolverUiTokens.Palette.TextPrimary));
         }

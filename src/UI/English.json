@@ -1,4 +1,5 @@
 {
+  "[color={0}]路线可能继续变化或回跳[/color]": "[color={0}]The route may still change or return to an earlier candidate.[/color]",
   "控制求解器启停与自动计算。自动开启全自动可在主界面右侧设置。": "Control the solver and automatic calculation. Configure automatic auto-play on the right of the main panel.",
   "出牌速度": "Play speed",
   "调整自动执行的节奏，下次执行生效。": "Adjust playback pacing. Applies to the next execution.",

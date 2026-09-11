@@ -31,6 +31,12 @@ internal sealed partial class SolverRouteRow : PanelContainer
             SolverUiTokens.Spacing.Sm,
             SolverUiTokens.Spacing.Sm));
 
+        VBoxContainer rows = new()
+        {
+            MouseFilter = MouseFilterEnum.Ignore,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+        };
+        rows.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
         HBoxContainer layout = new()
         {
             MouseFilter = MouseFilterEnum.Ignore,
@@ -52,7 +58,7 @@ internal sealed partial class SolverRouteRow : PanelContainer
             index == 0 ? SolverUiTokens.Palette.Accent : SolverUiTokens.Palette.TextPrimary,
             FontType.Bold);
         TurnLabel.CustomMinimumSize = new Vector2(SolverUiTokens.Size.TurnColumnWidth, SolverUiTokens.Size.ActionPillHeight);
-        TurnLabel.SizeFlagsHorizontal = SizeFlags.ShrinkBegin;
+        TurnLabel.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         TurnLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
         layout.AddChild(TurnLabel);
 
@@ -66,7 +72,6 @@ internal sealed partial class SolverRouteRow : PanelContainer
         };
         ActionFlow.AddThemeConstantOverride("h_separation", 6);
         ActionFlow.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
-        layout.AddChild(ActionFlow);
 
         HBoxContainer outcomeLayout = new()
         {
@@ -109,9 +114,20 @@ internal sealed partial class SolverRouteRow : PanelContainer
         EnergyLabel.AutowrapMode = TextServer.AutowrapMode.Off;
         EnergyLabel.CustomMinimumSize = new Vector2(54, SolverUiTokens.Size.ActionPillHeight);
         EnergyLabel.SizeFlagsVertical = SizeFlags.ShrinkCenter;
+        foreach (Label metric in new[] { EnemyDamageLabel, OutcomeLabel, EnergyLabel })
+        {
+            FontVariation numbers = new()
+            {
+                BaseFont = metric.GetThemeFont("font"),
+                OpentypeFeatures = new Godot.Collections.Dictionary { ["tnum"] = 1 },
+            };
+            metric.AddThemeFontOverride("font", numbers);
+        }
         outcomeLayout.AddChild(EnergyLabel);
         layout.AddChild(outcomeLayout);
-        AddChild(layout);
+        rows.AddChild(layout);
+        rows.AddChild(ActionFlow);
+        AddChild(rows);
     }
 
     public void Populate(SolverOverlayTurnSnapshot turn)
