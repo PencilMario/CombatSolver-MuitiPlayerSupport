@@ -8,7 +8,8 @@ internal readonly record struct SolverActionBarState(bool Collapsed, bool Search
 internal sealed partial class SolverActionBar : VBoxContainer
 {
     private readonly HFlowContainer _actions;
-    private readonly HFlowContainer _modes;
+    private readonly Control _autoStart;
+    private readonly HBoxContainer _memoryRow;
     private readonly Button _execute;
     private readonly Button _recalculate;
     private readonly Button _stop;
@@ -17,7 +18,7 @@ internal sealed partial class SolverActionBar : VBoxContainer
     private readonly Control _memory;
 
     public SolverActionBar(Button execute, Button recalculate, Button stop, Button adopt,
-        Button fullAuto, Control autoStart, Control memory)
+        Button fullAuto, Control autoStart, Control memory, Button releaseMemory)
     {
         Name = "Footer";
         MouseFilter = MouseFilterEnum.Pass;
@@ -30,16 +31,22 @@ internal sealed partial class SolverActionBar : VBoxContainer
         _fullAuto = fullAuto;
         _memory = memory;
         _actions = CreateFlow("CombatActions");
-        _modes = CreateFlow("AutomaticModes");
+        _autoStart = autoStart;
+        HBoxContainer actionRow = new() { Name = "ActionRow", MouseFilter = MouseFilterEnum.Pass };
+        actionRow.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Md);
         _actions.AddChild(fullAuto);
         _actions.AddChild(execute);
         _actions.AddChild(recalculate);
         _actions.AddChild(stop);
         _actions.AddChild(adopt);
-        _modes.AddChild(autoStart);
-        AddChild(_actions);
-        AddChild(_modes);
-        AddChild(memory);
+        actionRow.AddChild(_actions);
+        actionRow.AddChild(autoStart);
+        AddChild(actionRow);
+        _memoryRow = new HBoxContainer { Name = "MemoryRow", MouseFilter = MouseFilterEnum.Pass };
+        _memoryRow.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        _memoryRow.AddChild(memory);
+        _memoryRow.AddChild(releaseMemory);
+        AddChild(_memoryRow);
     }
 
     public void Refresh(SolverActionBarState state)
@@ -48,7 +55,8 @@ internal sealed partial class SolverActionBar : VBoxContainer
         _stop.Visible = state.Searching;
         _adopt.Visible = !state.Collapsed && state.ShowAdopt;
         _execute.Visible = !state.Collapsed || !state.Searching;
-        _modes.Visible = !state.Collapsed;
+        _autoStart.Visible = !state.Collapsed;
+        _memoryRow.Visible = !state.Collapsed;
         _memory.Visible = !state.Collapsed;
     }
 
@@ -62,7 +70,8 @@ internal sealed partial class SolverActionBar : VBoxContainer
             if (_stop.Visible != searching || _recalculate.Visible == searching
                 || _adopt.Visible != (!collapsed && adopt)
                 || _execute.Visible != (!collapsed || !searching)
-                || _memory.Visible == collapsed || _modes.Visible == collapsed
+                || _memory.Visible == collapsed || _autoStart.Visible == collapsed
+                || _memoryRow.Visible == collapsed
                 || _fullAuto.GetParent() != _actions || _fullAuto.GetIndex() != 0)
                 throw new InvalidOperationException("Action bar layout state did not match its display snapshot.");
         }

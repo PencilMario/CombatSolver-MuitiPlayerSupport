@@ -80,6 +80,7 @@ internal static class SolverOverlay
     private static Button? _performanceHintButton;
     private static Button? _bossHpStrategyHintButton;
     private static SolverMemoryUsageBar? _memoryUsageBar;
+    private static Button? _systemMemoryReleaseButton;
     private static SolverPotionStrategyPanel? _potionStrategyPanel;
     private static Control? _rightResizeHandle;
     private static Control? _bottomResizeHandle;
@@ -160,10 +161,12 @@ internal static class SolverOverlay
     internal static bool SettingsTabsConfiguredForTesting
         => _settingsPanel?.SettingsTabsConfiguredForTesting == true;
     internal static bool ManualSystemMemoryReleaseButtonConfiguredForTesting
-        => _memoryUsageBar is { MouseFilter: Control.MouseFilterEnum.Stop } bar
+        => _memoryUsageBar is { MouseFilter: Control.MouseFilterEnum.Pass } bar
             && GodotObject.IsInstanceValid(bar)
             && bar.IsInsideTree()
-            && _actionBar?.IsAncestorOf(bar) == true;
+            && _systemMemoryReleaseButton is { } button
+            && button.GetParent() == bar.GetParent()
+            && button.GetIndex() > bar.GetIndex();
     internal static bool NoGcControlsConfiguredForTesting
         => _settingsPanel?.NoGcControlsConfiguredForTesting == true;
     internal static bool MemoryUsageBarConfiguredForTesting
@@ -1865,7 +1868,7 @@ internal static class SolverOverlay
             TooltipText = SolverText.Get("每场战斗开始时自动开启全自动。本场手动停止后保持停止，下场战斗再次开启。"),
         };
         autoStart.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
-        autoStart.AddChild(CreateTextLabel(SolverText.Get("开战自动开启"), SolverUiTokens.Type.Caption, TextPrimary));
+        autoStart.AddChild(CreateTextLabel(SolverText.Get("自动开启全自动"), SolverUiTokens.Type.Caption, TextPrimary));
         _autoEnableFullAutoSwitch = SolverSettingsPanel.CreateToggle();
         _autoEnableFullAutoSwitch.CustomMinimumSize = new Vector2(40, 24);
         _autoEnableFullAutoSwitch.TooltipText = autoStart.TooltipText;
@@ -1882,19 +1885,24 @@ internal static class SolverOverlay
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
 
-        _memoryUsageBar.ReleaseRequested += OnSystemMemoryReleasePressed;
+        _systemMemoryReleaseButton = SolverUiTokens.CreateButton(SolverText.Get("强制释放内存"), SolverButtonStyle.Secondary);
+        _systemMemoryReleaseButton.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        _systemMemoryReleaseButton.TooltipText = SolverText.Get("等待搜索退出并回收求解器内存后，请求 Windows 管理员权限，")
+            + SolverText.Get("清空系统工作集与待机列表。其他程序之后重新载入页面时可能短暂卡顿。");
+        _systemMemoryReleaseButton.Pressed += OnSystemMemoryReleasePressed;
 
         _actionBar = new SolverActionBar(_executeButton, _recalculateButton, _stopSearchButton,
-            _adoptRouteButton, _fullAutoButton, autoStart, _memoryUsageBar);
+            _adoptRouteButton, _fullAutoButton, autoStart, _memoryUsageBar, _systemMemoryReleaseButton);
         return _actionBar;
     }
 
     private static async void OnSystemMemoryReleasePressed()
     {
-        if (_memoryUsageBar is not { ReleaseInProgress: false } bar)
+        if (_systemMemoryReleaseButton is not { Disabled: false } button)
             return;
 
-        bar.SetReleaseInProgress(true);
+        button.Disabled = true;
+        button.Text = SolverText.Get("正在释放内存…");
         Entry.Logger.Info("[CombatSolver/Test] UI_ACTION action=manual_system_memory_release");
         SetStatus(SolverText.Get("系统内存释放已安排，搜索退出后将请求管理员权限"), Success);
         try
@@ -1914,8 +1922,11 @@ internal static class SolverOverlay
         }
         finally
         {
-            if (GodotObject.IsInstanceValid(bar))
-                bar.SetReleaseInProgress(false);
+            if (GodotObject.IsInstanceValid(button))
+            {
+                button.Disabled = false;
+                button.Text = SolverText.Get("强制释放内存");
+            }
         }
     }
 
