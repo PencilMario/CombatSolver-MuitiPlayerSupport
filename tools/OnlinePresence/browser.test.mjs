@@ -17,6 +17,17 @@ before(async()=>{
 });
 after(async()=>{await browser?.close();if(server){server.closeAllConnections();await new Promise(r=>server.close(r));}app?.close();});
 const installation=n=>n.toString(16).padStart(32,'0');
+test('period comparisons and workshop show counts, changes and missing data',async()=>{
+  const f=await setup();try{
+    await f.page.locator('#rows tr').first().waitFor();
+    await f.page.evaluate(()=>{const c={start:0,end:60000,pairedMinutes:30,expectedMinutes:60,coverage:.5,currentAverage:120,previousAverage:100,delta:20,percent:20};renderOverview({...overviewData,comparisons:{average:120,sampledMinutes:50,expectedMinutes:60,previousPeriod:c,previousDay:{...c,delta:-10,percent:-10},previousWeek:{...c,delta:null,percent:null}},workshop:{subscriptions:11161,updatedAt:1800000000000,stale:false}});});
+    assert.equal(await f.page.locator('#workshop-count').textContent(),'11,161');
+    assert.equal(await f.page.locator('#previousPeriod-change').textContent(),'+20 人 · +20%');
+    assert.equal(await f.page.locator('#previousDay-change').textContent(),'-10 人 · -10%');
+    assert.equal(await f.page.locator('#previousWeek-change').textContent(),'数据不足');
+    await f.page.screenshot({path:resolve(screenshots,'comparisons.png'),fullPage:true});assert.deepEqual(f.errors,[]);
+  }finally{await f.context.close();}
+});
 const players=Array.from({length:15},(_,i)=>({sessionId:installation(i+1),name:i===0?'长昵称'.repeat(42)+'ab':'玩家 '+(i+1),character:['铁甲战士','静默猎手','故障机器人'][i%3],floor:i+1,encounter:i===0?'超长战斗'.repeat(128):'六火亡魂、邪恶之眼',hpLoss:i===2?null:i===3?99999:i,version:'0.34.7',inCombat:i%3===0,inRun:i%3===1?true:i%3===0?true:false,lastSeen:1800000000000,onlineSeconds:3600*(i+1),rank:i+1,battleUpdatedAt:1800000000000,runStatistics:{profileId:installation(i+101)}}));
 function runs(params){const historical=params.get('source')==='historical',target=params.get('profileId');const entries=(target?[players.find(p=>p.runStatistics.profileId===target)].filter(Boolean):players.slice(0,4)).map((p,i)=>({sessionId:p.sessionId,profileId:p.runStatistics.profileId,name:p.name,online:i%2===0,statistics:{wins:20,losses:5,abandoned:historical?null:2,currentStreak:historical&&!params.get('character')?null:i,bestStreak:historical&&!params.get('character')?null:8,completedRuns:25,winRate:.8}}));return {now:1800000000000,source:historical?'historical':'solver',page:1,totalPages:1,pageSize:30,total:entries.length,wins:entries.length*20,losses:entries.length*5,winRate:entries.length?.8:null,entries};}
 async function setup(options={}){
@@ -77,7 +88,7 @@ test('compact live layout, accurate metrics, stable rows and full-text details',
     const {page}=f;await page.locator('#rows tr').first().waitFor();
     assert.equal(await page.locator('#in-combat').textContent(),'5');assert.equal(await page.locator('#in-run').textContent(),'10');
     assert.equal(await page.locator('#trend').getAttribute('open'),null);
-    assert.ok((await page.locator('#live-table').boundingBox()).y<350);
+    assert.ok((await page.locator('#live-table').boundingBox()).y<500);
     const heights=await page.locator('#rows tr').evaluateAll(rows=>rows.map(r=>r.getBoundingClientRect().height));assert.ok(Math.max(...heights)<=52,JSON.stringify(heights));
     assert.ok((await page.locator('#rows').textContent()).includes('主菜单'));
     await page.evaluate(()=>window.savedRow=document.querySelector('#rows tr'));

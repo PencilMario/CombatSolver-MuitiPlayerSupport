@@ -717,6 +717,7 @@ function renderChart() {
   chart.update();
 }
 function renderOverview(data) {
+  renderComparisons(data);
   authenticated = true;
   overviewData = data;
   overviewUpdated = Date.now();
@@ -754,6 +755,24 @@ function refreshOverview() {
 }
 function renderRelease(data) {
   setText($("release-current"), data.latestVersion ? `当前发布：${data.latestVersion}` : "更新提醒已关闭");
+}
+function renderComparisons(data) {
+  const number=value=>value.toLocaleString('zh-CN',{maximumFractionDigits:1});
+  const signed=value=>(value>0?'+':'')+number(value);
+  const comparisons=data.comparisons;
+  setText($('comparison-period'),$('range').selectedOptions[0].textContent+'平均在线');
+  setText($('period-average'),comparisons?.average==null?'暂无数据':number(comparisons.average)+' 人');
+  setText($('period-coverage'),comparisons?`有效采样 ${comparisons.sampledMinutes}/${comparisons.expectedMinutes} 分钟`:'等待采样');
+  for(const key of ['previousPeriod','previousDay','previousWeek']) {
+    const c=comparisons?.[key],node=$(key+'-change');
+    setText(node,c?.delta==null?'数据不足':`${signed(c.delta)} 人 · ${c.percent==null?'基期为 0':signed(c.percent)+'%'}`);
+    node.className=c?.delta>0?'change-up':c?.delta<0?'change-down':'';
+    setText($(key+'-detail'),c?.delta==null?'暂无共同采样分钟':`${number(c.previousAverage)} → ${number(c.currentAverage)} 人 · 配对覆盖 ${number(c.coverage*100)}%`);
+    $(key+'-detail').title=c?`${new Date(c.start).toLocaleString()} 至 ${new Date(c.end).toLocaleString()}；配对 ${c.pairedMinutes}/${c.expectedMinutes} 分钟`:'';
+  }
+  const w=data.workshop;
+  setText($('workshop-count'),w?.subscriptions==null?'暂无数据':w.subscriptions.toLocaleString('zh-CN'));
+  setText($('workshop-updated'),w?.updatedAt?`${w.stale?'更新延迟 · ':''}${new Date(w.updatedAt).toLocaleString()}`:'等待 Steam 数据');
 }
 function refreshRelease() {
   if (requests.has("release-save")) return;

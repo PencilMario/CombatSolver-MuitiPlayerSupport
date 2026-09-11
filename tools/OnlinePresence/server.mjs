@@ -6,6 +6,8 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { aggregateHistory } from './history.mjs';
+import { comparePeriods } from './comparisons.mjs';
+import { createWorkshopCounter } from './workshop.mjs';
 import { createRunStatistics, validateRun, validateHistory, validateSnapshot, parseStatisticsFilters } from './run-statistics.mjs';
 
 const root = fileURLToPath(new URL('.', import.meta.url));
@@ -33,6 +35,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
   if (!password || password.length < 20) throw new Error('ADMIN_PASSWORD must contain at least 20 characters');
   const db = new DatabaseSync(database);
   const runStatistics = createRunStatistics(db,now);
+  const workshop = createWorkshopCounter(db,{now});
   db.exec('PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; CREATE TABLE IF NOT EXISTS history (time INTEGER PRIMARY KEY, count INTEGER NOT NULL) STRICT;');
   db.exec('CREATE TABLE IF NOT EXISTS durations (session_id TEXT PRIMARY KEY, total_ms INTEGER NOT NULL, last_seen INTEGER NOT NULL) STRICT;');
   db.exec('CREATE TABLE IF NOT EXISTS admin_sessions (token_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL) STRICT;');
@@ -192,7 +195,8 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
         if (![1,24,168,720].includes(hours) || !Number.isInteger(maxPoints) || maxPoints < 32 || maxPoints > 240) return send(res,400);
         const at = now();
         const history = aggregateHistory(historyRead.all(at-hours*3600000),hours,maxPoints);
-        return send(res,200,{now:at,ttl:TTL,samplingReady:at>=samplingReadyAt,samplingReadyAt,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.inCombat).length,inRunCount:[...players.values()].filter(player=>player.inRun === true).length,runStatusUnknownCount:[...players.values()].filter(player=>player.inRun === null).length,...history});
+        const comparisons = comparePeriods(historyRead.all(at-Math.max(2*hours*3600000,hours*3600000+7*86400000)-60000),at,hours);
+        return send(res,200,{now:at,ttl:TTL,samplingReady:at>=samplingReadyAt,samplingReadyAt,onlineCount:players.size,fightingCount:[...players.values()].filter(player=>player.inCombat).length,inRunCount:[...players.values()].filter(player=>player.inRun === true).length,runStatusUnknownCount:[...players.values()].filter(player=>player.inRun === null).length,...history,comparisons,workshop:workshop.snapshot()});
       }
       if (req.method === 'GET' && url.pathname === '/api/players') {
         expire();
@@ -236,7 +240,7 @@ export function createApp({ database = ':memory:', password, now = Date.now, sec
     res.writeHead(200,{'Content-Type':file[1],'Cache-Control':'no-store','X-Content-Type-Options':'nosniff','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"});
     res.end(readFileSync(resolve(root,file[0])));
   });
-  return {collector,admin,sample,expire,close:()=>db.close()};
+  return {collector,admin,sample,expire,refreshWorkshop:()=>workshop.refresh(),close:()=>db.close()};
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
@@ -254,10 +258,12 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   collector.maxConnections = 200;
   collector.listen(Number(process.env.COLLECTOR_PORT || 12888),'0.0.0.0');
   app.sample();
+  app.refreshWorkshop();
+  const workshopTimer = setInterval(app.refreshWorkshop,600000);
   const timer = setInterval(app.sample,60000);
   const expiry = setInterval(app.expire,10000);
   for (const signal of ['SIGINT','SIGTERM']) process.on(signal,()=>{
-    clearInterval(timer); clearInterval(expiry);
+    clearInterval(timer); clearInterval(expiry); clearInterval(workshopTimer);
     admin.close(); collector.close(); admin.closeAllConnections(); collector.closeAllConnections(); app.close();
   });
   console.log('Presence service started');

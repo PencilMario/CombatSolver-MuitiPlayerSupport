@@ -11,6 +11,17 @@
   --accent: #216951;
   --soft: #edf5f0;
 }
+.metrics[aria-label] { grid-template-columns: repeat(5,minmax(100px,1fr)) minmax(170px,1.3fr); }
+.metrics .workshop-metric { display:flex;flex-wrap:wrap;gap:4px 10px; }
+.workshop-metric small { flex-basis:100%;font-size:10px; }
+.workshop-metric a { font-size:12px; }
+.period-comparisons {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;padding:12px 0;border-top:1px solid var(--line);}
+.period-comparisons>div {display:grid;gap:4px;min-width:0;}
+.period-comparisons span,.period-comparisons small {font-size:11px;color:var(--muted);overflow-wrap:anywhere;}
+.period-comparisons strong {font-size:17px;font-variant-numeric:tabular-nums;}
+.change-up {color:#237954;}.change-down {color:#b04b37;}
+.comparison-note {margin-bottom:12px;}
+@media(max-width:1000px){.metrics[aria-label]{grid-template-columns:repeat(3,minmax(0,1fr));}.period-comparisons{grid-template-columns:repeat(2,minmax(0,1fr));}}
 * {
   box-sizing: border-box;
 }
