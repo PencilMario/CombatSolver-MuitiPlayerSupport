@@ -69,7 +69,7 @@ internal static class SolverOverlay
     private static SolverActionBar? _actionBar;
     private static Button? _solverEnabledButton;
     private static Label? _stolenResourceOutcomeLabel;
-    private static Label? _strategyOutcomeLabel;
+    private static HFlowContainer? _strategyOutcomeRow;
     private static CheckButton? _autoEnableFullAutoSwitch;
     private static Button? _collapseButton;
     private static Button? _settingsButton;
@@ -779,11 +779,21 @@ internal static class SolverOverlay
     private static void PopulateRoute(SolverOverlaySnapshot snapshot, bool resetScroll)
     {
         SetRouteVisibility(true);
-        if (_strategyOutcomeLabel != null)
+        if (_strategyOutcomeRow != null)
         {
-            _strategyOutcomeLabel.Text = snapshot.StrategyOutcomeText ?? string.Empty;
-            _strategyOutcomeLabel.TooltipText = snapshot.StrategyOutcomeText ?? string.Empty;
-            _strategyOutcomeLabel.Visible = snapshot.StrategyOutcomeText != null;
+            foreach (Node child in _strategyOutcomeRow.GetChildren())
+            {
+                _strategyOutcomeRow.RemoveChild(child);
+                child.QueueFree();
+            }
+            foreach (var outcome in snapshot.StrategyOutcomes)
+            {
+                Label label = CreateTextLabel(outcome.Text, 16, outcome.Satisfied ? Success : Warning, FontType.Bold);
+                label.TooltipText = outcome.Text;
+                label.HorizontalAlignment = HorizontalAlignment.Right;
+                _strategyOutcomeRow.AddChild(label);
+            }
+            _strategyOutcomeRow.Visible = snapshot.StrategyOutcomes.Count > 0;
         }
         if (_stolenResourceOutcomeLabel != null)
         {
@@ -1093,6 +1103,7 @@ internal static class SolverOverlay
         }
 
         _fullAutoButton.Text = SolverText.Get(SolverController.FullAutoEnabled ? "全自动：开" : "全自动：关");
+        SolverUiTokens.ApplyButtonStyle(_fullAutoButton, SolverController.FullAutoEnabled ? SolverButtonStyle.Positive : SolverButtonStyle.Secondary);
         _fullAutoButton.Disabled = solverDisabled || adoptingRoute;
         if (_autoEnableFullAutoSwitch != null)
             _autoEnableFullAutoSwitch.ButtonPressed = SolverSettings.Current.AutoEnableFullAuto;
@@ -1393,6 +1404,7 @@ internal static class SolverOverlay
         _routeOutcomePanel = CreateSectionPanel("RouteOutcomePanel");
         _routeHeadingRow = new HFlowContainer
         {
+            Alignment = FlowContainer.AlignmentMode.End,
             MouseFilter = Control.MouseFilterEnum.Ignore,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
@@ -1404,12 +1416,8 @@ internal static class SolverOverlay
             TextPrimary,
             FontType.Bold);
         _routeHeadingLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _routeHeadingLabel.Visible = false;
         _routeHeadingRow.AddChild(_routeHeadingLabel);
-        _strategyOutcomeLabel = CreateTextLabel(string.Empty, SolverUiTokens.Type.Body, TextPrimary, FontType.Bold);
-        _strategyOutcomeLabel.Visible = false;
-        _strategyOutcomeLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        _strategyOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
-        _routeHeadingRow.AddChild(_strategyOutcomeLabel);
         _deathOutcomeLabel = CreateTextLabel(
             SolverText.Get("未找到生还路线"),
             SolverUiTokens.Type.Body,
@@ -1426,7 +1434,11 @@ internal static class SolverOverlay
         _stolenResourceOutcomeLabel = CreateTextLabel(string.Empty, SolverUiTokens.Type.Body, Danger, FontType.Bold);
         _stolenResourceOutcomeLabel.Visible = false;
         _routeHeadingRow.AddChild(_stolenResourceOutcomeLabel);
+        _strategyOutcomeRow = new HFlowContainer { Alignment = FlowContainer.AlignmentMode.End, Visible = false };
+        _strategyOutcomeRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
+        _routeHeadingRow.AddChild(_strategyOutcomeRow);
         _hpOutcomeLabel = CreateTextLabel(SolverText.Get("本局扣血  0 HP"), SolverUiTokens.Type.Metric, Success, FontType.Bold);
+        _hpOutcomeLabel.AddThemeFontSizeOverride("font_size", 16);
         _hpOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _hpOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
         _routeHeadingRow.AddChild(_hpOutcomeLabel);
@@ -1902,7 +1914,7 @@ internal static class SolverOverlay
         _executeButton.CustomMinimumSize = new Vector2(132, SolverUiTokens.Size.ButtonHeight);
         _executeButton.Pressed += OnExecutePressed;
 
-        _fullAutoButton = SolverUiTokens.CreateButton(SolverText.Get("全自动：关"), SolverButtonStyle.Positive);
+        _fullAutoButton = SolverUiTokens.CreateButton(SolverText.Get("全自动：关"), SolverButtonStyle.Secondary);
         _fullAutoButton.CustomMinimumSize = new Vector2(144, SolverUiTokens.Size.ButtonHeight);
         _fullAutoButton.TooltipText = SolverText.Get("控制本场自动续打。关闭后，正在执行的动作按原流程完成。");
         _fullAutoButton.Pressed += OnFullAutoPressed;

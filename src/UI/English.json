@@ -141,6 +141,7 @@
   "当前搜索进度": "Current search progress",
   "已卡：{0}": "Counters aligned: {0}",
   "未达标：{0}": "Targets unmet: {0}",
+  "{0} {1} 实际 {2}": "{0} {1}, actual {2}",
   "已获得：{0}": "Growth gained: {0}",
   "预计用{0}瓶药": "Potions: {0}",
   "路线回血  {0} HP": "Route healing  {0} HP",

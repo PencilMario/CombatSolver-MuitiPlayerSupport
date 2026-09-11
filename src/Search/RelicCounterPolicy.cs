@@ -13,7 +13,11 @@ internal readonly record struct RelicCounterEvaluation(ulong SatisfiedMask, ulon
     // Ten built-in counters have periods of at most ten; four bits preserve each
     // route's exact ending value without allocating a collection per search node.
     public ulong CounterValues { get; init; }
+    public ulong TargetMinimums { get; init; }
+    public ulong TargetMaximums { get; init; }
     public int Value(RelicCounterId id) => (int)((CounterValues >> ((int)id * 4)) & 15);
+    public int Minimum(RelicCounterId id) => (int)((TargetMinimums >> ((int)id * 4)) & 15);
+    public int Maximum(RelicCounterId id) => (int)((TargetMaximums >> ((int)id * 4)) & 15);
     public bool Satisfied => SatisfiedMask == TargetMask;
     public int SatisfiedCount => System.Numerics.BitOperations.PopCount(SatisfiedMask);
 }
@@ -43,6 +47,10 @@ internal static class RelicCounterPolicy
         {
             CounterValues = (evaluation.CounterValues & ~(15UL << ((int)target.Id * 4)))
                 | ((ulong)value << ((int)target.Id * 4)),
+            TargetMinimums = (evaluation.TargetMinimums & ~(15UL << ((int)target.Id * 4)))
+                | ((ulong)target.Minimum << ((int)target.Id * 4)),
+            TargetMaximums = (evaluation.TargetMaximums & ~(15UL << ((int)target.Id * 4)))
+                | ((ulong)target.Maximum << ((int)target.Id * 4)),
         };
     }
 }

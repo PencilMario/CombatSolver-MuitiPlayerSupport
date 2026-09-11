@@ -62,7 +62,7 @@ internal sealed record SolverOverlaySnapshot(
     string? SearchLimitWarningText)
 {
     public string? UnrecoveredLootText { get; init; }
-    public string? StrategyOutcomeText { get; init; }
+    public IReadOnlyList<SolverStrategyOutcome> StrategyOutcomes { get; init; } = [];
     public static SolverOverlaySnapshot Capture(SolverResult result, bool unexpectedReplan)
         => CaptureWithReviewedWorldlines(result, unexpectedReplan, reviewedWorldlinesTotal: 0);
 
@@ -261,7 +261,7 @@ internal sealed record SolverOverlaySnapshot(
             hasRisk,
             BuildSearchLimitWarning(result.BoundaryReason))
         {
-            StrategyOutcomeText = SolverStrategyOutcomeText.Format(result.Snapshot.RelicCounters,
+            StrategyOutcomes = SolverStrategyOutcomeText.Capture(result.Snapshot.RelicCounters,
                 result.Snapshot.GrowthRewards, result.Snapshot.AllEnemiesDead),
             UnrecoveredLootText = result.OutstandingStolenResource <= 0 ? null
                 : result.Snapshot.UnrecoveredGold is { } gold && result.Snapshot.UnrecoveredCards is { } cards
