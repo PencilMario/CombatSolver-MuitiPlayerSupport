@@ -737,10 +737,7 @@ internal static class SolverOverlay
             SolverOverlayTone.Success => Success,
             _ => Accent,
         };
-        string routeContext = snapshot.Turns.Count > 0
-            ? SolverText.Format($"已规划至第 {snapshot.Turns[^1].Turn} 回合")
-            : SolverText.Format($"第 {snapshot.StartTurnNumber} 回合");
-        SetStatus(snapshot.StatusText, statusColor, routeContext);
+        SetStatus(snapshot.StatusText, statusColor);
         if (_summaryPanel != null)
             _summaryPanel.Visible = true;
         if (_summaryText != null)
@@ -1724,16 +1721,22 @@ internal static class SolverOverlay
     {
         _summaryPanel = CreateSectionPanel("SummaryPanel");
         _summaryPanel.MouseFilter = Control.MouseFilterEnum.Pass;
-        _summaryPanel.CustomMinimumSize = new Vector2(0, 64);
+        _summaryPanel.CustomMinimumSize = Vector2.Zero;
         VBoxContainer layout = new() { MouseFilter = Control.MouseFilterEnum.Pass };
-        layout.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xxs);
-        HFlowContainer statusRow = new()
+        layout.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        HBoxContainer statusRow = new()
         {
             MouseFilter = Control.MouseFilterEnum.Pass,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
-        statusRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
-        statusRow.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
+        statusRow.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Md);
+        HFlowContainer statisticsRow = new()
+        {
+            MouseFilter = Control.MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
+        };
+        statisticsRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
+        statisticsRow.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
         _summaryStatusBadge = new PanelContainer
         {
             MouseFilter = Control.MouseFilterEnum.Ignore,
@@ -1754,21 +1757,23 @@ internal static class SolverOverlay
             SolverUiTokens.Palette.TextSecondary,
             FontType.Bold);
         _summaryContextLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
-        _summaryContextLabel.CustomMinimumSize = new Vector2(104, 24);
-        _summaryContextLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
-        statusRow.AddChild(_summaryContextLabel);
-        _summaryText = CreateRichText(SolverUiTokens.Type.Metric);
+        _summaryContextLabel.CustomMinimumSize = new Vector2(0, 24);
+        _summaryContextLabel.AutowrapMode = TextServer.AutowrapMode.Off;
+        _summaryContextLabel.Visible = false;
+        statisticsRow.AddChild(_summaryContextLabel);
+        _summaryText = CreateRichText(SolverUiTokens.Type.Body);
         _summaryText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _summaryText.FitContent = true;
         _summaryText.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _summaryText.CustomMinimumSize = new Vector2(0, 24);
+        _summaryText.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
         _summaryText.ApplyLocaleFontSubstitution(FontType.Bold, "normal_font");
         _progressText = CreateTextLabel(string.Empty, SolverUiTokens.Type.Metric, TextPrimary, FontType.Bold);
         _progressText.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
-        _progressText.CustomMinimumSize = new Vector2(104, 24);
-        _progressText.ClipText = true;
+        _progressText.CustomMinimumSize = new Vector2(0, 24);
+        _progressText.AutowrapMode = TextServer.AutowrapMode.Off;
         _progressText.Visible = false;
-        statusRow.AddChild(_progressText);
+        statisticsRow.AddChild(_progressText);
         _reviewText = CreateTextLabel(
             string.Empty,
             SolverUiTokens.Type.Caption,
@@ -1790,10 +1795,12 @@ internal static class SolverOverlay
             SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd,
         };
         detailsSlot.AddChild(_detailsButton);
+        detailsSlot.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        statusRow.AddChild(_summaryText);
         statusRow.AddChild(detailsSlot);
         layout.AddChild(statusRow);
-        layout.AddChild(_summaryText);
-        layout.AddChild(_reviewText);
+        statisticsRow.AddChild(_reviewText);
+        layout.AddChild(statisticsRow);
         _searchProgressBar = new ProgressBar
         {
             Name = "SearchProgress",
@@ -1995,7 +2002,10 @@ internal static class SolverOverlay
                 verticalPadding: 2));
         }
         if (_summaryContextLabel != null)
+        {
             _summaryContextLabel.Text = context;
+            _summaryContextLabel.Visible = !string.IsNullOrEmpty(context);
+        }
     }
 
     private static void SetMessageContent(string text)
