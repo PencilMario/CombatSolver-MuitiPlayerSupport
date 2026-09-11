@@ -6,6 +6,7 @@
 
 | 要查什么 | 入口 |
 |---|---|
+| 遗物独立开关、目标范围、血量额度与早停 | [战斗末遗物计数策略](relic-counters.md) |
 | 组件职责、状态所有权和调用链 | [架构与职责地图](ARCHITECTURE.md) |
 | 当前 UI 重设计、按钮区整理与 Gemini 建议审计 | [UI 建议复核与重构方案](audits/ui-redesign-gemini-review-20260911.md) |
 | 本批未发布改动、版本演进与开发记录 | [开发笔记](DEVELOPMENT_NOTES.md) |
