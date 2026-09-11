@@ -126,6 +126,8 @@ internal sealed class CombatDiagnosticJournal : IDisposable
         => message.StartsWith("[CombatSolver/Test] HEAP_RECLAIM ", StringComparison.Ordinal)
             || message.StartsWith("[CombatSolver/Test] GC_SEARCH_ALLOCATION_LIMIT ", StringComparison.Ordinal)
             || message.StartsWith("[CombatSolver/Test] GC_ALLOCATION_CAPACITY ", StringComparison.Ordinal)
+            || message.StartsWith("[CombatSolver/Test] GC_FRAGMENTATION_COMPACTION ", StringComparison.Ordinal)
+            || message.StartsWith("[CombatSolver/Test] POTION_GRADIENT_MEMORY_DECISION ", StringComparison.Ordinal)
             || message.StartsWith("[CombatSolver/Test] MAIN_THREAD_FRAMES ", StringComparison.Ordinal)
             || message.StartsWith("[CombatSolver/Test] SEARCH_GC_LIFECYCLE ", StringComparison.Ordinal);
     public Task<CombatLogArchive> CaptureAsync()

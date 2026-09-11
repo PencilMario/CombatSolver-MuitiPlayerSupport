@@ -24,6 +24,13 @@ $forbiddenSearchReferences = @(
 )
 
 $violations = [System.Collections.Generic.List[string]]::new()
+$poolLifetime = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot 'src/Runtime/NodePoolSignalLifetimePatch.cs'))
+foreach ($required in @('using ((Godot.Collections.Array)signals)', 'using var ownedArray', 'using (connection)', 'using (callable.Method)', 'using (signal.Name)')) {
+    if (-not $poolLifetime.Contains($required)) { $violations.Add("Node pool wrapper ownership missing: $required") }
+}
+if ($poolLifetime.Contains('GC.Collect') -or $poolLifetime.Contains('QueueFree')) {
+    $violations.Add('Node pool signal cleanup owns temporary wrappers, not nodes or process GC.')
+}
 $normalityMirror = [System.IO.File]::ReadAllText((Join-Path $repositoryRoot 'src/Engine/InCombat/Mirrors/Hooks/Card/ShouldPlayMirrors.cs'))
 if (-not $normalityMirror.Contains('registry.Register<Normality>(HandleNormality)')) {
     $violations.Add('Normality must use the shared ShouldPlay mirror for manual and automatic cards.')
@@ -298,7 +305,7 @@ foreach ($check in $forkBoundaryChecks) {
 $searchGcPolicyPath = Join-Path $repositoryRoot "src\Runtime\SearchGcPolicy.cs"
 foreach ($gcChainRule in @(
     "return WaitForReclaimChainAsync(_reclaimTask)",
-    "CollectGeneration2InBackgroundAsync(inSearchCheckpoint: true)",
+    "CollectGeneration2ForAutomaticReclaimAsync(inSearchCheckpoint: true)",
     "_inSearchManualReclaimTask = manualCompletion.Task",
     "failure == null && (_regionExitRequired || _reclaimRequired)")) {
     if (-not (Select-String -LiteralPath $searchGcPolicyPath -SimpleMatch $gcChainRule -Quiet)) {

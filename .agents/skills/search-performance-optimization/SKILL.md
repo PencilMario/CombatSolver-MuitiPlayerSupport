@@ -93,6 +93,8 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - 原生 `PowerModel.GetTypeForAmount` 的枚举装箱优化只能替换精确匹配的两段同 int 枚举比较；保留所有虚 getter、decimal 判断、标签与异常区域，内部控制流或未知 IL 旁路。生产 transpiler 必须以真实游戏方法核对输出、getter 次数/顺序、未定义枚举值与分配；不能用跳过 getter 的类型缓存代替。
 - 游戏 `0.111.0` 的 `LocManager.SmartFormat` 复用同一个 SmartFormat 实例及对象池，不支持并发调用。`PowerDynamicVarWarmup` 必须在主线程根捕获时物化规范 Power 与当前战斗 Power 的显示变量；`PowerDynamicVarMaterializationGuardPatch` 保证 worker 不再惰性创建 Power 显示变量。命中 guard 时补齐主线程物化边界，不给全局格式化器加锁，也不在 worker 内提供默认文本。`LocManager.SmartFormat` 本身含异常过滤器，禁止直接用 Harmony 改写。
 - Runtime 拥有 `SearchGcPolicy`，Search 只通过 `SearchFramePressureSignal` / `SearchWorkPacer` 消费节流信号。
+- 层间预测不能要求整层必须容纳于单一区域。预测超过新区域容量或区域新分配很少时，使用原每批内存准入，不能反复重置刚完成回收的区域。高碎片压缩由 Runtime 依据最近完成的 HeapSize/Fragmented 选择一次收集；保持确认、取消与引用释放的所有权，禁止每次后台收集后追加压缩。
+- 原版 NodePool 信号清理只释放自己取得的 Array/Dictionary/Variant 与新转换的名称包装，不释放节点或持久 Callable 目标。修改该补偿时分别验证 NCard/NGridCardHolder 的真实泛型入口、入站/出站/递归/离树条件及包装登记数；不能把登记无增长当作全部旧战斗对象已释放。
 - 搜索内回收只等待自己发起的收集，不加入要求该搜索退出的 deferred 完成链。后台 GC 请求不等于回收完成：核对最新已完成 Gen2 与释放后哨兵，取消不能提前交还所有权，超时/异常必须排空未确认请求。手动完成、引用释放 epoch 与搜索取消各有独立语义；请求后台模式与 CLR 实际 Concurrent 结果分开记录，生命周期合同不当作暂停收益证据。
 - 优先避免无价值候选、Fork 和快照产生；No-GC 区内释放引用不会返还预算。
 - 区分 transitions 增长与 bytes/transition 增长，用阶段指标定位实际热点。

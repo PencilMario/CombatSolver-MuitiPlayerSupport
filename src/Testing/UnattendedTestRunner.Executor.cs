@@ -56,6 +56,11 @@ internal sealed partial class UnattendedTestRunner
                 await runner.AssertProcessDiagnosticsAsync();
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "NODE-POOL-LIFETIME")
+            {
+                runner.AssertNodePoolLifetime();
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "SINGLE-SEARCH-PROFILE")
             {
                 await runner.AssertSingleSearchProfileAsync(combatState);

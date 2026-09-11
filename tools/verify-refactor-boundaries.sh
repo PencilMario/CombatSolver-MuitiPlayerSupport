@@ -299,6 +299,14 @@ require_fixed "$repository_root/src/Engine/InCombat/Mirrors/Hooks/Card/ShouldPla
     'registry.Register<Normality>(HandleNormality)' \
     'Normality must use the shared ShouldPlay mirror for manual and automatic cards.'
 
+pool_lifetime="$repository_root/src/Runtime/NodePoolSignalLifetimePatch.cs"
+for required in 'using ((Godot.Collections.Array)signals)' 'using var ownedArray' 'using (connection)' 'using (callable.Method)' 'using (signal.Name)'; do
+    require_fixed "$pool_lifetime" "$required" 'Node pool wrapper ownership missing:'
+done
+for forbidden in 'GC.Collect' 'QueueFree'; do
+    forbid_fixed "$pool_lifetime" "$forbidden" 'Node pool signal cleanup owns temporary wrappers, not nodes or process GC:'
+done
+
 for file in "${search_files[@]}"; do
     for reference in \
         'SolverSearchPhase' \
@@ -411,7 +419,7 @@ done < <(find "$repository_root/src/Api" -type f -name '*.cs' -print0 | sort -z)
 search_gc_policy_path="$repository_root/src/Runtime/SearchGcPolicy.cs"
 for gc_chain_rule in \
     'return WaitForReclaimChainAsync(_reclaimTask)' \
-    'CollectGeneration2InBackgroundAsync(inSearchCheckpoint: true)' \
+    'CollectGeneration2ForAutomaticReclaimAsync(inSearchCheckpoint: true)' \
     '_inSearchManualReclaimTask = manualCompletion.Task' \
     'failure == null && (_regionExitRequired || _reclaimRequired)'; do
     require_fixed "$search_gc_policy_path" "$gc_chain_rule" 'missing serialized reclaim-chain rule'

@@ -1332,7 +1332,8 @@ internal static partial class CombatSearchCoordinator
             signal.IsEnabled,
             signal.HasUnexpectedNoGcLoss(),
             signal.AllocatedBytes,
-            signal.RemainingBytes);
+            signal.RemainingBytes,
+            signal.AllocationLimitBytes);
         policy.Diagnostics.Info(
             $"[CombatSolver/Test] POTION_GRADIENT_MEMORY_DECISION " +
             $"completed_layer={completedPotionCount} next_layer={nextPotionCount} " +
