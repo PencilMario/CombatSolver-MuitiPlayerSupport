@@ -295,6 +295,8 @@ internal static partial class CombatSearchCoordinator
         bool passSettled = false;
         SolverResult RunDeepPass(SolverSearchProfile passProfile, Stopwatch passClock)
         {
+            long passAllocatedAtStart = GC.GetTotalAllocatedBytes(precise: false);
+            long passTransitionsAtStart = policy.RequestWorkTotals?.Snapshot().TransitionCount ?? 0;
             SolverResult passResult = SolveWithNarrowBeamRecovery(
                 root,
                 policy,
@@ -312,7 +314,7 @@ internal static partial class CombatSearchCoordinator
                     shortCheckpointMilliseconds: shortProfile.SoftTimeBudgetMilliseconds,
                     potionPolicyOverride: initialPotionPolicyOverride).Solve());
             ObserveSmartLayerMemory(
-                policy, memoryForecast, primaryAllocatedAtStart, primaryTransitionsAtStart,
+                policy, memoryForecast, passAllocatedAtStart, passTransitionsAtStart,
                 passResult, passProfile, completedPotionCount: 0);
             if (policy.MeasurePhasePerformance)
                 policy.Diagnostics.Info(SolverDiagnostics.DescribeSearchPhasePerformance(passResult));

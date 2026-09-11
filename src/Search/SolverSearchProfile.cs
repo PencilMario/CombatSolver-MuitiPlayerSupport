@@ -21,7 +21,7 @@ internal sealed record SolverSearchProfile(
     public static SolverSearchProfile Short { get; } = new(
         SolverSearchPhase.Short,
         BeamWidth: 24,
-        MaxExpandedNodes: 2_400,
+        MaxExpandedNodes: 4_800,
         MaxCardBranchesPerNode: 20,
         MaxPileChoiceBranchesPerAction: 10,
         MaxHandChoiceBranchesPerAction: 12,
@@ -30,7 +30,7 @@ internal sealed record SolverSearchProfile(
     public static SolverSearchProfile Deep { get; } = new(
         SolverSearchPhase.Deep,
         BeamWidth: 60,
-        MaxExpandedNodes: 12_000,
+        MaxExpandedNodes: 24_000,
         MaxCardBranchesPerNode: 32,
         MaxPileChoiceBranchesPerAction: 18,
         MaxHandChoiceBranchesPerAction: 24,

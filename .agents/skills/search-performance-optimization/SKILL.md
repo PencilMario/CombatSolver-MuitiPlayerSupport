@@ -75,6 +75,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 
 - `BeamRetentionPolicy.RoutingChoiceScratch` 只复用空字典桶；每次 `RankBest` 的 `RoutingChoiceNodes` 独占候选列表和五项代表，按原比较规则聚合，归还时清空引用，不跨调用缓存组。组填满后用原 `Max/Min` 冻结最高 Beam 分、最高父分和最低父排名；只在本次 routing block 中使用，全部消费早于 `AssignRetentionRanks`，下一次调用重新建立。不得把该组统计扩展成单节点父链或跨调用排名缓存；新统计必须证明有效期并对比包括 deferred-round 诊断在内的相关非时序指标。
 - `SearchRunContext` 是单次运行可变指标、转置和缓存的所有者；不要把这些字段退回 solver 入口或静态全局。
+- 无完整胜利追加搜索位于请求级、主搜索与药水审计之后，消耗请求剩余时间。每轮分配/转移采样从该轮开始计；采用或应用结果直接交还调用者。饱和判断比较上一轮全部搜索维度，预设节点调整与动态恢复倍数分别记录。
 - 并行 worker 只能拥有 lane-local 模拟、缓存、节流和原始候选；transposition、dominance、fallback、预算与最终接收顺序仍由 coordinator 独占。固定 lane 应在一次 `Solve` 内复用，禁止回到每父节点 `Task.Run` / 新建 solver。
 - 外层最多预约 `2×DOP` 父节点，已准入作业内同时模拟最多 DOP；自然 singleton 也使用同一调度器。准备动作表后，每父节点独立 Fork gate 串行生成 seed，lane 在 gate 外独占模拟。动态选择预算及 occurrence collector 属于一条完整动作链，不并发消费同一个预算。药水/目标是独立作业，全部卡牌/选择/药水完成后才执行 EndTurn 并发布父节点 stand-pat 基线。coordinator 归并 worker 指标后才能复用 lane，按动作/药水原序聚合，只提交完成父节点的连续前缀。内部不能新准入父节点或做 GC checkpoint；原父节点高水位预约覆盖所有在途结果，数量界不当作硬字节界。异常停止派发、排空全部 lane 后才释放 probe/batch/root；高分支场景必须同时看峰值图和分配。
 - 保路元数据并行必须冻结本次候选、父排名、已选集合和 lease 账本，逐索引或逐组独占写回；分组与最终拼接不得按完成次序进行。观察请求先收集、再按原组序应用，不能让 worker 修改共享统计或保留账本。复用已经排空的固定 lane，不使用未限并发的 `Parallel.For`；取消和错误也须等待所有已派发作业，完整记入其分配并传播原 token/异常。合同覆盖双 lane、逐槽一次写入、失败后复用和实际 NoGC 回收边界。

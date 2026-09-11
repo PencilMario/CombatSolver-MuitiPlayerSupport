@@ -1,5 +1,11 @@
 # CombatSolver 测试清单
 
+## 0.35.4：PR #83 合并检查与预设节点上限
+
+- `python -X utf8 tools/NoVictoryRecoveryChecks/run.py`：通过 PR 自带 `AssertNoVictoryEscalationPolicy` 的全部策略断言与新增 8 项请求流程检查。直接编译生产 BuildNoVictoryEscalationProfile / EscalateSearchWhenNoVictory；原入口先复现“追加搜索丢弃明确采用结果”，修正后覆盖接管、已有胜利不重搜、胜利退出、停止、拒绝更差结果、两轮封顶、第二轮饱和及仅分支增长。结果、质量排序和根采用确定性替身，未声明整场搜索验证。
+- `python -X utf8 tools/NoVictoryRecoveryChecks/presets.py`：直接编译生产四档声明及 SolverSearchProfile，核对节点加倍、时间及 Beam 保持原值。低/中/高/极高 Short 为 2400/4800/10000/20000，Deep 为 12000/24000/50000/100000。
+- PowerShell 结构门禁 `REFACTOR_BOUNDARIES_OK search_files=84`。未启动游戏，本轮没有新增原包恢复、可见 UI 或实战战损验收；下方 PR 附带的检查点记录来自作者此前验证。
+
 ## 无胜利路线时的搜索面升级（贡献者记录）
 
 同一个玩家问题包 `CombatSolver-0.35.3-CEREMONIAL_BEAST_BOSS-610658da…`，观者 A9 第一幕 Boss

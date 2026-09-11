@@ -177,6 +177,8 @@ internal static partial class CombatSearchCoordinator
             Stopwatch passClock = Stopwatch.StartNew();
             SolverResult candidate = runPass(escalated, passClock);
             lastPassMilliseconds = passClock.ElapsedMilliseconds;
+            if (candidate.ResultScope != SolverResultScope.SearchCompletion)
+                return candidate;
             // 没变好就停：多给的预算既然没换来更好的路线，再翻一倍也只是让玩家多等。
             bool improved = candidate.ResultScope == SolverResultScope.SearchCompletion
                 && CompareCompletedResultPrimaryQuality(root, policy, candidate, selected) < 0;
@@ -232,14 +234,18 @@ internal static partial class CombatSearchCoordinator
                 SolverWeights.MaximumEscalatedBranchesPerAction),
             SoftTimeBudgetMilliseconds = (int)remainingMilliseconds,
         };
-        // 四项全部撞上限时这一轮和上一轮逐位相同，搜索是确定性的，跑了也只会拿回同一个结果。
-        return escalated.BeamWidth == configured.BeamWidth
-            && escalated.MaxExpandedNodes == configured.MaxExpandedNodes
+        long previousMultiple = multiple / SolverWeights.NoVictoryEscalationFactor;
+        // Compare every search dimension with the previous pass, including branch-only growth.
+        return escalated.BeamWidth == Scale(configured.BeamWidth, previousMultiple, SolverWeights.MaximumEscalatedBeamWidth)
+            && escalated.MaxExpandedNodes == Scale(configured.MaxExpandedNodes, previousMultiple, int.MaxValue)
+            && escalated.MaxCardBranchesPerNode == Scale(configured.MaxCardBranchesPerNode, previousMultiple, SolverWeights.MaximumEscalatedBranchesPerAction)
+            && escalated.MaxPileChoiceBranchesPerAction == Scale(configured.MaxPileChoiceBranchesPerAction, previousMultiple, SolverWeights.MaximumEscalatedBranchesPerAction)
+            && escalated.MaxHandChoiceBranchesPerAction == Scale(configured.MaxHandChoiceBranchesPerAction, previousMultiple, SolverWeights.MaximumEscalatedBranchesPerAction)
                 ? null
                 : escalated;
 
         static int Scale(int value, long multiple, int maximum)
-            => (int)Math.Min(maximum, Math.Max(value, (long)value * multiple));
+            => (int)Math.Max(value, Math.Min(maximum, (long)value * multiple));
     }
 
     internal static SolverSearchProfile? BuildNarrowBeamRecoveryProfile(

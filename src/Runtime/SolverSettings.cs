@@ -151,7 +151,7 @@ internal static class SolverSettings
         new SolverSearchProfile(
             SolverSearchPhase.Short,
             BeamWidth: 18,
-            MaxExpandedNodes: 1_200,
+            MaxExpandedNodes: 2_400,
             MaxCardBranchesPerNode: 14,
             MaxPileChoiceBranchesPerAction: 6,
             MaxHandChoiceBranchesPerAction: 8,
@@ -159,7 +159,7 @@ internal static class SolverSettings
         new SolverSearchProfile(
             SolverSearchPhase.Deep,
             BeamWidth: 45,
-            MaxExpandedNodes: 6_000,
+            MaxExpandedNodes: 12_000,
             MaxCardBranchesPerNode: 24,
             MaxPileChoiceBranchesPerAction: 12,
             MaxHandChoiceBranchesPerAction: 16,
@@ -171,7 +171,7 @@ internal static class SolverSettings
         new SolverSearchProfile(
             SolverSearchPhase.Short,
             BeamWidth: 36,
-            MaxExpandedNodes: 5_000,
+            MaxExpandedNodes: 10_000,
             MaxCardBranchesPerNode: 30,
             MaxPileChoiceBranchesPerAction: 16,
             MaxHandChoiceBranchesPerAction: 20,
@@ -179,7 +179,7 @@ internal static class SolverSettings
         new SolverSearchProfile(
             SolverSearchPhase.Deep,
             BeamWidth: 90,
-            MaxExpandedNodes: 25_000,
+            MaxExpandedNodes: 50_000,
             MaxCardBranchesPerNode: 48,
             MaxPileChoiceBranchesPerAction: 28,
             MaxHandChoiceBranchesPerAction: 36,
@@ -188,7 +188,7 @@ internal static class SolverSettings
         new SolverSearchProfile(
             SolverSearchPhase.Short,
             BeamWidth: 54,
-            MaxExpandedNodes: 10_000,
+            MaxExpandedNodes: 20_000,
             MaxCardBranchesPerNode: 45,
             MaxPileChoiceBranchesPerAction: 24,
             MaxHandChoiceBranchesPerAction: 30,
@@ -196,7 +196,7 @@ internal static class SolverSettings
         new SolverSearchProfile(
             SolverSearchPhase.Deep,
             BeamWidth: 135,
-            MaxExpandedNodes: 50_000,
+            MaxExpandedNodes: 100_000,
             MaxCardBranchesPerNode: 72,
             MaxPileChoiceBranchesPerAction: 42,
             MaxHandChoiceBranchesPerAction: 54,
