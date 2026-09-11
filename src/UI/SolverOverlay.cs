@@ -1093,7 +1093,7 @@ internal static class SolverOverlay
             : adoptingRoute ? "正在采用路线，请等待完成。"
             : SolverController.IsDeploying ? "正在执行当前回合。"
             : _executeButton.Disabled ? "当前没有可执行的回合，请等待计算或完成当前选牌。"
-            : "执行当前回合的动作；搜索中可应用已算出的当前回合。");
+            : "执行当前回合的动作。");
 
         CombatState? combat = CombatManager.Instance.DebugOnlyGetState();
         bool combatActive = combat != null && CombatManager.Instance.IsInProgress;

@@ -35,10 +35,10 @@ internal sealed partial class SolverActionBar : VBoxContainer
         HBoxContainer actionRow = new() { Name = "ActionRow", MouseFilter = MouseFilterEnum.Pass };
         actionRow.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Md);
         _actions.AddChild(fullAuto);
+        _actions.AddChild(adopt);
         _actions.AddChild(execute);
         _actions.AddChild(recalculate);
         _actions.AddChild(stop);
-        _actions.AddChild(adopt);
         actionRow.AddChild(_actions);
         actionRow.AddChild(autoStart);
         AddChild(actionRow);
@@ -54,7 +54,7 @@ internal sealed partial class SolverActionBar : VBoxContainer
         _recalculate.Visible = !state.Searching;
         _stop.Visible = state.Searching;
         _adopt.Visible = !state.Collapsed && state.ShowAdopt;
-        _execute.Visible = !state.Collapsed || !state.Searching;
+        _execute.Visible = !state.Searching;
         _autoStart.Visible = !state.Collapsed;
         _memoryRow.Visible = !state.Collapsed;
         _memory.Visible = !state.Collapsed;
@@ -69,10 +69,11 @@ internal sealed partial class SolverActionBar : VBoxContainer
             Refresh(new SolverActionBarState(collapsed, searching, adopt));
             if (_stop.Visible != searching || _recalculate.Visible == searching
                 || _adopt.Visible != (!collapsed && adopt)
-                || _execute.Visible != (!collapsed || !searching)
+                || _execute.Visible == searching
                 || _memory.Visible == collapsed || _autoStart.Visible == collapsed
                 || _memoryRow.Visible == collapsed
-                || _fullAuto.GetParent() != _actions || _fullAuto.GetIndex() != 0)
+                || _fullAuto.GetParent() != _actions || _fullAuto.GetIndex() != 0
+                || _adopt.GetIndex() != 1)
                 throw new InvalidOperationException("Action bar layout state did not match its display snapshot.");
         }
     }
