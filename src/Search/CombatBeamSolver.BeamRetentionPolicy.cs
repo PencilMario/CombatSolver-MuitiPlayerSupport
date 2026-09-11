@@ -476,7 +476,7 @@ internal sealed partial class CombatBeamSolver
 
         public List<SearchNode> RankFinal(IEnumerable<SearchNode> nodes)
         {
-            List<SearchNode> candidates = nodes.ToList();
+            List<SearchNode> candidates = nodes.Distinct((IEqualityComparer<SearchNode>)ReferenceEqualityComparer.Instance).ToList();
             List<SearchNode> ranked = RankBest(
                 candidates,
                 _profile.BeamWidth * 4,

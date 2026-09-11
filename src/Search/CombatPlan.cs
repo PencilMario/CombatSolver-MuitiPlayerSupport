@@ -1259,6 +1259,7 @@ internal sealed class SimulationSnapshot(
     public int LongTermResourceValue { get; } = longTermResourceValue;
     public int GrowthHpCredit { get; init; }
     public GrowthValues GrowthRewards { get; init; }
+    public int BrightestFlameMaxHpSpent { get; init; }
     public int AngerCopiesGenerated { get; } = angerCopiesGenerated;
     public int ProjectedPlayerHp { get; } = projectedPlayerHp;
     public int PlayerBlock { get; } = playerBlock;

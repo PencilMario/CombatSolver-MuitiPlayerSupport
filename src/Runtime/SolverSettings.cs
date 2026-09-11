@@ -75,6 +75,7 @@ internal sealed record SolverSettingsData
     public SolverPotionPolicy PotionPolicy { get; init; } = SolverPotionPolicy.Smart;
     public PersistedPotionDirective[] PotionDirectives { get; init; } = [];
     public GrowthValues GrowthBudgets { get; init; }
+    public int? BrightestFlameMaxHpLossLimit { get; init; }
     /// <summary>
     /// 不考虑局外收益。打开后搜索既不为金币、永久升级这类战斗外收益付出任何血量，也不再用它们
     /// 在 Beam 里保留路线；最终选择里的字典序位置不变，所以白拿的收益照样拿。
@@ -135,6 +136,7 @@ internal sealed record SolverSettingsSnapshot(
     double DeploymentInterActionDelaySeconds)
 {
     public GrowthValues GrowthBudgets { get; init; }
+    public int? BrightestFlameMaxHpLossLimit { get; init; }
     public bool IgnoreLongTermRewards { get; init; }
 }
 
@@ -302,6 +304,7 @@ internal static class SolverSettings
             data.DeploymentInterActionDelaySeconds ?? 0d)
         {
             GrowthBudgets = data.GrowthBudgets,
+            BrightestFlameMaxHpLossLimit = data.BrightestFlameMaxHpLossLimit,
             IgnoreLongTermRewards = data.IgnoreLongTermRewards,
         };
     }
@@ -555,6 +558,8 @@ internal static class SolverSettings
                 $"{nameof(data.AcceptableBattleHpLoss)} must be between 0 and {MaximumAcceptableBattleHpLoss}.");
         }
         data.GrowthBudgets.ValidateBudgets();
+        if (data.BrightestFlameMaxHpLossLimit is < 0 or > 1000)
+            throw new InvalidDataException("BrightestFlame maximum HP loss limit must be in 0..1000.");
         HashSet<(int Slot, string PotionId)> potionDirectiveKeys = [];
         foreach (PersistedPotionDirective directive in data.PotionDirectives)
         {

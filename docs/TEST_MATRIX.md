@@ -1,5 +1,17 @@
 # CombatSolver 测试清单
 
+## 0.35.5：古代卡牌成长策略与累计成本
+
+- `GROWTH-ANCIENT-POLICY` / `f9031db3e06441dcaa38a76db4c8b693` Passed，26.09 秒，IRONCLAD / FUZZY_WURM_CRAWLER_WEAK。专用后台实例、120 秒上限、1500 ms 短搜；测试完成后退出。
+- 真实 CardModel/原生出牌与模拟完整 MoveStateSnapshot 对照：ECHO_FORM_POWER 重放 BRIGHTEST_FLAME 两次，共记 4 点最大生命消耗；随后 FORBIDDEN_GRIMOIRE 记 1 次删牌收益，独立额度 12 HP。原生历史重新捕获保持 4，Fork 增量不污染父分支，BeginSideTurn 保持累计成本。
+- 实际搜索及增量回放：已有 4 点消耗、上限 4、手牌含 BRIGHTEST_FLAME / FORBIDDEN_GRIMOIRE / STRIKE_IRONCLAD / CASCADE，抽牌堆含 BRIGHTEST_FLAME。结果获得完整胜利及 1 次删牌收益，路线不使用至亮之焰或会自动打出它的 CASCADE。还检查不限、0、等于上限及手动已超额的准入口径，以及设置往返和成长行重载。
+- 初轮 `4ee0b6363f77406aae14eea99c03425c` 已通过前段原生对照，在补充能力审计的 RankFinal 遇到重复对象键；修正对象身份去重后最终场景通过。中间一次启动器未取得已退出进程的 executable path，尚未提交请求；同一 DLL 重新启动后成功。未扩大超时。
+- 没有可见鼠标/布局验收，没有完整跑局质量结论，也未验证其他 Mod 修改至亮之焰最大生命变量的历史回写语义。
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId GROWTH-ANCIENT-POLICY -CharacterId IRONCLAD -EncounterId FUZZY_WURM_CRAWLER_WEAK -PreserveNativeCombatStateForTest -HeadlessInstance ancient-growth -ExitOnComplete -TimeoutSeconds 120
+```
+
 ## 0.35.4：PR #83 合并检查与预设节点上限
 
 - `python -X utf8 tools/NoVictoryRecoveryChecks/run.py`：通过 PR 自带 `AssertNoVictoryEscalationPolicy` 的全部策略断言与新增 8 项请求流程检查。直接编译生产 BuildNoVictoryEscalationProfile / EscalateSearchWhenNoVictory；原入口先复现“追加搜索丢弃明确采用结果”，修正后覆盖接管、已有胜利不重搜、胜利退出、停止、拒绝更差结果、两轮封顶、第二轮饱和及仅分支增长。结果、质量排序和根采用确定性替身，未声明整场搜索验证。

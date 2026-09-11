@@ -498,6 +498,7 @@ internal sealed partial class CombatBeamSolver
         {
             GrowthHpCredit = growthHpCredit,
             GrowthRewards = growthRewards,
+            BrightestFlameMaxHpSpent = combat.BrightestFlameMaxHpSpent,
         };
     }
 

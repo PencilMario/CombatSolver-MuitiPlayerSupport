@@ -41,6 +41,11 @@ internal sealed partial class UnattendedTestRunner
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
             if (request.ScenarioId.StartsWith("TURN-SETUP-UI-", StringComparison.Ordinal))
                 return Observation(combatEnded: false);
+            if (request.ScenarioId == "GROWTH-ANCIENT-POLICY")
+            {
+                await runner.AssertAncientGrowthPolicyAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId is "NORMALITY-AUTOPLAY" or "NORMALITY-AUTOPLAY-REPLAY")
             {
                 await runner.AssertNormalityAutoPlayAsync(combatState, player);

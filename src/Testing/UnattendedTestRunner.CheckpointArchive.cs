@@ -101,6 +101,7 @@ internal sealed partial class UnattendedTestRunner
         // Archives recorded before growth policy existed used zero willingness for this feature.
         settings["growthBudgets"] = recorded["growthBudgets"]?.DeepClone()
             ?? JsonSerializer.SerializeToNode(default(GrowthValues), UnattendedTestFiles.JsonOptions);
+        settings["brightestFlameMaxHpLossLimit"] = recorded["brightestFlameMaxHpLossLimit"]?.DeepClone();
         // Archives recorded before the ignore switch existed considered long-term rewards.
         settings["ignoreLongTermRewards"] = recorded["ignoreLongTermRewards"]?.DeepClone()
             ?? JsonSerializer.SerializeToNode(false, UnattendedTestFiles.JsonOptions);
@@ -175,7 +176,7 @@ internal sealed partial class UnattendedTestRunner
         JsonObject policy = recorded == null ? new JsonObject() : (JsonObject)recorded.DeepClone();
         if (recorded == null && _checkpointImport["legacySettings"] is JsonObject legacy)
         {
-            foreach (string key in new[] { "potionPolicy", "potionDirectives", "growthBudgets", "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism" })
+            foreach (string key in new[] { "potionPolicy", "potionDirectives", "growthBudgets", "brightestFlameMaxHpLossLimit", "actTransitionBossHpStrategy", "finalBossHpStrategy", "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism" })
                 if (legacy[key] != null)
                     policy[key] = legacy[key]!.DeepClone();
             if (_checkpointImport["legacySearchProfiles"] is JsonObject profiles)
@@ -188,7 +189,7 @@ internal sealed partial class UnattendedTestRunner
                 ?? throw new InvalidDataException("expected_replay_policy_override_object");
             HashSet<string> allowed = new(StringComparer.Ordinal)
             {
-                "potionPolicy", "potionDirectives", "growthBudgets", "actTransitionBossHpStrategy", "finalBossHpStrategy",
+                "potionPolicy", "potionDirectives", "growthBudgets", "brightestFlameMaxHpLossLimit", "actTransitionBossHpStrategy", "finalBossHpStrategy",
                 "acceptableBattleHpLoss", "searchMaxDegreeOfParallelism", "shortProfile", "deepProfile", "forceShortOnly",
             };
             foreach ((string key, JsonNode? value) in overrides)

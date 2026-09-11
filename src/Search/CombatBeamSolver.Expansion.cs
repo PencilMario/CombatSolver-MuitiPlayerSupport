@@ -2085,6 +2085,12 @@ internal sealed partial class CombatBeamSolver
         ChoiceSearchBudget searchBudget,
         ChoiceOccurrenceCollector<DeferredOccurrenceChoiceBranch> occurrenceCollector)
     {
+        if (!GrowthCostPolicy.AllowsBrightestFlame(policy.BrightestFlameMaxHpLossLimit,
+                root.InitialBrightestFlameMaxHpSpent, snapshot.BrightestFlameMaxHpSpent))
+        {
+            snapshot.ReleaseSimulator();
+            yield break;
+        }
         if (snapshot.BoundaryReason != SearchBoundaryReason.PendingChoice)
         {
             if (searchBudget.TryConsumeFinal())
@@ -2388,6 +2394,12 @@ internal sealed partial class CombatBeamSolver
         ChoiceOccurrenceCollector<IReadOnlyList<PlanCardChoice>> occurrenceCollector,
         TurnSetupChoiceLayer? preparedLayer = null)
     {
+        if (!GrowthCostPolicy.AllowsBrightestFlame(policy.BrightestFlameMaxHpLossLimit,
+                root.InitialBrightestFlameMaxHpSpent, snapshot.BrightestFlameMaxHpSpent))
+        {
+            snapshot.ReleaseSimulator();
+            return;
+        }
         if (snapshot.BoundaryReason == SearchBoundaryReason.None)
         {
             if (searchBudget.TryConsumeFinal())

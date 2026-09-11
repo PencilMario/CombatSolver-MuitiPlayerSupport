@@ -257,6 +257,7 @@ internal sealed partial class SimulatedCombatState
         _encounter = inner.Encounter;
         _encounterSlots = inner.Encounter?.Slots.ToArray() ?? [];
         _rootHistory = RootCombatHistorySnapshot.Capture();
+        _brightestFlameMaxHpSpent = CaptureBrightestFlameMaxHpSpent(_rootHistory.CardPlaysStarted);
         _rootCreatures = inner.Creatures
             .Concat(inner.Players.Select(player => player.Osty).OfType<Creature>())
             .ToHashSet();
@@ -2156,6 +2157,7 @@ internal sealed partial class SimulatedCombatState
         fingerprint.Add('g');
         fingerprint.Add(_longTermResourceValue);
         _growthRewards.AppendFingerprint(ref fingerprint);
+        fingerprint.Add(_brightestFlameMaxHpSpent);
         fingerprint.Add('A');
         fingerprint.Add(_angerCopiesGenerated);
         fingerprint.Add('L');

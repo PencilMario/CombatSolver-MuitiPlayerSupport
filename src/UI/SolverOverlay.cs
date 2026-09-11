@@ -1353,6 +1353,7 @@ internal static class SolverOverlay
         _potionStrategyPanel = new SolverPotionStrategyPanel();
         _growthStrategyPanel = new SolverGrowthStrategyPanel();
         _growthStrategyPanel.PolicyChanged += OnGrowthPolicyChanged;
+        _growthStrategyPanel.BrightestFlameLimitChanged += OnBrightestFlameLimitChanged;
         _growthStrategyPanel.IgnoreLongTermRewardsChanged += OnIgnoreLongTermRewardsChanged;
         _potionStrategyPanel.DirectiveChanged += OnPotionDirectiveChanged;
 
@@ -2744,6 +2745,14 @@ internal static class SolverOverlay
         RefreshControls();
         ApplyContentVisibility();
         QueueResponsiveLayout();
+    }
+
+    private static void OnBrightestFlameLimitChanged(int? limit)
+    {
+        NGame? host = NGame.Instance;
+        CombatState? state = CombatManager.Instance.DebugOnlyGetState();
+        if (host != null && state != null && CombatManager.Instance.IsInProgress)
+            SolverController.SetBrightestFlameLimit(host, state, limit);
     }
 
     private static void OnGrowthPolicyChanged(GrowthValues budgets)

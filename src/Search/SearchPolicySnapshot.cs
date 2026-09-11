@@ -22,6 +22,7 @@ internal sealed record SearchPolicySnapshot(
     SearchMemoryPressureSignal MemoryPressureSignal)
 {
     public GrowthValues GrowthBudgets { get; init; }
+    public int? BrightestFlameMaxHpLossLimit { get; init; }
     public bool HasGrowthTargets { get; init; }
 
     /// <summary>

@@ -15,6 +15,11 @@ namespace CombatSolver;
 
 internal sealed partial class SimulatedCombatState
 {
+    // Each native replay has its own started entry. Capture scalar costs before the worker runs.
+    private static int CaptureBrightestFlameMaxHpSpent(IEnumerable<CardPlayStartedEntry> entries)
+        => entries.Where(entry => entry.CardPlay.Card is BrightestFlame)
+            .Sum(entry => entry.CardPlay.Card.DynamicVars.MaxHp.IntValue);
+
     public int GetCardsDrawnBeforePrediction(Player player)
         => _rootHistory.CardsDrawn.Count(entry => entry.Actor.Player == player);
 
@@ -97,15 +102,19 @@ internal sealed partial class SimulatedCombatState
             entry.HappenedThisTurn(combatState) && entry.CardPlay.Player == player
             && entry.CardPlay.Card.Type is CardType.Attack or CardType.Skill);
         AppendTurnCardHistory(text, statusCardsDrawn, zeroCostAttackStarts, cardPlayStarts, attackSkillStarts);
+        text.Append(";FlameHp=").Append(CaptureBrightestFlameMaxHpSpent(CombatManager.Instance.History.CardPlaysStarted));
     }
 
     public void AppendPredictedTurnCardHistory(StringBuilder text, Player player)
-        => AppendTurnCardHistory(
+    {
+        AppendTurnCardHistory(
             text,
             GetStatusCardsDrawnThisTurn(player),
             GetZeroCostAttackStartsThisTurn(player.Creature),
             GetCardPlayStartsThisTurn(player.Creature),
             GetAttackSkillStartsThisTurn(player.Creature));
+        text.Append(";FlameHp=").Append(_brightestFlameMaxHpSpent);
+    }
 
     private static void AppendTurnCardHistory(
         StringBuilder text,
