@@ -66,10 +66,6 @@ internal sealed partial class SolverSettingsPanel
         }
     }
 
-    private VBoxContainer? _maintenanceControls;
-
-    internal void AddMaintenanceControl(Control control) => _maintenanceControls!.AddChild(control);
-
     private Control CreatePerformancePage()
     {
         VBoxContainer content = CreatePageContent("PerformanceSettingsPage");
@@ -170,9 +166,6 @@ internal sealed partial class SolverSettingsPanel
         advanced.AddChild(hint);
         _advancedParameters = advanced;
         content.AddChild(_advancedParameters);
-        _maintenanceControls = CreatePageContent("MaintenanceControls");
-        _maintenanceControls.AddChild(CreateSectionHeading(SolverText.Get("内存维护")));
-        content.AddChild(_maintenanceControls);
         return CreatePageScroll(content);
     }
 

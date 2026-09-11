@@ -164,7 +164,7 @@ internal static class SolverOverlay
         => _systemMemoryReleaseButton is { Text: "强制释放内存" } button
             && GodotObject.IsInstanceValid(button)
             && button.IsInsideTree()
-            && _settingsPanel?.IsAncestorOf(button) == true;
+            && _actionBar?.IsAncestorOf(button) == true;
     internal static bool NoGcControlsConfiguredForTesting
         => _settingsPanel?.NoGcControlsConfiguredForTesting == true;
     internal static bool MemoryUsageBarConfiguredForTesting
@@ -1050,9 +1050,7 @@ internal static class SolverOverlay
         _stopSearchButton.Disabled = solverDisabled || !searching || SolverController.IsStoppingSearch;
         _adoptRouteButton.Disabled = solverDisabled || !canAdoptRoute || adoptingRoute;
         _adoptRouteButton.Text = adoptingRoute ? SolverText.Get("正在采用…") : SolverText.Get("采用当前路线");
-        SolverButtonStyle adoptRouteStyle = canAdoptRoute && !adoptingRoute
-            ? SolverButtonStyle.Positive
-            : SolverButtonStyle.Secondary;
+        SolverButtonStyle adoptRouteStyle = SolverButtonStyle.Secondary;
         if (_renderedAdoptRouteButtonStyle != adoptRouteStyle)
         {
             SolverUiTokens.ApplyButtonStyle(_adoptRouteButton, adoptRouteStyle);
@@ -1077,17 +1075,14 @@ internal static class SolverOverlay
             _executeButton.Text = SolverText.Get("等待下一回合");
         else
             _executeButton.Text = SolverText.Get("执行本回合");
-        SolverButtonStyle executeStyle = canApplyCurrentTurn
-            ? SolverButtonStyle.Positive
-            : SolverButtonStyle.Primary;
+        SolverButtonStyle executeStyle = SolverButtonStyle.Secondary;
         if (_renderedExecuteButtonStyle != executeStyle)
         {
             SolverUiTokens.ApplyButtonStyle(_executeButton, executeStyle);
             _renderedExecuteButtonStyle = executeStyle;
         }
 
-        _fullAutoButton.Text = SolverText.Get("本场全自动");
-        _fullAutoButton.SetPressedNoSignal(SolverController.FullAutoEnabled);
+        _fullAutoButton.Text = SolverText.Get(SolverController.FullAutoEnabled ? "全自动：开" : "全自动：关");
         _fullAutoButton.Disabled = solverDisabled || adoptingRoute;
         if (_autoEnableFullAutoSwitch != null)
             _autoEnableFullAutoSwitch.ButtonPressed = SolverSettings.Current.AutoEnableFullAuto;
@@ -1854,13 +1849,13 @@ internal static class SolverOverlay
         _adoptRouteButton.Pressed += OnAdoptRoutePressed;
         _adoptRouteButton.TooltipText = SolverText.Get("结束搜索并采用屏幕当前路线；已开启的全自动或排队执行仍按原设置继续。");
 
-        _executeButton = CreateButton(SolverText.Get("执行本回合"), true);
-        _renderedExecuteButtonStyle = SolverButtonStyle.Primary;
+        _executeButton = CreateButton(SolverText.Get("执行本回合"), false);
+        _renderedExecuteButtonStyle = SolverButtonStyle.Secondary;
         _executeButton.CustomMinimumSize = new Vector2(132, SolverUiTokens.Size.ButtonHeight);
         _executeButton.Pressed += OnExecutePressed;
 
-        _fullAutoButton = SolverSettingsPanel.CreateToggle();
-        _fullAutoButton.Text = SolverText.Get("本场全自动");
+        _fullAutoButton = SolverUiTokens.CreateButton(SolverText.Get("全自动：关"), SolverButtonStyle.Positive);
+        _fullAutoButton.CustomMinimumSize = new Vector2(144, SolverUiTokens.Size.ButtonHeight);
         _fullAutoButton.TooltipText = SolverText.Get("控制本场自动续打。关闭后，正在执行的动作按原流程完成。");
         _fullAutoButton.Pressed += OnFullAutoPressed;
 
@@ -1898,10 +1893,9 @@ internal static class SolverOverlay
             SolverText.Get("等待搜索退出并回收求解器内存后，请求 Windows 管理员权限，") +
             SolverText.Get("清空系统工作集与待机列表。其他程序之后重新载入页面时可能短暂卡顿。");
         _systemMemoryReleaseButton.Pressed += OnSystemMemoryReleasePressed;
-        _settingsPanel!.AddMaintenanceControl(_systemMemoryReleaseButton);
 
         _actionBar = new SolverActionBar(_executeButton, _recalculateButton, _stopSearchButton,
-            _adoptRouteButton, _fullAutoButton, autoStart, _memoryUsageBar);
+            _adoptRouteButton, _fullAutoButton, autoStart, _memoryUsageBar, _systemMemoryReleaseButton);
         return _actionBar;
     }
 

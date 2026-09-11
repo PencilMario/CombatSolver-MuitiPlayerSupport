@@ -17,7 +17,7 @@ internal sealed partial class SolverActionBar : VBoxContainer
     private readonly Control _memory;
 
     public SolverActionBar(Button execute, Button recalculate, Button stop, Button adopt,
-        Button fullAuto, Control autoStart, Control memory)
+        Button fullAuto, Control autoStart, Control memory, Button releaseMemory)
     {
         Name = "Footer";
         MouseFilter = MouseFilterEnum.Pass;
@@ -31,12 +31,13 @@ internal sealed partial class SolverActionBar : VBoxContainer
         _memory = memory;
         _actions = CreateFlow("CombatActions");
         _modes = CreateFlow("AutomaticModes");
+        _actions.AddChild(fullAuto);
         _actions.AddChild(execute);
         _actions.AddChild(recalculate);
         _actions.AddChild(stop);
         _actions.AddChild(adopt);
-        _modes.AddChild(fullAuto);
         _modes.AddChild(autoStart);
+        _modes.AddChild(releaseMemory);
         AddChild(_actions);
         AddChild(_modes);
         AddChild(memory);
@@ -50,13 +51,6 @@ internal sealed partial class SolverActionBar : VBoxContainer
         _execute.Visible = !state.Collapsed || !state.Searching;
         _modes.Visible = !state.Collapsed;
         _memory.Visible = !state.Collapsed;
-        Node fullAutoParent = state.Collapsed ? _actions : _modes;
-        if (_fullAuto.GetParent() != fullAutoParent)
-        {
-            _fullAuto.Reparent(fullAutoParent);
-            if (!state.Collapsed)
-                _modes.MoveChild(_fullAuto, 0);
-        }
     }
 
     internal void AssertLayoutForTesting()
@@ -70,7 +64,7 @@ internal sealed partial class SolverActionBar : VBoxContainer
                 || _adopt.Visible != (!collapsed && adopt)
                 || _execute.Visible != (!collapsed || !searching)
                 || _memory.Visible == collapsed || _modes.Visible == collapsed
-                || _fullAuto.GetParent() != (collapsed ? (Node)_actions : _modes))
+                || _fullAuto.GetParent() != _actions || _fullAuto.GetIndex() != 0)
                 throw new InvalidOperationException("Action bar layout state did not match its display snapshot.");
         }
     }
