@@ -39,6 +39,20 @@ internal sealed partial class UnattendedTestRunner
                 LocManager.Instance.SetLanguage(target);
                 await _host.ToSignal(_host.GetTree(), SceneTree.SignalName.ProcessFrame);
                 bool english = target == "eng";
+                var counters = RelicCounterPolicy.Add(default, new(RelicCounterId.HappyFlower, 2, 2, 0, 3), 2);
+                counters = RelicCounterPolicy.Add(counters, new(RelicCounterId.PenNib, 9, 9, 0, 10), 4);
+                string outcome = SolverStrategyOutcomeText.Format(counters, new GrowthValues(TheHunt: 1, Feed: 2), true)!;
+                string incomplete = SolverStrategyOutcomeText.Format(counters, default, false)!;
+                if (!outcome.Contains(english ? "Counters aligned:" : "已卡：")
+                    || !outcome.Contains(ModelDb.Relic<MegaCrit.Sts2.Core.Models.Relics.HappyFlower>().Title.GetFormattedText() + " 2")
+                    || !outcome.Contains(ModelDb.Relic<MegaCrit.Sts2.Core.Models.Relics.PenNib>().Title.GetFormattedText() + " 4")
+                    || !outcome.Contains(english ? "Targets unmet:" : "未达标：")
+                    || !outcome.Contains(ModelDb.Card<TheHunt>().Title)
+                    || !outcome.Contains(ModelDb.Card<Feed>().Title + " ×2")
+                    || incomplete.Contains(english ? "Counters aligned:" : "已卡：")
+                    || SolverStrategyOutcomeText.Format(default, default, true) != null)
+                    throw new InvalidOperationException("Strategy outcome omitted achieved/unmet targets or marked partial counters complete.");
+                _completedChecks.Add($"StrategyOutcome:{target}:AlignedAndUnmet:GrowthCounts:PartialRoute:EmptyHidden");
                 await AssertActionAnnotationLocalizationAsync(combat, english);
                 foreach ((string source, string translated) in catalog)
                 {

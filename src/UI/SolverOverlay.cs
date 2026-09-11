@@ -69,6 +69,7 @@ internal static class SolverOverlay
     private static SolverActionBar? _actionBar;
     private static Button? _solverEnabledButton;
     private static Label? _stolenResourceOutcomeLabel;
+    private static Label? _strategyOutcomeLabel;
     private static CheckButton? _autoEnableFullAutoSwitch;
     private static Button? _collapseButton;
     private static Button? _settingsButton;
@@ -778,6 +779,12 @@ internal static class SolverOverlay
     private static void PopulateRoute(SolverOverlaySnapshot snapshot, bool resetScroll)
     {
         SetRouteVisibility(true);
+        if (_strategyOutcomeLabel != null)
+        {
+            _strategyOutcomeLabel.Text = snapshot.StrategyOutcomeText ?? string.Empty;
+            _strategyOutcomeLabel.TooltipText = snapshot.StrategyOutcomeText ?? string.Empty;
+            _strategyOutcomeLabel.Visible = snapshot.StrategyOutcomeText != null;
+        }
         if (_stolenResourceOutcomeLabel != null)
         {
             _stolenResourceOutcomeLabel.Text = snapshot.UnrecoveredLootText ?? string.Empty;
@@ -1398,6 +1405,11 @@ internal static class SolverOverlay
             FontType.Bold);
         _routeHeadingLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _routeHeadingRow.AddChild(_routeHeadingLabel);
+        _strategyOutcomeLabel = CreateTextLabel(string.Empty, SolverUiTokens.Type.Body, TextPrimary, FontType.Bold);
+        _strategyOutcomeLabel.Visible = false;
+        _strategyOutcomeLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
+        _strategyOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+        _routeHeadingRow.AddChild(_strategyOutcomeLabel);
         _deathOutcomeLabel = CreateTextLabel(
             SolverText.Get("未找到生还路线"),
             SolverUiTokens.Type.Body,

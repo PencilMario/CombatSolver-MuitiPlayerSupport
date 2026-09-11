@@ -1,5 +1,11 @@
 # CombatSolver 测试清单
 
+## 0.36.3：策略摘要
+
+- `UI-LOCALIZATION` / `2549ed79f5824695b4e1e6bad238919e` Passed（25.82 秒）：404 项中英目录，已卡小花 2 与未达标笔尖 4、成长次数及不完整路线显示均通过。`RELIC-COUNTER-POLICY` / `e1dcbb80d7a84805984af0f18d6ff1f3` Passed（25.48 秒）：计数快照/Fork、实际终局和早停保持，达标 2 节点、关闭早停 62 节点。
+
+- 在 UI-LOCALIZATION 中覆盖已卡/未达标并存、狩猎与狂宴次数、非终局不宣称已卡、无目标隐藏和 eng/zhs/zht 文案。可见游戏排版未人工验证。
+
 ## 0.36.2：重复回合请求与围巾调查
 
 - `THIRD-PARTY-CALCULATED-FAILURE` / `63ec25652bca40888bec99e4506a5238` Passed（22.44 秒）：使用游戏提供的 MockTypes 映射注入第三方来源，实际经过未知 CalculatedVar 求值路径，断言来源异常、包装后的 UI 和报告账本均不要求上传；未执行 LifeMasterMod 原卡。Windows 结构门禁通过。
