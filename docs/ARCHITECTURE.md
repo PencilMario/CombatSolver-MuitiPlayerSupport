@@ -45,6 +45,8 @@ Entry / turn hooks
 
 同一战斗回合已有计划或活动搜索时，迟到的 AutoTurnStart 在 RequestSearch 入口直接完成，不重新以回合初状态核对出牌后的现场。搜索会话冻结自己的起始回合用于判定；手动重算及下一回合请求继续原流程。
 
+`ICombatPredictionEffectSink.ApplyPowerFromSource` 将原版显式 cardSource 传入分支 Power 施加作用域，null 明确代表能力/遗物自身来源；完成后恢复外层来源。Envenom/Concoct 的附毒使用此入口，UnsettlingLamp 继续只响应卡牌直接施加。作用域存于分支，活动期间禁止 Fork。
+
 ## 2. Runtime
 
 | 文件 | 职责 | 不负责 |

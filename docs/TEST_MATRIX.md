@@ -2,6 +2,10 @@
 
 ## 0.36.2：重复回合请求与围巾调查
 
+- `THIRD-PARTY-CALCULATED-FAILURE` / `63ec25652bca40888bec99e4506a5238` Passed（22.44 秒）：使用游戏提供的 MockTypes 映射注入第三方来源，实际经过未知 CalculatedVar 求值路径，断言来源异常、包装后的 UI 和报告账本均不要求上传；未执行 LifeMasterMod 原卡。Windows 结构门禁通过。
+
+- `LAMP-INDIRECT-POISON`：`a41a3935eec14e0b8d1415009fd89071` Failed（22.24 秒），复现原版毒 2、预测毒 4 以及遗物已使用标记偏差；修复后 `f68fdc90c1874304b5e667b39291bea1` Passed（26.29 秒），Envenom/Concoct 两条附毒与随后直接 DeadlyPoison 均逐动作比较完整 ContinuationStamp。第一条启动请求因可见游戏仍在运行而入场排队超时，未进入 fixture；用户退出游戏后才运行，未修改准入规则。八个原包未做完整恢复/整场部署。
+
 - `UI-LOCALIZATION` / `dca94aacb31c40ba9ac3b94f9375d9a1` Passed（25.34 秒），21 种遗物标注含“本张免费”在 eng/zhs/zht 正确转换，原胶囊与提示语言往返保持；未进行可见游戏人工验收。
 
 - 免费标注与高费顺序规划：`BRILLIANT-SCARF-COST` / `6e12b03da68f44eb9287bc5d987f3997` Passed（24.80 秒），四张 DEFLECT 后第五张 3 费 BLUDGEON 在零能量下击杀，增量回放一致；仅第五张带 BRILLIANT_SCARF 免费标注，前四张无误标。

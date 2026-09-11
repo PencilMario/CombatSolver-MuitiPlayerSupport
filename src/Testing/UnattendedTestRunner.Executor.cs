@@ -66,6 +66,16 @@ internal sealed partial class UnattendedTestRunner
                 runner.AssertDynamicVarMetadata();
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "THIRD-PARTY-CALCULATED-FAILURE")
+            {
+                runner.AssertThirdPartyCalculatedFailure(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "LAMP-INDIRECT-POISON")
+            {
+                await runner.AssertLampIndirectPoisonAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "AUTO-TURN-REQUEST-OWNERSHIP")
             {
                 await runner.AssertAutoTurnRequestOwnershipAsync(combatState, player);
