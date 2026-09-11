@@ -50,7 +50,7 @@ internal static class SolverOverlay
     private static Label? _progressText;
     private static Label? _reviewText;
     private static ProgressBar? _searchProgressBar;
-    private static VBoxContainer? _routeHeadingRow;
+    private static HFlowContainer? _routeHeadingRow;
     private static PanelContainer? _routeOutcomePanel;
     private static Label? _routeHeadingLabel;
     private static readonly SolverRouteRow[] RouteRows = new SolverRouteRow[SolverWeights.UiTurnRows];
@@ -1373,12 +1373,13 @@ internal static class SolverOverlay
 
         _body.AddChild(CreateSummarySection());
         _routeOutcomePanel = CreateSectionPanel("RouteOutcomePanel");
-        _routeHeadingRow = new VBoxContainer
+        _routeHeadingRow = new HFlowContainer
         {
             MouseFilter = Control.MouseFilterEnum.Ignore,
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
-        _routeHeadingRow.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        _routeHeadingRow.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
+        _routeHeadingRow.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
         _routeHeadingLabel = CreateTextLabel(
             SolverText.Get("推荐路线"),
             SolverUiTokens.Type.Body,
@@ -1386,16 +1387,6 @@ internal static class SolverOverlay
             FontType.Bold);
         _routeHeadingLabel.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
         _routeHeadingRow.AddChild(_routeHeadingLabel);
-        HFlowContainer routeMetrics = new()
-        {
-            Name = "RouteMetrics",
-            Alignment = FlowContainer.AlignmentMode.End,
-            MouseFilter = Control.MouseFilterEnum.Ignore,
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-        };
-        routeMetrics.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Md);
-        routeMetrics.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
-        _routeHeadingRow.AddChild(routeMetrics);
         _deathOutcomeLabel = CreateTextLabel(
             SolverText.Get("未找到生还路线"),
             SolverUiTokens.Type.Body,
@@ -1403,19 +1394,19 @@ internal static class SolverOverlay
             FontType.Bold);
         _deathOutcomeLabel.Visible = false;
         _deathOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
-        routeMetrics.AddChild(_deathOutcomeLabel);
+        _routeHeadingRow.AddChild(_deathOutcomeLabel);
         _potionOutcomeLabel = CreateTextLabel(SolverText.Get("预计用1瓶药"), SolverUiTokens.Type.Body, Warning, FontType.Bold);
         _potionOutcomeLabel.Visible = false;
         _potionOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _potionOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
-        routeMetrics.AddChild(_potionOutcomeLabel);
+        _routeHeadingRow.AddChild(_potionOutcomeLabel);
         _stolenResourceOutcomeLabel = CreateTextLabel(string.Empty, SolverUiTokens.Type.Body, Danger, FontType.Bold);
         _stolenResourceOutcomeLabel.Visible = false;
-        routeMetrics.AddChild(_stolenResourceOutcomeLabel);
+        _routeHeadingRow.AddChild(_stolenResourceOutcomeLabel);
         _hpOutcomeLabel = CreateTextLabel(SolverText.Get("本局扣血  0 HP"), SolverUiTokens.Type.Metric, Success, FontType.Bold);
         _hpOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _hpOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
-        routeMetrics.AddChild(_hpOutcomeLabel);
+        _routeHeadingRow.AddChild(_hpOutcomeLabel);
         // Healing keeps its own label so it stays green while the loss label turns red.
         _hpRecoveredOutcomeLabel = CreateTextLabel(
             SolverText.Get("路线回血  0 HP"),
@@ -1425,7 +1416,7 @@ internal static class SolverOverlay
         _hpRecoveredOutcomeLabel.Visible = false;
         _hpRecoveredOutcomeLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkEnd;
         _hpRecoveredOutcomeLabel.HorizontalAlignment = HorizontalAlignment.Right;
-        routeMetrics.AddChild(_hpRecoveredOutcomeLabel);
+        _routeHeadingRow.AddChild(_hpRecoveredOutcomeLabel);
         _routeOutcomePanel.AddChild(_routeHeadingRow);
         _body.AddChild(_routeOutcomePanel);
         _body.MoveChild(_routeOutcomePanel, 0);
@@ -1507,7 +1498,7 @@ internal static class SolverOverlay
         _potionStrategyVisible = false;
         _growthStrategyVisible = false;
         SetCollapsed(false);
-        Entry.Logger.Info("[CombatSolver/Test] UI_CREATE responsive=true content_fit_height=true minimum_size_reflow=true draggable=true drag_coordinates=viewport drag_relayout=release_only resizable=right+bottom+corner resize_grip=three_diagonal_lines size_persisted=true route_scroll_expand=true max_width=viewport max_height=viewport route_row_height=44 route_viewport_height=148 visible_unwrapped_route_rows=3 cached_route_rows=16 all_searched_turns=true route_scroll=true persistent_status_card=true compact_title=true compact_footer=true collapsed_action_buttons=true footer_pause_toggles=false settings_pause_toggles=true footer_top_margin=8 details_in_status_row=true battle_hp_in_route_heading=true sold_hp_summary=false turn_statistics_header=true full_width_action_flow=true semantic_action_pills=true full_target_names=true whole_pill_kill_highlight=true text_outline_px=2 wrapped_summary=true summary_bold_metric=true flat_collapse=true plain_details_button=true full_auto_positive_toggle=true no_middle_dot=true status_badge=true plain_action_buttons=true always_show_energy=true plain_route_heading=true settings_button=true settings_persisted=true settings_tabs=general+performance+feedback performance_advanced=collapsed notification_policy=three_state performance_presets=low+medium+high+very_high+custom kill_pill=green_with_target_names status_badge=content_width deployment_speed_settings=true search_status=fixed_columns_seconds only_death_marker=true relic_action_labels=true position_persisted=true theft_policy_buttons=contextual stop_search_button=true");
+        Entry.Logger.Info("[CombatSolver/Test] UI_CREATE responsive=true content_fit_height=true minimum_size_reflow=true draggable=true drag_coordinates=viewport drag_relayout=release_only resizable=right+bottom+corner resize_grip=three_diagonal_lines size_persisted=true route_scroll_expand=true max_width=viewport max_height=viewport route_row_height=44 route_viewport_height=148 visible_unwrapped_route_rows=3 cached_route_rows=16 all_searched_turns=true route_scroll=true persistent_status_card=true compact_title=true compact_footer=true collapsed_action_buttons=true footer_pause_toggles=false settings_pause_toggles=true footer_top_margin=8 details_in_status_row=true battle_hp_in_route_heading=true sold_hp_summary=false three_column_routes=true semantic_action_pills=true full_target_names=true whole_pill_kill_highlight=true text_outline_px=2 wrapped_summary=true summary_bold_metric=true flat_collapse=true plain_details_button=true full_auto_positive_toggle=true no_middle_dot=true status_badge=true plain_action_buttons=true always_show_energy=true plain_route_heading=true settings_button=true settings_persisted=true settings_tabs=general+performance+feedback performance_advanced=collapsed notification_policy=three_state performance_presets=low+medium+high+very_high+custom kill_pill=green_with_target_names status_badge=content_width deployment_speed_settings=true search_status=fixed_columns_seconds only_death_marker=true relic_action_labels=true position_persisted=true theft_policy_buttons=contextual stop_search_button=true");
         Entry.Logger.Info("[CombatSolver/Test] UI_FEEDBACK_BANNER position=full_width manual_improvement=green unexpected_replan=red export_prompt=full_bug_report");
     }
 
@@ -1735,7 +1726,7 @@ internal static class SolverOverlay
         _summaryPanel.MouseFilter = Control.MouseFilterEnum.Pass;
         _summaryPanel.CustomMinimumSize = new Vector2(0, 64);
         VBoxContainer layout = new() { MouseFilter = Control.MouseFilterEnum.Pass };
-        layout.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Sm);
+        layout.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xxs);
         HFlowContainer statusRow = new()
         {
             MouseFilter = Control.MouseFilterEnum.Pass,
@@ -1763,11 +1754,10 @@ internal static class SolverOverlay
             SolverUiTokens.Palette.TextSecondary,
             FontType.Bold);
         _summaryContextLabel.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
-        _summaryContextLabel.CustomMinimumSize = new Vector2(0, 26);
-        _summaryContextLabel.AutowrapMode = TextServer.AutowrapMode.Off;
-        _summaryContextLabel.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        _summaryContextLabel.CustomMinimumSize = new Vector2(104, 24);
+        _summaryContextLabel.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         statusRow.AddChild(_summaryContextLabel);
-        _summaryText = CreateRichText(SolverUiTokens.Type.Body);
+        _summaryText = CreateRichText(SolverUiTokens.Type.Metric);
         _summaryText.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         _summaryText.FitContent = true;
         _summaryText.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
@@ -1775,9 +1765,8 @@ internal static class SolverOverlay
         _summaryText.ApplyLocaleFontSubstitution(FontType.Bold, "normal_font");
         _progressText = CreateTextLabel(string.Empty, SolverUiTokens.Type.Metric, TextPrimary, FontType.Bold);
         _progressText.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
-        _progressText.CustomMinimumSize = new Vector2(0, 26);
-        _progressText.AutowrapMode = TextServer.AutowrapMode.Off;
-        _progressText.SizeFlagsVertical = Control.SizeFlags.ShrinkCenter;
+        _progressText.CustomMinimumSize = new Vector2(104, 24);
+        _progressText.ClipText = true;
         _progressText.Visible = false;
         statusRow.AddChild(_progressText);
         _reviewText = CreateTextLabel(
@@ -2844,16 +2833,6 @@ internal static class SolverOverlay
             ShowSearching(host, 1, false, 0);
             if (_stolenResourceOutcomeLabel.Visible)
                 throw new InvalidOperationException("New search retained stale loot warning.");
-            string savedContext = _summaryContextLabel!.Text;
-            foreach (int plannedTurn in new[] { 9, 12 })
-            {
-                _summaryContextLabel.Text = SolverText.Format($"已规划至第 {plannedTurn} 回合");
-                await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
-                await host.ToSignal(host.GetTree(), SceneTree.SignalName.ProcessFrame);
-                if (_summaryContextLabel.GetLineCount() != 1 || _summaryContextLabel.ClipText)
-                    throw new InvalidOperationException("Planned-turn status wrapped or clipped.");
-            }
-            _summaryContextLabel.Text = savedContext;
             SolverSettingsPanel settings = new();
             host.AddChild(settings);
             try
