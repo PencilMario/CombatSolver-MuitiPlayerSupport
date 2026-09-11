@@ -65,6 +65,7 @@ internal static class SolverOverlay
     private static Button? _adoptRouteButton;
     private static Button? _executeButton;
     private static Button? _fullAutoButton;
+    private static SolverActionBar? _actionBar;
     private static Button? _solverEnabledButton;
     private static Label? _stolenResourceOutcomeLabel;
     private static CheckButton? _autoEnableFullAutoSwitch;
@@ -97,7 +98,6 @@ internal static class SolverOverlay
     private static bool _dragging;
     private static bool _resizing;
     private static bool _layoutQueued;
-    private static bool? _renderedFullAutoStyle;
     private static SolverButtonStyle? _renderedExecuteButtonStyle;
     private static SolverButtonStyle? _renderedAdoptRouteButtonStyle;
     private static SolverTheftPolicy? _renderedTheftPolicy;
@@ -164,8 +164,7 @@ internal static class SolverOverlay
         => _systemMemoryReleaseButton is { Text: "强制释放内存" } button
             && GodotObject.IsInstanceValid(button)
             && button.IsInsideTree()
-            && _memoryUsageBar?.GetParent() == button.GetParent()
-            && _memoryUsageBar.GetIndex() < button.GetIndex();
+            && _settingsPanel?.IsAncestorOf(button) == true;
     internal static bool NoGcControlsConfiguredForTesting
         => _settingsPanel?.NoGcControlsConfiguredForTesting == true;
     internal static bool MemoryUsageBarConfiguredForTesting
@@ -1087,22 +1086,17 @@ internal static class SolverOverlay
             _renderedExecuteButtonStyle = executeStyle;
         }
 
-        _fullAutoButton.Text = SolverController.FullAutoEnabled ? SolverText.Get("全自动：开") : SolverText.Get("全自动：关");
+        _fullAutoButton.Text = SolverText.Get("本场全自动");
+        _fullAutoButton.SetPressedNoSignal(SolverController.FullAutoEnabled);
         _fullAutoButton.Disabled = solverDisabled || adoptingRoute;
         if (_autoEnableFullAutoSwitch != null)
             _autoEnableFullAutoSwitch.ButtonPressed = SolverSettings.Current.AutoEnableFullAuto;
-        if (_renderedFullAutoStyle != SolverController.FullAutoEnabled)
-        {
-            SolverUiTokens.ApplyButtonStyle(
-                _fullAutoButton,
-                SolverController.FullAutoEnabled ? SolverButtonStyle.Positive : SolverButtonStyle.Secondary);
-            _fullAutoButton.AddThemeColorOverride(
-                "font_color",
-                SolverUiTokens.IsLightTheme && SolverController.FullAutoEnabled
-                    ? Colors.White
-                    : TextPrimary);
-            _renderedFullAutoStyle = SolverController.FullAutoEnabled;
-        }
+        _actionBar?.Refresh(new SolverActionBarState(_collapsed, searching, canAdoptRoute || adoptingRoute));
+        _executeButton.TooltipText = SolverText.Get(solverDisabled ? "求解器已关闭，请从标题栏开启。"
+            : adoptingRoute ? "正在采用路线，请等待完成。"
+            : SolverController.IsDeploying ? "正在执行当前回合。"
+            : _executeButton.Disabled ? "当前没有可执行的回合，请等待计算或完成当前选牌。"
+            : "执行当前回合的动作；搜索中可应用已算出的当前回合。");
 
         CombatState? combat = CombatManager.Instance.DebugOnlyGetState();
         bool combatActive = combat != null && CombatManager.Instance.IsInProgress;
@@ -1218,7 +1212,6 @@ internal static class SolverOverlay
         _resizing = false;
         _layoutQueued = false;
         _remainingLayoutPasses = 0;
-        _renderedFullAutoStyle = null;
         _renderedExecuteButtonStyle = null;
         _renderedAdoptRouteButtonStyle = null;
         _renderedTheftPolicy = null;
@@ -1553,6 +1546,10 @@ internal static class SolverOverlay
         title.SizeFlagsHorizontal = Control.SizeFlags.ShrinkBegin;
         header.AddChild(title);
 
+        _solverEnabledButton = CreateHeaderButton(SolverText.Get("求解器：开"), 90);
+        _solverEnabledButton.Pressed += () => SolverController.SetSolverDisabled(!SolverController.SolverDisabled);
+        header.AddChild(_solverEnabledButton);
+
         Control spacer = new()
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
@@ -1560,10 +1557,10 @@ internal static class SolverOverlay
         };
         header.AddChild(spacer);
 
-        _potionStrategyButton = CreateHeaderButton(SolverText.Get("药水策略"), 76);
+        _potionStrategyButton = CreateHeaderButton(SolverText.Get("药水"), 48);
         _potionStrategyButton.Pressed += TogglePotionStrategy;
         header.AddChild(_potionStrategyButton);
-        _growthStrategyButton = CreateHeaderButton(SolverText.Get("成长策略"), 76);
+        _growthStrategyButton = CreateHeaderButton(SolverText.Get("成长"), 48);
         _growthStrategyButton.Pressed += ToggleGrowthStrategy;
         header.AddChild(_growthStrategyButton);
 
@@ -1825,16 +1822,6 @@ internal static class SolverOverlay
 
     private static Control CreateFooter()
     {
-        HFlowContainer footer = new()
-        {
-            Name = "Footer",
-            CustomMinimumSize = new Vector2(0, SolverUiTokens.Size.ButtonHeight),
-            SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
-            MouseFilter = Control.MouseFilterEnum.Pass,
-        };
-        footer.AddThemeConstantOverride("h_separation", SolverUiTokens.Spacing.Sm);
-        footer.AddThemeConstantOverride("v_separation", SolverUiTokens.Spacing.Xs);
-
         _theftPolicyControls = new HBoxContainer
         {
             Name = "TheftPolicy",
@@ -1850,40 +1837,32 @@ internal static class SolverOverlay
         _letEscapeButton.CustomMinimumSize = new Vector2(72, SolverUiTokens.Size.ButtonHeight);
         _letEscapeButton.Pressed += () => OnTheftPolicyPressed(SolverTheftPolicy.LetEscape);
         _theftPolicyControls.AddChild(_letEscapeButton);
-        footer.AddChild(_theftPolicyControls);
+        _body!.AddChild(_theftPolicyControls);
+        _body.MoveChild(_theftPolicyControls, 2);
 
         _recalculateButton = CreateButton(SolverText.Get("重新计算"), false);
         _recalculateButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
         _recalculateButton.Pressed += OnRecalculatePressed;
-        footer.AddChild(_recalculateButton);
 
         _stopSearchButton = CreateButton(SolverText.Get("停止计算"), false);
         SolverUiTokens.ApplyButtonStyle(_stopSearchButton, SolverButtonStyle.Danger);
         _stopSearchButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
         _stopSearchButton.Pressed += OnStopSearchPressed;
-        footer.AddChild(_stopSearchButton);
 
         _adoptRouteButton = CreateButton(SolverText.Get("采用当前路线"), false);
         _adoptRouteButton.CustomMinimumSize = new Vector2(132, SolverUiTokens.Size.ButtonHeight);
         _adoptRouteButton.Pressed += OnAdoptRoutePressed;
-        footer.AddChild(_adoptRouteButton);
+        _adoptRouteButton.TooltipText = SolverText.Get("结束搜索并采用屏幕当前路线；已开启的全自动或排队执行仍按原设置继续。");
 
         _executeButton = CreateButton(SolverText.Get("执行本回合"), true);
         _renderedExecuteButtonStyle = SolverButtonStyle.Primary;
         _executeButton.CustomMinimumSize = new Vector2(132, SolverUiTokens.Size.ButtonHeight);
         _executeButton.Pressed += OnExecutePressed;
-        footer.AddChild(_executeButton);
 
-        _fullAutoButton = CreateButton(SolverText.Get("全自动：关"), false);
-        SolverUiTokens.ApplyButtonStyle(_fullAutoButton, SolverButtonStyle.Secondary);
-        _renderedFullAutoStyle = false;
-        _fullAutoButton.CustomMinimumSize = new Vector2(124, SolverUiTokens.Size.ButtonHeight);
+        _fullAutoButton = SolverSettingsPanel.CreateToggle();
+        _fullAutoButton.Text = SolverText.Get("本场全自动");
+        _fullAutoButton.TooltipText = SolverText.Get("控制本场自动续打。关闭后，正在执行的动作按原流程完成。");
         _fullAutoButton.Pressed += OnFullAutoPressed;
-        footer.AddChild(_fullAutoButton);
-        _solverEnabledButton = SolverUiTokens.CreateButton(SolverText.Get("求解器：开"), SolverButtonStyle.Secondary);
-        _solverEnabledButton.CustomMinimumSize = new Vector2(112, SolverUiTokens.Size.ButtonHeight);
-        _solverEnabledButton.Pressed += () => SolverController.SetSolverDisabled(!SolverController.SolverDisabled);
-        footer.AddChild(_solverEnabledButton);
 
         HBoxContainer autoStart = new()
         {
@@ -1892,7 +1871,7 @@ internal static class SolverOverlay
             TooltipText = SolverText.Get("每场战斗开始时自动开启全自动。本场手动停止后保持停止，下场战斗再次开启。"),
         };
         autoStart.AddThemeConstantOverride("separation", SolverUiTokens.Spacing.Xs);
-        autoStart.AddChild(CreateTextLabel(SolverText.Get("开战自动"), SolverUiTokens.Type.Caption, TextPrimary));
+        autoStart.AddChild(CreateTextLabel(SolverText.Get("开战自动开启"), SolverUiTokens.Type.Caption, TextPrimary));
         _autoEnableFullAutoSwitch = SolverSettingsPanel.CreateToggle();
         _autoEnableFullAutoSwitch.CustomMinimumSize = new Vector2(40, 24);
         _autoEnableFullAutoSwitch.TooltipText = autoStart.TooltipText;
@@ -1903,13 +1882,11 @@ internal static class SolverOverlay
                 SolverSettings.Update(SolverSettings.Current with { AutoEnableFullAuto = enabled });
         };
         autoStart.AddChild(_autoEnableFullAutoSwitch);
-        footer.AddChild(autoStart);
 
         _memoryUsageBar = new SolverMemoryUsageBar
         {
             SizeFlagsHorizontal = Control.SizeFlags.ExpandFill,
         };
-        footer.AddChild(_memoryUsageBar);
 
         _systemMemoryReleaseButton = CreateButton(SolverText.Get("强制释放内存"), false);
         SolverUiTokens.ApplyButtonStyle(_systemMemoryReleaseButton, SolverButtonStyle.Secondary);
@@ -1921,9 +1898,11 @@ internal static class SolverOverlay
             SolverText.Get("等待搜索退出并回收求解器内存后，请求 Windows 管理员权限，") +
             SolverText.Get("清空系统工作集与待机列表。其他程序之后重新载入页面时可能短暂卡顿。");
         _systemMemoryReleaseButton.Pressed += OnSystemMemoryReleasePressed;
-        footer.AddChild(_systemMemoryReleaseButton);
+        _settingsPanel!.AddMaintenanceControl(_systemMemoryReleaseButton);
 
-        return footer;
+        _actionBar = new SolverActionBar(_executeButton, _recalculateButton, _stopSearchButton,
+            _adoptRouteButton, _fullAutoButton, autoStart, _memoryUsageBar);
+        return _actionBar;
     }
 
     private static async void OnSystemMemoryReleasePressed()
@@ -2348,6 +2327,14 @@ internal static class SolverOverlay
 
     private static void ApplyContentVisibility()
     {
+        _actionBar?.Refresh(new SolverActionBarState(_collapsed, SolverController.IsSearching,
+            SolverController.CanAdoptCurrentRoute || SolverController.IsAdoptingCurrentRoute));
+        if (_potionStrategyButton != null)
+            _potionStrategyButton.Visible = !_collapsed;
+        if (_growthStrategyButton != null)
+            _growthStrategyButton.Visible = !_collapsed;
+        if (_settingsButton != null)
+            _settingsButton.Visible = !_collapsed;
         // Keep the same outcome controls and presentation state in both layouts.
         if (_routeHeadingRow != null && _mainStack != null && _body != null)
         {
@@ -2810,6 +2797,12 @@ internal static class SolverOverlay
         {
             SolverSettings.ApplyForTesting(original with { AutomaticCalculationEnabled = false });
             ShowManualCalculationReady(host, false);
+            _actionBar!.AssertLayoutForTesting();
+            RefreshControls();
+            if (_solverEnabledButton!.GetParent().Name != "Header"
+                || !ManualSystemMemoryReleaseButtonConfiguredForTesting
+                || _theftPolicyControls!.GetParent() != _body)
+                throw new InvalidOperationException("Action controls were not separated from header, strategy and maintenance controls.");
             _solverEnabledButton!.EmitSignal(BaseButton.SignalName.Pressed);
             if (!SolverController.SolverDisabled || _solverEnabledButton.Text != SolverText.Get("求解器：关"))
                 throw new InvalidOperationException("Main solver toggle did not disable the solver.");
