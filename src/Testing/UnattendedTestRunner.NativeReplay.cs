@@ -134,13 +134,15 @@ internal sealed partial class UnattendedTestRunner
         if (combatEnd && !endingVerified)
             throw new InvalidDataException("native_replay_missing_combat_end_boundary");
         if (!combatStart && !combatEnd)
-            AssertRecordedContinuation(expectedState, combatState, target, _request.NativeStatePath);
+            AssertRecordedContinuation(expectedState, combatState, target, _request.NativeStatePath,
+                allowLegacyBattleStart: target == 0 && player.PlayerCombatState?.TurnNumber == 1);
         if (readyCheckpoint != null)
         {
             JsonObject readyMetadata = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(
                 _checkpointImportDirectory!, readyCheckpoint["metadataPath"]!.GetValue<string>())))!.AsObject();
             AssertRecordedContinuation(readyMetadata["exactContinuationState"]!.GetValue<string>(), combatState, target,
-                Path.Combine(_checkpointImportDirectory!, readyCheckpoint["nativeStatePath"]!.GetValue<string>()));
+                Path.Combine(_checkpointImportDirectory!, readyCheckpoint["nativeStatePath"]!.GetValue<string>()),
+                allowLegacyBattleStart: target == 0 && player.PlayerCombatState?.TurnNumber == 1);
             _writer.ReplayVerification!["readyCheckpointVerified"] = true;
         }
         if (!combatEnd && !combatStart && player.PlayerCombatState?.Phase.ToString() != "Play")

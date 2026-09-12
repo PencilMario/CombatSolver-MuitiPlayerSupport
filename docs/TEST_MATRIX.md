@@ -2,6 +2,8 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 未执行事件的旧开局恢复：`act3-boss-48f8-unplayed-root-current` 的 :21/cursor0/turn1通过continuation和native-state；搜索20战损/1瓶LUCKY_TONIC（T2）/T6/12751总展开。记录中的玩家在T1使用同瓶药，随后两次致命及其他铺场，仍待完整前缀/后缀验证。`REPLAY-BOUNDARY-CONTRACT` / `eaf60cfd63154b658430ae3a0c8f8273` Passed（22.23秒），旧历史兼容与新增非零/重复/错位字段拒绝保持。
+
 - 全局门槛删除实际部署 `act3-boss-cc8a-global-unlimited-investment-deploy` / `3565be06219e44a38006100861357a04` Passed：MinimizeHpLoss，预测54战损/0药/T6/6711展开，最终combatEnded=true、UnexpectedReplans:0。旧包起点continuation通过、native编码不可比较仍如实保留；该结果不声称已追平16战损见证。
 
 - 全局删除门槛构建：ACT3-BOSS-STRATEGY `576fff1ea930482ab6d5c0c19a707736` Passed，必要防御/斩杀/能力联动/增量保持；SEARCH-HP-TARGET-STOP `1e12c90762e249629242078b05473313` Passed，零损、关闭、并行、3战损阈值、狩猎兑现、强制一药与保留另一药保持；UI-LOCALIZATION `38b0c5d056d44a81af10eb30c4870257` Passed，eng/zhs/zht及模板/状态/实体快照合同通过。两次启动器进程路径读取失败各重试成功。PowerShell结构门禁通过（87个Search文件），Bash未执行；最终Release编译零警告/错误。

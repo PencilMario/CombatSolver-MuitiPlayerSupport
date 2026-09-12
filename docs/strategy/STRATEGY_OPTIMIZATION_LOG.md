@@ -83,6 +83,9 @@
 
 | 样例 | 当前证据 | 状态 |
 | --- | --- | --- |
+| `48f87b132f1846df9630927b336a4afd` | 报告31→0，增加一瓶LUCKY_TONIC；比较根 :21 cursor0→:23 cursor7。前缀LETHALITY、SLEIGHT_OF_FLESH、WISH及第二张LETHALITY。Preflight通过；SearchOnly恢复失败，首差异Y记录0/0/0与当前0/0/0/0，尚未搜索 | 旧格式恢复待核对，不计质量；不能只改权重或把药水收益全部归为能力优化 |
+| `0530d7283df648828b4e27e47f9e75d9` 删除全局门槛后 | `act3-boss-global-unlimited-0530`：玩家15HP/敌235/0药/8000，未获胜 | 门槛不是唯一问题，未记改善 |
+| `f25c4872be5945269e8a6d38a9ab1286` 删除全局门槛后 | `act3-boss-global-unlimited-f25c`：同 :5 根，continuation/native-state通过，22战损/0药/T13/11750总展开（含原补充工作） | 未达到报告4战损；旧当前基线20/24各有记录，不能用报告51直接宣布本轮减损29 |
 | `cc8a52b03c484aab8c97d8c149d960ab` 最小战损反例归因 | 同MinimizeHpLoss：普通60战损/0药/T7/6295；当前特化死亡/敌252/6801；仅撤去准备时间估值后仍死亡/敌342/6624（`act3-boss-cc8a-minhp-pre-vigor`） | 普通推进SearchOnly曾52战损、女王保持10；最终DeploySolver搜索死亡/敌264/6532并执行失败，普通推进回退试验已撤回。当前仍为未解决反例；不能以单次墙钟切层胜利或ProgressionFirst结果代替稳定改善 |
 | `cc8a52b03c484aab8c97d8c149d960ab` 最小战损对照 | `act3-boss-cc8a-minhp-strategy`：MinimizeHpLoss，6801展开、玩家0/敌252、0药，未获胜；不能拿ProgressionFirst的54战损胜利当作同政策优化基线 | 专项未完成；原16战损模拟见证仍合法，继续追查政策如何影响中途候选与能力投资 |
 | `cc8a52b03c484aab8c97d8c149d960ab` 智能用药后能力余量试验 | `act3-boss-highgap-cc8a-power-remainder`：原主搜索后以剩余节点尝试合法双能力/单能力前缀，54战损/0药/T6/8000总展开，未优于主搜6756节点的同一路线 | 已撤回。另查明原政策为最终首领ProgressionFirst、RunEnding；后续必须分开同政策通关比较与MinimizeHpLoss战损比较，不能只凭54与16比较终局排序 |
