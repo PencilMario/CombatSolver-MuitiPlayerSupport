@@ -439,14 +439,14 @@ internal sealed partial class UnattendedTestRunner
         return null;
     }
 
-    private static bool ReplayContinuationMatches(string expected, string actual, bool allowLegacyBattleStart = false)
+    private static bool ReplayContinuationMatches(string expected, string actual, bool allowLegacyZeroCounter = false)
     {
         if (string.Equals(expected, actual, StringComparison.Ordinal))
             return true;
 
         string[] expectedFields = expected.Split(';');
         string[] actualFields = actual.Split(';');
-        if (allowLegacyBattleStart && actualFields.Length == expectedFields.Length + 1
+        if (allowLegacyZeroCounter && actualFields.Length == expectedFields.Length + 1
             && !expectedFields.Any(field => field.StartsWith("FlameHp=", StringComparison.Ordinal))
             && actualFields.Count(field => field.StartsWith("FlameHp=", StringComparison.Ordinal)) == 1)
         {
@@ -457,8 +457,8 @@ internal sealed partial class UnattendedTestRunner
                 && actualFields[historyIndex][2..].Split('/').Length == 4
                 && actualFields[historyIndex + 1] == "FlameHp=0")
             {
-                // At the native combat-start boundary this new per-combat counter is zero.
-                // Every recorded field still goes through the complete ordered comparison.
+                // The caller requires a native opening or a fully verified native checkpoint.
+                // Only the absent zero counter is migrated; all recorded fields are compared.
                 actualFields = actualFields.Where((_, index) => index != historyIndex + 1).ToArray();
             }
         }

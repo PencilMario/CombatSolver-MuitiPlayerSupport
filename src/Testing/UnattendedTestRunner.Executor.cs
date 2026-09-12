@@ -520,6 +520,14 @@ internal sealed partial class UnattendedTestRunner
                     expectedPlayerPowerObserved, InitialSearchHeld: false);
             }
 
+            if (request.ScenarioId == "ACT3-SUBJECT-BUFFER-PATH")
+            {
+                _ = ApplySettingsOverrides();
+                int finishedTurn = await runner.TraceAct3SubjectBufferAsync(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
             if (request.ScenarioId == "ACT3-HELLRAISER-PATH")
             {
                 _ = ApplySettingsOverrides();

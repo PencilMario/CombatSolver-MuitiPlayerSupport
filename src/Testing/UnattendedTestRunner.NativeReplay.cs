@@ -168,10 +168,12 @@ internal sealed partial class UnattendedTestRunner
         bool allowLegacyBattleStart = false)
     {
         string actual = ContinuationStamp.CaptureLive(state).StateText;
-        if (ReplayContinuationMatches(expected, actual, allowLegacyBattleStart))
+        bool differentEncoding = _writer.ReplayVerification!["modelSerializationComparison"] != null;
+        bool nativeVerified = AssertNativeCheckpoint(state, nativePath, differentEncoding);
+        // A fully verified native checkpoint also establishes the replayed game state
+        // for legacy reports whose derived zero counter was not serialized yet.
+        if (ReplayContinuationMatches(expected, actual, allowLegacyBattleStart || nativeVerified))
         {
-            bool differentEncoding = _writer.ReplayVerification!["modelSerializationComparison"] != null;
-            bool nativeVerified = AssertNativeCheckpoint(state, nativePath, differentEncoding);
             _writer.ReplayVerification["continuationVerified"] = true;
             _writer.ReplayVerification["nativeStateVerified"] = nativeVerified;
             if (!nativeVerified && differentEncoding && !string.IsNullOrWhiteSpace(nativePath))

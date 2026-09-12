@@ -8,6 +8,82 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task<int> TraceAct3SubjectBufferAsync(CombatState combat, Player player)
+    {
+        if (combat.Encounter?.Id.Entry != "TEST_SUBJECT_BOSS"
+            || player.PlayerCombatState?.TurnNumber != 1)
+            throw new InvalidOperationException("Buffer setup tracing requires the recorded first-turn subject root.");
+        var before = ContinuationStamp.CaptureLive(combat);
+        var driver = new CombatBeamSolver(CombatRootSnapshot.Capture(combat), SolverDisplayNames.Capture(combat),
+            BattleDamageTracker.Observe(combat),
+            SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+        List<PlanAction> actions = [];
+        List<KnownRoutePrefix> prefixes = [];
+        var parent = driver.ReplayDiagnosticPrefix([]);
+        try
+        {
+            foreach (uint physicalIndex in new uint[] { uint.MaxValue, 3, 4, 1, 19 })
+            {
+                PlanAction action;
+                if (physicalIndex == uint.MaxValue)
+                    action = new(PlanActionKind.UsePotion, 1, PotionSlot: 3, PotionId: "LUCKY_TONIC");
+                else
+                {
+                    var state = parent.Simulator.State.GetPlayerCombatState(player);
+                    var hand = state.Hand.Cards;
+                    var original = MegaCrit.Sts2.Core.Entities.Multiplayer.NetCombatCard.ForTesting(physicalIndex).ToCardModel();
+                    var card = hand.Single(candidate => ReferenceEquals(candidate.Original, original));
+                    string key = CardChoiceSupport.ChoiceCardKey(card);
+                    action = new(PlanActionKind.PlayCard, 1, CardId: card.Preview.Id.Entry,
+                        CardOccurrence: hand.TakeWhile(candidate => !ReferenceEquals(candidate, card))
+                            .Count(candidate => candidate.Preview.Id == card.Preview.Id),
+                        CardStateKey: key,
+                        CardStateOccurrence: hand.TakeWhile(candidate => !ReferenceEquals(candidate, card))
+                            .Count(candidate => CardChoiceSupport.ChoiceCardKey(candidate) == key),
+                        ReplayCount: Math.Max(0, card.Preview.GetEnchantedReplayCount()));
+                    if (physicalIndex == 1)
+                    {
+                        var selectedOriginal = MegaCrit.Sts2.Core.Entities.Multiplayer.NetCombatCard.ForTesting(19).ToCardModel();
+                        var selected = state.DrawPile.Cards.Single(candidate => ReferenceEquals(candidate.Original, selectedOriginal));
+                        string selectedKey = CardChoiceSupport.ChoiceCardKey(selected);
+                        int occurrence = state.DrawPile.Cards.TakeWhile(candidate => !ReferenceEquals(candidate, selected))
+                            .Count(candidate => CardChoiceSupport.ChoiceCardKey(candidate) == selectedKey);
+                        action = action with { Choice = new PlanCardChoice(PlanChoiceEffect.MoveToHand,
+                            MegaCrit.Sts2.Core.Entities.Cards.PileType.Draw,
+                            [new PlanCardToken(selected.Preview.Id.Entry, selected.Preview.CurrentUpgradeLevel,
+                                selectedKey, occurrence, occurrence, "")]) };
+                    }
+                }
+                actions.Add(action);
+                parent.ReleaseSimulator();
+                parent = driver.ReplayDiagnosticPrefix(actions);
+                if (parent.HasRisk || parent.PlayerDead || parent.BoundaryReason != SearchBoundaryReason.None)
+                    throw new InvalidOperationException("Recorded buffer setup failed simulated replay.");
+                prefixes.Add(FreezeKnownRoutePrefix(action, CaptureSimulated(parent.Simulator,
+                    (SimulatedCombatState)parent.Simulator.State.CombatState, player, combat.Enemies[0]), parent));
+            }
+            using var archive = System.IO.Compression.ZipFile.OpenRead(_request.CheckpointArchivePath!);
+            using var reader = new StreamReader(archive.GetEntry(
+                "replay/current/replay-state/000023-search_request_Deploy.json")!.Open());
+            using var expected = System.Text.Json.JsonDocument.Parse(reader.ReadToEnd());
+            string expectedState = expected.RootElement.GetProperty("exactContinuationState").GetString()!;
+            var predicted = driver.CaptureDiagnosticContinuation(parent);
+            if (!ReplayContinuationMatches(expectedState, predicted.StateText, allowLegacyZeroCounter: true))
+                throw new InvalidOperationException("Buffer setup differs from the native-verified recorded endpoint: "
+                    + new ContinuationStamp(expectedState).DescribeFirstDifference(predicted));
+            _completedChecks.Add("Act3SubjectBuffer:FiveActionsMatchRecordedEndpoint");
+        }
+        finally
+        {
+            parent.ReleaseSimulator();
+            if (ContinuationStamp.CaptureLive(combat) != before)
+                throw new InvalidOperationException("Buffer setup tracing changed the live root.");
+        }
+        return await RunKnownRoutePathTraceAsync(combat, player, prefixes,
+            "Act3SubjectBuffer", "act3_subject_buffer_path", observedRetentionStep: 4,
+            requirePotionFirstStep: true);
+    }
+
     private async Task<int> TraceAct3HellraiserAsync(CombatState combat, Player player)
     {
         if (combat.Encounter?.Id.Entry != "QUEEN_BOSS"

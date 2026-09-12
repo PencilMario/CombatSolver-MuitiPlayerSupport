@@ -2,6 +2,11 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 第四步筛选池追踪 `0bde01649668489bb3c56dda86ecd639` Passed（35.95秒），807事件无丢失：许愿取致命状态原始排名304/359，容量60、必保49，未选中。此时实际HP48、有幸运补剂，筛选特征ProjectedPlayerHp=34、Energy=1、LatentSetupValue=6；需要核对威胁预测与待兑现能力的评价，尚不能认定Buffer预测有语义错误。Release编译与PowerShell结构门禁通过。
+
+- 原生二进制先验证后允许旧零计数迁移：`REPLAY-BOUNDARY-CONTRACT` / `52eda9e4c7564049a48fc69755ea8c6e` Passed（22.38秒）；48f87 的 :23 原生7事件、continuation/native-state均通过，后缀搜索2649节点零损/T6，前缀已经使用1瓶幸运补剂。
+- `ACT3-SUBJECT-BUFFER-PATH` / `b26204bf3a8c44f697f3305420ad42de` Passed（35.75秒）：原根双状态通过；五个玩家动作逐物理实例模拟匹配记录终点；331条路径事件无丢失，root/live不变。前三步完整生成并展开，第四步许愿取第二张致命进入PruneInput后没有PruneFinal，第五步未生成。仅证明首丢点，不是质量改善或实际部署。前两次测试构造分别填错选择SourceId、自用药目标描述，修正为实际计划格式后通过。
+
 - 未执行事件的旧开局恢复：`act3-boss-48f8-unplayed-root-current` 的 :21/cursor0/turn1通过continuation和native-state；搜索20战损/1瓶LUCKY_TONIC（T2）/T6/12751总展开。记录中的玩家在T1使用同瓶药，随后两次致命及其他铺场，仍待完整前缀/后缀验证。`REPLAY-BOUNDARY-CONTRACT` / `eaf60cfd63154b658430ae3a0c8f8273` Passed（22.23秒），旧历史兼容与新增非零/重复/错位字段拒绝保持。
 
 - 全局门槛删除实际部署 `act3-boss-cc8a-global-unlimited-investment-deploy` / `3565be06219e44a38006100861357a04` Passed：MinimizeHpLoss，预测54战损/0药/T6/6711展开，最终combatEnded=true、UnexpectedReplans:0。旧包起点continuation通过、native编码不可比较仍如实保留；该结果不声称已追平16战损见证。
