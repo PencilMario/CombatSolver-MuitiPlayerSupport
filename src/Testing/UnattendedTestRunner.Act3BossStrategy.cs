@@ -72,6 +72,32 @@ internal sealed partial class UnattendedTestRunner
                 throw new InvalidOperationException("Buffer setup differs from the native-verified recorded endpoint: "
                     + new ContinuationStamp(expectedState).DescribeFirstDifference(predicted));
             _completedChecks.Add("Act3SubjectBuffer:FiveActionsMatchRecordedEndpoint");
+            foreach (int[] hits in new int[][] { [1], [40], [40, 40], [1, 40, 40] })
+            {
+                var probe = driver.ReplayDiagnosticPrefix(actions);
+                try
+                {
+                    var stamp = driver.CaptureDiagnosticContinuation(probe);
+                    int projected = driver.ProjectDiagnosticHits(probe, combat.Enemies[0], hits);
+                    if (driver.CaptureDiagnosticContinuation(probe) != stamp)
+                        throw new InvalidOperationException("Threat projection changed its source branch.");
+                    var simulator = (CombatPredictionSimulator)probe.Simulator;
+                    List<string> hitStates = [];
+                    foreach (int hit in hits)
+                    {
+                        var damageState = (SimulatedCombatState)simulator.State.CombatState;
+                        MonsterMoveSemantics.DamagePlayer(simulator, damageState,
+                            combat.Enemies[0], player.Creature, hit);
+                        var osty = damageState.GetOsty(player);
+                        hitStates.Add($"hit={hit},hp={simulator.State.GetCreature(player.Creature).CurrentHp},buffer={damageState.GetAmount<MegaCrit.Sts2.Core.Models.Powers.BufferPower>(player.Creature)},osty={(osty == null ? -1 : simulator.State.GetCreature(osty).CurrentHp)},enemy={simulator.State.GetCreature(combat.Enemies[0]).CurrentHp}");
+                    }
+                    int settled = simulator.State.GetCreature(player.Creature).CurrentHp;
+                    if (projected != settled)
+                        throw new InvalidOperationException($"Finite Buffer forecast differs for {string.Join(',', hits)}: {projected}/{settled}. {string.Join(';', hitStates)}");
+                }
+                finally { probe.ReleaseSimulator(); }
+            }
+            _completedChecks.Add("Act3SubjectBuffer:BlockedHit:OstyOverflow:FiniteMultiHit:ProjectionMatchesDamageSettlement");
         }
         finally
         {

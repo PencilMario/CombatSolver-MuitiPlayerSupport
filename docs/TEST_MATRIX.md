@@ -2,6 +2,10 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 有限免伤预测 `ACT3-SUBJECT-BUFFER-PATH` / `25751afb185f4a639ee1325cbe3775d7` Passed：`[1]`、`[40]`、`[40,40]`、`[1,40,40]` 预测与MonsterMoveSemantics.DamagePlayer完整模拟HP一致，预测源分支不变；玩家五步终点、root/live不变及756条事件无丢失通过。此前`ba91283`/`86059c8`/`5c70c72`失败来自测试直接调用底层Damage，绕过已死亡奥斯提处理；逐击证据确认免伤已减为0，不能报告模拟无限免伤。当前整场搜索26战损/1药（T1）/T8/12896总展开，较此前20战损退步；正确威胁估计并不等于搜索质量通过，仍需组合策略优化及保留集/部署验证。Release构建与PowerShell结构门禁通过，未进行原生多段伤害实机差分。
+
+- 溢出减伤候选 `ACT3-SUBJECT-BUFFER-PATH` / `3ab164a1aeed430ab81f2a6c8485d385` Passed（35.30秒），756事件无丢失、原根和玩家五步终点不变。等价第四步ProjectedPlayerHp=48（此前34），排名245/340、未保留；第二步原始动作次序失去保留，第四步由其他顺序生成。此候选尚缺多段有限免伤反例与最终质量/部署验收，不计为已修复。
+
 - 第四步筛选池追踪 `0bde01649668489bb3c56dda86ecd639` Passed（35.95秒），807事件无丢失：许愿取致命状态原始排名304/359，容量60、必保49，未选中。此时实际HP48、有幸运补剂，筛选特征ProjectedPlayerHp=34、Energy=1、LatentSetupValue=6；需要核对威胁预测与待兑现能力的评价，尚不能认定Buffer预测有语义错误。Release编译与PowerShell结构门禁通过。
 
 - 原生二进制先验证后允许旧零计数迁移：`REPLAY-BOUNDARY-CONTRACT` / `52eda9e4c7564049a48fc69755ea8c6e` Passed（22.38秒）；48f87 的 :23 原生7事件、continuation/native-state均通过，后缀搜索2649节点零损/T6，前缀已经使用1瓶幸运补剂。

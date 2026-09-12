@@ -1189,6 +1189,10 @@ internal sealed partial class CombatBeamSolver
         SimulatedCombatState simulatedCombat = (SimulatedCombatState)simulator.State.CombatState;
         Creature? osty = simulatedCombat.GetOsty(_player);
         int ostyHp = osty == null ? 0 : simulator.State.GetCreature(osty).CurrentHp;
+        ProjectedHpLossModifiers? projectedModifiers =
+            simulatedCombat.GetAmount<BufferPower>(_player.Creature) > 0
+            || osty != null && simulatedCombat.GetAmount<BufferPower>(osty) > 0
+                ? new ProjectedHpLossModifiers() : null;
         ProjectedDeathPrevention deathPrevention = BuildProjectedDeathPrevention(
             simulator,
             simulatedCombat,
@@ -1217,7 +1221,8 @@ internal sealed partial class CombatBeamSolver
                     ref ostyHp,
                     ref block,
                     ref hp,
-                    ref deathPrevention);
+                    ref deathPrevention,
+                    projectedModifiers);
                 continue;
             }
             IReadOnlyList<ForecastAttackHit> attackHits = move.AttackHits;
@@ -1236,10 +1241,27 @@ internal sealed partial class CombatBeamSolver
                     ref ostyHp,
                     ref block,
                     ref hp,
-                    ref deathPrevention);
+                    ref deathPrevention,
+                    projectedModifiers);
             }
         }
         return new ThreatProjection(hp, deathPrevention.RelicHpRestored);
+    }
+
+    internal int ProjectDiagnosticHits(SimulationSnapshot snapshot, Creature attacker, params int[] hits)
+    {
+        var simulator = (CombatPredictionSimulator)snapshot.Simulator;
+        var combat = (SimulatedCombatState)simulator.State.CombatState;
+        var player = simulator.State.GetCreature(_player.Creature);
+        int hp = player.CurrentHp, block = player.Block;
+        Creature? osty = combat.GetOsty(_player);
+        int ostyHp = osty == null ? 0 : simulator.State.GetCreature(osty).CurrentHp;
+        var prevention = BuildProjectedDeathPrevention(simulator, combat, player.MaxHp);
+        var modifiers = new ProjectedHpLossModifiers();
+        foreach (int hit in hits)
+            ProjectThreatHit(simulator, combat, attacker, hit, osty,
+                ref ostyHp, ref block, ref hp, ref prevention, modifiers);
+        return hp;
     }
 
     private void ProjectThreatHit(
@@ -1251,7 +1273,8 @@ internal sealed partial class CombatBeamSolver
         ref int ostyHp,
         ref int block,
         ref int playerHp,
-        ref ProjectedDeathPrevention deathPrevention)
+        ref ProjectedDeathPrevention deathPrevention,
+        ProjectedHpLossModifiers? projectedModifiers)
     {
         int adjustedHit = CorePowerSupport.AdjustForecastAttack(
             simulator,
@@ -1269,7 +1292,7 @@ internal sealed partial class CombatBeamSolver
             attacker,
             null,
             HpLossHookPhase.BeforeOsty,
-            out _);
+            out _, projectedModifiers?.Filter);
         Creature target = Hook.ModifyUnblockedDamageTarget(
             combat,
             _player.Creature,
@@ -1293,18 +1316,45 @@ internal sealed partial class CombatBeamSolver
             attacker,
             null,
             HpLossHookPhase.AfterOsty,
-            out _);
+            out var appliedModifiers, projectedModifiers?.Filter);
+        projectedModifiers?.Consume(appliedModifiers);
         int loss = Math.Max(0, (int)Math.Floor(hpLoss));
         if (ReferenceEquals(target, osty))
         {
             int absorbed = Math.Min(ostyHp, loss);
             ostyHp -= absorbed;
-            playerHp -= loss - absorbed;
+            // Native redirected damage applies the original target's AfterOsty hooks
+            // to overkill as a separate loss. Player Buffer must also protect spillover.
+            decimal overflow = HookMirrors.ModifyHpLost(
+                simulator, _player.Creature, loss - absorbed, ValueProp.Move,
+                attacker, null, HpLossHookPhase.AfterOsty, out var overflowModifiers,
+                projectedModifiers?.Filter);
+            projectedModifiers?.Consume(overflowModifiers);
+            playerHp -= Math.Max(0, (int)Math.Floor(overflow));
             deathPrevention.TryRevive(ref playerHp);
             return;
         }
         playerHp -= loss;
         deathPrevention.TryRevive(ref playerHp);
+    }
+
+    // Forecasts consume finite protection locally; they never decrement live or branch Powers.
+    private sealed class ProjectedHpLossModifiers
+    {
+        private readonly Dictionary<BufferPower, int> _remaining = [];
+        public Func<AbstractModel, bool> Filter { get; }
+
+        public ProjectedHpLossModifiers() => Filter = Includes;
+
+        private bool Includes(AbstractModel model) => model is not BufferPower buffer
+            || (_remaining.TryGetValue(buffer, out int count) ? count : buffer.Amount) > 0;
+
+        public void Consume(IEnumerable<AbstractModel> modifiers)
+        {
+            foreach (AbstractModel model in modifiers)
+                if (model is BufferPower buffer)
+                    _remaining[buffer] = (_remaining.TryGetValue(buffer, out int count) ? count : buffer.Amount) - 1;
+        }
     }
 
     private ProjectedDeathPrevention BuildProjectedDeathPrevention(
