@@ -15,16 +15,16 @@ internal sealed partial class UnattendedTestRunner
         string liveBefore = ContinuationStamp.CaptureLive(combat).StateText;
         CardModel source = ModelDb.Card<StrikeRegent>().ToMutable();
         _ = source.DynamicVars;
-        if (NativeCardCloneConcurrency.CanCloneIndependently(source))
+        if (NativeModelCloneConcurrency.CanCloneIndependently(source))
             throw new InvalidOperationException("Non-isolated clone bypassed the framework gate.");
         using (SimulationNotificationIsolation.Enter())
         {
-            if (!NativeCardCloneConcurrency.CanCloneIndependently(source))
+            if (!NativeModelCloneConcurrency.CanCloneIndependently(source))
                 throw new InvalidOperationException("Fixture did not reach eligible native card cloning.");
             source._dynamicVars!._vars.Add("ConcurrencyFixture", new CloneConcurrencyVariable());
             try
             {
-                if (NativeCardCloneConcurrency.CanCloneIndependently(source))
+                if (NativeModelCloneConcurrency.CanCloneIndependently(source))
                     throw new InvalidOperationException("Third-party dynamic variable bypassed the gate.");
             }
             finally { source._dynamicVars._vars.Remove("ConcurrencyFixture"); }
@@ -97,13 +97,13 @@ internal sealed partial class UnattendedTestRunner
             {
                 harmony.Patch(stage, prefix: new HarmonyMethod(prefix));
                 using IDisposable isolation = SimulationNotificationIsolation.Enter();
-                if (NativeCardCloneConcurrency.CanCloneIndependently(source))
+                if (NativeModelCloneConcurrency.CanCloneIndependently(source))
                     throw new InvalidOperationException("A newly patched clone stage retained stale parallel evidence.");
             }
             finally { harmony.Unpatch(stage, prefix); }
             using (SimulationNotificationIsolation.Enter())
             {
-                if (!NativeCardCloneConcurrency.CanCloneIndependently(source))
+                if (!NativeModelCloneConcurrency.CanCloneIndependently(source))
                     throw new InvalidOperationException("Unpatched native clone evidence was not refreshed.");
             }
         }

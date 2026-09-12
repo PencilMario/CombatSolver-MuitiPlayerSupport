@@ -38,7 +38,7 @@
 
 对本场出现的Power源码逐类静态检查，**4,413,384次**对应没有覆写克隆阶段或InitInternalData的类型。这个数字只是审计候选覆盖量，不是已经验证的免锁资格。VigorPower等覆写类型仍须单独核对，不纳入默认路径。必需验证真实BaseLib持锁并行、变量/owner/内部状态独占、跨域补丁刷新，再做一次匹配预算的速度对照。
 
-入口：[ForkPower](../../src/Search/SimulatedCombatState.Fork.cs)、[模型克隆](../../src/Engine/Common/PredictionUtils.cs)、[当前卡牌资格核对](../../src/Engine/Common/NativeCardCloneConcurrency.cs)。
+入口：[ForkPower](../../src/Search/SimulatedCombatState.Fork.cs)、[模型克隆](../../src/Engine/Common/PredictionUtils.cs)、[当前卡牌资格核对](../../src/Engine/Common/NativeModelCloneConcurrency.cs)。
 
 ## 2. 同父Fork存在真实源写入，不能直接删除锁
 

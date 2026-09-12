@@ -999,8 +999,8 @@ done < <(
 
 # Native clone eligibility stays outside search scheduling and keeps the runtime gate.
 require_fixed "$repository_root/src/Runtime/BaseLibCloneConcurrencyPatch.cs" 'BaseLibCloneConcurrency.Enter()' 'missing native framework clone gate'
-require_fixed "$repository_root/src/Engine/Common/PredictionUtils.cs" 'NativeCardCloneConcurrency.CanCloneIndependently(source)' 'missing audited prediction clone boundary'
-forbid_fixed "$repository_root/src/Engine/Common/NativeCardCloneConcurrency.cs" 'CombatSolver.Search' 'clone eligibility depends on search policy:'
+require_fixed "$repository_root/src/Engine/Common/PredictionUtils.cs" 'NativeModelCloneConcurrency.CanCloneIndependently(source)' 'missing audited prediction clone boundary'
+forbid_fixed "$repository_root/src/Engine/Common/NativeModelCloneConcurrency.cs" 'CombatSolver.Search' 'clone eligibility depends on search policy:'
 
 if ((${#violations[@]} > 0)); then
     printf '%s\n' "${violations[@]}" >&2

@@ -8,7 +8,7 @@ namespace CombatSolver.Engine.Common;
 
 // Evidence belongs to one isolation scope on one thread. Patches installed between
 // searches must be inspected again; no model or branch values enter this cache.
-internal static class NativeCardCloneConcurrency
+internal static class NativeModelCloneConcurrency
 {
     [ThreadStatic] private static object? _scope;
     [ThreadStatic] private static Dictionary<Type, bool>? _types;
@@ -17,17 +17,22 @@ internal static class NativeCardCloneConcurrency
     public static bool CanCloneIndependently(AbstractModel source)
     {
         object? scope = SimulationNotificationIsolation.ScopeIdentity;
-        if (scope == null || source is not CardModel card
-            || source.GetType().Assembly != typeof(CardModel).Assembly)
+        if (scope == null || source.GetType().Assembly != typeof(AbstractModel).Assembly)
             return false;
-        // Do not materialize lazy variables on the shared source just to select a path.
-        // Attached models can execute additional clone/attach callbacks. Keep their
-        // original boundary; the independent path only covers plain native stages.
-        if (card._dynamicVars == null || card.Enchantment != null || card.Affliction != null)
-            return false;
-        foreach (var variable in card._dynamicVars._vars.Values)
+        // Read the backing field: selecting a clone path must never materialize shared
+        // source variables. Attached card models and custom Power initialization retain
+        // their original boundary until their extra callbacks are independently audited.
+        DynamicVarSet? variables = source switch
         {
-            if (variable.GetType().Assembly != typeof(CardModel).Assembly)
+            CardModel card when card.Enchantment == null && card.Affliction == null => card._dynamicVars,
+            PowerModel power => power._dynamicVars,
+            _ => null,
+        };
+        if (variables == null)
+            return false;
+        foreach (var variable in variables._vars.Values)
+        {
+            if (variable.GetType().Assembly != typeof(AbstractModel).Assembly)
                 return false;
         }
         if (!ReferenceEquals(_scope, scope))
@@ -41,13 +46,21 @@ internal static class NativeCardCloneConcurrency
         Type type = source.GetType();
         if (!_types!.TryGetValue(type, out bool eligible))
         {
-            eligible = UsesUnpatchedStage(type, "DeepCloneFields", typeof(CardModel))
-                && UsesUnpatchedStage(type, "AfterCloned", typeof(CardModel))
-                && UsesUnpatchedStage(typeof(AbstractModel), "AfterCloned", typeof(AbstractModel));
+            Type owner = source is CardModel ? typeof(CardModel) : typeof(PowerModel);
+            eligible = UsesUnpatchedStage(type, "DeepCloneFields", owner)
+                && UsesUnpatchedStage(type, "AfterCloned", owner)
+                && UsesUnpatchedStage(typeof(AbstractModel), "AfterCloned", typeof(AbstractModel))
+                && (source is CardModel || HasDefaultPowerInitialization(type));
             _types.Add(type, eligible);
         }
         return eligible;
     }
+
+    private static bool HasDefaultPowerInitialization(Type type)
+        => UsesUnpatchedStage(typeof(AbstractModel), "DeepCloneFields", typeof(AbstractModel))
+            && UsesUnpatchedStage(type, "InitInternalData", typeof(PowerModel))
+            && HasExactPatches(AccessTools.PropertyGetter(typeof(PowerModel), nameof(PowerModel.DynamicVars)),
+                [AccessTools.Method(typeof(PowerDynamicVarMaterializationGuardPatch), "Prefix")], []);
 
     private static bool HasConcurrentVariableMetadata()
     {

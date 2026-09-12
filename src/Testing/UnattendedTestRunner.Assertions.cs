@@ -110,6 +110,8 @@ internal sealed partial class UnattendedTestRunner
             {
                 runner.SetStage("model_clone_concurrency");
                 AssertModelCloneConcurrency(scenario.CombatState);
+                AssertPowerCloneConcurrency(scenario.CombatState);
+                runner._completedChecks.Add("PowerCloneConcurrency");
                 runner._completedChecks.Add("ModelCloneConcurrency");
             }
             if (request.ScenarioId == "STAND-PAT-MEMORY-BOUNDARY")
