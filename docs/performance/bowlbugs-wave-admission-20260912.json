@@ -5023,6 +5023,34 @@
     "Diagnostic builds uniformly bypass source identity and stop after primary solver; production contains neither bypass.",
     "Unknown future allocations can exceed a predictor; headroom and whole-search high water do not prove a universal NoGC bound.",
     "Managed/process memory fields are endpoint observations, not peaks.",
-    "No replay of the original Windows 186-second request, full automatic battle, release, or push."
-  ]
+    "No replay of the original Windows 186-second request, full automatic battle, or release."
+  ],
+  "windowsDevelopmentDeployment": {
+    "sourceCommit": "9ac3931",
+    "status": "deployed",
+    "localDate": "2026-09-13",
+    "target": "Slay the Spire 2/mods/CombatSolver",
+    "version": "0.36.4",
+    "targetReferences": "copied from the target Windows game and Ritsu installation",
+    "mainBuild": "Passed, 0 warnings / 0 errors, 10.16 seconds",
+    "memoryCleanerBuild": "Passed, 0 warnings / 0 errors, 1.26 seconds",
+    "priorKnownFilesBackedUp": true,
+    "files": [
+      "CombatSolver.dll",
+      "CombatSolver.json",
+      "CombatSolver.MemoryCleaner.exe",
+      "THIRD_PARTY_NOTICES.md"
+    ],
+    "visibleValidation": false
+  },
+  "parallelismFollowup": {
+    "status": "8/16 benchmark series stopped; no comparative conclusion",
+    "focus": [
+      "global BaseLib model clone monitor",
+      "per-parent fork gate",
+      "ordered coordinator commit",
+      "drained memory collection boundaries"
+    ],
+    "changesImplemented": false
+  }
 }

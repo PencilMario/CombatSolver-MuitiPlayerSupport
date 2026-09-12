@@ -53,3 +53,9 @@ GC事件跟踪来自该撤回候选：与40个回收检查点匹配的后台GC�
 - 最终Linux Release构建0警告0错误（8.68秒），Linux结构门禁通过；Windows门禁规则同步，未在Windows执行该脚本。
 
 全部性能数字为Linux无头、诊断恢复、首个主搜索。每个请求不超过120秒，不运行完整自动战斗。原归档缺少旧ModelId编码映射，ContinuationStamp匹配但native二进制不可比较；测试构建统一旁路源码身份检查并在首个主搜索返回，生产不包含这两个测试旁路。没有重跑原Windows完整Mod环境的186秒请求，不外推可见帧时间、FPS或所有战斗提速。
+
+## Windows部署与后续并行审计
+
+2026-09-13（北京时间）已将 `9ac3931` 开发版部署到Windows游戏的 `mods/CombatSolver`。使用目标机器当前游戏/Ritsu依赖构建，主DLL与MemoryCleaner均为零警告、零错误；备份原四个已知文件后部署DLL、manifest、MemoryCleaner和NOTICE。版本保持0.36.4，未启动可见游戏验收。
+
+后续8／16并行测试已停止，不形成该组并行度比较结论。下一阶段以代码审计和修改为主：检查BaseLib模型克隆的全局Monitor、每父节点Fork gate、coordinator原序提交，以及内存回收检查点造成的空闲区间。先区分语义所必需的顺序与能够拆分的工作，不把发现锁直接当成可以安全删除锁的证明。
