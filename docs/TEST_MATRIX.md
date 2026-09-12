@@ -2,6 +2,8 @@
 
 ## 下一版本（开发中）：精简 fork
 
+热点消除后续：重新采集 `8faa771` 两场CPU栈；快照释放集合候选完成A-B-B-A共8个正式结果，96项非时序字段及完整54／113行路线一致。`tools/SnapshotReleaseChecks/run.py` 864组释放调用序列合同、Release编译和Linux结构门禁通过；`SNAPSHOT-RELEASE-INCREMENTAL` / `d4eeec6d4b7142f59e9f7154ffbd6f4f` 最小DOP1增量回放通过。机甲平均快8.16%，亡灵平均慢1.43%且配对方向不一致，不宣称普遍提速；可见测试未启动，详见[数据与限制](performance/hotspot-cuts-20260912.md)。
+
 精简开发后续：空状态 guard、排名预计算分别完成四次交错无头正式样本，每场 96 项非时序字段及完整路线一致。排序合同 720 组/167,280 条目通过；`CARD-PLAY-CLEANUP-CONTRACT`（`6a59494233984b7582ba6213c528a724`）与小型 DOP1 增量搜索（`4685d92766c04f99ace8f6e3e70da3c3`）通过。大范围 Fork 合同在 `AssertEndTurnPowerChoiceSuspends` 失败，未修改基线也复现，未声称完整门禁通过。可见测试按指令停止，未取得可见性能结果。详见[结果与复跑](performance/surgical-development-20260912.md)。
 
 后续研究：`dotnet run --project tools/SurgicalResearchChecks -c Release` 通过。直接链接生产 StateStore，以最小模型替身测得空枚举 96→0 B、缺失 int 状态 Peek 24→0 B、8 类辅助表容量构造 992→440 B；每项三块分配读数一致。仅为独立分配机制探针，不覆盖真实模型、Fork 或游戏搜索；未改生产代码、未重跑下列历史场景。见[研究报告](performance/surgical-research-20260912.md)。

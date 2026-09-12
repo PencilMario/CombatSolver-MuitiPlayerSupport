@@ -7,6 +7,7 @@
 | 要查什么 | 入口 |
 |---|---|
 | 当前精简 fork、旧移植暂停、实测收益与小优化候选 | [手术刀式移植](performance/surgical-fixes-20260912.md) |
+| 当前 CPU 热点、快照释放优化与交错对照 | [热点可消除工作](performance/hotspot-cuts-20260912.md) |
 | 已开发的空状态清理、排名预计算及真实对照 | [精简优化开发结果](performance/surgical-development-20260912.md) |
 | 小改动优化文献、源码切口与独立分配探针 | [精简优化深入研究](performance/surgical-research-20260912.md) |
 | 遗物独立开关、目标范围、血量额度与早停 | [战斗末遗物计数策略](relic-counters.md) |

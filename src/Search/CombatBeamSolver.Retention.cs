@@ -1510,6 +1510,20 @@ internal sealed partial class CombatBeamSolver
         IReadOnlyList<SearchNode> candidates,
         IReadOnlyList<SearchNode> retained)
     {
+        // Larger retained pools otherwise require a quadratic reference scan. Keep the
+        // allocation-free path for tiny pools; snapshot identity (not node identity) owns retention.
+        if (retained.Count > 8)
+        {
+            HashSet<SimulationSnapshot> retainedSnapshots = new(
+                retained.Count, ReferenceEqualityComparer.Instance);
+            foreach (SearchNode survivor in retained)
+                retainedSnapshots.Add(survivor.Snapshot);
+            foreach (SearchNode candidate in candidates)
+                if (!retainedSnapshots.Contains(candidate.Snapshot))
+                    candidate.Snapshot.ReleaseSimulator();
+            return;
+        }
+
         foreach (SearchNode candidate in candidates)
         {
             bool keepSnapshot = false;
