@@ -74,6 +74,8 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 
 ## 4. 性能所有权
 
+- `StrategicEffectContext.Build` 的消耗关键字只按实际需求读取，可空布尔缓存严格限于单张牌的当前只读循环体；下次Build必须重新读。保留完整 `Keywords` 来源，不能换成本地关键字；技能因效果消耗与牌自身消耗继续区分，第三方类型的生成器旁路不变。不要把这个局部复用扩展到动作、快照或Fork之间。
+
 - 淘汰快照按 `SimulationSnapshot` 引用身份保留，不按 SearchNode 身份或值相等判断；多个节点可共享同一快照。`ReleaseDroppedSnapshots` 的局部集合只替代成员查询，不能改变释放调用顺序、次数或时点，不能跨调用持有模拟器图。小池保持原扫描；阈值不是全局最优承诺。
 
 - 普通 Beam 与 deferred 的 `SortByBeamRank` 只在单次排序内预计算分数，临时列表保持节点引用和原 `CompareBeamRankOrder`，不缓存可变父排名、不跨排序复用、不增加长期节点字段。公式输入在排序期间必须冻结；修改表示或排序入口时核对完整同分顺序，不能用 top-k 集合相同代替。额外临时分配与实际搜索耗时一并报告。
