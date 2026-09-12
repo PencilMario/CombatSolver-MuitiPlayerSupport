@@ -460,6 +460,8 @@ internal static class StrategicEffectModel
             DanseMacabrePower when act3BossInteractions => StrategicEffectRequirements.RemainingTurns,
             DemesnePower when act3BossInteractions => StrategicEffectRequirements.RemainingTurns
                 | StrategicEffectRequirements.AverageCardValue,
+            PrepTimePower when act3BossInteractions => StrategicEffectRequirements.RemainingTurns
+                | StrategicEffectRequirements.AttackPlays,
             FocusPower or FurnacePower or ThunderPower or LightningRodPower
                 => StrategicEffectRequirements.RemainingTurns,
             _ => StrategicEffectRequirements.None,
@@ -526,6 +528,8 @@ internal static class StrategicEffectModel
             DemesnePower when context.Act3BossInteractions =>
                 Resource(context.DemesneEnergyGain * energyUnit)
                 + CardAccess(context.DemesneDrawGain * cardAccessUnit),
+            PrepTimePower when context.Act3BossInteractions => Damage(
+                amount * Math.Min(context.RemainingTurns, context.AttackPlays), enemyHp),
             FocusPower => Scaling(amount * context.RemainingTurns * 2),
             FurnacePower => Scaling(amount * context.RemainingTurns * 2),
             ThunderPower => Damage(amount * context.RemainingTurns, enemyHp),

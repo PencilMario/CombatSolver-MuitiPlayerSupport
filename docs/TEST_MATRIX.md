@@ -2,6 +2,12 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 准备时间独立哨兵 `act3-boss-vigor-cd79-holdout`：女王22战损/0药/T8/11817总展开，与原节点分层构建相同，continuation/native-state均通过。总展开含原智能用药审计，不能称为单次主搜索8000节点的硬总上限。
+
+- 准备时间候选实际部署 `act3-boss-highgap-cc8a-vigor-deploy` / `5b05d804b8dc4675bdb04ad6fd99a52e` Passed：最终combatEnded=true、UnexpectedReplans:0，选择路线预测54战损/0药/T6。该输出的solverMetrics仍为预测值，未把它冒充独立实际HP账本；旧包起点native编码不可比较仍单列。候选尚需独立保留集。
+
+- 准备时间估值候选 `ACT3-BOSS-STRATEGY` / `d3b6b6837cf0455a8369dc5580ddedd7` Passed（28.10秒）：空牌组无攻击兑现时DamagePotential为0，有后续攻击时计入多回合收益，关闭特化保持原向量；同时通过既有必要防御、升级攻击斩杀、点烧运转及增量回放合同。整场质量与部署另验。
+
 - 沙漏完整低损见证 `a610aab495e7494fa41295b7caee5ab9` Passed（29.81秒）：原比较根的4步玩家前缀与保存的30步求解后缀均经模拟回放，最终48HP/敌方0，对应16战损；34步没有预测风险或边界，根保持不变。保存后缀不是玩家完整实测战斗；旧包native-state编码不可比较的限制仍存在。当前真实搜索只找到54战损，不把见证注入搜索或当成新算法结果。
 
 - `ACT3-HOURGLASS-OPENING-PATH` / `52f88748c1554745b548c35cc77b3fd1` Passed（30.47秒）：从 cc8a 原比较根 :1 按物理实例回放准备时间、WELL_LAID_PLANS、防御及回合结束，模拟 continuation 匹配记录 :3；268条诊断事件无丢失且根不变。第二步原始排名63/96、有效容量60、49个必保，未被选择。旧包 native-state 编码不可比较，此合同不声称全字段原生等价或部署通过。

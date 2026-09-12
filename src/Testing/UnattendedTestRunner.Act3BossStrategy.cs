@@ -451,5 +451,17 @@ internal sealed partial class UnattendedTestRunner
         var emptyDemesne = await Capture(true);
         if (emptyDemesne.ResourcePotential != 0 || emptyDemesne.CardAccessPotential != 0)
             throw new InvalidOperationException("An empty deck must not create future cards or energy demand.");
+
+        foreach (var power in player.Creature.Powers.ToArray()) await PowerCmd.Remove(power);
+        await ClearPlayerPilesAsync(player);
+        await InjectPowerAsync(combat, player, new UnattendedPowerInjection
+            { PowerId = "PREP_TIME_POWER", Target = "Player", Amount = 6 });
+        if ((await Capture(true)).DamagePotential != 0)
+            throw new InvalidOperationException("Recurring Vigor needs a remaining attack to realize damage.");
+        var ordinaryPrepTime = await Capture(false);
+        await InjectCardAsync(combat, player, new UnattendedCardInjection
+            { CardId = "STRIKE_IRONCLAD", Pile = "Draw", Count = 6 });
+        if ((await Capture(true)).DamagePotential <= 6 || (await Capture(false)) != ordinaryPrepTime)
+            throw new InvalidOperationException("Recurring Vigor must value future attacks only in boss specialization.");
     }
 }
