@@ -106,6 +106,12 @@ internal sealed partial class UnattendedTestRunner
                 AssertPredictionFailureBoundaries(scenario.CombatState, scenario.Player);
                 runner._completedChecks.Add("PredictionFailureBoundaries");
             }
+            if (request.ScenarioId == "MODEL-CLONE-CONCURRENCY")
+            {
+                runner.SetStage("model_clone_concurrency");
+                AssertModelCloneConcurrency(scenario.CombatState);
+                runner._completedChecks.Add("ModelCloneConcurrency");
+            }
             if (request.ScenarioId == "STAND-PAT-MEMORY-BOUNDARY")
             {
                 runner.SetStage("stand_pat_memory_boundary");

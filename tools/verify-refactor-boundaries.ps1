@@ -1237,6 +1237,19 @@ foreach ($hookName in $mirroredHookNames) {
     }
 }
 
+# Native clone eligibility stays outside search scheduling and keeps the runtime gate.
+foreach ($requiredCloneBoundary in @(
+    @{ Path = 'src/Runtime/BaseLibCloneConcurrencyPatch.cs'; Text = 'BaseLibCloneConcurrency.Enter()' },
+    @{ Path = 'src/Engine/Common/PredictionUtils.cs'; Text = 'NativeCardCloneConcurrency.CanCloneIndependently(source)' }
+)) {
+    if (-not (Select-String -LiteralPath (Join-Path $repositoryRoot $requiredCloneBoundary.Path) -SimpleMatch $requiredCloneBoundary.Text -Quiet)) {
+        $violations.Add("Missing clone boundary: $($requiredCloneBoundary.Path)")
+    }
+}
+if (Select-String -LiteralPath (Join-Path $repositoryRoot 'src/Engine/Common/NativeCardCloneConcurrency.cs') -SimpleMatch 'CombatSolver.Search' -Quiet) {
+    $violations.Add('Clone eligibility depends on search policy.')
+}
+
 if ($violations.Count -gt 0) {
     $violations | ForEach-Object { Write-Error $_ }
     throw "Refactor boundary verification failed with $($violations.Count) violation(s)."

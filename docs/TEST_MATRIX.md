@@ -1,5 +1,7 @@
 # CombatSolver 测试清单
 
+本轮原版克隆并行：真实 BaseLib 3.4.7 / Ritsu 0.5.20 下，`MODEL-CLONE-CONCURRENCY`（`c05503851b6942d2a262334c026fa4ba`）及 `STAND-PAT-MEMORY-BOUNDARY`（`df6f42ada6d14b4da39346df0f534c94`）Passed。覆盖持锁双线程64次克隆、变量独占、第三方变量回退、跨域克隆/变量补丁刷新、live不变、DOP1/DOP2及104MiB人工压力等价和取消/错误排空复用。Release零警告零错误，Bash与PowerShell门禁均通过（Linux）。不作整场提速或可见性能结论；[详情与失败记录](performance/native-clone-parallelism-20260913.md)。
+
 本轮父节点预约优化：最终3万节点A-B-B-A八次Passed，89项质量/总工作字段和完整动作一致；并行专属调度计数单列。盛碗虫群/亡灵104 MiB压力、DOP1/DOP2、取消/错误排空与同根复用均通过，纯算术突增/溢出及Linux构建/结构门禁通过。详见[最终样本与失败后备反例](performance/bowlbugs-wave-admission-20260912.md)。
 
 本轮盛碗虫群剪枝边界：最终16GB区域A-B-B-A四次Passed、3万节点完整路线及108字段相等；1GB区域4万节点候选Passed，基线完成同量工作后因NoGC退出而失败，102项非时序字段及完整动作相等。中间5万节点测试失败并以TimeLimit结束，未伪装成通过。小区域有总耗时/最大暂停回退，宽裕区域平均耗时少2.24%、分配少7.44%；全部仅Linux无头诊断首个主搜索。详见[分配、GC和限制](performance/bowlbugs-slow-search-20260912.md#元数据边界后续与深度反例)与[机器可读指标](performance/bowlbugs-prune-20260912.json)。

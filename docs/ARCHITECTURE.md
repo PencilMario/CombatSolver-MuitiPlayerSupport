@@ -69,7 +69,7 @@ Entry / turn hooks
 | `src/Runtime/ContinuationStamp.cs` | 跨回合 live/predicted 状态文本、首个差异与完整差异；九条战斗 RNG 使用计数器与四段内部状态共同核对 | Beam 状态去重 |
 | `src/Runtime/SolvedRouteCache.cs` | 主线程捕获路线记录键；后台按完整根与策略读写本地路线副本，独立于战斗会话和 SL 入口；Forecast 使用新根对象 | 搜索策略、原生存档修改、保留旧战斗对象 |
 | `src/Runtime/DynamicVarCloneMetadataPatches.cs` | 模拟域精确复制 BaseLib 提示/升级及 Ritsu 提示元数据，只为已有值建立弱表项；保留 live 行为 | 通用 SpireField 工厂替换、丢弃升级值、清空全局弱表 |
-| `src/Runtime/BaseLibCloneConcurrencyPatch.cs` | BaseLib 克隆扩展存在时，让原版 `MutableClone` 与内嵌模拟的模型深克隆共用窄串行边界，保护其全局弱表 | 整段搜索串行化、BaseLib 业务语义与候选政策 |
+| `src/Runtime/BaseLibCloneConcurrencyPatch.cs` | BaseLib 克隆扩展存在时，保护原版 `MutableClone` 及未经独立性核对的预测克隆；已核对的普通原版卡牌由 `NativeCardCloneConcurrency` 放行 | 整段搜索串行化、BaseLib 业务语义与候选政策 |
 | `src/Runtime/PowerDynamicVarWarmup.cs` | 主线程根捕获时物化规范 Power 与当前战斗 Power 的显示变量 | 搜索评分、Power 语义与 worker 本地化 |
 | `src/Runtime/PowerDynamicVarMaterializationGuardPatch.cs` | 搜索模拟惰性创建 Power 显示变量时立即报告根捕获缺失 | Power 语义、显示内容与搜索阶段串行化 |
 | `src/Runtime/PowerAmountComparisonPatch.cs` | 将原生 `GetTypeForAmount` 中两处精确匹配的同枚举装箱比较改为整数比较；保留虚 getter、decimal 分支和调用顺序，未知 IL 原样保留 | Power 状态缓存、跳过类型 getter 或改变显示类型规则 |
@@ -245,13 +245,13 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 `SimPlayerCombatState.Phase` 在主线程根捕获，Fork 按值复制，阶段推进写入分支状态并进入搜索状态键。它决定 UnceasingTop 的触发窗口；续用只在稳定 Play 阶段比较，最小跨回合夹具另显式核对原生阶段。结束回合按 AutoPostPlay、BeforeSideTurnEnd、球被动、手牌回合末效果的顺序推进。
 
-`PredictionUtils.CloneModelForSimulation` 对卡牌在 DeepCloneFields 前清除 CardModel 事件委托；原版克隆阶段会重新附着附魔并发出事件，不能让这些事件调用源卡的 UI 订阅者。深拷贝和 AfterCloned 仍使用原版实现。
+`PredictionUtils.CloneModelForSimulation` 对卡牌在 DeepCloneFields 前清除 CardModel 事件委托；原版克隆阶段会重新附着附魔并发出事件，不能让这些事件调用源卡的 UI 订阅者。深拷贝和 AfterCloned 仍使用原版实现。`NativeCardCloneConcurrency` 仅在模拟隔离域放行无附魔/灾厄、动态变量已物化且均为原版类型、克隆阶段未改写的原版卡牌；同时严格核对变量 Clone 的 BaseLib/Ritsu 补丁及稀疏元数据复制保护。未知类型、阶段或补丁保留原锁。类型与补丁证据仅在线程当前最外层隔离域内缓存，不持有模型，跨域重新核对；不支持求解过程中动态变更补丁。
 
 ### 4.1 基础层
 
 `src/Engine/InCombat/Simulation/` 负责通用战斗命令时序、伤害、牌堆、历史、RNG、球和 Fork。它不包含单张卡、单个 Power 或具体怪物的搜索策略。历史卡牌 Started/Finished 与 DamageReceived 的卡牌来源使用不可变卡牌快照；当前动作是否开始以精确 trace-frame 身份判定，保留原生 `CardPlay` 身份，不以 Original 卡牌身份合并兄弟分支。`CombatPredictionHistory` 以不可变 prefix segment + 分支本地 mutable tail 保存事件；动作后缀消费者必须使用冻结上界的 `EntriesFrom/EntriesBetween`，不能先遍历完整 prefix 再 `Skip`，否则长线会把一次局部查询放大为随深度增长的重复工作。
 
-`src/Engine/Common/` 提供 `PredictedCard`、`PredictionForkContext`、`PredictionStateStore` 和通用模型克隆。StateStore 直接持有可 Fork 的 state，空字典按需创建；仍在同一 context 中按原跨类型顺序 eager Fork，不能对调用者已借出的可变引用使用通用延迟 COW。一次 Fork 内的所有结构必须共享同一个 context；分支可变对象必须显式重映射。`BaseLibCloneConcurrency` 是原版与预测克隆共用的外部扩展并发边界，只包围模型深克隆阶段。
+`src/Engine/Common/` 提供 `PredictedCard`、`PredictionForkContext`、`PredictionStateStore` 和通用模型克隆。StateStore 直接持有可 Fork 的 state，空字典按需创建；仍在同一 context 中按原跨类型顺序 eager Fork，不能对调用者已借出的可变引用使用通用延迟 COW。一次 Fork 内的所有结构必须共享同一个 context；分支可变对象必须显式重映射。`BaseLibCloneConcurrency` 是原版与预测克隆共用的外部扩展并发边界，只包围模型深克隆阶段。预测普通原版卡牌的有限并行入口由 `NativeCardCloneConcurrency` 核对，原版 `MutableClone` 保护不变。
 
 `MirroredHookListenerFilter` 为 `HookMirrors` 和原生关键字空操作判定提供静态回调位图；原生/领域监听序列完整保留。只有确认没有 `TryModifyKeywordsInCombat` 参与者时，关键字查询才直接读取本地集合。根捕获重新检查相关 AbstractModel 基方法及原生 `Hook.ModifyKeywordsInCombat` 的 Harmony 补丁，有补丁时旁路；第三方/动态类型全部保留，BaseLib 不透明 CardModifier 根也旁路。`SimulatedCombatState` 的分支监听视图沿既有失效边界清空。不可变布局只含 Type/位图：优先复用分支旧布局，失配后查询同根有界共享表，哈希只选槽，完整类型顺序相同才复用；碰撞、并发覆盖和超长列表都不能误认序列。共享表不持有任何 Model，原接收者仍来自当前分支快照；它随根回收，不进入状态键或 ContinuationStamp。`HOOK_LAYOUT_CACHE scope=root_cumulative` 记录共享查询命中、未命中、碰撞和旁路，主搜/恢复日志不能相加。合同覆盖类型顺序、重复项、跨分支接收者、哈希碰撞、并发读取、关键字原生对照及根间补丁刷新。
 
