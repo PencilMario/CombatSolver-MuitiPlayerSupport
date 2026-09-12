@@ -2,6 +2,11 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 普通推进复核失败 `act3-boss-cc8a-minhp-ordinary-advance-deploy`：实际搜索为死亡/敌264/6532展开，执行到T7后玩家死亡，断言“战斗结束，但仍存在未死亡敌人”；UnexpectedReplans:0。汇总的restore_mismatch不是准确根因，continuation已通过。此前SearchOnly的52战损没有在部署入口复现，普通墙钟切层不能视为稳定修复，本次Phases改动已撤回。
+
+- 调度隔离 `act3-boss-cc8a-minhp-ordinary-slice`：保留能力估值、恢复普通时间切层，52战损/0药/T6/6733展开；同MinimizeHpLoss原特化死亡/敌252，关闭特化普通60战损/T7。去除准备时间仍死亡/敌342，故该退步早于准备时间改动。普通基线首回合在深度7/399展开因时间切层，节点特化前两层走了不同深度；各自固定同20秒/8000主搜profile，并非相同实际转移量。
+- 调度回退保留集 `act3-boss-ordinary-advance-f25f`：领域女王10战损/0药/T15/8000，保持原收益；continuation/native-state均通过。
+
 - 准备时间独立哨兵 `act3-boss-vigor-cd79-holdout`：女王22战损/0药/T8/11817总展开，与原节点分层构建相同，continuation/native-state均通过。总展开含原智能用药审计，不能称为单次主搜索8000节点的硬总上限。
 
 - 准备时间候选实际部署 `act3-boss-highgap-cc8a-vigor-deploy` / `5b05d804b8dc4675bdb04ad6fd99a52e` Passed：最终combatEnded=true、UnexpectedReplans:0，选择路线预测54战损/0药/T6。该输出的solverMetrics仍为预测值，未把它冒充独立实际HP账本；旧包起点native编码不可比较仍单列。候选尚需独立保留集。
