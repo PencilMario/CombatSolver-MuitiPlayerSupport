@@ -68,6 +68,7 @@ internal sealed partial class UnattendedTestRunner
             SetEnergy(player, 3);
             var policy = SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null) with
             {
+                Act3BossStrategy = true,
                 FixedBudget = true, BudgetOverrideMilliseconds = 1500, MaxDegreeOfParallelism = 1,
                 PotionPolicy = SolverPotionPolicy.Disabled, VerifyIncrementalSearch = true,
                 Profile = SolverSearchProfile.Default with { MaxExpandedNodes = 128 },

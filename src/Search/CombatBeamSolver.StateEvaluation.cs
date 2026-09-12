@@ -248,15 +248,31 @@ internal sealed partial class CombatBeamSolver
         StrategicEffectRequirements strategicRequirements = StrategicEffectRequirements.None;
         bool needsExhaustDrawTiming = false;
         bool skillsExhaust = false;
+        bool hasPagestorm = false;
+        int danseMacabreEnergyThreshold = 0;
+        int demesneAmount = 0;
         for (int powerIndex = 0; powerIndex < effectivePowers.Count; powerIndex++)
         {
             PowerModel power = effectivePowers[powerIndex];
             contributes[powerIndex] = StrategicEffectMirrors.Contributes(power, _player.Creature);
             if (!contributes[powerIndex])
                 continue;
-            strategicRequirements |= StrategicEffectModel.Requirements(power);
+            strategicRequirements |= StrategicEffectModel.Requirements(
+                power,
+                policy.Act3BossStrategy);
             needsExhaustDrawTiming |= power is DarkEmbracePower;
             skillsExhaust |= power is CorruptionPower && ReferenceEquals(power.Owner, _player.Creature);
+            if (policy.Act3BossStrategy)
+            {
+                hasPagestorm |= power is PagestormPower;
+                if (power is DemesnePower) demesneAmount += Math.Max(0, power.Amount);
+                if (power is DanseMacabrePower danseMacabre)
+                {
+                    danseMacabreEnergyThreshold = Math.Max(
+                        danseMacabreEnergyThreshold,
+                        danseMacabre.DynamicVars.Energy.IntValue);
+                }
+            }
         }
         StrategicEffectContext? strategicContext = null;
         StrategicEffectVector strategicEffects = StrategicEffectVector.Zero;
@@ -270,7 +286,36 @@ internal sealed partial class CombatBeamSolver
             if (strategicContext is null)
             {
                 StrategicEffectContext context = StrategicEffectContext.Build(
-                    liveCards, enemyHp, focus.TotalThreat, focus.IncomingHitCount, strategicRequirements, skillsExhaust);
+                    liveCards, enemyHp, focus.TotalThreat, focus.IncomingHitCount, strategicRequirements, skillsExhaust) with
+                {
+                    Act3BossInteractions = policy.Act3BossStrategy,
+                };
+                if (policy.Act3BossStrategy
+                    && (hasPagestorm || danseMacabreEnergyThreshold > 0 || demesneAmount > 0))
+                {
+                    var interactions =
+                        CaptureAct3BossInteractionPotential(
+                            simulator,
+                            combat,
+                            playerState,
+                            _player,
+                            liveCards,
+                            context.RemainingTurns,
+                            context.ReachableCards,
+                            hasPagestorm,
+                            skillsExhaust,
+                            demesneAmount,
+                            danseMacabreEnergyThreshold);
+                    context = context with
+                    {
+                        Act3BossInteractions = true,
+                        EtherealDrawTriggers = interactions.EtherealDrawTriggers,
+                        PagestormBonusDrawCapacity = interactions.PagestormBonusDrawCapacity,
+                        HighEnergyPlays = interactions.HighEnergyPlays,
+                        DemesneEnergyGain = interactions.DemesneEnergyGain,
+                        DemesneDrawGain = interactions.DemesneDrawGain,
+                    };
+                }
                 strategicContext = needsExhaustDrawTiming
                     ? context.WithExhaustDrawTiming(effectivePowers, playerState.Hand.Cards, _player.Creature) : context;
             }
@@ -827,6 +872,142 @@ internal sealed partial class CombatBeamSolver
             DemonFormPower or CreativeAiPower => PersistentSetupTraits.RecurringScaling,
             _ => PersistentSetupTraits.None,
         };
+
+    private static (int EtherealDrawTriggers, int PagestormBonusDrawCapacity, int HighEnergyPlays,
+        int DemesneEnergyGain, int DemesneDrawGain)
+        CaptureAct3BossInteractionPotential(
+            CombatPredictionSimulator simulator,
+            SimulatedCombatState combat,
+            SimPlayerCombatState playerState,
+            Player player,
+            IReadOnlyList<PredictedCard> liveCards,
+            int remainingTurns,
+            int reachableCards,
+            bool hasPagestorm,
+            bool skillsExhaust,
+            int demesneAmount,
+            int danseMacabreEnergyThreshold)
+    {
+        int boundedTurns = Math.Max(1, remainingTurns);
+        int boundedReachableCards = Math.Max(0, reachableCards);
+        int etherealDrawTriggers = 0;
+        int pagestormBonusDrawCapacity = 0;
+        if (hasPagestorm)
+        {
+            int futurePileCards = playerState.DrawPile.Cards.Count
+                + playerState.DiscardPile.Cards.Count;
+            int futureEtherealCards = playerState.DrawPile.Cards.Count(card =>
+                    card.HasKeyword(simulator.State, CardKeyword.Ethereal))
+                + playerState.DiscardPile.Cards.Count(card =>
+                    card.HasKeyword(simulator.State, CardKeyword.Ethereal));
+            int drawPerTurn = PersistentPowerSupport.GetModifiedHandDraw(
+                combat,
+                player,
+                CombatManager.baseHandDrawCount);
+            if (futurePileCards > 0 && futureEtherealCards > 0 && drawPerTurn > 0)
+            {
+                int reachableFutureDraws = (int)Math.Min(
+                    (long)futurePileCards * 2,
+                    boundedReachableCards);
+                etherealDrawTriggers = (int)Math.Min(
+                    (long)futureEtherealCards * 2,
+                    ((long)futureEtherealCards * reachableFutureDraws
+                        + futurePileCards - 1) / futurePileCards);
+
+                bool futureBonusDrawBlocked = combat.RelicsOf(player)
+                    .Any(relic => relic is Fiddle && !relic.IsMelted);
+                if (!futureBonusDrawBlocked)
+                {
+                    int maxHandSize = simulator.GetMaxHandSize(player);
+                    int retainedCards = playerState.Hand.Cards.Count(card =>
+                        card.Preview.ShouldRetainThisTurn);
+                    int firstTurnSpace = Math.Max(0, maxHandSize - retainedCards);
+                    int firstTurnBonusSpace = Math.Max(
+                        0,
+                        firstTurnSpace - Math.Min(firstTurnSpace, drawPerTurn));
+                    int laterTurnBonusSpace = Math.Max(
+                        0,
+                        maxHandSize - Math.Min(maxHandSize, drawPerTurn));
+                    pagestormBonusDrawCapacity = (int)Math.Min(
+                        (long)futurePileCards * 2,
+                        (long)firstTurnBonusSpace
+                            + (long)Math.Max(0, boundedTurns - 1) * laterTurnBonusSpace);
+                }
+            }
+            // NoDrawPower blocks only non-hand draws in the current turn and is consumed at
+            // turn end. This estimate starts at the next hand draw, so it remains available.
+        }
+
+        int highEnergyPlays = 0;
+        if (danseMacabreEnergyThreshold > 0 && liveCards.Count > 0)
+        {
+            List<int> highEnergyCosts = [];
+            int highEnergyCards = 0;
+            foreach (PredictedCard card in liveCards)
+            {
+                if (card.HasKeyword(simulator.State, CardKeyword.Unplayable))
+                    continue;
+                int cost = card.GetEnergyCostWithModifiers(simulator, playerState);
+                if (cost < danseMacabreEnergyThreshold)
+                    continue;
+                highEnergyCards++;
+                highEnergyCosts.Add(cost);
+                if (card.Preview.Type != CardType.Power
+                    && !card.HasKeyword(simulator.State, CardKeyword.Exhaust)
+                    && !(skillsExhaust && card.Preview.Type == CardType.Skill))
+                    highEnergyCosts.Add(cost);
+            }
+            int reachableHighEnergyCards = (int)Math.Min(
+                highEnergyCosts.Count,
+                ((long)highEnergyCards * boundedReachableCards
+                    + liveCards.Count - 1) / liveCards.Count);
+            int futureMaxEnergy = PersistentPowerSupport.GetModifiedMaxEnergy(combat, player);
+            Span<int> turnEnergy = stackalloc int[boundedTurns];
+            turnEnergy[0] = Math.Max(0, playerState.Energy);
+            turnEnergy[1..].Fill(Math.Max(0, futureMaxEnergy));
+            highEnergyCosts.Sort();
+            for (int index = 0;
+                 index < reachableHighEnergyCards
+                    && index < highEnergyCosts.Count;
+                 index++)
+            {
+                for (int turn = 0; turn < turnEnergy.Length; turn++)
+                {
+                    if (turnEnergy[turn] < highEnergyCosts[index]) continue;
+                    turnEnergy[turn] -= highEnergyCosts[index];
+                    highEnergyPlays++;
+                    break;
+                }
+            }
+        }
+
+        int demesneEnergyGain = 0, demesneDrawGain = 0;
+        int futureTurns = Math.Max(0, boundedTurns - 1);
+        if (demesneAmount > 0 && futureTurns > 0 && liveCards.Count > 0)
+        {
+            long deckEnergyDemand = 0;
+            foreach (PredictedCard card in liveCards)
+                if (!card.HasKeyword(simulator.State, CardKeyword.Unplayable))
+                    deckEnergyDemand += Math.Max(0, card.GetEnergyCostWithModifiers(simulator, playerState));
+            long reachableEnergyDemand = (deckEnergyDemand * boundedReachableCards
+                + liveCards.Count - 1) / liveCards.Count;
+            int baseEnergy = Math.Max(0,
+                PersistentPowerSupport.GetModifiedMaxEnergy(combat, player) - demesneAmount);
+            long baseEnergySupply = Math.Max(0, playerState.Energy) + (long)baseEnergy * futureTurns;
+            demesneEnergyGain = (int)Math.Clamp(reachableEnergyDemand - baseEnergySupply,
+                0L, (long)demesneAmount * futureTurns);
+            int baseDraw = Math.Max(0, PersistentPowerSupport.GetModifiedHandDraw(
+                combat, player, CombatManager.baseHandDrawCount) - demesneAmount);
+            int retained = playerState.Hand.Cards.Count(card => card.Preview.ShouldRetainThisTurn);
+            int firstSpace = Math.Max(0, simulator.GetMaxHandSize(player) - retained - baseDraw);
+            int laterSpace = Math.Max(0, simulator.GetMaxHandSize(player) - baseDraw);
+            demesneDrawGain = (int)Math.Min((long)liveCards.Count * 2,
+                Math.Min(demesneAmount, firstSpace)
+                + (long)Math.Max(0, futureTurns - 1) * Math.Min(demesneAmount, laterSpace));
+        }
+        return (etherealDrawTriggers, pagestormBonusDrawCapacity, highEnergyPlays,
+            demesneEnergyGain, demesneDrawGain);
+    }
 
     private static int OrbRetentionValue(
         CombatPredictionSimulator simulator,

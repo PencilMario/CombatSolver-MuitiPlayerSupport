@@ -91,6 +91,16 @@ internal sealed partial class UnattendedTestRunner
                 await runner.AssertRelicPriorityMeatAsync(combatState, player);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "ACT3-BOSS-STRATEGY")
+            {
+                await runner.AssertAct3BossStrategyAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "ACT3-OPENING-EFFECTS")
+            {
+                await runner.DescribeAct3OpeningEffectsAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "RELIC-COUNTER-POLICY")
             {
                 await runner.AssertRelicCountersAsync(combatState, player);
@@ -498,6 +508,14 @@ internal sealed partial class UnattendedTestRunner
                 runner.SetStage("known_soul_retained_path_trace_prepare");
                 int finishedTurn = await runner.RunKnownSoulVariantPathTraceAsync(
                     combatState, player, proveRetainedAlias: true);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId == "ACT3-SUBJECT-0530-PATH")
+            {
+                _ = ApplySettingsOverrides();
+                int finishedTurn = await runner.TraceAct3Subject0530Async(combatState, player);
                 return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
                     expectedPlayerPowerObserved, InitialSearchHeld: false);
             }

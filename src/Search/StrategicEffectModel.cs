@@ -92,6 +92,13 @@ internal readonly record struct StrategicEffectContext(
 {
     public int? AttackHits { get; init; }
     public int? ExhaustDrawPlays { get; init; }
+    public bool Act3BossInteractions { get; init; }
+    public int ReachableCards { get; init; }
+    public int EtherealDrawTriggers { get; init; }
+    public int PagestormBonusDrawCapacity { get; init; }
+    public int HighEnergyPlays { get; init; }
+    public int DemesneEnergyGain { get; init; }
+    public int DemesneDrawGain { get; init; }
 
     internal StrategicEffectContext WithExhaustDrawTiming(IReadOnlyList<PowerModel> powers,
         IReadOnlyList<PredictedCard> hand, Creature owner)
@@ -367,6 +374,7 @@ internal readonly record struct StrategicEffectContext(
                 ? CardMechanismFacts.EstimatedAttackHits(attackHitCount, shivCount, generatedShivCount,
                     shivGeneratorCount, deckSize, reachableCards, reusableShivCount,
                     singleUseGeneratedShivs, singleUseShivGenerators) : null,
+            ReachableCards = reachableCards,
         };
     }
 
@@ -411,7 +419,9 @@ internal readonly record struct StrategicEffectContext(
 
 internal static class StrategicEffectModel
 {
-    public static StrategicEffectRequirements Requirements(PowerModel power)
+    public static StrategicEffectRequirements Requirements(
+        PowerModel power,
+        bool act3BossInteractions = false)
     {
         // 第三方登记优先。登记表为空时这是一次字典 Count 检查，热路径上可以忽略。
         if (StrategicEffectMirrors.TryGetRequirements(power, out StrategicEffectRequirements registered))
@@ -444,6 +454,11 @@ internal static class StrategicEffectModel
             IterationPower => StrategicEffectRequirements.StatusDrawTriggers
                 | StrategicEffectRequirements.AverageCardValue,
             MasterPlannerPower => StrategicEffectRequirements.SkillPlays
+                | StrategicEffectRequirements.AverageCardValue,
+            PagestormPower when act3BossInteractions => StrategicEffectRequirements.RemainingTurns
+                | StrategicEffectRequirements.AverageCardValue,
+            DanseMacabrePower when act3BossInteractions => StrategicEffectRequirements.RemainingTurns,
+            DemesnePower when act3BossInteractions => StrategicEffectRequirements.RemainingTurns
                 | StrategicEffectRequirements.AverageCardValue,
             FocusPower or FurnacePower or ThunderPower or LightningRodPower
                 => StrategicEffectRequirements.RemainingTurns,
@@ -501,6 +516,16 @@ internal static class StrategicEffectModel
             IterationPower => CardAccess(
                 amount * context.StatusDrawTriggers * cardAccessUnit),
             MasterPlannerPower => CardAccess(context.SkillPlays * cardAccessUnit),
+            PagestormPower when context.Act3BossInteractions => CardAccess(
+                Math.Min(
+                    context.PagestormBonusDrawCapacity,
+                    amount * context.EtherealDrawTriggers) * cardAccessUnit),
+            DanseMacabrePower when context.Act3BossInteractions => Prevention(
+                amount * context.HighEnergyPlays,
+                context),
+            DemesnePower when context.Act3BossInteractions =>
+                Resource(context.DemesneEnergyGain * energyUnit)
+                + CardAccess(context.DemesneDrawGain * cardAccessUnit),
             FocusPower => Scaling(amount * context.RemainingTurns * 2),
             FurnacePower => Scaling(amount * context.RemainingTurns * 2),
             ThunderPower => Damage(amount * context.RemainingTurns, enemyHp),

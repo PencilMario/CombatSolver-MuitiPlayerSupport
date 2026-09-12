@@ -2,6 +2,8 @@
 
 当前上下文新增 `AttackHits`（通过 `StrategicEffectRequirements.AttackHits` 请求）和 `ExhaustDrawPlays`。前者按已识别多段与小刀生成估计可达命中，后者折算禁抽、虚无及回合末时序下的消耗抽牌机会。它们是分支局部的保路估值；未请求命中数时为 null，第三方自定义攻击尚无专用命中登记，按普通单次命中估计。真实动作仍由原有 mirror 与领域语义执行。
 
+三层首领特化的 `Act3BossInteractions` 标记表示本次冻结政策的范围；`ReachableCards` 复用已有视野估计。`EtherealDrawTriggers`、`PagestormBonusDrawCapacity`、`HighEnergyPlays`、`DemesneEnergyGain` 和 `DemesneDrawGain` 只为对应原版能力按当前分支计算，未参与计算时为 0，不是第三方可任意请求的通用触发统计。`StrategicEffectMirrors` 的 requirements/evaluate 登记继续优先；这些估计不改变终局收益和真实结算。
+
 ## 这是给谁用的
 
 第三方 mod 加了一层 Power，而这层 Power 会改变**玩家该按什么顺序出牌**。

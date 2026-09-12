@@ -439,13 +439,29 @@ internal sealed partial class UnattendedTestRunner
         return null;
     }
 
-    private static bool ReplayContinuationMatches(string expected, string actual)
+    private static bool ReplayContinuationMatches(string expected, string actual, bool allowLegacyBattleStart = false)
     {
         if (string.Equals(expected, actual, StringComparison.Ordinal))
             return true;
 
         string[] expectedFields = expected.Split(';');
         string[] actualFields = actual.Split(';');
+        if (allowLegacyBattleStart && actualFields.Length == expectedFields.Length + 1
+            && !expectedFields.Any(field => field.StartsWith("FlameHp=", StringComparison.Ordinal))
+            && actualFields.Count(field => field.StartsWith("FlameHp=", StringComparison.Ordinal)) == 1)
+        {
+            int historyIndex = Array.FindIndex(expectedFields, field => field.StartsWith("Y=", StringComparison.Ordinal));
+            if (historyIndex >= 0 && historyIndex + 1 < actualFields.Length
+                && expectedFields[historyIndex][2..].Split('/').Length is 2 or 3 or 4
+                && actualFields[historyIndex].StartsWith("Y=", StringComparison.Ordinal)
+                && actualFields[historyIndex][2..].Split('/').Length == 4
+                && actualFields[historyIndex + 1] == "FlameHp=0")
+            {
+                // At the native combat-start boundary this new per-combat counter is zero.
+                // Every recorded field still goes through the complete ordered comparison.
+                actualFields = actualFields.Where((_, index) => index != historyIndex + 1).ToArray();
+            }
+        }
         if (expectedFields.Length != actualFields.Length)
             return false;
         for (int index = 0; index < expectedFields.Length; index++)

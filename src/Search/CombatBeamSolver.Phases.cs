@@ -1269,6 +1269,7 @@ internal sealed partial class CombatBeamSolver
                         => stopwatch.ElapsedMilliseconds < _profile.SoftTimeBudgetMilliseconds
                             && (searchedTurnLayers >= reservedTurnLayers - 1
                                 || ended.Count == 0
+                                || policy.Act3BossStrategy
                                 || stopwatch.ElapsedMilliseconds - turnLayerStartedMs < turnLayerBudgetMs)
                             && _interaction?.CurrentTakeoverRequest == null;
                     if (!CanContinueDeferredReplay()
@@ -1339,7 +1340,11 @@ internal sealed partial class CombatBeamSolver
                 }
                 long turnLayerElapsedMs = stopwatch.ElapsedMilliseconds - turnLayerStartedMs;
                 int turnLayerExpanded = _run.Expanded - turnLayerStartedExpanded;
-                bool turnLayerTimeSpent = turnLayerElapsedMs >= turnLayerBudgetMs;
+                // Boss setup chains use the existing per-layer node share. A local wall-clock
+                // slice otherwise cuts different action depths under JIT/GC load, even when
+                // the request has ample time left. The global time and node limits still apply.
+                bool turnLayerTimeSpent = !policy.Act3BossStrategy
+                    && turnLayerElapsedMs >= turnLayerBudgetMs;
                 bool turnLayerNodesSpent = turnLayerExpanded >= turnLayerNodeBudget;
                 if (!policy.VerifyIncrementalSearch
                     && searchedTurnLayers < reservedTurnLayers - 1
