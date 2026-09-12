@@ -2811,5 +2811,721 @@
       "visibleGame": "Not run",
       "windowsDeployment": "Not run"
     }
+  },
+  "frozenForkTrial": {
+    "beforeCommit": "b0d684b",
+    "candidateBuild": "primary-six-frozen-probe",
+    "beforeBuild": "primary-six-endturn",
+    "candidateBaseCommit": "b0d684b",
+    "mode": "Linux headless, real BaseLib, fresh process, primary search only",
+    "dop": 16,
+    "maxExpandedNodes": 30000,
+    "softTimeBudgetMilliseconds": 240000,
+    "noGcRegionGB": 16,
+    "fixedResultFields": {
+      "reused": "False",
+      "reused_from_turn": "-",
+      "expanded": "30000",
+      "total_expanded": "30000",
+      "dominance_pruned": "228",
+      "top_queue_dropped": "0",
+      "duplicate_cards_pruned": "3524",
+      "choice_branches": "240306",
+      "total_choice_branches": "240306",
+      "choice_replay_attempts": "240306",
+      "choice_replay_budget_exhaustions": "0",
+      "choice_branches_dropped_by_budget": "0",
+      "shuffle_branches_pruned": "0",
+      "sold_hp_branches_pruned": "0",
+      "replays": "2",
+      "forks": "419813",
+      "transitions": "419813",
+      "total_transitions": "419813",
+      "cache_hits": "0",
+      "stand_pat": "38698",
+      "snapshot_reuses": "30540",
+      "transposition_pruned": "26510",
+      "repeatable_no_progress_pruned": "0",
+      "cycle_shapes": "0",
+      "cycle_probe_continuations": "0",
+      "cycle_candidates_protected": "0",
+      "cycle_continuations_stopped": "0",
+      "cycle_regions": "0",
+      "cycle_region_considered": "0",
+      "cycle_region_admitted": "0",
+      "cycle_region_dropped": "0",
+      "cycle_region_progress_epochs": "0",
+      "cycle_region_probe_admitted": "0",
+      "cycle_region_progress_admitted": "0",
+      "cycle_region_max_action_families": "0",
+      "ordered_admitted": "2048",
+      "ordered_lease_expired_budget": "690",
+      "ordered_ordinary_fallback": "262",
+      "cold_atomic_committed": "64",
+      "cold_atomic_rejected": "235",
+      "cross_turn_candidates_protected": "58",
+      "cross_turn_continuations_stopped": "0",
+      "primary_incumbent_pruned": "0",
+      "primary_incumbent_updates": "0",
+      "stand_pat_probes": "38698",
+      "parallel_max_concurrency": "16",
+      "parallel_action_max_concurrency": "16",
+      "deferred_round_choice_max_width": "56",
+      "deferred_round_choice_finite_fallback_scope": "pending_only",
+      "parallel_round_choice_max_concurrency": "16",
+      "node_limit_snapshots_released": "225",
+      "transition_cache_hits": "0",
+      "searched_turns": "5",
+      "boundary": "NodeLimit",
+      "shuffles_crossed": "1",
+      "unavoidable_hp_lost": "19",
+      "sold_hp": "0",
+      "future_sold_hp": "0",
+      "sold_hp_threshold": "5",
+      "battle_hp_lost_so_far": "0",
+      "projected_battle_hp_lost": "19",
+      "recovered_hp": "0",
+      "relic_heal": "0",
+      "death_save_relic_hp": "0",
+      "long_term_resource": "0",
+      "anger_copies": "0",
+      "battle_potions_used_so_far": "0",
+      "potion_count": "0",
+      "potion_hp_saved": "0",
+      "potion_hp_required": "0",
+      "potion_branches_rejected": "0",
+      "theft_policy": "-",
+      "outstanding_stolen_resource": "0",
+      "score": "9999549978",
+      "final_hp": "4",
+      "final_block": "87",
+      "final_enemy_hp": "0",
+      "combat_ended_turn": "5",
+      "death_turn": "-",
+      "only_death_routes": "False",
+      "act_ending_boss": "False",
+      "boss_hp_relief": "None",
+      "engine_risk": "False",
+      "unsupported_intent": "False",
+      "modeled_damage_exact": "False"
+    },
+    "fixedFieldCount": 85,
+    "fullRouteEqual": true,
+    "actionCount": 22,
+    "beforeMeanMilliseconds": 23055.41715,
+    "afterMeanMilliseconds": 23967.4934,
+    "elapsedReductionPercent": -3.9560171219890528,
+    "samples": [
+      {
+        "label": "A1",
+        "runId": "f89478114f0342a1ab2e5c9a6388eefd",
+        "status": "Passed",
+        "metrics": {
+          "gcLifecycle": {
+            "forcedCollections": 2,
+            "noGcStartAttempts": 3,
+            "noGcStarts": 3,
+            "noGcEndAttempts": 2,
+            "noGcEnds": 2,
+            "noGcRestarts": 2,
+            "noGcLosses": 0
+          },
+          "gcLifecycleAttribution": "ExclusiveSearchScope",
+          "boundary": "NodeLimit",
+          "selectedExpanded": 30000,
+          "selectedTransitions": 419813,
+          "selectedChoiceBranches": 240306,
+          "choiceReplayAttempts": 240306,
+          "choiceReplayBudgetExhaustions": 0,
+          "choiceBranchesDroppedByBudget": 0,
+          "cycleRegionsDetected": 0,
+          "cycleRegionCandidatesConsidered": 0,
+          "cycleRegionCandidatesAdmitted": 0,
+          "cycleRegionCandidatesDropped": 0,
+          "cycleRegionProgressEpochs": 0,
+          "cycleRegionProbeCandidatesAdmitted": 0,
+          "cycleRegionProgressCandidatesAdmitted": 0,
+          "cycleRegionMaxActionFamilies": 0,
+          "orderedMutationCandidatesAdmitted": 2048,
+          "orderedMutationLeaseExpiredBudget": 690,
+          "orderedMutationOrdinaryFallbacks": 262,
+          "orderedMutationColdAtomicCommitted": 64,
+          "orderedMutationColdAtomicRejected": 235,
+          "totalExpanded": 30000,
+          "totalTransitions": 419813,
+          "totalChoiceBranches": 240306,
+          "elapsedMilliseconds": 23500.5991,
+          "totalElapsedMilliseconds": 23518.3636,
+          "workerAllocatedBytes": 23164920336,
+          "totalWorkerAllocatedBytes": 23165014152,
+          "totalGen0Collections": 5,
+          "totalGen1Collections": 5,
+          "totalGen2Collections": 4,
+          "totalGcPauseMilliseconds": 1866.046,
+          "maxGcPauseMilliseconds": 1838.336,
+          "maxParallelConcurrency": 16,
+          "parallelActionReplayWaves": 1153,
+          "parallelActionReplayWorkItems": 110707,
+          "maxParallelActionReplayConcurrency": 16,
+          "deferredRoundChoiceActions": 13073,
+          "deferredRoundChoiceLayerWidthTotal": 101994,
+          "maxDeferredRoundChoiceLayerWidth": 56,
+          "deferredRoundChoiceFiniteQuotaFallbacks": 737,
+          "deferredRoundChoiceFinitePrimaryLayers": 12336,
+          "deferredRoundChoiceFinitePendingFallbacks": 737,
+          "parallelRoundChoiceReplayWaves": 1114,
+          "parallelRoundChoiceReplayWorkItems": 246838,
+          "maxParallelRoundChoiceReplayConcurrency": 16,
+          "searchedTurns": 5,
+          "shufflesCrossed": 1,
+          "score": 9999549978.1,
+          "projectedBattleHpLost": 19,
+          "potionCount": 0,
+          "potionUses": [],
+          "onlyDeathRoutes": false,
+          "finalHp": 4,
+          "finalEnemyHp": 0,
+          "combatEndedTurn": 5,
+          "capturedAtElapsedMilliseconds": 46591.15,
+          "managedLiveBytes": 4280153960,
+          "managedHeapBytes": 11382670040,
+          "managedFragmentedBytes": 9206137080,
+          "workingSetBytes": 12886044672,
+          "privateMemoryBytes": 29985034240,
+          "configuredNoGcRegionEnabled": true,
+          "configuredNoGcRegionBudgetBytes": 16000000000,
+          "gcLatencyMode": "NoGCRegion",
+          "noGcRegionActive": true,
+          "noGcRegionBudgetBytes": 16000000000,
+          "noGcRegionRolloverCount": 0
+        },
+        "scheduling": {
+          "parallel_round_choice_work_items": "246838",
+          "parallel_action_waves": "1153",
+          "deferred_round_choice_finite_pending_fallbacks": "737",
+          "parallel_action_work_items": "110707",
+          "deferred_round_choice_actions": "13073",
+          "parallel_work_items": "29952",
+          "deferred_round_choice_finite_fallbacks": "737",
+          "deferred_round_choice_finite_primary_layers": "12336",
+          "parallel_waves": "1206",
+          "deferred_round_choice_width_total": "101994",
+          "parallel_round_choice_waves": "1114"
+        }
+      },
+      {
+        "label": "B1",
+        "runId": "136c91c909154e02b515ef24a2d1e75a",
+        "status": "Passed",
+        "metrics": {
+          "gcLifecycle": {
+            "forcedCollections": 2,
+            "noGcStartAttempts": 3,
+            "noGcStarts": 3,
+            "noGcEndAttempts": 2,
+            "noGcEnds": 2,
+            "noGcRestarts": 2,
+            "noGcLosses": 0
+          },
+          "gcLifecycleAttribution": "ExclusiveSearchScope",
+          "boundary": "NodeLimit",
+          "selectedExpanded": 30000,
+          "selectedTransitions": 419813,
+          "selectedChoiceBranches": 240306,
+          "choiceReplayAttempts": 240306,
+          "choiceReplayBudgetExhaustions": 0,
+          "choiceBranchesDroppedByBudget": 0,
+          "cycleRegionsDetected": 0,
+          "cycleRegionCandidatesConsidered": 0,
+          "cycleRegionCandidatesAdmitted": 0,
+          "cycleRegionCandidatesDropped": 0,
+          "cycleRegionProgressEpochs": 0,
+          "cycleRegionProbeCandidatesAdmitted": 0,
+          "cycleRegionProgressCandidatesAdmitted": 0,
+          "cycleRegionMaxActionFamilies": 0,
+          "orderedMutationCandidatesAdmitted": 2048,
+          "orderedMutationLeaseExpiredBudget": 690,
+          "orderedMutationOrdinaryFallbacks": 262,
+          "orderedMutationColdAtomicCommitted": 64,
+          "orderedMutationColdAtomicRejected": 235,
+          "totalExpanded": 30000,
+          "totalTransitions": 419813,
+          "totalChoiceBranches": 240306,
+          "elapsedMilliseconds": 24124.891,
+          "totalElapsedMilliseconds": 24143.0181,
+          "workerAllocatedBytes": 23176209104,
+          "totalWorkerAllocatedBytes": 23176302920,
+          "totalGen0Collections": 5,
+          "totalGen1Collections": 5,
+          "totalGen2Collections": 4,
+          "totalGcPauseMilliseconds": 2217.568,
+          "maxGcPauseMilliseconds": 2174.562,
+          "maxParallelConcurrency": 16,
+          "parallelActionReplayWaves": 1152,
+          "parallelActionReplayWorkItems": 110689,
+          "maxParallelActionReplayConcurrency": 16,
+          "deferredRoundChoiceActions": 13071,
+          "deferredRoundChoiceLayerWidthTotal": 101991,
+          "maxDeferredRoundChoiceLayerWidth": 56,
+          "deferredRoundChoiceFiniteQuotaFallbacks": 737,
+          "deferredRoundChoiceFinitePrimaryLayers": 12334,
+          "deferredRoundChoiceFinitePendingFallbacks": 737,
+          "parallelRoundChoiceReplayWaves": 1113,
+          "parallelRoundChoiceReplayWorkItems": 246814,
+          "maxParallelRoundChoiceReplayConcurrency": 16,
+          "searchedTurns": 5,
+          "shufflesCrossed": 1,
+          "score": 9999549978.1,
+          "projectedBattleHpLost": 19,
+          "potionCount": 0,
+          "potionUses": [],
+          "onlyDeathRoutes": false,
+          "finalHp": 4,
+          "finalEnemyHp": 0,
+          "combatEndedTurn": 5,
+          "capturedAtElapsedMilliseconds": 47316.4359,
+          "managedLiveBytes": 4242697024,
+          "managedHeapBytes": 11385762584,
+          "managedFragmentedBytes": 9256646064,
+          "workingSetBytes": 12887851008,
+          "privateMemoryBytes": 29993029632,
+          "configuredNoGcRegionEnabled": true,
+          "configuredNoGcRegionBudgetBytes": 16000000000,
+          "gcLatencyMode": "NoGCRegion",
+          "noGcRegionActive": true,
+          "noGcRegionBudgetBytes": 16000000000,
+          "noGcRegionRolloverCount": 0
+        },
+        "scheduling": {
+          "parallel_round_choice_work_items": "246814",
+          "parallel_action_waves": "1152",
+          "deferred_round_choice_finite_pending_fallbacks": "737",
+          "parallel_action_work_items": "110689",
+          "deferred_round_choice_actions": "13071",
+          "parallel_work_items": "29949",
+          "deferred_round_choice_finite_fallbacks": "737",
+          "deferred_round_choice_finite_primary_layers": "12334",
+          "parallel_waves": "1200",
+          "deferred_round_choice_width_total": "101991",
+          "parallel_round_choice_waves": "1113"
+        },
+        "probe": {
+          "fast": 14070,
+          "slow": 366131,
+          "eligibleParents": 2359,
+          "fallbackParents": 27590
+        }
+      },
+      {
+        "label": "B2",
+        "runId": "86de60beadc24dc181e9384963fca92d",
+        "status": "Passed",
+        "metrics": {
+          "gcLifecycle": {
+            "forcedCollections": 2,
+            "noGcStartAttempts": 3,
+            "noGcStarts": 3,
+            "noGcEndAttempts": 2,
+            "noGcEnds": 2,
+            "noGcRestarts": 2,
+            "noGcLosses": 0
+          },
+          "gcLifecycleAttribution": "ExclusiveSearchScope",
+          "boundary": "NodeLimit",
+          "selectedExpanded": 30000,
+          "selectedTransitions": 419813,
+          "selectedChoiceBranches": 240306,
+          "choiceReplayAttempts": 240306,
+          "choiceReplayBudgetExhaustions": 0,
+          "choiceBranchesDroppedByBudget": 0,
+          "cycleRegionsDetected": 0,
+          "cycleRegionCandidatesConsidered": 0,
+          "cycleRegionCandidatesAdmitted": 0,
+          "cycleRegionCandidatesDropped": 0,
+          "cycleRegionProgressEpochs": 0,
+          "cycleRegionProbeCandidatesAdmitted": 0,
+          "cycleRegionProgressCandidatesAdmitted": 0,
+          "cycleRegionMaxActionFamilies": 0,
+          "orderedMutationCandidatesAdmitted": 2048,
+          "orderedMutationLeaseExpiredBudget": 690,
+          "orderedMutationOrdinaryFallbacks": 262,
+          "orderedMutationColdAtomicCommitted": 64,
+          "orderedMutationColdAtomicRejected": 235,
+          "totalExpanded": 30000,
+          "totalTransitions": 419813,
+          "totalChoiceBranches": 240306,
+          "elapsedMilliseconds": 23776.1972,
+          "totalElapsedMilliseconds": 23791.9687,
+          "workerAllocatedBytes": 23179537408,
+          "totalWorkerAllocatedBytes": 23179631224,
+          "totalGen0Collections": 5,
+          "totalGen1Collections": 5,
+          "totalGen2Collections": 4,
+          "totalGcPauseMilliseconds": 1877.563,
+          "maxGcPauseMilliseconds": 1849.666,
+          "maxParallelConcurrency": 16,
+          "parallelActionReplayWaves": 1147,
+          "parallelActionReplayWorkItems": 110674,
+          "maxParallelActionReplayConcurrency": 16,
+          "deferredRoundChoiceActions": 13074,
+          "deferredRoundChoiceLayerWidthTotal": 102136,
+          "maxDeferredRoundChoiceLayerWidth": 56,
+          "deferredRoundChoiceFiniteQuotaFallbacks": 736,
+          "deferredRoundChoiceFinitePrimaryLayers": 12338,
+          "deferredRoundChoiceFinitePendingFallbacks": 736,
+          "parallelRoundChoiceReplayWaves": 1106,
+          "parallelRoundChoiceReplayWorkItems": 246822,
+          "maxParallelRoundChoiceReplayConcurrency": 16,
+          "searchedTurns": 5,
+          "shufflesCrossed": 1,
+          "score": 9999549978.1,
+          "projectedBattleHpLost": 19,
+          "potionCount": 0,
+          "potionUses": [],
+          "onlyDeathRoutes": false,
+          "finalHp": 4,
+          "finalEnemyHp": 0,
+          "combatEndedTurn": 5,
+          "capturedAtElapsedMilliseconds": 46748.9988,
+          "managedLiveBytes": 4183698928,
+          "managedHeapBytes": 11382014688,
+          "managedFragmentedBytes": 9317363032,
+          "workingSetBytes": 12808966144,
+          "privateMemoryBytes": 29975453696,
+          "configuredNoGcRegionEnabled": true,
+          "configuredNoGcRegionBudgetBytes": 16000000000,
+          "gcLatencyMode": "NoGCRegion",
+          "noGcRegionActive": true,
+          "noGcRegionBudgetBytes": 16000000000,
+          "noGcRegionRolloverCount": 0
+        },
+        "scheduling": {
+          "parallel_round_choice_work_items": "246822",
+          "parallel_action_waves": "1147",
+          "deferred_round_choice_finite_pending_fallbacks": "736",
+          "parallel_action_work_items": "110674",
+          "deferred_round_choice_actions": "13074",
+          "parallel_work_items": "29944",
+          "deferred_round_choice_finite_fallbacks": "736",
+          "deferred_round_choice_finite_primary_layers": "12338",
+          "parallel_waves": "1192",
+          "deferred_round_choice_width_total": "102136",
+          "parallel_round_choice_waves": "1106"
+        },
+        "probe": {
+          "fast": 14070,
+          "slow": 366197,
+          "eligibleParents": 2359,
+          "fallbackParents": 27585
+        }
+      },
+      {
+        "label": "A2",
+        "runId": "4745b80b22a840d9a9dbc5d7b8a20015",
+        "status": "Passed",
+        "metrics": {
+          "gcLifecycle": {
+            "forcedCollections": 2,
+            "noGcStartAttempts": 3,
+            "noGcStarts": 3,
+            "noGcEndAttempts": 2,
+            "noGcEnds": 2,
+            "noGcRestarts": 2,
+            "noGcLosses": 0
+          },
+          "gcLifecycleAttribution": "ExclusiveSearchScope",
+          "boundary": "NodeLimit",
+          "selectedExpanded": 30000,
+          "selectedTransitions": 419813,
+          "selectedChoiceBranches": 240306,
+          "choiceReplayAttempts": 240306,
+          "choiceReplayBudgetExhaustions": 0,
+          "choiceBranchesDroppedByBudget": 0,
+          "cycleRegionsDetected": 0,
+          "cycleRegionCandidatesConsidered": 0,
+          "cycleRegionCandidatesAdmitted": 0,
+          "cycleRegionCandidatesDropped": 0,
+          "cycleRegionProgressEpochs": 0,
+          "cycleRegionProbeCandidatesAdmitted": 0,
+          "cycleRegionProgressCandidatesAdmitted": 0,
+          "cycleRegionMaxActionFamilies": 0,
+          "orderedMutationCandidatesAdmitted": 2048,
+          "orderedMutationLeaseExpiredBudget": 690,
+          "orderedMutationOrdinaryFallbacks": 262,
+          "orderedMutationColdAtomicCommitted": 64,
+          "orderedMutationColdAtomicRejected": 235,
+          "totalExpanded": 30000,
+          "totalTransitions": 419813,
+          "totalChoiceBranches": 240306,
+          "elapsedMilliseconds": 22575.3872,
+          "totalElapsedMilliseconds": 22592.4707,
+          "workerAllocatedBytes": 23192230424,
+          "totalWorkerAllocatedBytes": 23192324240,
+          "totalGen0Collections": 4,
+          "totalGen1Collections": 4,
+          "totalGen2Collections": 4,
+          "totalGcPauseMilliseconds": 40.001,
+          "maxGcPauseMilliseconds": 19.182,
+          "maxParallelConcurrency": 16,
+          "parallelActionReplayWaves": 1145,
+          "parallelActionReplayWorkItems": 110660,
+          "maxParallelActionReplayConcurrency": 16,
+          "deferredRoundChoiceActions": 13073,
+          "deferredRoundChoiceLayerWidthTotal": 102273,
+          "maxDeferredRoundChoiceLayerWidth": 56,
+          "deferredRoundChoiceFiniteQuotaFallbacks": 736,
+          "deferredRoundChoiceFinitePrimaryLayers": 12337,
+          "deferredRoundChoiceFinitePendingFallbacks": 736,
+          "parallelRoundChoiceReplayWaves": 1103,
+          "parallelRoundChoiceReplayWorkItems": 246897,
+          "maxParallelRoundChoiceReplayConcurrency": 16,
+          "searchedTurns": 5,
+          "shufflesCrossed": 1,
+          "score": 9999549978.1,
+          "projectedBattleHpLost": 19,
+          "potionCount": 0,
+          "potionUses": [],
+          "onlyDeathRoutes": false,
+          "finalHp": 4,
+          "finalEnemyHp": 0,
+          "combatEndedTurn": 5,
+          "capturedAtElapsedMilliseconds": 45596.9894,
+          "managedLiveBytes": 4104293936,
+          "managedHeapBytes": 12297539400,
+          "managedFragmentedBytes": 10323814984,
+          "workingSetBytes": 13797728256,
+          "privateMemoryBytes": 30903681024,
+          "configuredNoGcRegionEnabled": true,
+          "configuredNoGcRegionBudgetBytes": 16000000000,
+          "gcLatencyMode": "NoGCRegion",
+          "noGcRegionActive": true,
+          "noGcRegionBudgetBytes": 16000000000,
+          "noGcRegionRolloverCount": 0
+        },
+        "scheduling": {
+          "parallel_round_choice_work_items": "246897",
+          "parallel_action_waves": "1145",
+          "deferred_round_choice_finite_pending_fallbacks": "736",
+          "parallel_action_work_items": "110660",
+          "deferred_round_choice_actions": "13073",
+          "parallel_work_items": "29955",
+          "deferred_round_choice_finite_fallbacks": "736",
+          "deferred_round_choice_finite_primary_layers": "12337",
+          "parallel_waves": "1190",
+          "deferred_round_choice_width_total": "102273",
+          "parallel_round_choice_waves": "1103"
+        }
+      }
+    ],
+    "decision": "Discarded: conservative first-fork certification covered only 3.70% of gated forks; both paired timings worsened, no production lock change.",
+    "instrumentation": "Candidate includes per-lane counters and one first-fork source certification scan per admitted parent; diagnostic helpers and candidate production edits were restored after build.",
+    "sourceEligibilityProbe": [
+      {
+        "key": "fork/eligible",
+        "calls": 16811
+      },
+      {
+        "key": "fork/fallback",
+        "calls": 403004
+      },
+      {
+        "key": "model/ArsenalPower/True",
+        "calls": 5861
+      },
+      {
+        "key": "model/AutomationPower/False",
+        "calls": 6663
+      },
+      {
+        "key": "model/BlackHolePower/True",
+        "calls": 7671
+      },
+      {
+        "key": "model/BlockNextTurnPower/True",
+        "calls": 404148
+      },
+      {
+        "key": "model/CalamityPower/False",
+        "calls": 2771
+      },
+      {
+        "key": "model/ChildOfTheStarsPower/True",
+        "calls": 6815
+      },
+      {
+        "key": "model/ColossusPower/True",
+        "calls": 732
+      },
+      {
+        "key": "model/ConquerorPower/True",
+        "calls": 4332
+      },
+      {
+        "key": "model/CrimsonMantlePower/True",
+        "calls": 108658
+      },
+      {
+        "key": "model/CrushUnderPower/True",
+        "calls": 4807
+      },
+      {
+        "key": "model/DarkShacklesPower/True",
+        "calls": 31269
+      },
+      {
+        "key": "model/DemonFormPower/True",
+        "calls": 9239
+      },
+      {
+        "key": "model/DexterityPower/True",
+        "calls": 49
+      },
+      {
+        "key": "model/DrawCardsNextTurnPower/True",
+        "calls": 12606
+      },
+      {
+        "key": "model/EnergyNextTurnPower/True",
+        "calls": 270
+      },
+      {
+        "key": "model/EntropyPower/True",
+        "calls": 344093
+      },
+      {
+        "key": "model/FastenPower/True",
+        "calls": 180967
+      },
+      {
+        "key": "model/FeelNoPainPower/True",
+        "calls": 269
+      },
+      {
+        "key": "model/FlameBarrierPower/True",
+        "calls": 14898
+      },
+      {
+        "key": "model/FurnacePower/True",
+        "calls": 97701
+      },
+      {
+        "key": "model/GenesisPower/True",
+        "calls": 1113
+      },
+      {
+        "key": "model/ImbalancedPower/True",
+        "calls": 419815
+      },
+      {
+        "key": "model/MayhemPower/True",
+        "calls": 1293
+      },
+      {
+        "key": "model/MonarchsGazePower/True",
+        "calls": 109
+      },
+      {
+        "key": "model/MonologuePower/False",
+        "calls": 32
+      },
+      {
+        "key": "model/NoBlockPower/True",
+        "calls": 343207
+      },
+      {
+        "key": "model/NostalgiaPower/True",
+        "calls": 24124
+      },
+      {
+        "key": "model/OrbitPower/False",
+        "calls": 16386
+      },
+      {
+        "key": "model/PanachePower/False",
+        "calls": 696
+      },
+      {
+        "key": "model/PlatingPower/True",
+        "calls": 80525
+      },
+      {
+        "key": "model/PrepTimePower/True",
+        "calls": 406120
+      },
+      {
+        "key": "model/RetainHandPower/True",
+        "calls": 110647
+      },
+      {
+        "key": "model/RollingBoulderPower/True",
+        "calls": 5187
+      },
+      {
+        "key": "model/SeekingEdgePower/True",
+        "calls": 35
+      },
+      {
+        "key": "model/SpectrumShiftPower/True",
+        "calls": 414997
+      },
+      {
+        "key": "model/StarNextTurnPower/True",
+        "calls": 398640
+      },
+      {
+        "key": "model/StratagemPower/True",
+        "calls": 739
+      },
+      {
+        "key": "model/StrengthPower/True",
+        "calls": 461000
+      },
+      {
+        "key": "model/TheBombPower/True",
+        "calls": 25
+      },
+      {
+        "key": "model/TheGambitPower/True",
+        "calls": 407135
+      },
+      {
+        "key": "model/ViciousPower/True",
+        "calls": 140
+      },
+      {
+        "key": "model/VigorPower/False",
+        "calls": 403004
+      },
+      {
+        "key": "model/VulnerablePower/True",
+        "calls": 16185
+      },
+      {
+        "key": "model/WeakPower/True",
+        "calls": 5336
+      },
+      {
+        "key": "store/CombatSolver.Engine.InCombat.Mirrors.Hooks.Attack.VigorPowerMirrors+State",
+        "calls": 1574449
+      },
+      {
+        "key": "store/CombatSolver.Engine.InCombat.Mirrors.Hooks.Card.AutomationPredictionState",
+        "calls": 5691
+      },
+      {
+        "key": "store/CombatSolver.Engine.InCombat.Mirrors.Hooks.Card.CardPlayPairPredictionState",
+        "calls": 2803
+      },
+      {
+        "key": "store/CombatSolver.Engine.InCombat.Mirrors.Hooks.Card.PanachePredictionState",
+        "calls": 696
+      }
+    ],
+    "prototypeDiagnostic": {
+      "fast": 14070,
+      "slow": 366180,
+      "eligibleParents": 2359,
+      "fallbackParents": 27598
+    }
   }
 }
