@@ -1,5 +1,7 @@
 # CombatSolver 测试清单
 
+本轮只读来源扫描：`tools/ChoiceSourceAudit` 读取1,284模型/5,955方法，202匹配调用点、0读取失败；85个显式选择调用点与原目录完全一致。能力授予关系补充后213模型逐项静态评估。该证据不等于模型行为或性能验收；见[来源清单](performance/choice-source-inventory-20260912.md)。
+
 本轮印牌历史查询：`GENERATION-HISTORY-CONTRACT`（`2a1fc39e85884552a90683036f4b3bc2`）通过，覆盖13,328次逐实例查询比较、129个保留历史分支及父子独立追加。瀑布巨兽／机甲A-B-B-A共8个正式无头请求Passed，93项搜索字段与136／54行完整路线一致；3项内存自适应并行批次数单列，不称96项全一致。累计分配下降0.79%／0.30%，稳定提速和峰值内存收益未建立。原包恢复为`restored_continuation`，native-state不可比较；诊断构建MVID绕行未进入生产。Release与结构门禁通过；无完整部署或可见验收。见[报告与数据](performance/generation-history-20260912.md)。
 
 ## 下一版本（开发中）：精简 fork

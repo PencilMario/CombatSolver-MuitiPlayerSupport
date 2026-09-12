@@ -7,6 +7,7 @@
 | 要查什么 | 入口 |
 |---|---|
 | 当前精简 fork、旧移植暂停、实测收益与小优化候选 | [手术刀式移植](performance/surgical-fixes-20260912.md) |
+| 全量选牌来源、间接印牌/自动出牌放大器与逐项优化判断 | [213项来源盘点](performance/choice-source-inventory-20260912.md) |
 | 印牌长战斗、历史反向查询与累计分配验证 | [生成历史查询](performance/generation-history-20260912.md) |
 | 同次快照按需读取关键字，保持原模拟器与评分 | [快照内部局部复用](performance/snapshot-reuse-20260912.md) |
 | 当前 CPU 热点、快照释放优化与交错对照 | [热点可消除工作](performance/hotspot-cuts-20260912.md) |
