@@ -289,6 +289,8 @@ internal sealed partial class CombatBeamSolver
                     liveCards, enemyHp, focus.TotalThreat, focus.IncomingHitCount, strategicRequirements, skillsExhaust) with
                 {
                     Act3BossInteractions = policy.Act3BossStrategy,
+                    FirstAttackDamage = policy.Act3BossStrategy
+                        ? CaptureFirstAttackDamage(simulator, combat, playerState, liveCards) : 0,
                 };
                 if (policy.Act3BossStrategy
                     && (hasPagestorm || danseMacabreEnergyThreshold > 0 || demesneAmount > 0))
@@ -1050,6 +1052,26 @@ internal sealed partial class CombatBeamSolver
             return false;
         return card.HasKeyword(simulator.State, CardKeyword.Ethereal)
             && Hook.ShouldEtherealTrigger(simulator.State.CombatState, card.Preview);
+    }
+
+    private int CaptureFirstAttackDamage(CombatPredictionSimulator simulator,
+        SimulatedCombatState combat, SimPlayerCombatState playerState, IReadOnlyList<PredictedCard> cards)
+    {
+        int energy = Math.Max(playerState.Energy, PersistentPowerSupport.GetModifiedMaxEnergy(combat, _player));
+        int best = 0;
+        foreach (PredictedCard card in cards)
+        {
+            if (card.Preview.Type != CardType.Attack || card.Preview.Tags.Contains(CardTag.OstyAttack)
+                || card.HasKeyword(simulator.State, CardKeyword.Unplayable)
+                || card.GetEnergyCostWithModifiers(simulator, playerState) > energy)
+                continue;
+            int hits = card.Preview is Eradicate ? Math.Max(0, energy)
+                : CardMechanismFacts.AttackHits(card.Preview.Id.Entry,
+                    card.Preview.DynamicVars.TryGetValue("Repeat", out var repeat) ? repeat.IntValue : 0);
+            int damage = (int)Math.Floor(CardChoiceSupport.DynamicVarBaseValue(card.Preview.DynamicVars, "Damage"));
+            best = Math.Max(best, damage * hits);
+        }
+        return best;
     }
 
     private static int LatentCardSetupValue(CardModel card)

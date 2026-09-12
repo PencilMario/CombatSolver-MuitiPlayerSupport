@@ -117,6 +117,8 @@ Hook 分发会省略当前原版类型继承的默认空回调，但保留第三
 
 ### 2.2 战略估值：会改变出牌顺序的 Power
 
+`FirstAttackDamage` 是三层首领特化中填充的首张攻击潜力，普通政策为0，使用范围及限制见下方专文；登记签名与优先级保持。
+
 ```csharp
 StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 ```

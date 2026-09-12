@@ -2,6 +2,10 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 首张攻击候选验收：`ACT3-BOSS-STRATEGY` / `c766b94275aa463c86f4fbc54ff28c5b` Passed，新增无攻击致命零收益、可支付根除多段估值及既有必要防御/斩杀/运转/增量合同；`act3-first-attack-48f8-deploy` / `cf45784a25264d8d93685f07ce0c2328` deployment_completed，原根continuation/native-state均通过，预测14战损/1药/T8/14612总展开，实际combatEnded=true、UnexpectedReplans:0。14是solverMetrics预测数，未另建实战HP流水核算。PowerShell结构门禁和Release构建通过，原始玩家零损尚未达到，三类首领整体优化目标仍未完成。
+
+- 首张攻击候选 `ACT3-SUBJECT-BUFFER-PATH` / `0ddca32df475422e9b2532b7c91c2fba` Passed：14战损/1药（T2）/T8/14612总展开，同政策/8k单搜索/20秒请求配置；与有限免伤基线26及旧预测基线20比较，目标改善，尚未原生部署。`act3-first-attack-f25c` 保留包22战损/0药/T13/13388总展开，仍获胜；不将节点上限边界视为未获胜，终局enemyHP=0。
+
 - 有限免伤预测 `ACT3-SUBJECT-BUFFER-PATH` / `25751afb185f4a639ee1325cbe3775d7` Passed：`[1]`、`[40]`、`[40,40]`、`[1,40,40]` 预测与MonsterMoveSemantics.DamagePlayer完整模拟HP一致，预测源分支不变；玩家五步终点、root/live不变及756条事件无丢失通过。此前`ba91283`/`86059c8`/`5c70c72`失败来自测试直接调用底层Damage，绕过已死亡奥斯提处理；逐击证据确认免伤已减为0，不能报告模拟无限免伤。当前整场搜索26战损/1药（T1）/T8/12896总展开，较此前20战损退步；正确威胁估计并不等于搜索质量通过，仍需组合策略优化及保留集/部署验证。Release构建与PowerShell结构门禁通过，未进行原生多段伤害实机差分。
 
 - 溢出减伤候选 `ACT3-SUBJECT-BUFFER-PATH` / `3ab164a1aeed430ab81f2a6c8485d385` Passed（35.30秒），756事件无丢失、原根和玩家五步终点不变。等价第四步ProjectedPlayerHp=48（此前34），排名245/340、未保留；第二步原始动作次序失去保留，第四步由其他顺序生成。此候选尚缺多段有限免伤反例与最终质量/部署验收，不计为已修复。

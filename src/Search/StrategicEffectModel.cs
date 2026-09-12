@@ -99,6 +99,7 @@ internal readonly record struct StrategicEffectContext(
     public int HighEnergyPlays { get; init; }
     public int DemesneEnergyGain { get; init; }
     public int DemesneDrawGain { get; init; }
+    public int FirstAttackDamage { get; init; }
 
     internal StrategicEffectContext WithExhaustDrawTiming(IReadOnlyList<PowerModel> powers,
         IReadOnlyList<PredictedCard> hand, Creature owner)
@@ -495,6 +496,9 @@ internal static class StrategicEffectModel
             AccuracyPower => Damage(amount * context.ShivPlays, enemyHp),
             SleightOfFleshPower => Damage(amount * context.DebuffApplications, enemyHp),
             StrengthPower => Damage(amount * (context.AttackHits ?? context.AttackPlays), enemyHp),
+            LethalityPower when context.Act3BossInteractions && context.AttackPlays > 0 => Damage(
+                context.FirstAttackDamage * Math.Min(context.AttackPlays, context.RemainingTurns)
+                    * amount / 100, enemyHp),
             LethalityPower when context.AttackPlays > 0 => Damage(
                 context.AverageAttackValue
                     * Math.Min(context.AttackPlays, context.RemainingTurns)

@@ -577,5 +577,16 @@ internal sealed partial class UnattendedTestRunner
             { CardId = "STRIKE_IRONCLAD", Pile = "Draw", Count = 6 });
         if ((await Capture(true)).DamagePotential <= 6 || (await Capture(false)) != ordinaryPrepTime)
             throw new InvalidOperationException("Recurring Vigor must value future attacks only in boss specialization.");
+
+        foreach (var power in player.Creature.Powers.ToArray()) await PowerCmd.Remove(power);
+        await ClearPlayerPilesAsync(player);
+        await InjectPowerAsync(combat, player, new UnattendedPowerInjection
+            { PowerId = "LETHALITY_POWER", Target = "Player", Amount = 75 });
+        if ((await Capture(true)).DamagePotential != 0)
+            throw new InvalidOperationException("Lethality requires an attack to realize its multiplier.");
+        await InjectCardAsync(combat, player, new UnattendedCardInjection
+            { CardId = "ERADICATE", Pile = "Draw", Count = 1 });
+        if ((await Capture(true)).DamagePotential <= (await Capture(false)).DamagePotential)
+            throw new InvalidOperationException("First-attack evaluation must account for payable Eradicate hits.");
     }
 }
