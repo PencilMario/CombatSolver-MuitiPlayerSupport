@@ -1,5 +1,7 @@
 # CombatSolver 测试清单
 
+本轮父节点预约优化：最终3万节点A-B-B-A八次Passed，89项质量/总工作字段和完整动作一致；并行专属调度计数单列。盛碗虫群/亡灵104 MiB压力、DOP1/DOP2、取消/错误排空与同根复用均通过，纯算术突增/溢出及Linux构建/结构门禁通过。详见[最终样本与失败后备反例](performance/bowlbugs-wave-admission-20260912.md)。
+
 本轮盛碗虫群剪枝边界：最终16GB区域A-B-B-A四次Passed、3万节点完整路线及108字段相等；1GB区域4万节点候选Passed，基线完成同量工作后因NoGC退出而失败，102项非时序字段及完整动作相等。中间5万节点测试失败并以TimeLimit结束，未伪装成通过。小区域有总耗时/最大暂停回退，宽裕区域平均耗时少2.24%、分配少7.44%；全部仅Linux无头诊断首个主搜索。详见[分配、GC和限制](performance/bowlbugs-slow-search-20260912.md#元数据边界后续与深度反例)与[机器可读指标](performance/bowlbugs-prune-20260912.json)。
 
 `STAND-PAT-MEMORY-BOUNDARY`最终盛碗虫群`160b0892d7024f27817bd1660a3e1581`（28.845秒）与独立亡灵`94bdb13661cb4d3ba403bada61e6858a`（8.277秒）均Passed：双lane取消/错误排空、原根复用、DOP1/DOP2及104MiB人工压力完整搜索等价、无色生成顺序/RNG/实例和计数Fork隔离。原224MiB人工压力因未穿过剪枝内边界而失败，未删覆盖断言；广域SearchPolicy历史SIGSEGV未解决，不能称完整门禁通过。生产Release构建0警告/0错误，Linux结构门禁通过（87个Search文件）。

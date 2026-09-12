@@ -1021,7 +1021,9 @@ internal sealed partial class CombatBeamSolver
         // A cheap first parent is not a safe predictor for the rest of a later play depth.
         // Retain the largest observed parent for the whole search so a new depth cannot
         // immediately rematerialize a wide wave that exceeds the No-GC allocation budget.
-        long parentAllocatedHighWater = 64L * 1024 * 1024;
+        // Keep the cold estimate separate: after observing complete parents, it is
+        // additional burst headroom for the wave, not a permanent per-parent floor.
+        long parentAllocatedHighWater = 0;
         // Keep each metadata interval indivisible, with checkpoints only at drained
         // ranking/probe boundaries. Estimate it separately using measured probe bytes;
         // never require the sum of every transient probe to fit a single No-GC region.
@@ -1032,7 +1034,7 @@ internal sealed partial class CombatBeamSolver
         long pruneHighWaterAllocatedBytes = 0;
 
         long ParentAllocationReserve()
-            => BufferedAllocationReserve(parentAllocatedHighWater);
+            => SearchWaveMemoryPolicy.SingleParentReserve(parentAllocatedHighWater);
 
         long PruneAllocationReserve(int inputCount)
             => PredictScaledPruneAllocationReserve(
@@ -1548,7 +1550,7 @@ internal sealed partial class CombatBeamSolver
                     : maximumQueuedParents;
 
                 long ParallelWaveAllocationReserve(int parentCount)
-                    => SearchWaveMemoryPolicy.Reserve(parentAllocatedHighWater, parentCount);
+                    => SearchWaveMemoryPolicy.ParentWaveReserve(parentAllocatedHighWater, parentCount);
 
                 int MemorySafeParallelWaveCapacity(int desiredCapacity)
                 {
@@ -1559,8 +1561,8 @@ internal sealed partial class CombatBeamSolver
                             ? Math.Min(2, desiredCapacity)
                             : desiredCapacity;
                     }
-                    return SearchWaveMemoryPolicy.Capacity(
-                        desiredCapacity, ParentAllocationReserve(), signal.RemainingBytes);
+                    return SearchWaveMemoryPolicy.ParentWaveCapacity(
+                        desiredCapacity, parentAllocatedHighWater, signal.RemainingBytes);
                 }
 
                 void ReclaimAfterCommittedWork(string reason)

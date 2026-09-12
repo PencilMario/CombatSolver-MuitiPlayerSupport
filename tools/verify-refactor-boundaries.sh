@@ -437,7 +437,7 @@ src/Runtime/SearchGcPolicy.cs	scope.CompleteLifecycle(CaptureLifecycle())
 src/Runtime/SolverController.cs	SearchGcPolicy.EnterSearchScope(
 src/Search/CombatBeamSolver.Models.cs	ExpansionBatchPool = new(static snapshot => snapshot.ReleaseSimulator())
 src/Search/CombatBeamSolver.ParallelExpansion.cs	new(_run.ExpansionBatchPool)
-src/Search/CombatBeamSolver.Phases.cs	SearchWaveMemoryPolicy.Capacity(
+src/Search/CombatBeamSolver.Phases.cs	SearchWaveMemoryPolicy.ParentWaveCapacity(
 src/Search/CombatBeamSolver.Models.cs	SnapshotListBuffer<PredictedCard> SnapshotLiveCards = new()
 src/Search/CombatBeamSolver.StateEvaluation.cs	_run.SnapshotLiveCards.Rent()
 EOF

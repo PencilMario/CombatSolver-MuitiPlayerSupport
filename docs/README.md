@@ -7,6 +7,7 @@
 | 要查什么 | 入口 |
 |---|---|
 | 当前精简 fork、旧移植暂停、实测收益与小优化候选 | [手术刀式移植](performance/surgical-fixes-20260912.md) |
+| 盛碗虫群小区域并行预约、实测提速与边界验证 | [父节点预约优化](performance/bowlbugs-wave-admission-20260912.md) |
 | 盛碗虫群慢搜索：原包分析、诊断恢复与药水历史分配优化 | [慢搜索原包分析](performance/bowlbugs-slow-search-20260912.md) |
 | 通用选牌令牌计数、卡牌/药水生成查询的迁移与搜索耗时 | [选牌小优化验证](performance/choice-migration-20260912.md) |
 | 全量选牌来源、间接印牌/自动出牌放大器与逐项优化判断 | [213项来源盘点](performance/choice-source-inventory-20260912.md) |

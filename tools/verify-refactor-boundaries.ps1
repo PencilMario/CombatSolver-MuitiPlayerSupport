@@ -324,7 +324,7 @@ foreach ($check in @(
     @{ RelativePath = "src/Search/CombatBeamSolver.ParallelExpansion.cs"; Text = "new(_run.ExpansionBatchPool)" },
     @{ RelativePath = "src/Search/CombatBeamSolver.Models.cs"; Text = "SnapshotListBuffer<PredictedCard> SnapshotLiveCards = new()" },
     @{ RelativePath = "src/Search/CombatBeamSolver.StateEvaluation.cs"; Text = "_run.SnapshotLiveCards.Rent()" },
-    @{ RelativePath = "src/Search/CombatBeamSolver.Phases.cs"; Text = "SearchWaveMemoryPolicy.Capacity(" })) {
+    @{ RelativePath = "src/Search/CombatBeamSolver.Phases.cs"; Text = "SearchWaveMemoryPolicy.ParentWaveCapacity(" })) {
     $checkPath = Join-Path $repositoryRoot $check.RelativePath
     if (-not (Select-String -LiteralPath $checkPath -SimpleMatch $check.Text -Quiet)) {
         $violations.Add("${checkPath}: missing GC research ownership boundary '$($check.Text)'")
