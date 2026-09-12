@@ -24,6 +24,15 @@ internal sealed partial class UnattendedTestRunner
                 CombatBeamSolver.VerifyPotionUseLineageKeyForTesting();
                 runner._completedChecks.Add("PotionLineage:Empty:Ordinal:Duplicates:LongRoute:SharedParent:Cached:MissingId");
             }
+            if (request.ScenarioId == "CHOICE-COMBINATION-CONTRACT")
+            {
+                runner.SetStage("choice_combination_contract");
+                string before = ContinuationStamp.CaptureLive(scenario.CombatState).StateText;
+                runner._completedChecks.Add(AssertChoiceCombinationContract(scenario.Player,
+                    SolverDisplayNames.Capture(scenario.CombatState)));
+                if (ContinuationStamp.CaptureLive(scenario.CombatState).StateText != before)
+                    throw new InvalidOperationException("Choice combination contract changed live combat.");
+            }
             if (request.ScenarioId == "CHOICE-TOKEN-CONTRACT")
             {
                 runner.SetStage("choice_token_contract");
