@@ -512,7 +512,7 @@ internal sealed partial class UnattendedTestRunner
                     expectedPlayerPowerObserved, InitialSearchHeld: false);
             }
 
-            if (request.ScenarioId == "ACT3-HOURGLASS-OPENING-PATH")
+            if (request.ScenarioId is "ACT3-HOURGLASS-OPENING-PATH" or "ACT3-HOURGLASS-POLICY-AB")
             {
                 _ = ApplySettingsOverrides();
                 int finishedTurn = await runner.TraceAct3HourglassOpeningAsync(combatState, player);

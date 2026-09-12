@@ -278,6 +278,18 @@ internal sealed partial class UnattendedTestRunner
             if (ContinuationStamp.CaptureLive(combat) != before)
                 throw new InvalidOperationException("Hourglass tracing changed the live root.");
         }
+        if (_request.ScenarioId == "ACT3-HOURGLASS-POLICY-AB")
+        {
+            await RunKnownRoutePathTraceAsync(combat, player, prefixes,
+                "HourglassProgressionFirst1", "hourglass_policy_p1", observedRetentionStep: 3,
+                finalBossStrategyOverride: BossHpStrategy.ProgressionFirst);
+            await RunKnownRoutePathTraceAsync(combat, player, prefixes,
+                "HourglassMinimizeHp", "hourglass_policy_min", observedRetentionStep: 3,
+                finalBossStrategyOverride: BossHpStrategy.MinimizeHpLoss);
+            return await RunKnownRoutePathTraceAsync(combat, player, prefixes,
+                "HourglassProgressionFirst2", "hourglass_policy_p2", observedRetentionStep: 3,
+                finalBossStrategyOverride: BossHpStrategy.ProgressionFirst);
+        }
         return await RunKnownRoutePathTraceAsync(combat, player, prefixes,
             "Act3HourglassOpening", "act3_hourglass_opening_path", observedRetentionStep: 3);
     }

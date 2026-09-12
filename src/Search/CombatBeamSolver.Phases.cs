@@ -454,7 +454,6 @@ internal sealed partial class CombatBeamSolver
             int potionBranchesRejected = ordering.PotionBranchesRejected;
             int potionHpSaved = ordering.PotionHpSaved;
             int potionHpRequired = ordering.PotionHpRequired;
-            int sellThreshold = SoldHpThreshold();
             int annotatedFutureSold = materializedAnnotations.SoldHpByTurn.Values.Sum();
             if (annotatedFutureSold != selectedCandidate.FutureSold)
             {
@@ -737,7 +736,6 @@ internal sealed partial class CombatBeamSolver
                 PotionBranchesRejected = potionBranchesRejected,
                 TheftPolicy = _theftPolicy,
                 OutstandingStolenResource = finalSnapshot.OutstandingStolenResource,
-                SoldHpThreshold = sellThreshold,
                 SoldHpByTurn = annotations.SoldHpByTurn,
                 HpLostByTurn = annotations.HpLostByTurn,
                 HpRecoveredByTurn = annotations.HpRecoveredByTurn,

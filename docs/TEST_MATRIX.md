@@ -2,6 +2,15 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 全局门槛删除实际部署 `act3-boss-cc8a-global-unlimited-investment-deploy` / `3565be06219e44a38006100861357a04` Passed：MinimizeHpLoss，预测54战损/0药/T6/6711展开，最终combatEnded=true、UnexpectedReplans:0。旧包起点continuation通过、native编码不可比较仍如实保留；该结果不声称已追平16战损见证。
+
+- 全局删除门槛构建：ACT3-BOSS-STRATEGY `576fff1ea930482ab6d5c0c19a707736` Passed，必要防御/斩杀/能力联动/增量保持；SEARCH-HP-TARGET-STOP `1e12c90762e249629242078b05473313` Passed，零损、关闭、并行、3战损阈值、狩猎兑现、强制一药与保留另一药保持；UI-LOCALIZATION `38b0c5d056d44a81af10eb30c4870257` Passed，eng/zhs/zht及模板/状态/实体快照合同通过。两次启动器进程路径读取失败各重试成功。PowerShell结构门禁通过（87个Search文件），Bash未执行；最终Release编译零警告/错误。
+
+- 全遭遇卖血门槛删除：源码已移除SoldHpThreshold解析、普通/精英/首领常量、累计开战HP裁剪及超门槛候选配额，编译通过。初次ACT3-BOSS-STRATEGY启动器未取得进程路径，未执行测试；重试结果另记。行为与UI合同待下列本次结果，不引用历史通过作为本次完成。
+
+- `ACT3-HOURGLASS-POLICY-AB` / `e67b47933aee4877a678c3373db810c7` Passed（40.51秒）：同进程、同一原根依次ProgressionFirst→MinimizeHpLoss→ProgressionFirst，前后均54战损/6756展开，中间死亡/6801；三次完整路线见证、根/live不变和无诊断丢失均通过。第三步原始排名均104，政策差异出现在后续，不能归因首层能力生成或进程随机性。
+- 新定位：BossSoldHpThreshold=15，与最终首领RunEnding的生存上限不同；超阈值路径进入收益证明/小型延迟投资集合。仅三层特化改为原生存上限候选后，`act3-boss-cc8a-minhp-survival-investment` 为54战损/0药/T6/6711展开，仍使用MinimizeHpLoss。保牌保钱保留原门槛逻辑，实际部署和跨样本另验。
+
 - 普通推进复核失败 `act3-boss-cc8a-minhp-ordinary-advance-deploy`：实际搜索为死亡/敌264/6532展开，执行到T7后玩家死亡，断言“战斗结束，但仍存在未死亡敌人”；UnexpectedReplans:0。汇总的restore_mismatch不是准确根因，continuation已通过。此前SearchOnly的52战损没有在部署入口复现，普通墙钟切层不能视为稳定修复，本次Phases改动已撤回。
 
 - 调度隔离 `act3-boss-cc8a-minhp-ordinary-slice`：保留能力估值、恢复普通时间切层，52战损/0药/T6/6733展开；同MinimizeHpLoss原特化死亡/敌252，关闭特化普通60战损/T7。去除准备时间仍死亡/敌342，故该退步早于准备时间改动。普通基线首回合在深度7/399展开因时间切层，节点特化前两层走了不同深度；各自固定同20秒/8000主搜profile，并非相同实际转移量。
