@@ -6,6 +6,7 @@
 
 | 要查什么 | 入口 |
 |---|---|
+| 克隆优化后剩余Power锁、同父Fork和回合尾部并行瓶颈 | [并行瓶颈定位](performance/parallel-bottlenecks-20260913.md) |
 | 真实 BaseLib 下原版卡牌克隆并行、保守回退与验证限制 | [克隆并行边界](performance/native-clone-parallelism-20260913.md) |
 | 当前精简 fork、旧移植暂停、实测收益与小优化候选 | [手术刀式移植](performance/surgical-fixes-20260912.md) |
 | 盛碗虫群小区域并行预约、实测提速与边界验证 | [父节点预约优化](performance/bowlbugs-wave-admission-20260912.md) |

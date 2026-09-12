@@ -1,5 +1,7 @@
 # CombatSolver 测试清单
 
+克隆后的并行定位：两次不同插桩的真实BaseLib/DOP16诊断均Passed，85项质量/总工作字段及22步完整路线一致。505万Power克隆占预测模型克隆88.11%，优先核对普通原版Power免锁；回合尾部占展开作业累计时间44.39%，窗口平均11.42个作业中lane（含锁等待）。线程时间有重叠和插桩扰动，不是提速结论；未改生产行为。见[瓶颈与后续顺序](performance/parallel-bottlenecks-20260913.md)。
+
 16并行速度对照：真实BaseLib下，优化前后各两个新进程，A-B-B-A固定3万节点全部Passed；平均24.0270→23.8943秒（少0.55%），配对方向不一致且GC波动，未建立明确提速。85项质量/总工作字段及22步完整路线一致，11项调度字段单列。见[16并行数据](performance/native-clone-parallelism-20260913.md#用户指定16并行速度对照)。
 
 本轮原版克隆并行：真实 BaseLib 3.4.7 / Ritsu 0.5.20 下，`MODEL-CLONE-CONCURRENCY`（`c05503851b6942d2a262334c026fa4ba`）及 `STAND-PAT-MEMORY-BOUNDARY`（`df6f42ada6d14b4da39346df0f534c94`）Passed。覆盖持锁双线程64次克隆、变量独占、第三方变量回退、跨域克隆/变量补丁刷新、live不变、DOP1/DOP2及104MiB人工压力等价和取消/错误排空复用。Release零警告零错误，Bash与PowerShell门禁均通过（Linux）。不作整场提速或可见性能结论；[详情与失败记录](performance/native-clone-parallelism-20260913.md)。
