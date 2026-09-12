@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "POTION-LINEAGE-CONTRACT")
+            {
+                runner.SetStage("potion_lineage_contract");
+                CombatBeamSolver.VerifyPotionUseLineageKeyForTesting();
+                runner._completedChecks.Add("PotionLineage:Empty:Ordinal:Duplicates:LongRoute:SharedParent:Cached:MissingId");
+            }
             if (request.ScenarioId == "CHOICE-TOKEN-CONTRACT")
             {
                 runner.SetStage("choice_token_contract");

@@ -7073,12 +7073,28 @@ internal sealed partial class CombatBeamSolver
                 && left.Snapshot.ProjectedPlayerHp == right.Snapshot.ProjectedPlayerHp
                 && left.Score.Equals(right.Score);
 
-        private static string PotionUseLineageKey(SearchNode node)
-            => string.Join(',', node.Actions
-                .Where(action => action.Kind == PlanActionKind.UsePotion)
-                .Select(action => action.PotionId
-                    ?? throw new InvalidOperationException("用药动作缺少药水 ID。"))
-                .OrderBy(static id => id, StringComparer.Ordinal));
+        internal static string PotionUseLineageKey(SearchNode node)
+        {
+            // Only the potion multiset participates in this key. Materializing Actions
+            // would retain an array for the entire route on every grouped candidate.
+            List<string>? potionIds = null;
+            int actionCount = 0;
+            for (SearchNode? current = node; current?.Action is { } action; current = current.Parent)
+            {
+                actionCount++;
+                if (action.Kind == PlanActionKind.UsePotion)
+                {
+                    (potionIds ??= []).Add(action.PotionId
+                        ?? throw new InvalidOperationException("用药动作缺少药水 ID。"));
+                }
+            }
+            if (actionCount != node.ActionCount)
+                throw new InvalidOperationException("搜索节点动作链长度不一致。");
+            if (potionIds == null)
+                return string.Empty;
+            potionIds.Sort(StringComparer.Ordinal);
+            return string.Join(',', potionIds);
+        }
 
         private static SearchNode? FindBestPotionLineage(IEnumerable<SearchNode> nodes)
             => nodes.Aggregate(
@@ -7785,6 +7801,57 @@ internal sealed partial class CombatBeamSolver
             throw new InvalidOperationException(
                 "不可同时满足药水 quota 时删除了更高优先级的 required 路线。");
         }
+    }
+
+    internal static void VerifyPotionUseLineageKeyForTesting()
+    {
+        static SearchNode Root() => new(null, 0, 0, 0, 1, default, 0, 0,
+            default, false, SearchBoundaryReason.None, false, null, null!, null!);
+        static SearchNode Append(SearchNode parent, PlanActionKind kind, string? id = null)
+            => new(new PlanAction(kind, parent.Turn, PotionId: id!), parent.ActionCount + 1,
+                parent.PotionCount + (kind == PlanActionKind.UsePotion ? 1 : 0),
+                0, parent.Turn, default, 0, 0, default, false,
+                SearchBoundaryReason.None, false, parent, null!, null!);
+        static void Verify(SearchNode node)
+        {
+            string actual = BeamRetentionPolicy.PotionUseLineageKey(node);
+            if (node.HasMaterializedActionsForTesting)
+                throw new InvalidOperationException("药水分组不应物化完整动作链。");
+            string expected = string.Join(',', node.Actions
+                .Where(action => action.Kind == PlanActionKind.UsePotion)
+                .Select(action => action.PotionId
+                    ?? throw new InvalidOperationException("用药动作缺少药水 ID。"))
+                .OrderBy(static id => id, StringComparer.Ordinal));
+            if (!string.Equals(actual, expected, StringComparison.Ordinal)
+                || BeamRetentionPolicy.PotionUseLineageKey(node) != expected)
+                throw new InvalidOperationException("药水谱系键与原完整历史算法不同。");
+        }
+        Verify(Root());
+        foreach (string[] ids in new string[][] { ["Z"], ["Z", "A", "Z"], ["", "a", "A", "药水", ","] })
+        {
+            SearchNode node = Root();
+            foreach (string id in ids)
+            {
+                for (int index = 0; index < 257; index++)
+                    node = Append(node, index % 2 == 0 ? PlanActionKind.PlayCard : PlanActionKind.EndTurn);
+                node = Append(node, PlanActionKind.UsePotion, id);
+            }
+            Verify(node);
+        }
+        SearchNode shared = Append(Root(), PlanActionKind.UsePotion, "ROOT");
+        Verify(Append(shared, PlanActionKind.UsePotion, "LEFT"));
+        Verify(Append(shared, PlanActionKind.UsePotion, "RIGHT"));
+        if (shared.HasMaterializedActionsForTesting)
+            throw new InvalidOperationException("药水分组不应物化共享父链。");
+        try
+        {
+            BeamRetentionPolicy.PotionUseLineageKey(Append(Root(), PlanActionKind.UsePotion));
+        }
+        catch (InvalidOperationException exception) when (exception.Message == "用药动作缺少药水 ID。")
+        {
+            return;
+        }
+        throw new InvalidOperationException("药水 ID 缺失必须显式失败。");
     }
 
     internal void VerifyFinalPolicyQualificationRetentionForTesting(string potionId, int forcedSlot)

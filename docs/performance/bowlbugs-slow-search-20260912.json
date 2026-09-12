@@ -1,7 +1,7 @@
 {
   "reportId": "cde8c59b38f14d8999bd0fb822d892d2",
   "declaredModVersion": "0.36.4.0",
-  "modSourceCommit": null,
+  "modSourceCommit": "87c2b7fae8a441de103c01d194d8cda1db61d531",
   "scope": "original Windows logs; no replay or CPU profile",
   "searchRequestCount": 1,
   "resultCount": 0,
@@ -413,5 +413,6 @@
     "Cannot attribute the entire gap to GC; waits and CPU unprofiled",
     "A relic goal disables HP-only incumbent bounds in current source, but marginal impact unmeasured",
     "Export checkpoint failed during mutable collection enumeration; earlier two checkpoints present"
-  ]
+  ],
+  "modSourceCommitEvidence": "replay/checkpoint.json build.solverInformationalVersion"
 }
