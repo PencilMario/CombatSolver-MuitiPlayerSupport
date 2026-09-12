@@ -2,6 +2,9 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 用户指定跳过18359灰水包：`act3-queen-exhaust-1835-current` 50/0药/T9/13756展开；`:5`玩家11原生事件后continuation/native-state均通过，后续7/0额外药/T8/6672展开。消耗引擎连续展开候选47/0药/T7/13633展开，未定版已撤回；专属追踪`0d290923a2c143b9a89158d681fa7d0a`在恢复阶段recorded_input_stalled，未跑到路径观察。泛化所有能力候选cc8a未获胜（64/敌方174/6835），已撤回；同候选18359启动器38348未暴露进程路径，不能报告搜索崩溃。恢复de685ec行为后Release构建通过。
+- 女王230888玩家后状态恢复失败：Y旧0/0与当前0/0/0/0差异，native编码不可比；没有扩大旧字段迁移权限，不宣称玩家路线已严格复现。
+
 - 取能力后连续展开：`d328e5afa35c43d1a5f15691f9395d0a` 与扩展到T2观察的 `b1433fb7f1584989bc40ed22a3d314d0` Passed，11战损/1药（T1）/T6；五个原始动作都准确生成和展开，第六步EndTurn进入T2为48HP、随后在跨回合PruneInput后未保留。扩展观察首次启动器进程路径读取失败，重试通过。`act3-fetched-followup-f25c` 保持22/0药/T13/12330总展开。`ACT3-BOSS-STRATEGY` / `de3503a330304ed3b771f5679933aa51` Passed；`act3-fetched-followup-48f8-deploy` / `4fdcb50c7c2c4006b350a4d6ebbd25a0` 实际combatEnded=true、UnexpectedReplans:0，预测11/1药/T6/14786总展开。Release和PowerShell结构门禁通过。
 - 女王230888新增基线：材料预检通过；原根:1当前30战损/0药/T9/5453展开，continuation通过、旧native-state编码不可比，不以报告37→11直接宣称新改动收益。玩家:3短前缀后续验证另记。
 
