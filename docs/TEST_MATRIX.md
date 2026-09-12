@@ -1,5 +1,7 @@
 # CombatSolver 测试清单
 
+16并行速度对照：真实BaseLib下，优化前后各两个新进程，A-B-B-A固定3万节点全部Passed；平均24.0270→23.8943秒（少0.55%），配对方向不一致且GC波动，未建立明确提速。85项质量/总工作字段及22步完整路线一致，11项调度字段单列。见[16并行数据](performance/native-clone-parallelism-20260913.md#用户指定16并行速度对照)。
+
 本轮原版克隆并行：真实 BaseLib 3.4.7 / Ritsu 0.5.20 下，`MODEL-CLONE-CONCURRENCY`（`c05503851b6942d2a262334c026fa4ba`）及 `STAND-PAT-MEMORY-BOUNDARY`（`df6f42ada6d14b4da39346df0f534c94`）Passed。覆盖持锁双线程64次克隆、变量独占、第三方变量回退、跨域克隆/变量补丁刷新、live不变、DOP1/DOP2及104MiB人工压力等价和取消/错误排空复用。Release零警告零错误，Bash与PowerShell门禁均通过（Linux）。不作整场提速或可见性能结论；[详情与失败记录](performance/native-clone-parallelism-20260913.md)。
 
 本轮父节点预约优化：最终3万节点A-B-B-A八次Passed，89项质量/总工作字段和完整动作一致；并行专属调度计数单列。盛碗虫群/亡灵104 MiB压力、DOP1/DOP2、取消/错误排空与同根复用均通过，纯算术突增/溢出及Linux构建/结构门禁通过。详见[最终样本与失败后备反例](performance/bowlbugs-wave-admission-20260912.md)。
