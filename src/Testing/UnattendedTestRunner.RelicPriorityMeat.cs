@@ -54,18 +54,33 @@ internal sealed partial class UnattendedTestRunner
         Check(meat.Snapshot.AllEnemiesDead && meat.Snapshot.RelicCounters.Satisfied
             && meat.PostCombatRelicHeal > 0 && meat.Snapshot.PlayerHp + meat.PostCombatRelicHeal > initialHp
             , $"half-HP route earns net post-combat healing: won={meat.Snapshot.AllEnemiesDead} satisfied={meat.Snapshot.RelicCounters.Satisfied} hp={meat.Snapshot.PlayerHp} heal={meat.PostCombatRelicHeal} initial={initialHp} actions={string.Join(',', meat.BestNode.Actions.Select(a => a.CardId))}");
-        int threshold = player.Creature.MaxHp / 2;
-        int heal = root.PostCombatRelicHeal.HealFor(threshold, player.Creature.MaxHp);
-        foreach (int start in new[] { threshold + heal, threshold + heal + 1 })
+        await CreatureCmd.SetMaxHp(player.Creature, 70);
+        // EndTurn also wins before the enemy can offer an alternative, cheaper HP payment.
+        await InjectPowerAsync(combat, player, new UnattendedPowerInjection { PowerId = "POISON_POWER", Target = "Enemy", Amount = 1 });
+        foreach (int extraLoss in new[] { 1, 12, 13 })
         {
-            await CreatureCmd.SetCurrentHp(player.Creature, start);
+            await ClearPlayerPilesAsync(player);
+            await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = "BLOODLETTING", Pile = "Hand", UpgradeLevels = 1,
+                DynamicVars = new() { ["HpLoss"] = 14 } });
+            await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = "BLOODLETTING", Pile = "Hand",
+                DynamicVars = new() { ["HpLoss"] = extraLoss } });
+            await InjectCardAsync(combat, player, new UnattendedCardInjection { CardId = "STRIKE_IRONCLAD", Pile = "Hand" });
+            await CreatureCmd.SetCurrentHp(player.Creature, 50);
             root = CombatRootSnapshot.Capture(combat); names = SolverDisplayNames.Capture(combat); damage = BattleDamageTracker.Observe(combat);
             policy = policy with { RelicTargets = new[] { new RelicCounterTarget(RelicCounterId.MeatOnTheBone, 1, 1, 1000, 2, 3) } };
-            var unprofitable = await Task.Run(() => CombatSearchCoordinator.Solve(root, names, damage, policy, CancellationToken.None, null));
-            Check(!unprofitable.Snapshot.RelicCounters.Satisfied && unprofitable.Snapshot.PlayerHp == start
-                && unprofitable.Snapshot.RelicCounters.HpCredit == 0,
-                "break-even or negative healing must not earn allowance or induce HP loss");
+            // Preserve the same 14-HP prefix for both alternatives, representing an already chosen policy cost.
+            var prefix = new[] { new PlanAction(PlanActionKind.PlayCard, root.StartTurnNumber,
+                CardId: "BLOODLETTING", CardUpgradeLevel: 1) };
+            var result = await Task.Run(() => new CombatBeamSolver(root, names, damage, policy,
+                searchProfile: policy.Profile, fixedPrefixActions: prefix).Solve());
+            int expectedHp = extraLoss == 1 ? 35 : 36;
+            Check(result.Snapshot.AllEnemiesDead && result.Snapshot.PlayerHp == expectedHp
+                && result.Snapshot.RelicCounters.HpCredit == 0,
+                $"incremental cost {extraLoss}: expected HP {expectedHp}, actual {result.Snapshot.PlayerHp}");
+            if (extraLoss == 1)
+                Check(result.PostCombatRelicHeal == 12 && result.Snapshot.PlayerHp + result.PostCombatRelicHeal == 47,
+                    "50 -> 36 -> 35 -> 47 earns 11 HP over stopping at 36");
         }
-        _completedChecks.Add("RelicPriority:LegacyDefault:NoExtraHpAllowance:MeatStrictNetGain:BreakEvenAndLossRejected:IncrementalReplay");
+        _completedChecks.Add("RelicPriority:LegacyDefault:NoExtraHpAllowance:MeatIncrementalGain:50to36to35to47:BreakEvenAndLossRejected:IncrementalReplay");
     }
 }

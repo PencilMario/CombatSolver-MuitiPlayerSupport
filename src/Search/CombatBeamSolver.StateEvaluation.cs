@@ -198,17 +198,15 @@ internal sealed partial class CombatBeamSolver
             SolverWeights.LongTermResourceBeamCap);
         int growthHpCredit = _growthBudgets.Credit(growthRewards);
         score += (double)growthHpCredit * hpWeight;
-        bool meatHasNetGain = player.CurrentHp + root.PostCombatRelicHeal.HealFor(player.CurrentHp, player.MaxHp)
-            > root.InitialPlayerHp;
-        RelicCounterEvaluation relicCounters = combat.EvaluateRelicCounters(simulator, _player, _relicTargets, meatHasNetGain);
+        RelicCounterEvaluation relicCounters = combat.EvaluateRelicCounters(simulator, _player, _relicTargets);
         if (won && (relicCounters.SatisfiedMask & (1UL << (int)RelicCounterId.MeatOnTheBone)) != 0)
         {
             int thresholdHeal = root.PostCombatRelicHeal.HealFor(player.CurrentHp, player.MaxHp)
                 - root.PostCombatRelicHeal.MonotoneHealFor(player.CurrentHp, player.MaxHp);
-            relicCounters = relicCounters with { HpCredit = relicCounters.HpCredit
-                + ActEndingBossPolicy.PersistentValueOfRecoveredHp(thresholdHeal, _strategicBossHpRelief) };
+            relicCounters = relicCounters with { HealingHpCredit =
+                ActEndingBossPolicy.PersistentValueOfRecoveredHp(thresholdHeal, _strategicBossHpRelief) };
         }
-        score += (double)relicCounters.HpCredit * hpWeight;
+        score += (double)(relicCounters.HpCredit + relicCounters.HealingHpCredit) * hpWeight;
         // Small, bounded tie guidance for free counter alignment; HP remains the primary cost.
         score += relicCounters.SatisfiedPriority * 0.1 - relicCounters.Distance * 0.001;
         int angerCopiesGenerated = combat.AngerCopiesGenerated;

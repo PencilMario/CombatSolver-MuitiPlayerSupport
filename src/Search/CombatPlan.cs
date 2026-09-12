@@ -1259,7 +1259,8 @@ internal sealed class SimulationSnapshot(
 
     public int LongTermResourceValue { get; } = longTermResourceValue;
     public RelicCounterEvaluation RelicCounters { get; init; }
-    public int StrategicHpCredit => GrowthHpCredit + RelicCounters.HpCredit;
+    public int StrategyGoalHpCredit => GrowthHpCredit + RelicCounters.HpCredit;
+    public int StrategicHpCredit => StrategyGoalHpCredit + RelicCounters.HealingHpCredit;
     public int StrategyGoalCount => GrowthRewards.Total + RelicCounters.SatisfiedPriority;
     public int GrowthHpCredit { get; init; }
     public GrowthValues GrowthRewards { get; init; }
@@ -1386,7 +1387,8 @@ internal sealed record SolverSnapshot(
     public int? UnrecoveredGold { get; init; }
     public int? UnrecoveredCards { get; init; }
     public RelicCounterEvaluation RelicCounters { get; init; }
-    public int StrategicHpCredit => GrowthHpCredit + RelicCounters.HpCredit;
+    public int StrategyGoalHpCredit => GrowthHpCredit + RelicCounters.HpCredit;
+    public int StrategicHpCredit => StrategyGoalHpCredit + RelicCounters.HealingHpCredit;
     public int StrategyGoalCount => GrowthRewards.Total + RelicCounters.SatisfiedPriority;
     public int GrowthHpCredit { get; init; }
     public GrowthValues GrowthRewards { get; init; }

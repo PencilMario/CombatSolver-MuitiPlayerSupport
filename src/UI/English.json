@@ -141,7 +141,7 @@
   "优先级（3 最高）": "Priority (3 highest)",
   "战斗结束前保持半血或以下，计入战后回血。": "End combat at half HP or below; post-combat healing is included.",
   "半血回血": "Half-HP healing",
-  "仅在战后生命高于本次计算起点时卡半血。": "Target half HP only when post-combat HP exceeds this search's starting HP.",
+  "结合其他策略比较净战损，仅为有收益的半血回血额外卖血。": "Compare net HP loss alongside other goals; spend extra HP only when half-HP healing pays off.",
   "预计路线结果": "Projected outcome",
   "当前搜索进度": "Current search progress",
   "已卡：{0}": "Counters aligned: {0}",
