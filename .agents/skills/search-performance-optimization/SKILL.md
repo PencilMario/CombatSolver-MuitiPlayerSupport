@@ -20,6 +20,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - `BeamRetentionPolicy` 决定中间候选保留；
 - `FinalPlanOrdering` 决定终局路线；
 - `SearchRunContext` 拥有单次运行指标、转置和缓存；
+- 就绪负缓存实验已因正式对照两对更慢而撤回，生产不含该缓存。它只省去同父状态未变化时的重复选择数组扫描；coordinator派发/接收时失效，不减少父槽轮询或邮箱次数。诊断命中时重扫可验证失效覆盖，不能把数组扫描减少率当作整搜提速。
 - `CombatBeamSolver.Transpositions` 保持原六维支配关系与接纳顺序；单标签内联，多标签才分配List，重新缩为单标签时释放容器。只改变存储形态，不能清空仍有消费者的判重表来追求GC指标。
 - `CombatSearchCoordinator` 组织主搜索与药水反事实。
 
