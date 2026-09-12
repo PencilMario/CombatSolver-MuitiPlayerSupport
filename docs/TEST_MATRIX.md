@@ -2,6 +2,8 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 失败实验已撤回：手牌可支付致命按同一FirstAttackDamage未来收益替代固定8点，`ACT3-SUBJECT-BUFFER-PATH` / `d8e8f11ae39d448890cc3ed8d6e4e6e1` 路径合同Passed，但质量35战损/0药/T6/11835总展开，较14战损/1药候选退步。仅手牌潜力增加不能证明能力投资的完整路线质量；恢复dcd3864生产行为，不重复已通过同产物验证。
+
 - 首张攻击候选验收：`ACT3-BOSS-STRATEGY` / `c766b94275aa463c86f4fbc54ff28c5b` Passed，新增无攻击致命零收益、可支付根除多段估值及既有必要防御/斩杀/运转/增量合同；`act3-first-attack-48f8-deploy` / `cf45784a25264d8d93685f07ce0c2328` deployment_completed，原根continuation/native-state均通过，预测14战损/1药/T8/14612总展开，实际combatEnded=true、UnexpectedReplans:0。14是solverMetrics预测数，未另建实战HP流水核算。PowerShell结构门禁和Release构建通过，原始玩家零损尚未达到，三类首领整体优化目标仍未完成。
 
 - 首张攻击候选 `ACT3-SUBJECT-BUFFER-PATH` / `0ddca32df475422e9b2532b7c91c2fba` Passed：14战损/1药（T2）/T8/14612总展开，同政策/8k单搜索/20秒请求配置；与有限免伤基线26及旧预测基线20比较，目标改善，尚未原生部署。`act3-first-attack-f25c` 保留包22战损/0药/T13/13388总展开，仍获胜；不将节点上限边界视为未获胜，终局enemyHP=0。
