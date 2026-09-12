@@ -98,6 +98,17 @@ internal sealed partial class UnattendedTestRunner
                 finally { probe.ReleaseSimulator(); }
             }
             _completedChecks.Add("Act3SubjectBuffer:BlockedHit:OstyOverflow:FiniteMultiHit:ProjectionMatchesDamageSettlement");
+            var endTurn = new PlanAction(PlanActionKind.EndTurn, 1);
+            actions.Add(endTurn);
+            parent.ReleaseSimulator();
+            parent = driver.ReplayDiagnosticPrefix(actions);
+            if (parent.HasRisk || parent.PlayerDead || parent.BoundaryReason != SearchBoundaryReason.None)
+                throw new InvalidOperationException("Recorded setup could not reach its second turn.");
+            prefixes.Add(FreezeKnownRoutePrefix(endTurn, CaptureSimulated(parent.Simulator,
+                (SimulatedCombatState)parent.Simulator.State.CombatState, player, combat.Enemies[0]), parent));
+            if (parent.PlayerHp != 48)
+                throw new InvalidOperationException("Recorded buffer setup must reach turn two at 48 HP.");
+            _completedChecks.Add("Act3SubjectBuffer:SetupEndsTurnAtFullStartingHp");
         }
         finally
         {

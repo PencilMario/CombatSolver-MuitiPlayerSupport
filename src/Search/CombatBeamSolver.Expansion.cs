@@ -517,6 +517,17 @@ internal sealed partial class CombatBeamSolver
         }
     }
 
+    private bool HasPlayableFetchedPower(SearchNode node)
+    {
+        if (node.Action?.Choice is not { Effect: PlanChoiceEffect.MoveToHand } choice)
+            return false;
+        var simulator = (CombatPredictionSimulator)node.Snapshot.Simulator;
+        var combat = (SimulatedCombatState)simulator.State.CombatState;
+        return simulator.State.GetPlayerCombatState(_player).Hand.Cards.Any(card =>
+            card.Preview.Type == CardType.Power && combat.CanPlayCard(simulator, card)
+            && choice.Cards.Any(token => CardChoiceSupport.MatchesToken(card, token)));
+    }
+
     private IEnumerable<SearchNode> Expand(SearchNode node)
     {
         cancellationToken.ThrowIfCancellationRequested();

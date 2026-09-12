@@ -1724,6 +1724,33 @@ internal sealed partial class CombatBeamSolver
                     else
                         ReleaseNodeLimitSnapshot(active[activeIndex]);
                 }
+                if (policy.Act3BossStrategy && searchedTurnLayers == 0 && !acceptableBattleHpLossReached)
+                {
+                    // Settle a fetched, payable power's next decision before ranking the
+                    // intermediate selection. Expand all legal successors using the normal
+                    // transposition and node accounting; ordinary alternatives remain legal.
+                    SearchNode[] commitments = nextPlays.Where(HasPlayableFetchedPower).ToArray();
+                    foreach (SearchNode commitment in commitments)
+                    {
+                        if (_run.Expanded >= _profile.MaxExpandedNodes || acceptableBattleHpLossReached
+                            || !policy.VerifyIncrementalSearch
+                                && stopwatch.ElapsedMilliseconds >= _profile.SoftTimeBudgetMilliseconds)
+                            break;
+                        EnsureMemoryForIndivisibleCommit(ParentAllocationReserve(),
+                            "before_fetched_power_followup", playDepth, nextPlays.Count, ended.Count);
+                        long allocatedBefore = policy.MemoryPressureSignal.AllocatedBytes;
+                        foreach (SearchNode successor in Expand(commitment))
+                        {
+                            AcceptExpandedChild(commitment, successor);
+                            if (_run.Expanded >= _profile.MaxExpandedNodes || acceptableBattleHpLossReached)
+                                break;
+                        }
+                        nextPlays.Remove(commitment);
+                        commitment.Snapshot.ReleaseSimulator();
+                        ObserveParentAllocation(Math.Max(0, policy.MemoryPressureSignal.AllocatedBytes - allocatedBefore));
+                        ReclaimAfterCommittedWork("after_fetched_power_followup");
+                    }
+                }
                 if (acceptableBattleHpLossReached)
                 {
                     foreach (SearchNode pending in nextPlays)

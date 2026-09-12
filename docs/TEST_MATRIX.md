@@ -2,6 +2,9 @@
 
 ## 下一版本（开发中）：三层首领策略
 
+- 取能力后连续展开：`d328e5afa35c43d1a5f15691f9395d0a` 与扩展到T2观察的 `b1433fb7f1584989bc40ed22a3d314d0` Passed，11战损/1药（T1）/T6；五个原始动作都准确生成和展开，第六步EndTurn进入T2为48HP、随后在跨回合PruneInput后未保留。扩展观察首次启动器进程路径读取失败，重试通过。`act3-fetched-followup-f25c` 保持22/0药/T13/12330总展开。`ACT3-BOSS-STRATEGY` / `de3503a330304ed3b771f5679933aa51` Passed；`act3-fetched-followup-48f8-deploy` / `4fdcb50c7c2c4006b350a4d6ebbd25a0` 实际combatEnded=true、UnexpectedReplans:0，预测11/1药/T6/14786总展开。Release和PowerShell结构门禁通过。
+- 女王230888新增基线：材料预检通过；原根:1当前30战损/0药/T9/5453展开，continuation通过、旧native-state编码不可比，不以报告37→11直接宣称新改动收益。玩家:3短前缀后续验证另记。
+
 - 失败实验已撤回：手牌可支付致命按同一FirstAttackDamage未来收益替代固定8点，`ACT3-SUBJECT-BUFFER-PATH` / `d8e8f11ae39d448890cc3ed8d6e4e6e1` 路径合同Passed，但质量35战损/0药/T6/11835总展开，较14战损/1药候选退步。仅手牌潜力增加不能证明能力投资的完整路线质量；恢复dcd3864生产行为，不重复已通过同产物验证。
 
 - 首张攻击候选验收：`ACT3-BOSS-STRATEGY` / `c766b94275aa463c86f4fbc54ff28c5b` Passed，新增无攻击致命零收益、可支付根除多段估值及既有必要防御/斩杀/运转/增量合同；`act3-first-attack-48f8-deploy` / `cf45784a25264d8d93685f07ce0c2328` deployment_completed，原根continuation/native-state均通过，预测14战损/1药/T8/14612总展开，实际combatEnded=true、UnexpectedReplans:0。14是solverMetrics预测数，未另建实战HP流水核算。PowerShell结构门禁和Release构建通过，原始玩家零损尚未达到，三类首领整体优化目标仍未完成。
