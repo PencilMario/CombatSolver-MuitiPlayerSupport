@@ -897,7 +897,8 @@ internal sealed partial class CombatBeamSolver
     }
 
     private IReadOnlyList<CrossTurnStandPatBaseline>? GenerateRawEndTurnCandidates(
-        SearchNode node, ExpansionBatch batch, bool publishBaselines = true)
+        SearchNode node, ExpansionBatch batch, bool publishBaselines = true,
+        IEnumerable<(PlanAction Action, SimulationSnapshot Snapshot)>? resolvedBranches = null)
     {
         SimulationSnapshot snapshot = node.Snapshot;
         if (snapshot.PlayerDead || snapshot.AllEnemiesDead)
@@ -907,7 +908,7 @@ internal sealed partial class CombatBeamSolver
             ReferenceEquals(FindTurnStart(node), node)
             ? []
             : null;
-        foreach ((PlanAction endAction, SimulationSnapshot endSnapshot) in BuildEndTurnBranches(node, []))
+        foreach ((PlanAction endAction, SimulationSnapshot endSnapshot) in resolvedBranches ?? BuildEndTurnBranches(node, []))
         {
             int nextTurn = endSnapshot.Turn;
             bool combatEnded = endSnapshot.PlayerDead || endSnapshot.AllEnemiesDead;

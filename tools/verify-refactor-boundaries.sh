@@ -489,6 +489,7 @@ done
 expected_beam_files=(
     CombatBeamSolver.cs
     CombatBeamSolver.AdmittedExpansion.cs
+    CombatBeamSolver.EndTurnChoiceReplay.cs
     CombatBeamSolver.BeamRetentionPolicy.cs
     CombatBeamSolver.CrossTurnPlanning.cs
     CombatBeamSolver.CyclePlanning.cs
@@ -552,7 +553,7 @@ CombatBeamSolver.AdmittedExpansion.cs	wave.BackgroundCompleted.Wait();
 CombatBeamSolver.AdmittedExpansion.cs	while (committed < parents.Length && parents[committed]!.TailCompleted)
 CombatBeamSolver.AdmittedExpansion.cs	_completedActions != Actions!.Count
 CombatBeamSolver.AdmittedExpansion.cs	_completedPotions != Potions!.Count
-CombatBeamSolver.AdmittedExpansion.cs	GenerateRawEndTurnCandidates(parent, batch, publishBaselines: false)
+CombatBeamSolver.EndTurnChoiceReplay.cs	private PreparedEndTurnEvaluation EvaluatePreparedEndTurn(
 CombatBeamSolver.AdmittedExpansion.cs	endTurn.TransferEndTurnTo(Aggregate!, candidate);
 CombatBeamSolver.AdmittedExpansion.cs	PublishCrossTurnStandPatBaselines(Node, _endTurnBaselines);
 CombatBeamSolver.AdmittedExpansion.cs	ready.TransferPotionTo(Aggregate!, candidate);
@@ -561,6 +562,9 @@ CombatBeamSolver.PrimaryChoiceReplay.cs	=> branches >= 2 && finals >= branches &
 CombatBeamSolver.PrimaryChoiceReplay.cs	public bool CanDispatchContinuation => CompletedReplays == Actions.Length
 CombatBeamSolver.PrimaryChoiceReplay.cs	if (!budget.TrySpendReplayAttempt())
 CombatBeamSolver.PrimaryChoiceReplay.cs	frontier.AssertConsumed();
+CombatBeamSolver.EndTurnChoiceReplay.cs	CanReservePrimaryReplayPrefix(layer.Layer.Branches.Count,
+CombatBeamSolver.EndTurnChoiceReplay.cs	ResolveCollectedOccurrenceChoiceBranches(parent, layer.Occurrences)
+CombatBeamSolver.AdmittedExpansion.cs	_endTurnFrontier?.Dispose();
 CombatBeamSolver.PrimaryChoiceReplay.cs	if (index != NextReplay || count < 1 || count > 4 || index + count > Actions.Length)
 CombatBeamSolver.Models.cs	public ParallelExpansionExecutor? ActiveParallelExpansion;
 CombatBeamSolver.ParallelExpansion.cs	_coordinator._run.ActiveParallelExpansion = null;

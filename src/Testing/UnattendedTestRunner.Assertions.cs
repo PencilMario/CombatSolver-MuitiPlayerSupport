@@ -123,6 +123,12 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("PowerCloneConcurrency");
                 runner._completedChecks.Add("ModelCloneConcurrency");
             }
+            if (request.ScenarioId == "END-TURN-CHOICE-REPLAY")
+            {
+                runner.SetStage("end_turn_choice_replay");
+                await AssertEndTurnChoiceReplayAsync(scenario.CombatState);
+                runner._completedChecks.Add("EndTurnChoiceReplay");
+            }
             if (request.ScenarioId == "EARLY-END-TURN")
             {
                 runner.SetStage("early_end_turn");

@@ -12,7 +12,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 读取 `docs/ARCHITECTURE.md` 的 Search 章节。当前搜索职责已拆开：
 
 - `Expansion` 产生候选；
-- `ParallelExpansion` 准备并物化原始候选；`AdmittedExpansion` 用固定 lane 调度已准入父节点内的动作/选择/药水作业，`PrimaryChoiceReplay` 保存原预算必经的首层回放，再按输入顺序提交；
+- `ParallelExpansion` 准备并物化原始候选；`AdmittedExpansion` 用固定 lane 调度已准入父节点内的动作/选择/药水作业，`PrimaryChoiceReplay` 保存原预算必经的首层回放，`EndTurnChoiceReplay` 将同一保证用于回合尾部的首层挂起选择；嵌套预算及实例补充由唯一续接原序消费，再按输入顺序提交；
 - `StandPatJobs` 复用当前 lane 评估保路必经的 EndTurn 探针，原序缓存与选择仍由 coordinator 完成；
 - `RetentionJobs` 复用已排空的 lane 计算保路只读元数据，按索引交回独占结果，观察请求及计数仍串行写入；
 - `StateEvaluation` 计算快照、威胁和评分特征；

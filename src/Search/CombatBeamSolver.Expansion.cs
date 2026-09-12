@@ -2222,7 +2222,8 @@ internal sealed partial class CombatBeamSolver
         PendingChoiceReplayLayer layer,
         PrimaryChoiceMatch? unresolvedPrimaryChoice,
         ChoiceSearchBudget searchBudget,
-        ChoiceOccurrenceCollector<DeferredOccurrenceChoiceBranch> occurrenceCollector)
+        ChoiceOccurrenceCollector<DeferredOccurrenceChoiceBranch> occurrenceCollector,
+        PrimaryChoiceReplayFrontier? replayedChoices = null)
     {
         for (int index = 0; index < layer.Branches.Count; index++)
         {
@@ -2235,9 +2236,11 @@ internal sealed partial class CombatBeamSolver
                 break;
             }
             PendingChoiceReplayBranch branch = layer.Branches[index];
-            if (!TrySpendChoiceReplayAttempt(branchBudget))
+            if (replayedChoices == null && !TrySpendChoiceReplayAttempt(branchBudget))
                 break;
-            SimulationSnapshot? resolvedSnapshot = ReplayPendingChoiceBranch(node, branch);
+            SimulationSnapshot? resolvedSnapshot = replayedChoices == null
+                ? ReplayPendingChoiceBranch(node, branch)
+                : replayedChoices.Take(index, branchBudget);
             if (resolvedSnapshot == null)
                 continue;
             foreach ((PlanAction finalAction, SimulationSnapshot finalSnapshot) in
