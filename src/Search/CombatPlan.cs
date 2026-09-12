@@ -149,7 +149,8 @@ internal sealed record PlanAction(
     string CardStateKey = "",
     int CardStateOccurrence = 0,
     bool EndsPlayerTurn = false,
-    int CardUpgradeLevel = 0)
+    int CardUpgradeLevel = 0,
+    string CardEnchantmentId = "")
 {
     public bool IsExecutable => Kind is PlanActionKind.PlayCard or PlanActionKind.UsePotion;
     public string ActionTitle => Kind == PlanActionKind.UsePotion ? PotionTitle : CardTitle;
@@ -1259,7 +1260,7 @@ internal sealed class SimulationSnapshot(
     public int LongTermResourceValue { get; } = longTermResourceValue;
     public RelicCounterEvaluation RelicCounters { get; init; }
     public int StrategicHpCredit => GrowthHpCredit + RelicCounters.HpCredit;
-    public int StrategyGoalCount => GrowthRewards.Total + RelicCounters.SatisfiedCount;
+    public int StrategyGoalCount => GrowthRewards.Total + RelicCounters.SatisfiedPriority;
     public int GrowthHpCredit { get; init; }
     public GrowthValues GrowthRewards { get; init; }
     public int BrightestFlameMaxHpSpent { get; init; }
@@ -1386,7 +1387,7 @@ internal sealed record SolverSnapshot(
     public int? UnrecoveredCards { get; init; }
     public RelicCounterEvaluation RelicCounters { get; init; }
     public int StrategicHpCredit => GrowthHpCredit + RelicCounters.HpCredit;
-    public int StrategyGoalCount => GrowthRewards.Total + RelicCounters.SatisfiedCount;
+    public int StrategyGoalCount => GrowthRewards.Total + RelicCounters.SatisfiedPriority;
     public int GrowthHpCredit { get; init; }
     public GrowthValues GrowthRewards { get; init; }
 }

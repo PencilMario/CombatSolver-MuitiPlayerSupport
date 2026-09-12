@@ -2,6 +2,11 @@
 
 ## 0.36.4：摘要标题
 
+- `RELIC-COUNTER-POLICY` / `573768e7b8044a96896187cdc15c6f15` Passed（25.27 秒）：原十种计数根/Fork/开关和增量回放保持，早停仍为 2 节点、关闭早停为 62 节点。
+
+- `RELIC-PRIORITY-MEAT` / `088aaa72cd2f442cb6b578c24665d2ce` Passed（23.64 秒）：旧规则 Priority=1，互换铁棍/音叉优先级时零损路线相应改变，优先级不增加 HpAllowance；带骨肉主动目标选择半血净回血路线，正式搜索含增量回放。前两次 `7d1d7b28f9a64dd0957680f1d770cebb` / `79396d9a9aeb4500b7d25c43d92d37cb` 暴露旧单调回血排序只选 41 HP 不触发回血，补入已启用目标的实际回血差额后通过。
+- `UI-LOCALIZATION` / `a905bc58e27d4aaf8ca05731d80884da` Passed（26.27 秒），实际 DECIMILLIPEDE_ELITE 三段名称可区分，普通/墨染小刀标题与提示可区分，eng/zhs/zht 和 409 项目录通过。默认实例两次未取得启动进程路径（4160/1672），未进入夹具，改用独立 `relic-priority-meat` 实例后正常运行。Windows 结构门禁通过；未进行可见游戏人工验收。
+
 - 纯 UI 标题与容器调整，按 L0 执行 Release 编译；未启动可见游戏做人工排版验收。
 
 ## 0.36.3：策略摘要

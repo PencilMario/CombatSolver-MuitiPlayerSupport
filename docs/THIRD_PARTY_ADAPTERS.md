@@ -11,6 +11,8 @@ HeavenlyDrill 的 OnPlay 使用精确镜像，先解析分支 X 值及修正，�
 
 ## 0. 先判断你要不要读下去
 
+内置遗物目标新增 MeatOnTheBone 半血目标与 1～3 优先级，仍属于 RelicCounterCatalog 的封闭表。CardEnchantmentId 是路线显示元数据，当前额外展示原版 Inky；不代表未知附魔已获得战斗模拟支持。
+
 | 你的 Mod | 要做什么 |
 |---|---|
 | 清单里 `affects_gameplay: false`（纯美术、UI、音效） | **什么都不用做**，自动放行 |

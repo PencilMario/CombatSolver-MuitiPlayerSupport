@@ -345,7 +345,8 @@ internal sealed record SolverOverlaySnapshot(
                 action.GetActionChoicesInExecutionOrder().Select(choice =>
                     (IReadOnlyList<SolverCardTextIdentity>)choice.Cards.Select(card =>
                         new SolverCardTextIdentity(card.CardId, card.UpgradeLevel, card.Title)).ToArray()).ToArray(),
-                action.RelicEffects?.Select(effect => new SolverRelicTextIdentity(effect.RelicId, effect.RelicTitle, effect.Summary)).ToArray() ?? []));
+                action.RelicEffects?.Select(effect => new SolverRelicTextIdentity(effect.RelicId, effect.RelicTitle, effect.Summary)).ToArray() ?? [])
+                { CardEnchantmentId = action.CardEnchantmentId });
         return SolverActionTextIdentity.Refresh(snapshot);
     }
 

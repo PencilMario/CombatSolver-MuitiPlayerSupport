@@ -86,6 +86,11 @@ internal sealed partial class UnattendedTestRunner
                 await runner.AssertBrilliantScarfAsync(combatState, player);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "RELIC-PRIORITY-MEAT")
+            {
+                await runner.AssertRelicPriorityMeatAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "RELIC-COUNTER-POLICY")
             {
                 await runner.AssertRelicCountersAsync(combatState, player);
