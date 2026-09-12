@@ -16,6 +16,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - `StandPatJobs` 复用当前 lane 评估保路必经的 EndTurn 探针，原序缓存与选择仍由 coordinator 完成；
 - `RetentionJobs` 复用已排空的 lane 计算保路只读元数据，按索引交回独占结果，观察请求及计数仍串行写入；
 - `StateEvaluation` 计算快照、威胁和评分特征；
+- `PredictionCoverage` 可以在原四字段去重后物化gap，但仍须逐项执行原补偿判定，并保持SourceId/Method稳定排序及同键先遇到者；不能把本地去重扩展成跨历史/分支回调缓存。
 - `BeamRetentionPolicy` 决定中间候选保留；
 - `FinalPlanOrdering` 决定终局路线；
 - `SearchRunContext` 拥有单次运行指标、转置和缓存；

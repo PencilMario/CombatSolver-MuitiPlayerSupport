@@ -10,30 +10,18 @@ namespace CombatSolver;
 
 internal static partial class PredictionCoverage
 {
-    public static IReadOnlyList<PredictionGap> Collect(CombatPredictionSimulator simulator)
+    internal static IReadOnlyList<PredictionGap> CollectBaselineForTesting(CombatPredictionSimulator simulator)
     {
-        return CollectUniqueGaps(simulator)
+        return simulator.History.Entries
+            .OfType<CombatPredictionRiskEntry>()
+            .Select(ToGapBaseline)
+            .DistinctBy(gap => (gap.SourceId, gap.Method, gap.Reason, gap.Compensated))
             .OrderBy(gap => gap.SourceId, StringComparer.Ordinal)
             .ThenBy(gap => gap.Method, StringComparer.Ordinal)
             .ToList();
     }
 
-    private static IEnumerable<PredictionGap> CollectUniqueGaps(CombatPredictionSimulator simulator)
-    {
-        HashSet<(string SourceId, string Method, string Reason, bool Compensated)>? seen = null;
-        foreach (CombatPredictionHistoryEntry entry in simulator.History)
-        {
-            if (entry is not CombatPredictionRiskEntry risk)
-                continue;
-            // Classify every original occurrence, preserving callback/lookup order.
-            // Only the result object is delayed until after the same four-field dedup.
-            var gap = DescribeGap(risk);
-            if ((seen ??= []).Add(gap))
-                yield return new PredictionGap(gap.SourceId, gap.Method, gap.Reason, gap.Compensated);
-        }
-    }
-
-    private static (string SourceId, string Method, string Reason, bool Compensated) DescribeGap(CombatPredictionRiskEntry entry)
+    private static PredictionGap ToGapBaseline(CombatPredictionRiskEntry entry)
     {
         AbstractModel? source = entry.Trace?.Source;
         string sourceId = source?.Id.Entry ?? source?.GetType().Name ?? "UNKNOWN";
@@ -60,20 +48,7 @@ internal static partial class PredictionCoverage
             Enthralled or Normality when method == "ShouldPlay" => true,
             _ => false,
         };
-        return (sourceId, method, entry.Reason.ToString(), compensated);
+        return new PredictionGap(sourceId, method, entry.Reason.ToString(), compensated);
     }
 
-    private static bool IsVerifiedNativeRelicHook(RelicModel relic, string method)
-        => relic switch
-        {
-            FakeStrikeDummy or MiniatureCannon or MysticLighter or StrikeDummy
-                when method == "ModifyDamageAdditive" => true,
-            SpikedGauntlets when method == "TryModifyEnergyCostInCombat" => true,
-            TheBoot when method == "ModifyHpLostAfterOstyLate" => true,
-            TungstenRod when method == "ModifyHpLostAfterOsty" => true,
-            RuinedHelmet when method is "TryModifyPowerAmountReceived" or "AfterModifyingPowerAmountReceived" => true,
-            UnsettlingLamp when method is "BeforePowerAmountChanged" or "ModifyPowerAmountGivenMultiplicative" => true,
-            VitruvianMinion when method is "ModifyBlockMultiplicative" or "ModifyDamageMultiplicative" => true,
-            _ => false,
-        };
 }

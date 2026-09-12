@@ -24,6 +24,14 @@ internal sealed partial class UnattendedTestRunner
                 CombatBeamSolver.VerifyPotionUseLineageKeyForTesting();
                 runner._completedChecks.Add("PotionLineage:Empty:Ordinal:Duplicates:LongRoute:SharedParent:Cached:MissingId");
             }
+            if (request.ScenarioId == "SNAPSHOT-COVERAGE-CONTRACT")
+            {
+                runner.SetStage("snapshot_coverage_contract");
+                string before = ContinuationStamp.CaptureLive(scenario.CombatState).StateText;
+                runner._completedChecks.Add(AssertSnapshotCoverageContract(scenario.CombatState));
+                if (ContinuationStamp.CaptureLive(scenario.CombatState).StateText != before)
+                    throw new InvalidOperationException("Snapshot coverage contract changed live combat.");
+            }
             if (request.ScenarioId == "CHOICE-COMBINATION-CONTRACT")
             {
                 runner.SetStage("choice_combination_contract");
