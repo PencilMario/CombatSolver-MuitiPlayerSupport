@@ -1,5 +1,7 @@
 # CombatSolver 测试清单
 
+本轮印牌历史查询：`GENERATION-HISTORY-CONTRACT`（`2a1fc39e85884552a90683036f4b3bc2`）通过，覆盖13,328次逐实例查询比较、129个保留历史分支及父子独立追加。瀑布巨兽／机甲A-B-B-A共8个正式无头请求Passed，93项搜索字段与136／54行完整路线一致；3项内存自适应并行批次数单列，不称96项全一致。累计分配下降0.79%／0.30%，稳定提速和峰值内存收益未建立。原包恢复为`restored_continuation`，native-state不可比较；诊断构建MVID绕行未进入生产。Release与结构门禁通过；无完整部署或可见验收。见[报告与数据](performance/generation-history-20260912.md)。
+
 ## 下一版本（开发中）：精简 fork
 
 快照按需读取：`tools/StrategicKeywordChecks/run.py` 134,930组完整策略上下文比较通过，覆盖全部65,536种需求组合、第三方类型和跨Build修改；还原的基线与原源码一致。原生无头A-B-B-A的8个正式结果全部Passed，每场96项非时序字段及完整路线相等；机甲平均快2.86%、亡灵快2.43%，未建立明显内存收益。`STRATEGIC-KEYWORD-INCREMENTAL` / `f868cb327b9c47d29647446880813f60`（力量1、打击/防御/小刀）最小增量回放通过；Release构建及Linux结构门禁通过，无可见测试。详见[范围与数据](performance/snapshot-reuse-20260912.md)。

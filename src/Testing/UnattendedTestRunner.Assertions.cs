@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "GENERATION-HISTORY-CONTRACT")
+            {
+                runner.SetStage("generation_history_contract");
+                AssertGenerationHistoryContract(scenario.Player);
+                runner._completedChecks.Add("GenerationHistory:LatestIdentity:Missing:NullTrace:Original:Preview:ForkIsolation:LongPrefix");
+            }
             if (request.ScenarioId == "CARD-PLAY-CLEANUP-CONTRACT")
             {
                 runner.SetStage("card_play_cleanup_contract");

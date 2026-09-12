@@ -83,9 +83,7 @@ internal static partial class CardChoiceSupport
         IEnumerable<PredictedCard> discardBeforeResolution = owner.DiscardPile.Cards
             .Where(item => !ReferenceEquals(item.Original, playedCard.Original));
 
-        CombatPredictionCardGenerationOptionsEntry? generated = simulator.History
-            .OfType<CombatPredictionCardGenerationOptionsEntry>()
-            .LastOrDefault(entry => playedCard.References(entry.Trace?.Source));
+        CombatPredictionCardGenerationOptionsEntry? generated = simulator.History.FindLatestCardGenerationOptions(playedCard);
         if (generated != null)
         {
             int minCount = card is Abundance ? 1 : 0;
