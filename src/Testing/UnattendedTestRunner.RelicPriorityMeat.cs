@@ -54,6 +54,18 @@ internal sealed partial class UnattendedTestRunner
         Check(meat.Snapshot.AllEnemiesDead && meat.Snapshot.RelicCounters.Satisfied
             && meat.PostCombatRelicHeal > 0 && meat.Snapshot.PlayerHp + meat.PostCombatRelicHeal > initialHp
             , $"half-HP route earns net post-combat healing: won={meat.Snapshot.AllEnemiesDead} satisfied={meat.Snapshot.RelicCounters.Satisfied} hp={meat.Snapshot.PlayerHp} heal={meat.PostCombatRelicHeal} initial={initialHp} actions={string.Join(',', meat.BestNode.Actions.Select(a => a.CardId))}");
-        _completedChecks.Add("RelicPriority:LegacyDefault:NoExtraHpAllowance:AllGoalsEarlyStop:MeatHalfHpNetGain:IncrementalReplay");
+        int threshold = player.Creature.MaxHp / 2;
+        int heal = root.PostCombatRelicHeal.HealFor(threshold, player.Creature.MaxHp);
+        foreach (int start in new[] { threshold + heal, threshold + heal + 1 })
+        {
+            await CreatureCmd.SetCurrentHp(player.Creature, start);
+            root = CombatRootSnapshot.Capture(combat); names = SolverDisplayNames.Capture(combat); damage = BattleDamageTracker.Observe(combat);
+            policy = policy with { RelicTargets = new[] { new RelicCounterTarget(RelicCounterId.MeatOnTheBone, 1, 1, 1000, 2, 3) } };
+            var unprofitable = await Task.Run(() => CombatSearchCoordinator.Solve(root, names, damage, policy, CancellationToken.None, null));
+            Check(!unprofitable.Snapshot.RelicCounters.Satisfied && unprofitable.Snapshot.PlayerHp == start
+                && unprofitable.Snapshot.RelicCounters.HpCredit == 0,
+                "break-even or negative healing must not earn allowance or induce HP loss");
+        }
+        _completedChecks.Add("RelicPriority:LegacyDefault:NoExtraHpAllowance:MeatStrictNetGain:BreakEvenAndLossRejected:IncrementalReplay");
     }
 }

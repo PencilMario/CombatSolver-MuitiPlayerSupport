@@ -2,6 +2,8 @@
 
 ## 0.36.4：摘要标题
 
+- 严格净赚门槛：`RELIC-PRIORITY-MEAT` / `55df7081fe40400ab62a297446082838` Passed（23.49 秒），净赚路线保留；回本与净亏起点即使设 Priority=3 / HpAllowance=1000，仍不获得目标信用、不主动掉血。正式搜索含增量回放。
+
 - `RELIC-COUNTER-POLICY` / `573768e7b8044a96896187cdc15c6f15` Passed（25.27 秒）：原十种计数根/Fork/开关和增量回放保持，早停仍为 2 节点、关闭早停为 62 节点。
 
 - `RELIC-PRIORITY-MEAT` / `088aaa72cd2f442cb6b578c24665d2ce` Passed（23.64 秒）：旧规则 Priority=1，互换铁棍/音叉优先级时零损路线相应改变，优先级不增加 HpAllowance；带骨肉主动目标选择半血净回血路线，正式搜索含增量回放。前两次 `7d1d7b28f9a64dd0957680f1d770cebb` / `79396d9a9aeb4500b7d25c43d92d37cb` 暴露旧单调回血排序只选 41 HP 不触发回血，补入已启用目标的实际回血差额后通过。

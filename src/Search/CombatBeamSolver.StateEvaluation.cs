@@ -198,7 +198,9 @@ internal sealed partial class CombatBeamSolver
             SolverWeights.LongTermResourceBeamCap);
         int growthHpCredit = _growthBudgets.Credit(growthRewards);
         score += (double)growthHpCredit * hpWeight;
-        RelicCounterEvaluation relicCounters = combat.EvaluateRelicCounters(simulator, _player, _relicTargets);
+        bool meatHasNetGain = player.CurrentHp + root.PostCombatRelicHeal.HealFor(player.CurrentHp, player.MaxHp)
+            > root.InitialPlayerHp;
+        RelicCounterEvaluation relicCounters = combat.EvaluateRelicCounters(simulator, _player, _relicTargets, meatHasNetGain);
         if (won && (relicCounters.SatisfiedMask & (1UL << (int)RelicCounterId.MeatOnTheBone)) != 0)
         {
             int thresholdHeal = root.PostCombatRelicHeal.HealFor(player.CurrentHp, player.MaxHp)

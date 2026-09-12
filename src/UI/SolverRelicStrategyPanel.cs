@@ -104,7 +104,7 @@ internal sealed partial class SolverRelicStrategyPanel : PanelContainer
             if (entry.Id == RelicCounterId.MeatOnTheBone)
             {
                 range.Visible = false;
-                group.AddChild(Text("战斗结束前保持半血或以下，计入战后回血。"));
+                group.AddChild(Text("仅在战后生命高于本次计算起点时卡半血。"));
             }
             _cards.AddChild(card);
             Row row = new(entry, toggle, minimum, maximum, hp, priority, status, card, icon);

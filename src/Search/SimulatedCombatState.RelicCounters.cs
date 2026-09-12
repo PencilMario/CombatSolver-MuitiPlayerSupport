@@ -9,13 +9,14 @@ namespace CombatSolver;
 internal sealed partial class SimulatedCombatState
 {
     internal RelicCounterEvaluation EvaluateRelicCounters(CombatPredictionSimulator simulator, Player player,
-        IReadOnlyList<RelicCounterTarget> targets)
+        IReadOnlyList<RelicCounterTarget> targets, bool meatHasNetGain = false)
     {
         RelicCounterEvaluation result = default;
         foreach (var target in targets)
         {
             RelicModel relic = RelicsOf(player).Single(relic => RelicCounterCatalog.Identify(relic) == target.Id);
             int value = ReadRelicCounter(simulator, relic) % target.Period;
+            if (target.Id == RelicCounterId.MeatOnTheBone && !meatHasNetGain) value = 0;
             result = RelicCounterPolicy.Add(result, target, value);
         }
         return result;
