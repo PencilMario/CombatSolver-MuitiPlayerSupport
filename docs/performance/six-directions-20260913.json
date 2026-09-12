@@ -3527,5 +3527,23 @@
       "eligibleParents": 2359,
       "fallbackParents": 27598
     }
+  },
+  "memoryTrial": {
+    "beforeCommit": "e5dac11",
+    "candidateBuild": "primary-six-transposition",
+    "beforeBuild": "primary-six-endturn",
+    "candidateBaseCommit": "e5dac11",
+    "mode": "Linux headless, real BaseLib, fresh process, primary search only",
+    "dop": 16,
+    "maxExpandedNodes": 40000,
+    "softTimeBudgetMilliseconds": 240000,
+    "noGcRegionGB": 1,
+    "fixedFieldCount": 85,
+    "fullRouteEqual": true,
+    "actionCount": 22,
+    "beforeMeanMilliseconds": 65022.42234999999,
+    "afterMeanMilliseconds": 61624.155150000006,
+    "elapsedReductionPercent": 5.226300524006833,
+    "details": "six-memory-20260913.json"
   }
 }

@@ -24,39 +24,6 @@ namespace CombatSolver;
 
 internal sealed partial class CombatBeamSolver
 {
-    private readonly record struct TranspositionLabel(
-        int PotionCount,
-        int PotionStrategicCost,
-        int FutureSoldHp,
-        int CumulativePlayerHpLost,
-        int ActionCount,
-        double Score);
-
-    private sealed class TranspositionFrontier(TranspositionLabel first)
-    {
-        private readonly List<TranspositionLabel> _labels = [first];
-
-        public bool TryAccept(TranspositionLabel next)
-        {
-            foreach (TranspositionLabel current in _labels)
-            {
-                if (Dominates(current, next))
-                    return false;
-            }
-            _labels.RemoveAll(current => Dominates(next, current));
-            _labels.Add(next);
-            return true;
-        }
-
-        private static bool Dominates(TranspositionLabel left, TranspositionLabel right)
-            => left.PotionCount <= right.PotionCount
-                && left.PotionStrategicCost <= right.PotionStrategicCost
-                && left.FutureSoldHp <= right.FutureSoldHp
-                && left.CumulativePlayerHpLost <= right.CumulativePlayerHpLost
-                && left.ActionCount <= right.ActionCount
-                && left.Score >= right.Score;
-    }
-
     private readonly record struct StandPatEvaluation(
         bool AllEnemiesDead,
         int DelayedDamage,

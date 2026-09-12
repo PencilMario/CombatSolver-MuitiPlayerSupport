@@ -19,6 +19,7 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - `BeamRetentionPolicy` 决定中间候选保留；
 - `FinalPlanOrdering` 决定终局路线；
 - `SearchRunContext` 拥有单次运行指标、转置和缓存；
+- `CombatBeamSolver.Transpositions` 保持原六维支配关系与接纳顺序；单标签内联，多标签才分配List，重新缩为单标签时释放容器。只改变存储形态，不能清空仍有消费者的判重表来追求GC指标。
 - `CombatSearchCoordinator` 组织主搜索与药水反事实。
 
 不要把所有问题重新塞回 `Solve` 或用一个总分同时承担保路与终局政策。

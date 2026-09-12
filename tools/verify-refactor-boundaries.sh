@@ -498,6 +498,7 @@ expected_beam_files=(
     CombatBeamSolver.Expansion.cs
     CombatBeamSolver.FinalPlanOrdering.cs
     CombatBeamSolver.Models.cs
+    CombatBeamSolver.Transpositions.cs
     CombatBeamSolver.OrderedMutationRetention.cs
     CombatBeamSolver.ParallelExpansion.cs
     CombatBeamSolver.PathDiagnostics.cs
@@ -538,7 +539,7 @@ CombatBeamSolver.BeamRetentionPolicy.cs	private sealed class RoutingChoiceNodes(
 CombatBeamSolver.BeamRetentionPolicy.cs	public void Clear() => NodesByChoice.Clear();
 CombatBeamSolver.BeamRetentionPolicy.cs	routingNodes = new RoutingChoiceNodes(node);
 CombatBeamSolver.BeamRetentionPolicy.cs	ReturnRoutingChoiceScratch(scratch);
-CombatBeamSolver.Models.cs	private readonly record struct TranspositionLabel(
+CombatBeamSolver.Transpositions.cs	private readonly record struct TranspositionLabel(
 CombatBeamSolver.Models.cs	private sealed class SearchRunContext(
 CombatBeamSolver.Models.cs	private readonly record struct SearchFeatures(
 CombatBeamSolver.ParallelExpansion.cs	private sealed partial class ParallelExpansionExecutor : IDisposable
