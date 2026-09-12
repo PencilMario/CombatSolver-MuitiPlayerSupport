@@ -24,6 +24,23 @@ internal sealed partial class UnattendedTestRunner
                 CombatBeamSolver.VerifyPotionUseLineageKeyForTesting();
                 runner._completedChecks.Add("PotionLineage:Empty:Ordinal:Duplicates:LongRoute:SharedParent:Cached:MissingId");
             }
+            if (request.ScenarioId == "EXTRA-GENERATION-CACHE-PERF")
+            {
+                runner.SetStage("extra_generation_cache_measurement");
+                string before = ContinuationStamp.CaptureLive(scenario.CombatState).StateText;
+                runner._completedChecks.Add(MeasureExtraGenerationCache(scenario.CombatState, scenario.Player));
+                if (ContinuationStamp.CaptureLive(scenario.CombatState).StateText != before)
+                    throw new InvalidOperationException("Generation cache measurement changed live combat.");
+            }
+            if (request.ScenarioId == "EXTRA-GENERATION-CACHE")
+            {
+                runner.SetStage("extra_generation_cache");
+                string before = ContinuationStamp.CaptureLive(scenario.CombatState).StateText;
+                runner._completedChecks.Add(AssertExtraGenerationCacheContract(
+                    scenario.CombatState, scenario.Player));
+                if (ContinuationStamp.CaptureLive(scenario.CombatState).StateText != before)
+                    throw new InvalidOperationException("Generation cache contract changed live combat.");
+            }
             if (request.ScenarioId == "SNAPSHOT-COVERAGE-CONTRACT")
             {
                 runner.SetStage("snapshot_coverage_contract");

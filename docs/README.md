@@ -21,6 +21,7 @@
 | 同次快照按需读取关键字，保持原模拟器与评分 | [快照内部局部复用](performance/snapshot-reuse-20260912.md) |
 | 当前 CPU 热点、快照释放优化与交错对照 | [热点可消除工作](performance/hotspot-cuts-20260912.md) |
 | 已开发的空状态清理、排名预计算及真实对照 | [精简优化开发结果](performance/surgical-development-20260912.md) |
+| 五个后续候选的工作量、原型与采用/撤回决策 | [五候选成本与验证](performance/five-candidates-20260913.md) |
 | 小改动优化文献、源码切口与独立分配探针 | [精简优化深入研究](performance/surgical-research-20260912.md) |
 | 遗物独立开关、目标范围、血量额度与早停 | [战斗末遗物计数策略](relic-counters.md) |
 | 组件职责、状态所有权和调用链 | [架构与职责地图](ARCHITECTURE.md) |

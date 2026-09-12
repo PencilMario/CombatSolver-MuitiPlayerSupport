@@ -147,3 +147,6 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - 预测卡牌/Power 克隆的免锁路径由 `NativeModelCloneConcurrency` 核对：仅隔离域、普通原版卡牌或默认内部初始化 Power、已物化原版变量、原生克隆阶段与精确 BaseLib/Ritsu 稀疏复制补丁组合。Power 还须核对默认 InitInternalData、AbstractModel.DeepCloneFields 与 Power.DynamicVars 物化保护补丁；自定义初始化、附魔/灾厄、第三方模型或变量、未知补丁均走原锁；不得为判定路径而物化共享源变量。证据限线程当前最外层隔离域，跨域刷新，不缓存模型或分支值；原版 `MutableClone` 的 BaseLib 锁保持。合同须真实加载 BaseLib，并持锁验证并行、变量独占与跨域补丁失效。
 
 - 选牌组合的评分仅可在单次BuildChoices的不可变组合中惰性复用，未消费评分的路径不提前计算；不跨spec、模型变化、Fork或调用缓存。组合去重预计算须保持原[start,i)语义，张数上限按该张数新增条目计数，固定多弃牌与物理实例代表规则不变。
+
+- `PredictionStateStore` 的三槽计数表只保存 Type/条目数，不保存模型或 state；空 store 不创建计数对象，溢出仍使用独占字典，Fork 丢弃零计数。工厂可以重入并扩容，禁止跨工厂调用持有主字典 ref；计数更新的 ref 必须立即消费。验证覆盖溢出、清空后 Fork、父子隔离与工厂重入，不能只测常见一类状态。
+- 额外生成入口复用现有根无色/原生角色攻击池时，保持全部身份与约束门禁；不把 `GetForCombat` 的有放回 `NextItem` 和 `GetDistinctForCombat` 的 `TakeRandom` 混用，即使只取一张。候选模型只读共享，随机数与生成卡牌始终由当前分支独占；带额外过滤的调用方不能直接迁移。
