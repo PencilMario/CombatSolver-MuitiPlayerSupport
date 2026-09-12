@@ -884,10 +884,9 @@ internal static partial class CardChoiceSupport
         foreach (PredictedCard card in selected)
         {
             string stateKey = ChoiceCardKey(card);
-            int sourceOccurrence = source.TakeWhile(item => !ReferenceEquals(item, card))
-                .Count(item => HasStableTokenIdentity(item, card));
-            int optionOccurrence = options.TakeWhile(item => !ReferenceEquals(item, card))
-                .Count(item => HasStableTokenIdentity(item, card));
+            int sourceOccurrence = CountTokenOccurrence(source, card);
+            int optionOccurrence = ReferenceEquals(source, options)
+                ? sourceOccurrence : CountTokenOccurrence(options, card);
             tokens.Add(new PlanCardToken(
                 card.Preview.Id.Entry,
                 card.Preview.CurrentUpgradeLevel,
@@ -897,6 +896,20 @@ internal static partial class CardChoiceSupport
                 displayName(card.Preview)));
         }
         return tokens;
+    }
+
+    private static int CountTokenOccurrence(IReadOnlyList<PredictedCard> cards, PredictedCard selected)
+    {
+        int occurrence = 0;
+        for (int i = 0; i < cards.Count; i++)
+        {
+            PredictedCard card = cards[i];
+            if (ReferenceEquals(card, selected))
+                break;
+            if (HasStableTokenIdentity(card, selected))
+                occurrence++;
+        }
+        return occurrence;
     }
 
     private static PredictedCard Find(IReadOnlyList<PredictedCard> cards, PlanCardToken token)

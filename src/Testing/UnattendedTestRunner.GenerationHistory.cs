@@ -19,6 +19,9 @@ internal sealed partial class UnattendedTestRunner
         void Check(CombatPredictionHistory current)
         {
             CombatPredictionHistoryEntry[] before = current.Entries.ToArray();
+            if (!ReferenceEquals(current.OfType<CombatPredictionCardGenerationOptionsEntry>().LastOrDefault(),
+                    current.FindLatestCardGenerationOptions()))
+                throw new InvalidOperationException("Unfiltered latest generation lookup changed publication identity.");
             foreach (PredictedCard card in cards)
             {
                 CombatPredictionCardGenerationOptionsEntry? expected = current
@@ -31,7 +34,8 @@ internal sealed partial class UnattendedTestRunner
                 throw new InvalidOperationException("Latest generation lookup mutated history.");
         }
         Check(history);
-        history.CardGenerationOptions([]); // Published without a source must stay unmatched.
+        history.CardGenerationOptions([]); // Unfiltered query matches; card-filtered queries must miss.
+        Check(history);
         for (int step = 0; step < 512; step++)
         {
             if (step % 4 == 0)

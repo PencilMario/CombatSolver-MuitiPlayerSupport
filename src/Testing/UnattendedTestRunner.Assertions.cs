@@ -18,6 +18,11 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "CHOICE-TOKEN-CONTRACT")
+            {
+                runner.SetStage("choice_token_contract");
+                runner._completedChecks.Add(AssertChoiceTokenContract(scenario.Player));
+            }
             if (request.ScenarioId == "GENERATION-HISTORY-CONTRACT")
             {
                 runner.SetStage("generation_history_contract");
