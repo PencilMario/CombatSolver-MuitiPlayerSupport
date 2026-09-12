@@ -2,6 +2,8 @@
 
 ## 下一版本（开发中）：精简 fork
 
+后续研究：`dotnet run --project tools/SurgicalResearchChecks -c Release` 通过。直接链接生产 StateStore，以最小模型替身测得空枚举 96→0 B、缺失 int 状态 Peek 24→0 B、8 类辅助表容量构造 992→440 B；每项三块分配读数一致。仅为独立分配机制探针，不覆盖真实模型、Fork 或游戏搜索；未改生产代码、未重跑下列历史场景。见[研究报告](performance/surgical-research-20260912.md)。
+
 基于 `eff8cf4`。本轮独立原生对照全部通过（列表候选撤回前执行；最终分支恢复上游列表，两个列表版本的独立合同和正式搜索等价对照均通过）：
 
 - `DEFERRED-BLOCK-RETURN-NATIVE` / `ed52bbacc1384e8ba3ae4a78048743fe`：Passed；DeferredBlockReturn:Native3Roots:CapAndFraction:Stacking:Zero:AllSnapshotFields:PowerMetadata:ForkIsolation:AfterBlockCleared。
