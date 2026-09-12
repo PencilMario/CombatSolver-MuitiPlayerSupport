@@ -512,6 +512,22 @@ internal sealed partial class UnattendedTestRunner
                     expectedPlayerPowerObserved, InitialSearchHeld: false);
             }
 
+            if (request.ScenarioId == "ACT3-HOURGLASS-OPENING-PATH")
+            {
+                _ = ApplySettingsOverrides();
+                int finishedTurn = await runner.TraceAct3HourglassOpeningAsync(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
+            if (request.ScenarioId == "ACT3-HELLRAISER-PATH")
+            {
+                _ = ApplySettingsOverrides();
+                int finishedTurn = await runner.TraceAct3HellraiserAsync(combatState, player);
+                return new ExecutionOutcome(false, finishedTurn, expectedCardPlayed, expectedPotionUsed,
+                    expectedPlayerPowerObserved, InitialSearchHeld: false);
+            }
+
             if (request.ScenarioId == "ACT3-SUBJECT-0530-PATH")
             {
                 _ = ApplySettingsOverrides();

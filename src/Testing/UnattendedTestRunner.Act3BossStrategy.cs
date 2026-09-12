@@ -8,6 +8,102 @@ namespace CombatSolver;
 
 internal sealed partial class UnattendedTestRunner
 {
+    private async Task<int> TraceAct3HellraiserAsync(CombatState combat, Player player)
+    {
+        if (combat.Encounter?.Id.Entry != "QUEEN_BOSS"
+            || player.PlayerCombatState?.TurnNumber != 1 || combat.Enemies.Count != 2)
+            throw new InvalidOperationException("The recorded Hellraiser prefix requires its first-turn queen root.");
+        var before = ContinuationStamp.CaptureLive(combat);
+        var root = CombatRootSnapshot.Capture(combat);
+        var driver = new CombatBeamSolver(root, SolverDisplayNames.Capture(combat),
+            BattleDamageTracker.Observe(combat),
+            SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null));
+        var initial = driver.ReplayDiagnosticPrefix([]);
+        SimulationSnapshot? result = null;
+        List<KnownRoutePrefix> prefixes = [];
+        List<PlanAction> actions = [];
+        try
+        {
+            var hand = initial.Simulator.State.GetPlayerCombatState(player).Hand.Cards;
+            var original = MegaCrit.Sts2.Core.Entities.Multiplayer.NetCombatCard.ForTesting(1).ToCardModel();
+            var card = hand.Single(candidate => ReferenceEquals(candidate.Original, original));
+            if (card.Preview.Id.Entry != "HELLRAISER")
+                throw new InvalidOperationException("Recorded physical card 1 must be Hellraiser.");
+            string key = CardChoiceSupport.ChoiceCardKey(card);
+            var action = new PlanAction(PlanActionKind.PlayCard, 1, CardId: "HELLRAISER",
+                CardOccurrence: hand.TakeWhile(candidate => !ReferenceEquals(candidate, card))
+                    .Count(candidate => candidate.Preview.Id.Entry == "HELLRAISER"),
+                CardStateKey: key,
+                CardStateOccurrence: hand.TakeWhile(candidate => !ReferenceEquals(candidate, card))
+                    .Count(candidate => CardChoiceSupport.ChoiceCardKey(candidate) == key),
+                ReplayCount: Math.Max(0, card.Preview.GetEnchantedReplayCount()));
+            result = driver.ReplayDiagnosticPrefix([action]);
+            actions.Add(action);
+            using var archive = System.IO.Compression.ZipFile.OpenRead(_request.CheckpointArchivePath!);
+            using var reader = new StreamReader(archive.GetEntry(
+                "replay/current/replay-state/000007-search_request_Manual.json")!.Open());
+            using var expected = System.Text.Json.JsonDocument.Parse(reader.ReadToEnd());
+            string expectedState = expected.RootElement.GetProperty("exactContinuationState").GetString()!;
+            var predicted = driver.CaptureDiagnosticContinuation(result);
+            if (!ReplayContinuationMatches(expectedState, predicted.StateText))
+                throw new InvalidOperationException("Hellraiser simulation differs from its recorded native endpoint: "
+                    + new ContinuationStamp(expectedState).DescribeFirstDifference(predicted));
+            prefixes.Add(FreezeKnownRoutePrefix(action, CaptureSimulated(result.Simulator,
+                (SimulatedCombatState)result.Simulator.State.CombatState, player, combat.Enemies[0]), result));
+            _completedChecks.Add("Act3Hellraiser:PhysicalCard:FullTwoEnemyEndpointMatchesNative");
+            // The package's selected 35-HP solver route starts at the verified post-card
+            // root. Treat it as a witness to validate, never as additional player input.
+            var recordedActions = new SortedDictionary<int, PlanAction>();
+            var jsonOptions = new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            jsonOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+            foreach (var entry in archive.Entries.Where(entry =>
+                         entry.FullName.StartsWith("diagnostics/logs/combat/", StringComparison.Ordinal)
+                         && entry.FullName.EndsWith(".jsonl", StringComparison.Ordinal)))
+            {
+                using var logReader = new StreamReader(entry.Open());
+                while (logReader.ReadLine() is { } line)
+                {
+                    using var row = System.Text.Json.JsonDocument.Parse(line);
+                    string message = row.RootElement.GetProperty("Message").GetString()!;
+                    if (!message.StartsWith("[CombatSolver/Evidence] ROUTE_ACTION ", StringComparison.Ordinal))
+                        continue;
+                    using var evidence = System.Text.Json.JsonDocument.Parse(message[message.IndexOf('{')..]);
+                    if (evidence.RootElement.GetProperty("traceId").GetString() != "9e339ce790964f84b4aa84773d0ac459")
+                        continue;
+                    recordedActions.Add(evidence.RootElement.GetProperty("index").GetInt32(),
+                        System.Text.Json.JsonSerializer.Deserialize<PlanAction>(
+                            evidence.RootElement.GetProperty("action").GetRawText(), jsonOptions)!);
+                }
+            }
+            if (recordedActions.Count != 20 || !recordedActions.Keys.SequenceEqual(Enumerable.Range(0, 20)))
+                throw new InvalidDataException("The archived Hellraiser witness requires all 20 ordered actions.");
+            foreach (PlanAction recordedAction in recordedActions.Values)
+            {
+                action = recordedAction;
+                actions.Add(action);
+                result.ReleaseSimulator();
+                result = null;
+                result = driver.ReplayDiagnosticPrefix(actions);
+                if (result.HasRisk || result.PlayerDead || result.BoundaryReason != SearchBoundaryReason.None)
+                    throw new InvalidOperationException("The known post-Hellraiser suffix failed simulated replay.");
+                prefixes.Add(FreezeKnownRoutePrefix(action, CaptureSimulated(result.Simulator,
+                    (SimulatedCombatState)result.Simulator.State.CombatState, player, combat.Enemies[0]), result));
+            }
+            if (!result.AllEnemiesDead || result.PlayerHp != 46)
+                throw new InvalidOperationException($"Archived witness result differs: hp={result.PlayerHp}, enemy={result.EnemyHp}.");
+            _completedChecks.Add("Act3Hellraiser:RecordedSolverWitness:FullSimulatedVictory:FinalHp46:NotNativeDeployed");
+        }
+        finally
+        {
+            initial.ReleaseSimulator();
+            result?.ReleaseSimulator();
+            if (ContinuationStamp.CaptureLive(combat) != before)
+                throw new InvalidOperationException("Hellraiser tracing changed the live root.");
+        }
+        return await RunKnownRoutePathTraceAsync(combat, player, prefixes,
+            "Act3Hellraiser", "act3_hellraiser_path", observedRetentionStep: 5);
+    }
+
     private async Task<int> TraceAct3Subject0530Async(CombatState combat, Player player)
     {
         if (combat.Encounter?.Id.Entry != "TEST_SUBJECT_BOSS"
@@ -80,6 +176,74 @@ internal sealed partial class UnattendedTestRunner
         }
         return await RunKnownRoutePathTraceAsync(combat, player, prefixes,
             "Act3Subject0530", "act3_subject_0530_path", observedRetentionStep: 4);
+    }
+
+    private async Task<int> TraceAct3HourglassOpeningAsync(CombatState combat, Player player)
+    {
+        if (combat.Encounter?.Id.Entry != "AEONGLASS_BOSS"
+            || player.PlayerCombatState?.TurnNumber != 1 || combat.Enemies.Count != 1)
+            throw new InvalidOperationException("The recorded hourglass opening requires its first-turn root.");
+        var root = CombatRootSnapshot.Capture(combat);
+        var policy = SolverController.CaptureSearchPolicy(SolverSettings.Capture(), combat, false, null);
+        var driver = new CombatBeamSolver(root, SolverDisplayNames.Capture(combat),
+            BattleDamageTracker.Observe(combat), policy);
+        List<PlanAction> actions = [];
+        List<SimulationSnapshot> owned = [];
+        List<KnownRoutePrefix> prefixes = [];
+        var before = ContinuationStamp.CaptureLive(combat);
+        uint[] indices = [3, 4, 1];
+        string[] ids = ["PREP_TIME", "WELL_LAID_PLANS", "DEFEND_SILENT"];
+        try
+        {
+            var parent = driver.ReplayDiagnosticPrefix(actions);
+            owned.Add(parent);
+            for (int step = 0; step <= ids.Length; step++)
+            {
+                PlanAction action = new(PlanActionKind.EndTurn, 1);
+                if (step < ids.Length)
+                {
+                    var hand = parent.Simulator.State.GetPlayerCombatState(player).Hand.Cards;
+                    var original = MegaCrit.Sts2.Core.Entities.Multiplayer.NetCombatCard
+                        .ForTesting(indices[step]).ToCardModel();
+                    var card = hand.Single(candidate => ReferenceEquals(candidate.Original, original));
+                    if (card.Preview.Id.Entry != ids[step])
+                        throw new InvalidOperationException("Recorded hourglass card identity differs.");
+                    string key = CardChoiceSupport.ChoiceCardKey(card);
+                    action = new(PlanActionKind.PlayCard, 1, CardId: ids[step],
+                        CardOccurrence: hand.TakeWhile(candidate => !ReferenceEquals(candidate, card))
+                            .Count(candidate => candidate.Preview.Id.Entry == ids[step]),
+                        CardStateKey: key,
+                        CardStateOccurrence: hand.TakeWhile(candidate => !ReferenceEquals(candidate, card))
+                            .Count(candidate => CardChoiceSupport.ChoiceCardKey(candidate) == key),
+                        ReplayCount: Math.Max(0, card.Preview.GetEnchantedReplayCount()));
+                }
+                actions.Add(action);
+                parent = driver.ReplayDiagnosticPrefix(actions);
+                owned.Add(parent);
+                if (parent.HasRisk || parent.PlayerDead || parent.BoundaryReason != SearchBoundaryReason.None)
+                    throw new InvalidOperationException("Recorded hourglass opening failed simulated replay.");
+                prefixes.Add(FreezeKnownRoutePrefix(action, CaptureSimulated(parent.Simulator,
+                    (SimulatedCombatState)parent.Simulator.State.CombatState, player, combat.Enemies[0]), parent));
+            }
+            using var archive = System.IO.Compression.ZipFile.OpenRead(_request.CheckpointArchivePath!);
+            using var reader = new StreamReader(archive.GetEntry(
+                "replay/current/replay-state/000003-search_request_AutoTurnStart.json")!.Open());
+            using var expected = System.Text.Json.JsonDocument.Parse(reader.ReadToEnd());
+            string expectedState = expected.RootElement.GetProperty("exactContinuationState").GetString()!;
+            var predicted = driver.CaptureDiagnosticContinuation(parent);
+            if (!ReplayContinuationMatches(expectedState, predicted.StateText))
+                throw new InvalidOperationException("Hourglass opening differs from recorded native endpoint: "
+                    + new ContinuationStamp(expectedState).DescribeFirstDifference(predicted));
+            _completedChecks.Add("Act3HourglassOpening:SimulatedPrefixMatchesRecordedNativeEndpoint");
+        }
+        finally
+        {
+            foreach (var snapshot in owned) snapshot.ReleaseSimulator();
+            if (ContinuationStamp.CaptureLive(combat) != before)
+                throw new InvalidOperationException("Hourglass tracing changed the live root.");
+        }
+        return await RunKnownRoutePathTraceAsync(combat, player, prefixes,
+            "Act3HourglassOpening", "act3_hourglass_opening_path", observedRetentionStep: 2);
     }
 
     private async Task DescribeAct3OpeningEffectsAsync(CombatState combat, Player player)
