@@ -235,6 +235,42 @@ internal sealed partial class UnattendedTestRunner
                 throw new InvalidOperationException("Hourglass opening differs from recorded native endpoint: "
                     + new ContinuationStamp(expectedState).DescribeFirstDifference(predicted));
             _completedChecks.Add("Act3HourglassOpening:SimulatedPrefixMatchesRecordedNativeEndpoint");
+            var recordedActions = new SortedDictionary<int, PlanAction>();
+            var jsonOptions = new System.Text.Json.JsonSerializerOptions();
+            jsonOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+            foreach (var entry in archive.Entries.Where(entry =>
+                entry.FullName.StartsWith("diagnostics/logs/combat/", StringComparison.Ordinal)
+                && entry.FullName.EndsWith(".jsonl", StringComparison.Ordinal)))
+            {
+                using var logReader = new StreamReader(entry.Open());
+                while (logReader.ReadLine() is { } line)
+                {
+                    using var envelope = System.Text.Json.JsonDocument.Parse(line);
+                    string message = envelope.RootElement.GetProperty("Message").GetString()!;
+                    if (!message.Contains("ROUTE_ACTION ", StringComparison.Ordinal)) continue;
+                    using var payload = System.Text.Json.JsonDocument.Parse(message[message.IndexOf('{')..]);
+                    if (payload.RootElement.GetProperty("traceId").GetString()
+                        != "9b3bec1e5d3241aeb8b5c8461b50b3ee") continue;
+                    int index = payload.RootElement.GetProperty("index").GetInt32();
+                    recordedActions.Add(index, System.Text.Json.JsonSerializer.Deserialize<PlanAction>(
+                        payload.RootElement.GetProperty("action").GetRawText(), jsonOptions)!);
+                }
+            }
+            if (recordedActions.Count != 30 || !recordedActions.Keys.SequenceEqual(Enumerable.Range(0, 30)))
+                throw new InvalidOperationException("The recorded hourglass victory suffix is incomplete.");
+            foreach (var action in recordedActions.Values)
+            {
+                actions.Add(action);
+                parent = driver.ReplayDiagnosticPrefix(actions);
+                owned.Add(parent);
+                if (parent.HasRisk || parent.PlayerDead || parent.BoundaryReason != SearchBoundaryReason.None)
+                    throw new InvalidOperationException("The recorded hourglass victory suffix failed simulated replay.");
+                prefixes.Add(FreezeKnownRoutePrefix(action, CaptureSimulated(parent.Simulator,
+                    (SimulatedCombatState)parent.Simulator.State.CombatState, player, combat.Enemies[0]), parent));
+            }
+            if (!parent.AllEnemiesDead || parent.PlayerHp != 48)
+                throw new InvalidOperationException("The recorded hourglass winner must end at 48 HP.");
+            _completedChecks.Add("Act3HourglassOpening:FullRecordedWinnerSimulated48Hp");
         }
         finally
         {
@@ -243,7 +279,7 @@ internal sealed partial class UnattendedTestRunner
                 throw new InvalidOperationException("Hourglass tracing changed the live root.");
         }
         return await RunKnownRoutePathTraceAsync(combat, player, prefixes,
-            "Act3HourglassOpening", "act3_hourglass_opening_path", observedRetentionStep: 2);
+            "Act3HourglassOpening", "act3_hourglass_opening_path", observedRetentionStep: 3);
     }
 
     private async Task DescribeAct3OpeningEffectsAsync(CombatState combat, Player player)
