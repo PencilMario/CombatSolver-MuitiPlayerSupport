@@ -1,5 +1,20 @@
 # CombatSolver 测试清单
 
+## 下一版本（开发中）：精简 fork
+
+基于 `eff8cf4`。本轮独立原生对照全部通过（列表候选撤回前执行；最终分支恢复上游列表，两个列表版本的独立合同和正式搜索等价对照均通过）：
+
+- `DEFERRED-BLOCK-RETURN-NATIVE` / `ed52bbacc1384e8ba3ae4a78048743fe`：Passed；DeferredBlockReturn:Native3Roots:CapAndFraction:Stacking:Zero:AllSnapshotFields:PowerMetadata:ForkIsolation:AfterBlockCleared。
+- `PLAYER-DEATH-POWERS-NATIVE` / `040ee891c3ca4129b34db3578e895bc3`：Passed；PlayerDeathPowers:BurnNativeDeath:ThreePowersRemoved:FullState:PendingLossThenDefeat:BothDamageOverloads:LiveAliveShadowDeadAndInverse:RootAndSiblingAfterNativeDeath。
+- `POWER-DURATION-APPLICATION-NATIVE` / `1192427d2745489289805f814e231d6d`：Passed；PowerDurationApplication:ThreeEntrances:Native16Steps:NewStackExpireReacquire:ArtifactBlockedNoSkip:EquivalentKeys:FullStateAndLifetimeFields:ReplayAfterNative。
+- `POWER-DURATION-KEYS-NATIVE` / `d0eb6de7069e40c9822fa2f144bc787c`：Passed；PowerDurationKeys:WeakVulnerableFrail:DistinctKeyContinuationAndFuture:PoisonNeutral:NativeSideEndTick:FullStateAndPowerFields:FrozenAfterNative:RootUnchanged。
+- `TEMPORARY-STRENGTH-CAP-NATIVE` / `468cc40fb6be4f3b9233d8f6679bea3f`：Passed；TemporaryStrength:NativeStackAndInitialCounterCap:RequestedOffset:BeforeAppliedAndAmountChanged:AfterSideTurnEnd:FullState:ForkIsolation。
+- `TEMPORARY-STRENGTH-ORDER-NATIVE` / `54fe00b2f914450b9921bf89dab9865f`：Passed；TemporaryStrength:NativeLossAndGain:FirstApplicationOrder:StackingAndNegativeOffsets:Artifact:StrengthRetirementReacquisition:AfterSideTurnEnd:FullState:ForkIsolation。
+
+上游基线中，格挡返回、Power Target、临时力量封顶、持续时间键／施加合同重现失败；玩家死亡合同在上游已通过，不重复移植生产修复。初次格挡请求只因外部独占锁排队失败，释放获授权停止的旧实例后才取得真正失败基线。
+
+列表原版／候选均通过全部操作、10,000 次随机分支与 8 个独占 worker 合同；B-C-C-B 正式对照中每场 96 项非时序字段与完整路线一致。候选整体分配收益不足 0.01%，已撤回。最终 Release 构建、Linux 结构门禁及 CoverageCatalog `--verify-state-fields --verify-state-writes` 通过（在隔离输出目录执行，未改写上游覆盖目录）；未运行 PowerShell 或可见 Steam。详见 [选择、数据和限制](performance/surgical-fixes-20260912.md)。
+
 ## 0.36.4：摘要标题
 
 - 发布整合：客户端昵称字段与本次策略修正已共同通过 Release 编译；复用本轮已生成的 0.36.4 DLL/ZIP。昵称真实上传端到端未验证，策略与 UI 证据见下。

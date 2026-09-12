@@ -39,6 +39,31 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "DEFERRED-BLOCK-RETURN-NATIVE")
+            {
+                await runner.AssertDeferredBlockReturnAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId is "TEMPORARY-STRENGTH-ORDER-NATIVE" or "TEMPORARY-STRENGTH-CAP-NATIVE")
+            {
+                await runner.AssertTemporaryStrengthAsync(combatState, player, request.ScenarioId == "TEMPORARY-STRENGTH-CAP-NATIVE");
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "PLAYER-DEATH-POWERS-NATIVE")
+            {
+                await runner.AssertPlayerDeathPowersAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "POWER-DURATION-KEYS-NATIVE")
+            {
+                await runner.AssertPowerDurationKeysAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "POWER-DURATION-APPLICATION-NATIVE")
+            {
+                await runner.AssertPowerDurationApplicationAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId.StartsWith("TURN-SETUP-UI-", StringComparison.Ordinal))
                 return Observation(combatEnded: false);
             if (request.ScenarioId == "GROWTH-ANCIENT-POLICY")
