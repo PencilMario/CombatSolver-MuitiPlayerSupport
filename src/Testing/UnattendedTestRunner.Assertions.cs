@@ -106,6 +106,12 @@ internal sealed partial class UnattendedTestRunner
                 AssertPredictionFailureBoundaries(scenario.CombatState, scenario.Player);
                 runner._completedChecks.Add("PredictionFailureBoundaries");
             }
+            if (request.ScenarioId == "STAND-PAT-MEMORY-BOUNDARY")
+            {
+                runner.SetStage("stand_pat_memory_boundary");
+                await AssertStandPatMemoryBoundaryAsync(scenario.CombatState);
+                runner._completedChecks.Add("StandPatMemoryBoundary");
+            }
             if (request.VerifySearchPolicySnapshot)
             {
                 runner.SetStage("search_policy_snapshot");

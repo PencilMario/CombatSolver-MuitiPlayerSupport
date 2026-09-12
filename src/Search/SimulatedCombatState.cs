@@ -1152,32 +1152,42 @@ internal sealed partial class SimulatedCombatState
     public void BeginSideTurn(Creature owner)
     {
         ResetCardLifecycleTurn(owner);
-        (_attacksPlayedThisTurn ??= [])[owner] = 0;
-        (_shivsPlayedThisTurn ??= [])[owner] = 0;
-        (_blockCardsPlayedThisTurn ??= [])[owner] = 0;
-        (_skillCardsPlayedThisTurn ??= [])[owner] = 0;
-        (_cardsExhaustedThisTurn ??= [])[owner] = 0;
-        (_cardsDiscardedThisTurn ??= [])[owner] = 0;
-        (_creatureAttacksThisTurn ??= [])[owner] = 0;
-        (_cardPlaySeriesStartedThisTurn ??= [])[owner] = 0;
-        (_zeroCostAttackStartsThisTurn ??= [])[owner] = 0;
-        (_cardPlayStartsThisTurn ??= [])[owner] = 0;
-        (_attackSkillStartsThisTurn ??= [])[owner] = 0;
+        ResetTurnCounter(ref _attacksPlayedThisTurn, owner);
+        ResetTurnCounter(ref _shivsPlayedThisTurn, owner);
+        ResetTurnCounter(ref _blockCardsPlayedThisTurn, owner);
+        ResetTurnCounter(ref _skillCardsPlayedThisTurn, owner);
+        ResetTurnCounter(ref _cardsExhaustedThisTurn, owner);
+        ResetTurnCounter(ref _cardsDiscardedThisTurn, owner);
+        ResetTurnCounter(ref _creatureAttacksThisTurn, owner);
+        ResetTurnCounter(ref _cardPlaySeriesStartedThisTurn, owner);
+        ResetTurnCounter(ref _zeroCostAttackStartsThisTurn, owner);
+        ResetTurnCounter(ref _cardPlayStartsThisTurn, owner);
+        ResetTurnCounter(ref _attackSkillStartsThisTurn, owner);
         if (owner.Player is { } ownerPlayer)
         {
-            (_energySpentThisTurn ??= [])[ownerPlayer] = 0;
-            (_starsGainedThisTurn ??= [])[ownerPlayer] = 0;
-            (_nonHandDrawsThisTurn ??= [])[ownerPlayer] = 0;
-            (_statusCardsDrawnThisTurn ??= [])[ownerPlayer] = 0;
+            ResetTurnCounter(ref _energySpentThisTurn, ownerPlayer);
+            ResetTurnCounter(ref _starsGainedThisTurn, ownerPlayer);
+            ResetTurnCounter(ref _nonHandDrawsThisTurn, ownerPlayer);
+            ResetTurnCounter(ref _statusCardsDrawnThisTurn, ownerPlayer);
             // Osty is never a turn-start participant but acts during the player turn; reset its counters here.
             if (ownerPlayer.Osty is { } osty)
             {
-                (_creatureAttacksThisTurn ??= [])[osty] = 0;
+                ResetTurnCounter(ref _creatureAttacksThisTurn, osty);
                 RemovePoweredAttackHitsDealtBy(osty);
             }
         }
         _doomAppliersThisTurn?.Remove(owner);
         RemovePoweredAttackHitsDealtBy(owner);
+    }
+
+    private static void ResetTurnCounter<TKey>(ref ForkableDictionary<TKey, int>? counters, TKey owner)
+        where TKey : notnull
+    {
+        // An explicit zero shadows root history, so a missing entry must still be written.
+        // An existing zero needs no mutation and must not detach a shared Fork dictionary.
+        if (counters?.TryGetValue(owner, out int current) == true && current == 0)
+            return;
+        (counters ??= [])[owner] = 0;
     }
 
     private void TriggerBaseSideTurnStart(
@@ -1786,7 +1796,8 @@ internal sealed partial class SimulatedCombatState
         if (_registeredCombatCards != null)
         {
             List<CardModel>? cardAttachedListenerOwners =
-                _modHookSubscribers.HasBaseLibCardModifiers ? [] : null;
+                _modHookSubscribers.HasBaseLibCardModifiers
+                    ? new(_registeredCombatCards.Count) : null;
             for (int cardIndex = 0; cardIndex < _registeredCombatCards.Count; cardIndex++)
             {
                 PredictedCard card = _registeredCombatCards[cardIndex];

@@ -562,7 +562,7 @@ CombatBeamSolver.Models.cs	public ParallelExpansionExecutor? ActiveParallelExpan
 CombatBeamSolver.ParallelExpansion.cs	_coordinator._run.ActiveParallelExpansion = null;
 CombatBeamSolver.StandPatJobs.cs	private void PrepareStandPatProbes(IEnumerable<SearchNode> nodes)
 CombatBeamSolver.StandPatJobs.cs	seen.Add(node.StateKey)
-CombatBeamSolver.StandPatJobs.cs	_run.StandPatCache.Add(pending[index].StateKey, evaluations[index]);
+CombatBeamSolver.StandPatJobs.cs	_run.StandPatCache.Add(batch[index].StateKey, evaluations[index]);
 CombatBeamSolver.StandPatJobs.cs	ExpansionLane[] lanes = EnsureBackgroundLanes();
 CombatBeamSolver.StandPatJobs.cs	_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);
 CombatBeamSolver.StandPatJobs.cs	wave.Completed.Wait();

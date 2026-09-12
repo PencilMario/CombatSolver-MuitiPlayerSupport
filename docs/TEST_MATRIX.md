@@ -1,5 +1,9 @@
 # CombatSolver 测试清单
 
+本轮盛碗虫群剪枝边界：最终16GB区域A-B-B-A四次Passed、3万节点完整路线及108字段相等；1GB区域4万节点候选Passed，基线完成同量工作后因NoGC退出而失败，102项非时序字段及完整动作相等。中间5万节点测试失败并以TimeLimit结束，未伪装成通过。小区域有总耗时/最大暂停回退，宽裕区域平均耗时少2.24%、分配少7.44%；全部仅Linux无头诊断首个主搜索。详见[分配、GC和限制](performance/bowlbugs-slow-search-20260912.md#元数据边界后续与深度反例)与[机器可读指标](performance/bowlbugs-prune-20260912.json)。
+
+`STAND-PAT-MEMORY-BOUNDARY`最终盛碗虫群`160b0892d7024f27817bd1660a3e1581`（28.845秒）与独立亡灵`94bdb13661cb4d3ba403bada61e6858a`（8.277秒）均Passed：双lane取消/错误排空、原根复用、DOP1/DOP2及104MiB人工压力完整搜索等价、无色生成顺序/RNG/实例和计数Fork隔离。原224MiB人工压力因未穿过剪枝内边界而失败，未删覆盖断言；广域SearchPolicy历史SIGSEGV未解决，不能称完整门禁通过。生产Release构建0警告/0错误，Linux结构门禁通过（87个Search文件）。
+
 本轮盛碗虫群：原生cursor0诊断恢复的完整ContinuationStamp匹配，native编码不可比较。药水谱系合同及A-B-B-A四次固定短搜Passed，57项非时序结果字段和22/19/18动作的三条完整路线一致。长线用药哨兵 `POTION-LINEAGE-NECRO-SENTINEL` / `f63cf487061448c6ae1289b11f0a6d67` Passed：战损4、药水2、第12回合获胜，展开53,236／转移589,526；只作质量哨兵。Release构建零警告零错误、Linux结构门禁通过。可比新进程样本分配少0.50–0.56%，未建立提速或可见性能收益；B2为热进程，不能混算平均提速。见[恢复限制与结果](performance/bowlbugs-slow-search-20260912.md#后续恢复与药水历史物化优化)。
 
 本轮选牌迁移：1,024组完整令牌合同、15,003次历史查询身份比较，以及赌博筹码/能力药水/发现三条原生严格差分均Passed；五个runId与覆盖见[报告](performance/choice-migration-20260912.md)。A-B-B-A八个正式无头请求Passed、93项工作字段与54/136行完整路线一致，3项调度字段单列。机甲3.4294→3.5134秒（慢2.45%），瀑布9.3512→9.3059秒；累计分配分别少1.128%/0.645%。Release和Linux结构门禁通过；无可见性能、完整自动部署或Windows新构建验收。

@@ -204,7 +204,7 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 
 并行搜索失败提示保留本次请求的 DOP；DOP 大于 1 时先引导上传问题包，再建议切换为“关闭（单线程）”。coordinator 消费完成邮箱、归并该 worker 的指标后才复用 lane；probe 和 raw batch 持有独立 lease。提交前完整保留已预约父节点和所有在途作业的所有权，异常停止派发，释放 dispatch sentinel 并等待全部 lane 完成，再释放未移交的 probe/batch/root。`OwnedExpansionBatch.TransferPotionTo` 与卡牌移交使用同样的先接纳、后移出规则，部分失败仍由原租约负责；旧 Dispose 不触碰后续租户。等待提交的父窗口最多 `2×DOP`，同时执行的作业最多 DOP；这是数量界和高水位预约，不是固定字节界。
 
-保路中的待命评估只预先收集原规则会访问、尚未命中 `StandPatCache` 的状态键，保留首次出现的原代表；不合并额外候选或改变窗口。至少两个待评估状态时，`StandPatJobs` 复用当前 executor 的固定 lane，worker 执行完整 EndTurn 回放，释放临时快照后只交出 `StandPatEvaluation` 标量。coordinator 归并 worker 指标后复用 lane，全部成功后按原序写缓存并执行原选择器。DOP1 沿用逐项路径。Prune 持有候选根，批内不准入新父节点或触发 GC checkpoint；取消/异常先排空所有 lane，再传播原错误。executor 的活动引用属于 `SearchRunContext`，Dispose 清除，避免运行上下文延长 lane 的生命周期。
+保路中的待命评估只预先收集原规则会访问、尚未命中 `StandPatCache` 的状态键，保留首次出现的原代表；不合并额外候选或改变窗口。至少两个待评估状态时，`StandPatJobs` 复用当前 executor 的固定 lane，worker 执行完整 EndTurn 回放，释放临时快照后只交出 `StandPatEvaluation` 标量。coordinator 根据独占探针分配高水位与 Runtime 注入的剩余内存，将冻结的首次代表分成有界批次；每批归并 worker 指标后按原序写缓存，全部批次完成后执行原选择器。DOP1 沿用逐项路径。Prune 持有候选根，在已排空的探针批次之间通过 Runtime 回收入口续搜；批内不准入新父节点或触发 GC checkpoint。全局排名结束、探针组前后、串行探针前后，以及资源/开局/有序变异保路完成处是已排空的元数据边界；不在 CycleRegion 仲裁事务中回收；以各间隔的独占分配高水位独立预约，不把整段元数据或全部 EndTurn 模拟相加作为不可分割工作。剪枝内回收保留 StandPatCache，避免准备阶段跳过的已有代表被丢失；离开剪枝后恢复正常释放。取消/异常先排空所有 lane，再传播原错误。executor 的活动引用属于 `SearchRunContext`，Dispose 清除，避免运行上下文延长 lane 的生命周期。
 
 剪枝的路由签名、完成分组的排名摘要、逐上下文 Pareto 与有序变异 continuation 包可以在已排空的固定 lane 上计算。`RetentionJobs` 只调度本次输入中的索引，不展开模拟或预约新父节点；节点、父排名、已选集合和 lease 账本在整批完成前只读，各作业只写自己的结果槽位或独占组。coordinator 保持字典插入、拼接及观察请求的原顺序，摘要计数也统一归并；DOP1 和小集合走串行路径。成功、取消和失败都先等待全部已派发作业，完整计入后台分配后才使用结果或传播原异常。它与 `StandPatJobs` 顺序复用同一 executor，不允许同剪枝推测展开重叠或另开线程池。
 
