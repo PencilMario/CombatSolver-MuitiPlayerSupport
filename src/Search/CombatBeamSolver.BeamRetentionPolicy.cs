@@ -782,17 +782,26 @@ internal sealed partial class CombatBeamSolver
             _routingChoiceScratch = scratch;
         }
 
-        // 两处 Sort 用的都是同一个比较：捕获 this 的 lambda 每次转委托都要分配，缓存起来。
-        private Comparison<SearchNode>? _beamRankComparison;
         private Comparison<SearchNode>? _finalCandidateComparison;
 
-        private Comparison<SearchNode> BeamRankComparison
-            => _beamRankComparison ??= (left, right) =>
+        private void SortByBeamRank(List<SearchNode> ranked)
+        {
+            if (ranked.Count < 2)
+                return;
+            // Score inputs are frozen during this sort. Preserve the same List.Sort
+            // comparison and tie behavior while evaluating the formula once per entry.
+            List<(SearchNode Node, double Score)> scored = new(ranked.Count);
+            foreach (SearchNode node in ranked)
+                scored.Add((node, BeamRankScore(node)));
+            scored.Sort(static (left, right) =>
             {
                 return CompareBeamRankOrder(
-                    BeamRankScore(left), left.Snapshot.OffensiveProgressValue, left.ActionCount,
-                    BeamRankScore(right), right.Snapshot.OffensiveProgressValue, right.ActionCount);
-            };
+                    left.Score, left.Node.Snapshot.OffensiveProgressValue, left.Node.ActionCount,
+                    right.Score, right.Node.Snapshot.OffensiveProgressValue, right.Node.ActionCount);
+            });
+            for (int index = 0; index < ranked.Count; index++)
+                ranked[index] = scored[index].Node;
+        }
 
         private Comparison<SearchNode> FinalCandidateComparison
             => _finalCandidateComparison ??= CompareFinalCandidates;
@@ -2559,9 +2568,7 @@ internal sealed partial class CombatBeamSolver
         public List<SearchNode> RankDeferredCandidates(IEnumerable<SearchNode> nodes, int limit)
         {
             List<SearchNode> ranked = nodes.ToList();
-            ranked.Sort((left, right) => CompareBeamRankOrder(
-                BeamRankScore(left), left.Snapshot.OffensiveProgressValue, left.ActionCount,
-                BeamRankScore(right), right.Snapshot.OffensiveProgressValue, right.ActionCount));
+            SortByBeamRank(ranked);
             if (ranked.Count > limit)
                 ranked.RemoveRange(limit, ranked.Count - limit);
             return ranked;
@@ -2603,7 +2610,10 @@ internal sealed partial class CombatBeamSolver
                 ranked = [.. bestByState.Values];
             }
 
-            ranked.Sort(finalQualityFirst ? FinalCandidateComparison : BeamRankComparison);
+            if (finalQualityFirst)
+                ranked.Sort(FinalCandidateComparison);
+            else
+                SortByBeamRank(ranked);
             List<SearchNode> routingChoices = [];
             if (preserveDefensiveRoute)
             {
@@ -3507,7 +3517,10 @@ internal sealed partial class CombatBeamSolver
                     usesPotion: false,
                     unusedPotionQuota);
             }
-            ranked.Sort(finalQualityFirst ? FinalCandidateComparison : BeamRankComparison);
+            if (finalQualityFirst)
+                ranked.Sort(FinalCandidateComparison);
+            else
+                SortByBeamRank(ranked);
             observe?.Invoke(new GlobalRetentionDecision(
                 quotaPool, required, routingChoices, ranked, limit, effectiveLimit,
                 routingChoiceQuota, RoutingChoiceLimit,

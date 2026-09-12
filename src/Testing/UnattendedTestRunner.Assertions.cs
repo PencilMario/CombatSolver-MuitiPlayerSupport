@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "CARD-PLAY-CLEANUP-CONTRACT")
+            {
+                runner.SetStage("card_play_cleanup_contract");
+                AssertCardPlayCleanupContract(scenario.CombatState, scenario.Player);
+                runner._completedChecks.Add("CardPlayCleanup:Empty:Present:OtherPlay:Complete:Abort:Removed:ForkIsolation");
+            }
             if (request.ScenarioId == "MIRRORED-HOOK-FILTER")
             {
                 runner.SetStage("mirrored_hook_filter");
