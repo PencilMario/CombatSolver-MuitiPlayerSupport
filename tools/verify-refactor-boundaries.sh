@@ -550,7 +550,11 @@ CombatBeamSolver.AdmittedExpansion.cs	public object ForkGate { get; } = new();
 CombatBeamSolver.AdmittedExpansion.cs	_coordinator.MergeExpansionWorker(outcome.Worker, outcome.AllocatedBytes);
 CombatBeamSolver.AdmittedExpansion.cs	wave.BackgroundCompleted.Wait();
 CombatBeamSolver.AdmittedExpansion.cs	while (committed < parents.Length && parents[committed]!.TailCompleted)
-CombatBeamSolver.AdmittedExpansion.cs	_completedActions == Actions.Count && _completedPotions == Potions.Count
+CombatBeamSolver.AdmittedExpansion.cs	_completedActions != Actions!.Count
+CombatBeamSolver.AdmittedExpansion.cs	_completedPotions != Potions!.Count
+CombatBeamSolver.AdmittedExpansion.cs	GenerateRawEndTurnCandidates(parent, batch, publishBaselines: false)
+CombatBeamSolver.AdmittedExpansion.cs	endTurn.TransferEndTurnTo(Aggregate!, candidate);
+CombatBeamSolver.AdmittedExpansion.cs	PublishCrossTurnStandPatBaselines(Node, _endTurnBaselines);
 CombatBeamSolver.AdmittedExpansion.cs	ready.TransferPotionTo(Aggregate!, candidate);
 CombatBeamSolver.PrimaryChoiceReplay.cs	private sealed class PrimaryChoiceReplayFrontier : IDisposable
 CombatBeamSolver.PrimaryChoiceReplay.cs	=> branches >= 2 && finals >= branches && attempts >= branches;

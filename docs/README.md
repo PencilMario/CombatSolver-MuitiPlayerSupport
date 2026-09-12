@@ -6,6 +6,8 @@
 
 | 要查什么 | 入口 |
 |---|---|
+| 当前性能PR全部改动、撤回方案与各轮指标 | [累计记录](performance/surgical-pr-summary-20260913.md) |
+| 提前计算回合尾部、所有权合同与16线程对照 | [尾部并行报告](performance/early-tail-parallelism-20260913.md) |
 | 普通Power免锁、理论收益模型与16并行实测 | [Power克隆并行](performance/power-clone-parallelism-20260913.md) |
 | 克隆优化后剩余Power锁、同父Fork和回合尾部并行瓶颈 | [并行瓶颈定位](performance/parallel-bottlenecks-20260913.md) |
 | 真实 BaseLib 下原版卡牌克隆并行、保守回退与验证限制 | [克隆并行边界](performance/native-clone-parallelism-20260913.md) |

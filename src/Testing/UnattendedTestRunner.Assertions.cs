@@ -114,6 +114,12 @@ internal sealed partial class UnattendedTestRunner
                 runner._completedChecks.Add("PowerCloneConcurrency");
                 runner._completedChecks.Add("ModelCloneConcurrency");
             }
+            if (request.ScenarioId == "EARLY-END-TURN")
+            {
+                runner.SetStage("early_end_turn");
+                await AssertEarlyEndTurnAsync(scenario.CombatState);
+                runner._completedChecks.Add("EarlyEndTurn");
+            }
             if (request.ScenarioId == "STAND-PAT-MEMORY-BOUNDARY")
             {
                 runner.SetStage("stand_pat_memory_boundary");

@@ -63,7 +63,7 @@ VigorPower等自定义内部初始化、第三方类型/变量和未知补丁保
 
 ## 16并行正式对照与残余瓶颈
 
-真实BaseLib、3万节点、16 GiB NoGC区域、四个新进程A-B-B-A。对照包含卡牌免锁的 `a117fd2` 与本次Power候选；计时取solverMetrics.totalElapsedMilliseconds，不包含游戏启动/恢复。
+真实BaseLib、3万节点、16 GB（十进制） NoGC区域、四个新进程A-B-B-A。对照包含卡牌免锁的 `a117fd2` 与本次Power候选；计时取solverMetrics.totalElapsedMilliseconds，不包含游戏启动/恢复。
 
 | 样本 | 版本 | 搜索耗时（秒） | 累计分配（GB，十进制） | GC暂停（毫秒） |
 |---|---|---:|---:|---:|
