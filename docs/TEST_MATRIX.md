@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 0.38.1 发布验证（2026-09-13）
+
+- 合并提交 `55b4e89` 相对 PR 最终提交 `1ebd323` 仅有工坊简介文档差异，行为源码一致。
+- 本轮 Windows Release 编译零警告/错误，PowerShell 结构门禁 `search_files=90`。
+- 本轮独立 GC 工具 `recovery` 六项通过；`recovery-lifecycle` 两项通过，`starts=1 restarts=1 forced=0`，覆盖真实 CLR 恢复及取消、退出和释放后的隔离。
+- 本轮 Windows `END-TURN-CHOICE-REPLAY` 因已有普通游戏进程，在主机准入阶段超时，未执行场景；记录于 `.local/pr90-release-endturn.txt`。未停止该游戏进程，未尝试第二个同样受阻的场景。
+- 复用下一节 PR 最终提交的两项 Linux 场景记录，明确不是本轮 Windows 重跑结果。版本与文档提交后执行最终 Release 构建并生成最小发布包。
+
 ## PR #90整合0.38.0
 
 合并上游ce17a40（0.38.0）后，保留双方战略上下文变量与各自消费者，文档冲突合并保留两批记录。正常Release零警告/错误，Bash/PowerShell结构门禁均90文件通过；STRATEGIC-CONTEXT-DEMAND / eae143ef4e3a4e32a23be62f060b937b Passed，END-TURN-CHOICE-REPLAY / 26494f1f7a1341a589f3a8ac35b54812 Passed。未重测性能，前述收益只属于原基线，不套用到上游新增语义后的产物。
