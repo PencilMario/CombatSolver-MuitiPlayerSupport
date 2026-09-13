@@ -310,7 +310,7 @@ internal sealed partial class SimulatedCombatState
     public void RecordRelicDamageEntry(CombatPredictionHistoryEntry historyEntry)
     {
         if (historyEntry is not CombatPredictionDamageReceivedEntry entry
-            || entry.Result.UnblockedDamage <= 0
+            || entry.Result.WasFullyBlocked
             || entry.Receiver.Player is not { } player)
         {
             return;
