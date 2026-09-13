@@ -220,6 +220,7 @@ internal sealed partial class SimulatedCombatState
     private ForkableDictionary<Player, int>? _statusCardsDrawnThisTurn;
     private ForkableDictionary<Creature, int>? _cardPlaySeriesStartedThisTurn;
     private ForkableDictionary<Creature, int>? _zeroCostAttackStartsThisTurn;
+    private ForkableDictionary<Creature, int>? _attackPlayStartsThisTurn;
     private ForkableDictionary<Creature, int>? _cardPlayStartsThisTurn;
     private ForkableDictionary<Creature, int>? _attackSkillStartsThisTurn;
     private ForkableSet<Creature>? _enemiesIntendingAttack;
@@ -612,9 +613,20 @@ internal sealed partial class SimulatedCombatState
         {
             return 0;
         }
-        if (GetAmount<T>(target) == 0)
+        bool instanced = incoming.InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced;
+        if (instanced || GetAmount<T>(target) == 0)
             beforeApplied?.Invoke(amount);
-        PowerModel simulated = GetOrCreatePower(target, incoming, applier);
+        PowerModel simulated;
+        if (instanced)
+        {
+            simulated = incoming;
+            (_addedPowerInstances ??= []).Add(simulated);
+            InvalidateHookListeners();
+        }
+        else
+        {
+            simulated = GetOrCreatePower(target, incoming, applier);
+        }
         int previousAmount = simulated._amount;
         simulated._amount = Math.Clamp(simulated._amount + amount, -999_999_999, 999_999_999);
         // A newly applied player duration skips its first tick; stacking never renews it.
@@ -644,6 +656,9 @@ internal sealed partial class SimulatedCombatState
             ((StringVar)knockdown.DynamicVars["Applier"]).StringValue = _playerNames[applyingPlayer];
         }
         afterAmountChanged?.Invoke(amount, simulated);
+        if (previousAmount == 0 && simulated._amount != 0 && simulated is PhantomBladesPower phantom)
+            PhantomBladesPowerMirrors.AfterApplied(phantom, _predictionState
+                ?? throw new InvalidOperationException("Phantom blades requires attached branch card state."));
         return applied;
     }
 
@@ -673,7 +688,8 @@ internal sealed partial class SimulatedCombatState
         Type powerType,
         Creature target,
         int amount,
-        Creature? applier = null)
+        Creature? applier,
+        CardModel? cardSource)
     {
         if (!typeof(PowerModel).IsAssignableFrom(powerType))
             throw new ArgumentException($"{powerType.FullName} is not a PowerModel type.", nameof(powerType));
@@ -681,6 +697,8 @@ internal sealed partial class SimulatedCombatState
             powerType,
             static type => GenericTemporaryStrengthLossMethod.MakeGenericMethod(type)
                 .CreateDelegate<ApplyTemporaryStrengthLossDelegate>());
+        BeginCardPowerApplication(cardSource);
+        using var scope = new CardPowerApplicationScope(this, cardSource);
         apply(this, target, amount, applier);
     }
 
@@ -701,6 +719,8 @@ internal sealed partial class SimulatedCombatState
 
     public int GetAmount<T>(Creature target) where T : PowerModel
     {
+        if (CanonicalModels.Power<T>().InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced)
+            return GetPower<T>(target)?.Amount ?? 0;
         if (_powers != null && _powers.TryGetValue((target, typeof(T)), out PowerModel? power))
             return power.Amount;
         if (_rootCreatures.Contains(target))
@@ -710,6 +730,8 @@ internal sealed partial class SimulatedCombatState
 
     public T? GetPower<T>(Creature target) where T : PowerModel
     {
+        if (CanonicalModels.Power<T>().InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced)
+            return EffectivePowers().OfType<T>().FirstOrDefault(power => ReferenceEquals(power.Owner, target));
         if (_powers != null && _powers.TryGetValue((target, typeof(T)), out PowerModel? power))
             return (T)power;
         if (_rootCreatures.Contains(target))
@@ -753,7 +775,10 @@ internal sealed partial class SimulatedCombatState
         if (current == amount)
             return;
         T canonical = CanonicalModels.Power<T>();
-        PowerModel simulated = GetOrCreatePower(target, canonical, null);
+        PowerModel simulated = canonical.InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced
+            && GetPower<T>(target) is { } instance
+                ? GetMutablePowerInstance(instance)
+                : GetOrCreatePower(target, canonical, null);
         int previousAmount = simulated._amount;
         simulated._amount = Math.Clamp(amount, -999_999_999, 999_999_999);
         UpdatePowerListenerOrder(simulated, previousAmount, simulated._amount);
@@ -828,7 +853,17 @@ internal sealed partial class SimulatedCombatState
         {
             return;
         }
-        PowerModel simulated = GetOrCreatePower(owner, incoming, applier);
+        PowerModel simulated;
+        if (incoming.InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced)
+        {
+            simulated = incoming;
+            (_addedPowerInstances ??= []).Add(simulated);
+            InvalidateHookListeners();
+        }
+        else
+        {
+            simulated = GetOrCreatePower(owner, incoming, applier);
+        }
         int previousAmount = simulated._amount;
         simulated._target = target;
         simulated._amount = Math.Clamp(simulated._amount + amount, -999_999_999, 999_999_999);
@@ -846,10 +881,7 @@ internal sealed partial class SimulatedCombatState
         if (stolen <= 0)
             return;
         RecordStolenGold(simulator, stolen);
-        ThieveryPower simulated = (ThieveryPower)GetOrCreatePower(
-            owner,
-            CanonicalModels.Power<ThieveryPower>(),
-            source.Applier);
+        ThieveryPower simulated = (ThieveryPower)GetMutablePowerInstance(source);
         simulated._target = source.Target;
         simulated.DynamicVars.Gold.BaseValue += stolen;
         LosePlayerGold(target, stolen);
@@ -882,7 +914,7 @@ internal sealed partial class SimulatedCombatState
     public void ResetTenderCardsPlayed(Creature owner)
         => (_tenderCardsPlayed ??= [])[owner] = 0;
 
-    private static T CreatePowerForApplication<T>(Creature owner, Creature? target, Creature? applier)
+    private T CreatePowerForApplication<T>(Creature owner, Creature? target, Creature? applier)
         where T : PowerModel
     {
         T incoming = PredictionUtils.CloneModelForSimulation(CanonicalModels.Power<T>());
@@ -890,6 +922,8 @@ internal sealed partial class SimulatedCombatState
         incoming._applier = applier;
         incoming._target = target;
         incoming._amount = 0;
+        if (incoming is OrbitPower orbit)
+            InitializeOrbit(orbit, 0);
         return incoming;
     }
 
@@ -1161,6 +1195,7 @@ internal sealed partial class SimulatedCombatState
         ResetTurnCounter(ref _creatureAttacksThisTurn, owner);
         ResetTurnCounter(ref _cardPlaySeriesStartedThisTurn, owner);
         ResetTurnCounter(ref _zeroCostAttackStartsThisTurn, owner);
+        ResetTurnCounter(ref _attackPlayStartsThisTurn, owner);
         ResetTurnCounter(ref _cardPlayStartsThisTurn, owner);
         ResetTurnCounter(ref _attackSkillStartsThisTurn, owner);
         if (owner.Player is { } ownerPlayer)
@@ -1404,7 +1439,6 @@ internal sealed partial class SimulatedCombatState
 
     public void NormalizeCardAfflictions(CombatPredictionSimulator simulator)
     {
-        NormalizeGhostSeedCards(simulator);
         foreach (Player player in Players)
         {
             int hex = GetAmount<HexPower>(player.Creature);
@@ -1430,24 +1464,6 @@ internal sealed partial class SimulatedCombatState
             }
         }
         NormalizePowerCardState(simulator);
-        ApplyPhantomBladesRetain(simulator);
-    }
-
-    private void ApplyPhantomBladesRetain(CombatPredictionSimulator simulator)
-    {
-        foreach (Player player in Players)
-        {
-            if (GetAmount<PhantomBladesPower>(player.Creature) <= 0)
-                continue;
-            foreach (PredictedCard card in simulator.State.GetPlayerCombatState(player).AllCards)
-            {
-                if (card.Preview.Tags.Contains(CardTag.Shiv)
-                    && !card.Preview.Keywords.Contains(CardKeyword.Retain))
-                {
-                    card.MutablePreview.AddKeyword(CardKeyword.Retain);
-                }
-            }
-        }
     }
 
     public void RemoveHexPower(CombatPredictionSimulator simulator, Creature owner)
@@ -1974,6 +1990,10 @@ internal sealed partial class SimulatedCombatState
         {
             PowerModel mutable = GetMutablePowerInstance(power);
             PowerPredictionStateSupport.CaptureRootState(simulator, mutable, power);
+            if (power is NightmarePower nightmare)
+                CaptureNightmareRootState((NightmarePower)mutable, nightmare);
+            if (power is OrbitPower orbit)
+                InitializeOrbit((OrbitPower)mutable, (4 - orbit.DisplayAmount) % 4);
             if (power is PaleBlueDotPower paleBlueDot)
                 CapturePaleBlueDotRootState((PaleBlueDotPower)mutable, paleBlueDot);
             if (power is DampenPower dampen)
@@ -2028,6 +2048,7 @@ internal sealed partial class SimulatedCombatState
             _ = GetCardsPlayedThisTurn(creature);
             _ = GetCardPlaySeriesStartedThisTurn(creature);
             _ = GetZeroCostAttackStartsThisTurn(creature);
+            _ = GetAttackPlayStartsThisTurn(creature);
             _ = GetCardPlayStartsThisTurn(creature);
             _ = GetAttackSkillStartsThisTurn(creature);
             _ = GetAttacksPlayedThisTurn(creature);
@@ -2200,6 +2221,7 @@ internal sealed partial class SimulatedCombatState
         AddPlayerIntMap(ref fingerprint, 's', _statusCardsDrawnThisTurn);
         AddCreatureIntMap(ref fingerprint, 'Q', _cardPlaySeriesStartedThisTurn);
         AddCreatureIntMap(ref fingerprint, 'q', _zeroCostAttackStartsThisTurn);
+        AddCreatureIntMap(ref fingerprint, 'a', _attackPlayStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'J', _cardPlayStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'N', _attackSkillStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'k', _knowledgeDemonCurseCounters);

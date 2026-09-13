@@ -102,7 +102,7 @@ internal static class PowerLifecycleSupport
                 continue;
             int triggers = combat.AdvanceOrbitEnergy(power, amount);
             if (triggers > 0)
-                simulator.State.GetPlayerCombatState(card.Preview.Owner).GainEnergy(power.Amount * triggers);
+                simulator.GainEnergy(card.Preview.Owner, power.Amount * triggers);
         }
     }
 

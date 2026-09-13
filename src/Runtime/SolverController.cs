@@ -846,8 +846,10 @@ internal static class SolverController
         // Turn setup and TurnStarted can complete in either order. The first accepted
         // request owns this turn; a late automatic callback must keep its active plan.
         if (reason == SearchReason.AutoTurnStart
-            && (ReferenceEquals(_combat.State, state) && _combat.LatestResult?.StartTurnNumber == searchTurn
-                || _search is { } active && ReferenceEquals(active.State, state) && active.StartTurnNumber == searchTurn))
+            && (ReferenceEquals(_combat.State, state)
+                    && (_combat.LatestResult?.StartTurnNumber == searchTurn || _combat.LastSolverDeployedTurn == searchTurn)
+                || _search is { } active && ReferenceEquals(active.State, state) && active.StartTurnNumber == searchTurn
+                || _deployment is { } deploying && ReferenceEquals(deploying.State, state) && deploying.StartTurnNumber == searchTurn))
         {
             Entry.Logger.Info($"[CombatSolver/Test] AUTO_SEARCH_ALREADY_OWNED turn={searchTurn}");
             return;
@@ -2489,7 +2491,7 @@ internal static class SolverController
         _combat.LatestResult = null;
         _combat.LatestStamp = null;
         CancelDeployment();
-        SolverDeploymentSession deployment = new();
+        SolverDeploymentSession deployment = new() { State = state, StartTurnNumber = result.StartTurnNumber };
         _deployment = deployment;
         int actionCount = result.BestNode.Actions.Count(action =>
             action.Turn == result.StartTurnNumber && action.IsExecutable);

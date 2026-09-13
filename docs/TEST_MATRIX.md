@@ -1,5 +1,9 @@
 # CombatSolver 测试清单
 
+## PR #90整合0.38.0
+
+合并上游ce17a40（0.38.0）后，保留双方战略上下文变量与各自消费者，文档冲突合并保留两批记录。正常Release零警告/错误，Bash/PowerShell结构门禁均90文件通过；STRATEGIC-CONTEXT-DEMAND / eae143ef4e3a4e32a23be62f060b937b Passed，END-TURN-CHOICE-REPLAY / 26494f1f7a1341a589f3a8ac35b54812 Passed。未重测性能，前述收益只属于原基线，不套用到上游新增语义后的产物。
+
 ## 女王回合前缀（2026-09-13）
 
 - 正常Release零警告/错误，两端结构门禁通过；`STAND-PAT-MEMORY-BOUNDARY` / `e05a6b190efd4511ba2ff5b610dd3653` Passed。原包候选 `fca513d8d11a42e1a4dc6ac3406c0520` 120秒请求超时、无结果，未达10秒。
@@ -68,6 +72,53 @@
 ```powershell
 pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId HP-MODIFIER-COLLECTIONS -CharacterId IRONCLAD -EncounterId FUZZY_WURM_CRAWLER_WEAK -EnemyCurrentHp 999 -InitialPlayerHp 80 -InitialPlayerMaxHp 80 -RelicsJson '[{"relicId":"LIZARD_TAIL"}]' -StopAfterCombatRootSnapshotAssertion -TimeoutSeconds 120
 ```
+## 0.38.0：计划外重算修复
+
+- 发布范围冻结在已验证行为提交 `d8ae412`：前两批18类机制及2张牌估值。后续木乃伊之手仅有诊断场景，没有验证成立的修复，已从发布源码移出。按用户要求将未发布准备版本0.37.1改为0.38.0，仅同步版本与中英玩家日志，沿用下列已完成的行为证据；官方名称从当前游戏PCK读取。版本输入变化后重新执行一次Release构建和最小ZIP，不重复行为测试或运行完整发布门禁。
+
+- `REPORT-CARDS-ORBIT-ENERGY-GATE`：旧入口失败 `1e0277417f9d457d8aea1d4205a5869c`，4初始能量、4张防御、1层环绕轨道和禁止返能，第四张后预测1/原版0能量。最终扩展为8能量、8张防御、两个独立轨道实例1/2，第四张后移除禁止返能，`2bec4ffb9a164481b5ace1a668f78906` Passed（26.44秒）。每张卡和移除时点比较完整状态/RNG，每步检查Fork；验证禁止返能期间仍消耗触发、解除后继续正常返能。Release零警告/错误，Windows结构门禁通过；前一顺序修复的CoverageCatalog门禁通过，目录仍有22项回放视野外状态写入，不作全量语义正确声明。
+
+- 第二批顺序修复：`REPORT-CARDS-SPOILS-ORDER` 失败 `7f9020a9cdc4412da48e30607c9335c0` → 通过 `1be7ac540f9a4ebcab455c7b77e48457`；满手 `REPORT-CARDS-SPOILS-FULL-HAND` 通过 `edee5895c8cc4ea195cc16d651926827`，只打第一张战利品，核对剑占最后手牌位、两张抽牌仍在抽牌堆。`REPORT-CARDS-ADRENALINE-VOID` 失败 `7c55fe83182f4596b29ccbf357c0883d` → 通过 `8bf7b3754ad74e24af9e47ccf43afbd0`；`REPORT-CARDS-OFFERING-VOID` 失败 `b501384837294a6abbfdb8aed873dfa4` → 通过 `2f6ed6da25e646d3aa584a47982842ef`；`REPORT-CARDS-NEUROSURGE-VOID` 失败 `7e01d53cce3a49f6ba193558402ba0ea` → 通过 `0ae3660ccf914e7f9d55c6fc0dfa738b`。均为一步原生动作完整状态/RNG及分支Fork比较，最长24.62秒；没有运行搜索或整场部署。复跑输入见[第二批记录](issues/report-replans-20260913.md#第二批继续修复)。首次误填 `AXEBOT` 导致建局失败，不计行为基线。
+
+- 批次收尾：16类可复现机制及2张牌估值已分别取得行为证据；严格合并同根后未达到20–30类高频目标。最终Windows结构门禁 `REFACTOR_BOUNDARIES_OK search_files=89`，CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过（3035项、0未分类/缺关联通过证据；22项处于回放视野外，属于目录边界）。正式版本仍0.37.0；完整频率、范围和未解决项见[批次结果](issues/report-replans-20260913.md)。本轮没有运行Linux游戏、可见Steam或发布流程。
+
+- `RELIC-DAMAGE-WAKE`：熟睡甲虫失败基线 `3ccdcacbe9aa473e8a777b34ea99391e`，招架盾原生伤害后 SLUMBER_POWER 为2、预测为3。修复后 `252a8f9dc76e4610ac455f05388eebcf` Passed（23.11秒），乐加维林族母 `1012870880214ac79bbc646c5e5d46a2` Passed（9.06秒）；均比较完整一步状态与 RNG。命令使用 `-ScenarioId RELIC-DAMAGE-WAKE -EncounterId SLUMBERING_BEETLE_NORMAL` 或 `LAGAVULIN_MATRIARCH_BOSS -EnemyCurrentHp 100`，无增量搜索。Release零警告/错误；CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过。原包完整部署、可见测试未运行。
+
+- `AUTO-DEPLOYMENT-REQUEST-OWNERSHIP`：有效失败基线 `7378bb2aa3af43219daa7dd48f4a2712` 在部署进行中检测额外搜索。修复后 `8870e33fd0b344b6ae9c2393b59e902e` Passed（23.81秒），原生两张攻击完成击杀；`Instant / 0秒`。早期两次夹具误在战斗清理后比较账本，已修正断言时点，不作为失败基线。嵌套 PowerShell 重定向导致启动器 stdout 句柄未关闭，已结束本任务等待进程并保存游戏完整结果，后续在单层 PowerShell 运行。相邻 `AUTO-TURN-REQUEST-OWNERSHIP` 的 `da5ef97e68e341748a6e4b31f9025fc7` Passed（22.93秒），显式手动重算可用。Release与Windows结构门禁通过。
+
+- `SPAWN-POWER-ORDER`：`FABRICATOR_NORMAL`，`FABRICATOR/FABRICATE_MOVE`，清空遗物后注入 `PHILOSOPHERS_STONE`；使用既有 MonsterMoveChecks 协议。失败 `7196457aa1a640b1840bafaf116764f5` 与修复通过 `8ee41d141e1c40caa71d1adaf4f4d0f8`，核对完整有序能力、阵容、状态与RNG。Release通过，无原包整场/可见验收。
+
+- `INSTANCED-POWER-AUTOMATION`：有效失败 `55983c477ab849169dd1c0c36aca5152`，预测单实例3、原生两个实例1/2；初版 MoveStateSnapshot 的内部状态字典不接受同名实例，改用严格 ContinuationStamp（`95c4ce554d5a44cca5cb9369cb5bdfb0` 是夹具限制）。扩展生命周期后 `3502fcbd0a1a45ce8714bac2bb87a4a0` Passed，`INSTANCED-POWER-BOULDER` 的 `4ca7a4ee808244f6896c0b921952505b` Passed，覆盖Fork、重新捕获、追加、移除。`INSTANCED-POWER-TARGETED` 的 `bb2ac2b460e44c1b867361e5a033cd15` Passed，定向实例/首次查询/逐实例Gold写入合同；该Gold写入断言不是完整原生偷窃回合验收。Release通过。
+
+- `CRAB-RAGE-DEATH-TIMING`：`KAISER_CRAB_BOSS`，一只1HP、另一只100HP，前者先死亡，再对后者造成20点伤害。失败 `94557ad1b38945b297365a0228455829`，修复 `cccecc62cf9d4c15891f02a218d59573` Passed；严格状态/RNG差分，清扫后继续检查。Release通过。覆盖目录将 CrabRage 与前项 Asleep/Slumber 的权威来源更新为精确镜像并关联本轮证据。
+
+- `NIGHTMARE-SELECTION-SNAPSHOT`：静默猎手，手牌夜魇/精密瞄准，先注入2层无限刀刃，完整两回合原版差分。失败 `e3e990169f6a48dc8ec78d26df15d45a`，通过 `fba8186242f44a93835b9f01955d8003`；检查所选牌快照与生成顺序。`NIGHTMARE-CAPTURED-ROOT` 的 `3649d93b13254fe88f34d0f3c5b842b4` Passed，覆盖活动夜魇根捕获、原版副本、Fork与live隔离、fingerprint及ContinuationStamp；根捕获初始失败记录位于本地 nightmare-root-baseline.txt。Release零警告/错误。未运行原包整场部署。
+
+- `SIGNED-GOLD-LOSS`：失败 `0dd6c25a8f1c4f98ae7e96d8c7180481` 复现137/142金币差异；通过 `7877327a996f475db12dede147ffad5d`，依次扣减-5、0、3、200、-5，比较完整状态和RNG。Release通过，未声称修改遗物Mod的整场兼容验证。
+
+- `EMOTION-CHIP-PREVENTED-DAMAGE`：无格挡、缓冲1，受到10点伤害后进入下一回合，等离子球与情感芯片结算。失败 `b865f0b9a3c64989a3050622c32dea55` 为3/4能量；通过 `66c62e28bf1f4833bf15d2fce60681d5`，完整状态/RNG一致。Release通过。
+
+- `SETUP-CAPTURED-HISTORY`：储君在准备根捕获前获得星能，通过实际 `ReplayTurnSetup` 入口继续准备并打出 Radiate。失败 `8b05f81f0b9648d5b35ba8d476f0cc04`，敌人HP57/39；通过 `7c729478f0d14270a5cf8ff4e0d000db`，完整状态/RNG一致。使用固定动作回放，无正式搜索扩展；Release通过。
+
+- `BLOCK-EVENT-HISTORY`：失败 `cb0e848069e04c8283eabcbf29d2e4c7`，残影触发后防御少5格挡。扩展后的 `0f404dbcbe3b4e568e6c89579158774b` Passed：非卡牌格挡、同一次出牌连续两次格挡、下一次出牌，均比较完整状态/RNG。首次扩展构建缺少夹具 ResourceInfo 必填值，补齐后Release通过。该验证覆盖计数机制；原报告额外格挡来源仍待定位。
+
+- `ZERO-BASE-BLOCK`：无中毒目标、敏捷3，打出蜃景。失败 `22dccf98c4c74e528bfdfb117a970515`，通过 `e825941c7fcf4fc4aea55c9e90950def`，原版与模拟完整状态/RNG一致。Release通过。未单独验证第三方零格挡通知监听器。
+
+- `LAMP-INDIRECT-TEMPORARY-STRENGTH`：君王凝视→打击→致命毒药，严格Continuation比较。失败 `8ef8bc5c0a834483a0dad70b06766b5f`，通过 `5e6a572ec826440790e071cb2e931736`；确认附带减力量保留灯笼次数，直接施毒正常翻倍并消耗次数。Release通过。
+
+- `ORBIT-CAPTURED-ROOT`：原版实例已记录2点能量花费后捕获，继续4张防御。失败 `e218076e263c4f8f85153a848a7e75dd`，通过 `656deacd5dbc4afebe71929d6161d94a`；覆盖原版返还能量、重新捕获、Fork隔离、新实例0余数、指纹及续用比较。扩展夹具先补齐nullable断言和命名空间，再取得Release零警告/错误。
+
+- 环绕轨道/自动化估值：固定6000节点、Beam24、DOP1，环绕轨道250HP目标旧路线第16回合死亡→第25回合获胜、65战损；自动化180HP目标旧路线第18回合死亡→第20回合获胜、69战损。原版完整部署 `ef36ab823040497d807b192c6fa8fcec` / `7f8098525c3f4cbebddb3959fa2fc211` Passed，实际HP10/6、重算0、Instant/0秒。14HP短战 `9d69f037632d472385b5d40f6bc3445e` / `13f948c2f025435e8555fe7d4bcf7481` 均首回合无伤获胜；600节点增量检查 `e62f83acb8be4bcbb9e08c4d968f7cae` / `5f928b0014114a78a9e83ccafac3d186` Passed。`AUTOMATION-CAPTURED-ROOT` 的 `a3152fff299c4db9bb1445c2076c3f9f` 检查剩1次抽牌时捕获、返能复位与Fork；`AUTOMATION-NATURAL-DRAWS` 的 `600c0898f3ca4b23a8d73fdc476bdb77` 只靠每回合5张自然抽牌，两回合完整状态/RNG通过。完整参数、失败与未改善场景见[专项记录](issues/recurring-energy-valuation-20260913.md)。
+
+- `IMPLICIT-HAND-CHOICE-ORDER`：隐秘匕首、打击、防御的固定手牌，正常选择生成器曾将必须全弃的两张牌重排。失败 `a486b3292369471085a61799fcc30eeb`，C[0]预测防御/原版打击；修复 `809f6943021d4578b339b71e3bd53955` Passed，完整牌堆/状态/RNG一致，嵌套自动策略输出相同顺序。Release通过；没有完整搜索、逐包部署或可见测试。
+
+- `ATTACK-START-HISTORY`：致死性75、痛殴与打击。失败 `a9b2864bbb3b46febb3332ccbd38f1b8` 中痛殴成长至14.50、原版10；修复 `8d36d575f6854aaf815a240d28186263` Passed，完整状态/RNG、重新捕获、父子隔离、第二次攻击及下回合计数重置一致。新增 `AttackStarts` 续用字段保留严格比较，旧文本缺少该字段不视为新格式整场回放通过。Release通过，未运行完整搜索。
+
+- `PHANTOM-RETAIN-LIFECYCLE`：升级小刀先获得幻影之刃保留，再施加抑制。失败 `91737ac0e4bf4c1a81284168d0d44be7` 为预测保留True/原版False；扩展后的 `153756412f0640438927d4cf37b70fb5` Passed，降级、叠加、克隆卡入场、移除后重施加均比较完整状态/RNG。两次夹具构建补齐命名空间后Release通过；没有完整搜索或逐包部署。
+
+- `DAMPEN-DEATH-CLAW`：爪击失败 `dbfd298906b4409a9f0b31c0aae60380`，最终伤害6/7、私有成长2/3；修复 `14ec10028e27418eb345a1d9a404e248` Passed。`DAMPEN-DEATH-SCYTHE` 的 `c5305c1973b94c14b75f960eed8faec3` Passed，恢复升级后按7成长。都用1HP魔法骑士与存活旁怪，完整单动作状态/RNG一致；并入已确认的死亡回调延迟根因。Release通过。
+
+- `GHOST-SEED-KEYWORD-LIFECYCLE`：失败 `d2b7fffc0c8641a9b13e36958e1302eb` 的虚无状态不同，但旧ContinuationStamp首差返回none；最终 `ac64922583814c0690378914b6630b4d` Passed，覆盖降级、新卡/克隆入场、次回合状态和RNG，以及只改变本地关键词时续用必须不同。新增`keywords=[...]`字段后，旧报告文本缺少关键词不当作新格式全量回放基线；Release通过。
 
 ## 0.37.0：性能更新与 PR #89 合并验证
 

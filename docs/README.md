@@ -13,6 +13,8 @@
 | 女王原包为何恢复失败、为何频繁GC及本轮优化取舍 | [恢复与性能报告](performance/queen-replay-optimization-20260913.md) |
 | 未变状态共享、标签/大牌堆容器优化与女王GC问题 | [调查与实测](performance/state-sharing-20260913.md) |
 | 内存主要花在哪里，什么条件才能缩至十分之一 | [分配与峰值研究](performance/memory-tenfold-20260913.md) |
+| 943份计划外重算报告、16类已修机制及证据缺口 | [2026-09-13批次结果](issues/report-replans-20260913.md) |
+| 环绕轨道、自动化的持续返能估值与实战对照 | [返能能力估值](issues/recurring-energy-valuation-20260913.md) |
 | 后续六方向的当前诊断、逐项实现与对照 | [六方向开发记录](performance/six-directions-20260913.md) |
 | 当前性能PR全部改动、撤回方案与各轮指标 | [累计记录](performance/surgical-pr-summary-20260913.md) |
 | 提前计算回合尾部、所有权合同与16线程对照 | [尾部并行报告](performance/early-tail-parallelism-20260913.md) |

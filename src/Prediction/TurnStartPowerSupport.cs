@@ -128,6 +128,13 @@ internal static class TurnStartPowerSupport
             if (power.Amount <= 0 || !ReferenceEquals(power.Owner.Player, player))
                 continue;
 
+            if (power is NightmarePower or InfiniteBladesPower or SentryModePower)
+            {
+                if (combat.GenerateTurnStartPowerCards(simulator, player, power))
+                    return true;
+                continue;
+            }
+
             if (power is ForegoneConclusionPower)
             {
                 SimPlayerCombatState state = simulator.State.GetPlayerCombatState(player);

@@ -164,6 +164,10 @@ internal static partial class CardChoiceSupport
 
     public static PlanCardChoice BuildAutomaticPolicyChoice(CardChoiceSpec spec)
     {
+        if (spec.IsImplicitAllSelection)
+            return new PlanCardChoice(spec.Effect, spec.SourcePile,
+                ToTokens(spec.Options, spec.Options, spec.SourceCards, static card => card.Id.Entry),
+                ContextId: spec.ContextId);
         int count = Math.Min(spec.MinCount, spec.Options.Count);
         bool fromHand = spec.SourcePile == PileType.Hand;
         List<PredictedCard> selection = (fromHand
@@ -801,7 +805,8 @@ internal static partial class CardChoiceSupport
         IReadOnlyList<PredictedCard> sourceCards = owner.GetCardPile(source)?.Cards ?? [];
         return list.Count == 0
             ? null
-            : new CardChoiceSpec(effect, source, count, count, list, sourceCards, replacementValue);
+            : new CardChoiceSpec(effect, source, count, count, list, sourceCards, replacementValue,
+                IsImplicitAllSelection: list.Count <= count);
     }
 
     private static CardChoiceSpec RangeSpec(
