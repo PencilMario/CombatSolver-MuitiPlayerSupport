@@ -39,6 +39,22 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId is "ORBIT-SEARCH-QUALITY" or "ORBIT-SEARCH-QUALITY-SHORT" or "ORBIT-SEARCH-QUALITY-DEPLOY"
+                or "AUTOMATION-SEARCH-QUALITY" or "AUTOMATION-SEARCH-QUALITY-SHORT" or "AUTOMATION-SEARCH-QUALITY-DEPLOY")
+            {
+                await runner.ProbeRecurringEnergyQualityAsync(combatState, player);
+                return Observation(combatEnded: request.ScenarioId.EndsWith("-DEPLOY", StringComparison.Ordinal));
+            }
+            if (request.ScenarioId == "AUTOMATION-NATURAL-DRAWS")
+            {
+                await runner.AssertAutomationNaturalDrawsAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
+            if (request.ScenarioId == "AUTOMATION-CAPTURED-ROOT")
+            {
+                await runner.AssertAutomationRootAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "ORBIT-CAPTURED-ROOT")
             {
                 await runner.AssertOrbitRootAsync(combatState, player);

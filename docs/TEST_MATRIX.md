@@ -28,6 +28,8 @@
 
 - `ORBIT-CAPTURED-ROOT`：原版实例已记录2点能量花费后捕获，继续4张防御。失败 `e218076e263c4f8f85153a848a7e75dd`，通过 `656deacd5dbc4afebe71929d6161d94a`；覆盖原版返还能量、重新捕获、Fork隔离、新实例0余数、指纹及续用比较。扩展夹具先补齐nullable断言和命名空间，再取得Release零警告/错误。
 
+- 环绕轨道/自动化估值：固定6000节点、Beam24、DOP1，环绕轨道250HP目标旧路线第16回合死亡→第25回合获胜、65战损；自动化180HP目标旧路线第18回合死亡→第20回合获胜、69战损。原版完整部署 `ef36ab823040497d807b192c6fa8fcec` / `7f8098525c3f4cbebddb3959fa2fc211` Passed，实际HP10/6、重算0、Instant/0秒。14HP短战 `9d69f037632d472385b5d40f6bc3445e` / `13f948c2f025435e8555fe7d4bcf7481` 均首回合无伤获胜；600节点增量检查 `e62f83acb8be4bcbb9e08c4d968f7cae` / `5f928b0014114a78a9e83ccafac3d186` Passed。`AUTOMATION-CAPTURED-ROOT` 的 `a3152fff299c4db9bb1445c2076c3f9f` 检查剩1次抽牌时捕获、返能复位与Fork；`AUTOMATION-NATURAL-DRAWS` 的 `600c0898f3ca4b23a8d73fdc476bdb77` 只靠每回合5张自然抽牌，两回合完整状态/RNG通过。完整参数、失败与未改善场景见[专项记录](issues/recurring-energy-valuation-20260913.md)。
+
 ## 0.37.0：性能更新与 PR #89 合并验证
 
 - 定版范围：PR #89 的已合并行为及已审核更新日志；版本与发布元数据变更复用以下验证，本次不重跑游戏场景，不作完整可见性能验收结论。

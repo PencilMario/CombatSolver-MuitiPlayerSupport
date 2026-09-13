@@ -249,6 +249,7 @@ internal sealed partial class CombatBeamSolver
         bool needsExhaustDrawTiming = false;
         bool skillsExhaust = false;
         bool hasPagestorm = false;
+        bool hasRecurringEnergy = false;
         int danseMacabreEnergyThreshold = 0;
         int demesneAmount = 0;
         for (int powerIndex = 0; powerIndex < effectivePowers.Count; powerIndex++)
@@ -262,6 +263,7 @@ internal sealed partial class CombatBeamSolver
                 policy.Act3BossStrategy);
             needsExhaustDrawTiming |= power is DarkEmbracePower;
             skillsExhaust |= power is CorruptionPower && ReferenceEquals(power.Owner, _player.Creature);
+            hasRecurringEnergy |= power is OrbitPower or AutomationPower;
             if (policy.Act3BossStrategy)
             {
                 hasPagestorm |= power is PagestormPower;
@@ -277,6 +279,7 @@ internal sealed partial class CombatBeamSolver
         StrategicEffectContext? strategicContext = null;
         StrategicEffectVector strategicEffects = StrategicEffectVector.Zero;
         int offensivePersistentBuffValue = 0;
+        int refundEnergySpend = 0, refundEnergyCapacity = 0, refundDraws = 0;
         PersistentSetupTraits persistentSetupTraits = PersistentSetupTraits.None;
         for (int powerIndex = 0; powerIndex < effectivePowers.Count; powerIndex++)
         {
@@ -292,6 +295,14 @@ internal sealed partial class CombatBeamSolver
                     FirstAttackDamage = policy.Act3BossStrategy
                         ? CaptureFirstAttackDamage(simulator, combat, playerState, liveCards) : 0,
                 };
+                if (hasRecurringEnergy)
+                {
+                    // Use the existing bounded card-access horizon, including future natural hand draws.
+                    // Refunds share only the energy demand left after current energy and normal turn resets.
+                    (refundEnergySpend, refundEnergyCapacity) = CaptureEnergyRefundWindow(
+                        simulator, combat, playerState, liveCards, context, skillsExhaust);
+                    refundDraws = Math.Max(0, context.ReachableCards - playerState.Hand.Cards.Count);
+                }
                 if (policy.Act3BossStrategy
                     && (hasPagestorm || danseMacabreEnergyThreshold > 0 || demesneAmount > 0))
                 {
@@ -321,9 +332,24 @@ internal sealed partial class CombatBeamSolver
                 strategicContext = needsExhaustDrawTiming
                     ? context.WithExhaustDrawTiming(effectivePowers, playerState.Hand.Cards, _player.Creature) : context;
             }
-            StrategicEffectVector effect = StrategicEffectModel.Evaluate(
-                power,
-                strategicContext.Value);
+            StrategicEffectContext effectContext = strategicContext.Value;
+            if (power is OrbitPower orbit)
+            {
+                int gain = (int)Math.Min(refundEnergyCapacity,
+                    ((long)refundEnergySpend + combat.GetOrbitEnergyRemainder(orbit)) / 4 * orbit.Amount);
+                refundEnergyCapacity -= gain;
+                effectContext = effectContext with { RecurringEnergyGain = gain };
+            }
+            else if (power is AutomationPower automation)
+            {
+                int cardsLeft = simulator.StateStore.Peek(automation,
+                    () => new AutomationPredictionState(automation)).CardsLeft;
+                int triggers = refundDraws < cardsLeft ? 0 : 1 + (refundDraws - cardsLeft) / 10;
+                int gain = (int)Math.Min(refundEnergyCapacity, (long)triggers * automation.Amount);
+                refundEnergyCapacity -= gain;
+                effectContext = effectContext with { RecurringEnergyGain = gain };
+            }
+            StrategicEffectVector effect = StrategicEffectModel.Evaluate(power, effectContext);
             strategicEffects += effect;
             offensivePersistentBuffValue += effect.DamagePotential + effect.ScalingPotential;
             persistentSetupTraits |= PersistentPowerSetupTrait(power);
@@ -874,6 +900,39 @@ internal sealed partial class CombatBeamSolver
             DemonFormPower or CreativeAiPower => PersistentSetupTraits.RecurringScaling,
             _ => PersistentSetupTraits.None,
         };
+
+    private (int Spend, int Capacity) CaptureEnergyRefundWindow(
+        CombatPredictionSimulator simulator,
+        SimulatedCombatState combat,
+        SimPlayerCombatState playerState,
+        IReadOnlyList<PredictedCard> liveCards,
+        StrategicEffectContext context,
+        bool skillsExhaust)
+    {
+        if (liveCards.Count == 0 || context.ReachableCards == 0)
+            return (0, 0);
+        int maxEnergy = Math.Max(0, PersistentPowerSupport.GetModifiedMaxEnergy(combat, _player));
+        int futureTurns = Math.Min(Math.Max(0, context.RemainingTurns - 1),
+            (Math.Max(0, context.ReachableCards - playerState.Hand.Cards.Count)
+                + CombatManager.baseHandDrawCount - 1) / CombatManager.baseHandDrawCount);
+        long energySupply = Math.Max(0, playerState.Energy) + (long)maxEnergy * futureTurns;
+        double visits = (double)context.ReachableCards / liveCards.Count;
+        double energyDemand = 0;
+        foreach (PredictedCard card in liveCards)
+        {
+            if (card.HasKeyword(simulator.State, CardKeyword.Unplayable)
+                || skillsExhaust && card.Preview.Type == CardType.Skill)
+                continue;
+            int cost = card.Preview.EnergyCost.CostsX ? maxEnergy
+                : Math.Max(0, card.Preview.EnergyCost.GetWithModifiers(CostModifiers.Local));
+            bool singleUse = card.Preview.Type == CardType.Power
+                || card.HasKeyword(simulator.State, CardKeyword.Exhaust);
+            energyDemand += cost * (singleUse ? Math.Min(1, visits) : visits);
+        }
+        long demand = (long)Math.Ceiling(energyDemand);
+        return ((int)Math.Min(int.MaxValue, Math.Min(energySupply, demand)),
+            (int)Math.Min(int.MaxValue, Math.Max(0, demand - energySupply)));
+    }
 
     private static (int EtherealDrawTriggers, int PagestormBonusDrawCapacity, int HighEnergyPlays,
         int DemesneEnergyGain, int DemesneDrawGain)

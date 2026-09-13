@@ -100,6 +100,7 @@ internal readonly record struct StrategicEffectContext(
     public int DemesneEnergyGain { get; init; }
     public int DemesneDrawGain { get; init; }
     public int FirstAttackDamage { get; init; }
+    public int RecurringEnergyGain { get; init; }
 
     internal StrategicEffectContext WithExhaustDrawTiming(IReadOnlyList<PowerModel> powers,
         IReadOnlyList<PredictedCard> hand, Creature owner)
@@ -457,6 +458,8 @@ internal static class StrategicEffectModel
                 | StrategicEffectRequirements.AverageCardValue,
             CorruptionPower => StrategicEffectRequirements.SkillEnergySpend
                 | StrategicEffectRequirements.AverageCardValue,
+            OrbitPower or AutomationPower => StrategicEffectRequirements.RemainingTurns
+                | StrategicEffectRequirements.AverageCardValue,
             CreativeAiPower => StrategicEffectRequirements.RemainingTurns
                 | StrategicEffectRequirements.AverageCardValue,
             IterationPower => StrategicEffectRequirements.StatusDrawTriggers
@@ -524,6 +527,7 @@ internal static class StrategicEffectModel
             CuriousPower => Resource(
                 Math.Min(context.PowerEnergySpend, amount * context.PowerPlays) * energyUnit),
             CorruptionPower => Resource(context.SkillEnergySpend * energyUnit),
+            OrbitPower or AutomationPower => Resource(context.RecurringEnergyGain * energyUnit),
             CreativeAiPower => CardAccess(
                 amount * context.RemainingTurns * cardAccessUnit),
             IterationPower => CardAccess(

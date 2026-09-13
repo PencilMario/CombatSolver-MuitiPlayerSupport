@@ -1,4 +1,20 @@
 {
+  "RECURRING-ENERGY-VALUATION": {
+    "status": "Passed",
+    "level": "HeadlessFixedBudgetQualityAndNativeDeployment",
+    "procedure": "环绕轨道250HP、自动化180HP的6000节点固定预算对照，14HP零损斩杀哨兵、600节点增量等价及Instant/0秒原版整场部署。",
+    "expected": "中间保路计入可消费的返能，长战获胜，短战保留斩杀，部署计划外重算0。",
+    "observed": "两项目标由死亡变为获胜；ef36ab823040497d807b192c6fa8fcec与7f8098525c3f4cbebddb3959fa2fc211实战HP10/6、重算0。自动化250HP探索对照仍死亡，未宣称全场景改善。",
+    "evidence": "src/Testing/UnattendedTestRunner.RecurringEnergyQuality.cs; docs/issues/recurring-energy-valuation-20260913.md; 2026-09-13"
+  },
+  "AUTOMATION-DRAW-LIFECYCLE": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "捕获剩1张抽牌的返能计数；原版抽牌与分支同步比较；另外只靠每回合自然抽5张推进两回合。",
+    "expected": "10张抽牌返能一次并复位，父分支隔离，自然抽牌同样触发。",
+    "observed": "a3152fff299c4db9bb1445c2076c3f9f与600c0898f3ca4b23a8d73fdc476bdb77 Passed，完整状态/RNG一致。",
+    "evidence": "src/Testing/UnattendedTestRunner.AutomationRoot.cs; docs/TEST_MATRIX.md; 2026-09-13"
+  },
   "NIGHTMARE-TURN-ORDER-AND-ROOT": {
     "status": "Passed",
     "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",

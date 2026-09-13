@@ -6,6 +6,8 @@
 
 三层首领特化的 `Act3BossInteractions` 标记表示本次冻结政策的范围；`ReachableCards` 复用已有视野估计。`EtherealDrawTriggers`、`PagestormBonusDrawCapacity`、`HighEnergyPlays`、`DemesneEnergyGain` 和 `DemesneDrawGain` 只为对应原版能力按当前分支计算，未参与计算时为 0，不是第三方可任意请求的通用触发统计。`StrategicEffectMirrors` 的 requirements/evaluate 登记继续优先；这些估计不改变终局收益和真实结算。
 
+`RecurringEnergyGain` 按原版环绕轨道/自动化的当前实例计数、既有可达牌视野与能量缺口计算，包含未来自然手牌抽取；多个实例共用可消费的能量缺口。它只用于中间保路，其他能力为0，不是第三方通用触发次数查询。第三方 requirements/evaluate 登记优先级和签名保持原约定。
+
 ## 这是给谁用的
 
 原版 `PrepTimePower` 在三层首领特化中请求 `RemainingTurns` 与 `AttackPlays`，只为存在攻击来源的分支估计重复精力收益；范围外保持原估值。第三方登记仍优先于这项原版规则，不需要更改登记签名。

@@ -6,6 +6,7 @@
 
 | 要查什么 | 入口 |
 |---|---|
+| 环绕轨道、自动化的持续返能估值与实战对照 | [返能能力估值](issues/recurring-energy-valuation-20260913.md) |
 | 后续六方向的当前诊断、逐项实现与对照 | [六方向开发记录](performance/six-directions-20260913.md) |
 | 当前性能PR全部改动、撤回方案与各轮指标 | [累计记录](performance/surgical-pr-summary-20260913.md) |
 | 提前计算回合尾部、所有权合同与16线程对照 | [尾部并行报告](performance/early-tail-parallelism-20260913.md) |
