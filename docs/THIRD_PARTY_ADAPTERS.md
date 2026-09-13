@@ -119,6 +119,8 @@ Hook 分发会省略当前原版类型继承的默认空回调，但保留第三
 
 ### 2.2 战略估值：会改变出牌顺序的 Power
 
+`FirstAttackDamage` 是三层首领特化中填充的首张攻击潜力，普通政策为0，使用范围及限制见下方专文；登记签名与优先级保持。
+
 ```csharp
 StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 ```
@@ -127,6 +129,8 @@ StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 [第三方 Power 的战略估值登记](third-party-strategic-effects.md)。
 
 `StrategicEffectRequirements.AttackHits` 可请求可达攻击命中数；`StrategicEffectContext.AttackHits` 在请求后提供估值，未请求时为 null。它包括已审查的原版多段与小刀生成，第三方攻击使用普通单次命中估计，不能当作真实攻击结算。`ExhaustDrawPlays` 是黑暗之拥在禁抽、虚无顺序下的抽牌机会估值；这些字段只服务保路，不改变 Hook 镜像语义。
+
+三层指定首领的内置联动估值额外填充 `Act3BossInteractions`、`ReachableCards` 及虚无抽牌、高费出牌、未来能量/抽牌的估计值。专用计数只在对应原版 Power 实际参与该分支时计算，第三方登记不能把默认 0 当作完整可达性分析；登记表仍优先于内置 Power 分支。见下方封闭入口清单。
 
 不登记的后果：求解器按叠加层数记一点 `ScalingPotential` 兜底。对大多数 Power 够用；对
 「自己不给甲、但让后续攻击给甲」这类会被排到错误位置。
@@ -519,6 +523,7 @@ CardRemovalValueMirrors.Register<YourDefend>(-10d);
 | 位置 | 症状 | 状态 |
 |---|---|---|
 | `RelicCounterCatalog` / `SimulatedCombatState.ReadRelicCounter` | 战斗末卡数仅覆盖已核对的十种原版计数；第三方显示计数只列出“尚未适配”，不会被自动当作跨战斗目标。见[计数策略说明](relic-counters.md) | 精确原版适配 |
+| `SearchPolicySnapshot.IsAct3BossEncounter` / `CombatBeamSolver.CaptureAct3BossInteractionPotential` | 首领范围只含第三幕实验体、永世沙漏、女王；联动上下文只适配原版 Pagestorm、DanseMacabre、Demesne；StrategicEffectModel 对 PrepTimePower 按未来攻击与回合视野估计重复精力收益。这些不是通用第三方触发次数分析。第三方 Power 仍使用 §2.2 登记 | 原版特化；第三方估值已有入口 |
 | `PredictionModHookSubscriberCapture.KnownPreRootSubscriberTypeNames` | 私有静态白名单，没有公开登记入口 | 待做 |
 | `PredictionModPatchAudit.ValidateLoadedMods` | 明确拒绝 `WheelchairSpire`，没有外部放行入口 | 项目不兼容策略 |
 | `NativeModelCloneConcurrency` | 预测克隆只放行已核对原版阶段、原版变量及 BaseLib/Ritsu 稀疏元数据复制补丁组合的普通原版卡牌；附魔/灾厄、第三方模型/变量和未知补丁保留原锁。Power 只放行已物化原版变量、继承默认克隆及 InitInternalData 的原版类型，同时核对基阶段与变量 getter 补丁；自定义初始化保持原锁。每个线程最外层模拟隔离域重新核对，不支持求解中安装补丁；原版 MutableClone 保护不变。没有新增外部注册入口 | 精确框架适配 |

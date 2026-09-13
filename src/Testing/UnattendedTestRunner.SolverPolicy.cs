@@ -847,7 +847,7 @@ internal sealed partial class UnattendedTestRunner
         }
 
         _completedChecks.Add(
-            $"InitialPolicy:SoldHp={result.SoldHp}/{result.SoldHpThreshold};" +
+            $"InitialPolicy:SoldHp={result.SoldHp};" +
             $"Potion={result.PotionCount},Saved={result.PotionHpSaved}/{result.PotionHpRequired},Rejected={result.PotionBranchesRejected};" +
             $"Theft={result.TheftPolicy?.ToString() ?? "-"},Outstanding={result.OutstandingStolenResource};" +
             $"Turns={result.SearchedTurns};Shuffles={result.Snapshot.ShufflesCrossed};" +

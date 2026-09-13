@@ -1537,7 +1537,6 @@ internal sealed class SolverResult
     public required int PotionBranchesRejected { get; init; }
     public required SolverTheftPolicy? TheftPolicy { get; init; }
     public required int OutstandingStolenResource { get; init; }
-    public required int SoldHpThreshold { get; init; }
     public required IReadOnlyDictionary<int, int> SoldHpByTurn { get; init; }
     public required IReadOnlyDictionary<int, int> HpLostByTurn { get; init; }
     public required IReadOnlyDictionary<int, int> HpRecoveredByTurn { get; init; }
@@ -1688,7 +1687,6 @@ internal sealed class SolverResult
             PotionBranchesRejected = 0,
             TheftPolicy = TheftPolicy,
             OutstandingStolenResource = Snapshot.OutstandingStolenResource,
-            SoldHpThreshold = SoldHpThreshold,
             SoldHpByTurn = soldByTurn,
             HpLostByTurn = HpLostByTurn,
             HpRecoveredByTurn = HpRecoveredByTurn,
@@ -1724,7 +1722,7 @@ internal sealed class SolverResult
             $"洗牌边界前预计：玩家 {Snapshot.PlayerHp} HP / {Snapshot.PlayerBlock} 格挡；敌方合计 {Snapshot.EnemyHp} HP",
             $"置信度：{ConfidenceText()}　展开 {ExpandedNodes} 节点　{Elapsed.TotalMilliseconds:F0} ms",
             $"动态范围：{SearchedTurns} 回合，边界 {BoundaryReason}；洗牌分支停止 {ShuffleBranchesPruned}",
-            $"本局战损：已发生 {BattleHpLostSoFar}，路线预计累计 {ProjectedBattleHpLost}；主动卖血 {SoldHp}/{SoldHpThreshold}",
+            $"本局战损：已发生 {BattleHpLostSoFar}，路线预计累计 {ProjectedBattleHpLost}；主动卖血 {SoldHp}",
             BattlePotionsUsedSoFar > 0
                 ? $"本局已喝药：{BattlePotionsUsedSoFar} 瓶；路线还需使用 {PotionCount} 瓶"
                 : $"路线预计用药：{PotionCount} 瓶",

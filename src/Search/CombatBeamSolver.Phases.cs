@@ -454,7 +454,6 @@ internal sealed partial class CombatBeamSolver
             int potionBranchesRejected = ordering.PotionBranchesRejected;
             int potionHpSaved = ordering.PotionHpSaved;
             int potionHpRequired = ordering.PotionHpRequired;
-            int sellThreshold = SoldHpThreshold();
             int annotatedFutureSold = materializedAnnotations.SoldHpByTurn.Values.Sum();
             if (annotatedFutureSold != selectedCandidate.FutureSold)
             {
@@ -737,7 +736,6 @@ internal sealed partial class CombatBeamSolver
                 PotionBranchesRejected = potionBranchesRejected,
                 TheftPolicy = _theftPolicy,
                 OutstandingStolenResource = finalSnapshot.OutstandingStolenResource,
-                SoldHpThreshold = sellThreshold,
                 SoldHpByTurn = annotations.SoldHpByTurn,
                 HpLostByTurn = annotations.HpLostByTurn,
                 HpRecoveredByTurn = annotations.HpRecoveredByTurn,
@@ -1334,6 +1332,7 @@ internal sealed partial class CombatBeamSolver
                         => stopwatch.ElapsedMilliseconds < _profile.SoftTimeBudgetMilliseconds
                             && (searchedTurnLayers >= reservedTurnLayers - 1
                                 || ended.Count == 0
+                                || policy.Act3BossStrategy
                                 || stopwatch.ElapsedMilliseconds - turnLayerStartedMs < turnLayerBudgetMs)
                             && _interaction?.CurrentTakeoverRequest == null;
                     if (!CanContinueDeferredReplay()
@@ -1402,7 +1401,11 @@ internal sealed partial class CombatBeamSolver
                 }
                 long turnLayerElapsedMs = stopwatch.ElapsedMilliseconds - turnLayerStartedMs;
                 int turnLayerExpanded = _run.Expanded - turnLayerStartedExpanded;
-                bool turnLayerTimeSpent = turnLayerElapsedMs >= turnLayerBudgetMs;
+                // Boss setup chains use the existing per-layer node share. A local wall-clock
+                // slice otherwise cuts different action depths under JIT/GC load, even when
+                // the request has ample time left. The global time and node limits still apply.
+                bool turnLayerTimeSpent = !policy.Act3BossStrategy
+                    && turnLayerElapsedMs >= turnLayerBudgetMs;
                 bool turnLayerNodesSpent = turnLayerExpanded >= turnLayerNodeBudget;
                 if (!policy.VerifyIncrementalSearch
                     && searchedTurnLayers < reservedTurnLayers - 1
@@ -1783,6 +1786,33 @@ internal sealed partial class CombatBeamSolver
                         active[activeIndex].Snapshot.ReleaseSimulator();
                     else
                         ReleaseNodeLimitSnapshot(active[activeIndex]);
+                }
+                if (policy.Act3BossStrategy && searchedTurnLayers == 0 && !acceptableBattleHpLossReached)
+                {
+                    // Settle a fetched, payable power's next decision before ranking the
+                    // intermediate selection. Expand all legal successors using the normal
+                    // transposition and node accounting; ordinary alternatives remain legal.
+                    SearchNode[] commitments = nextPlays.Where(HasPlayableFetchedPower).ToArray();
+                    foreach (SearchNode commitment in commitments)
+                    {
+                        if (_run.Expanded >= _profile.MaxExpandedNodes || acceptableBattleHpLossReached
+                            || !policy.VerifyIncrementalSearch
+                                && stopwatch.ElapsedMilliseconds >= _profile.SoftTimeBudgetMilliseconds)
+                            break;
+                        EnsureMemoryForIndivisibleCommit(ParentAllocationReserve(),
+                            "before_fetched_power_followup", playDepth, nextPlays.Count, ended.Count);
+                        long allocatedBefore = policy.MemoryPressureSignal.AllocatedBytes;
+                        foreach (SearchNode successor in Expand(commitment))
+                        {
+                            AcceptExpandedChild(commitment, successor);
+                            if (_run.Expanded >= _profile.MaxExpandedNodes || acceptableBattleHpLossReached)
+                                break;
+                        }
+                        nextPlays.Remove(commitment);
+                        commitment.Snapshot.ReleaseSimulator();
+                        ObserveParentAllocation(Math.Max(0, policy.MemoryPressureSignal.AllocatedBytes - allocatedBefore));
+                        ReclaimAfterCommittedWork("after_fetched_power_followup");
+                    }
                 }
                 if (acceptableBattleHpLossReached)
                 {

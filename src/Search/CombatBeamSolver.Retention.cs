@@ -1190,15 +1190,11 @@ internal sealed partial class CombatBeamSolver
         long minimumHealthRisk = long.MaxValue;
         foreach (SearchNode node in eligible)
             minimumHealthRisk = Math.Min(minimumHealthRisk, CycleHealthRisk(node, bestMaxHp));
-        int availableFutureSoldHp = Math.Max(
-            0,
-            SoldHpThreshold() - battleDamage.SoldHpCommitted);
         List<SearchNode> retained = [];
         foreach (bool investmentBand in new[] { false, true })
         {
             bool InBand(SearchNode node)
-                => (node.FutureSoldHp > availableFutureSoldHp + node.Snapshot.StrategicHpCredit
-                        || CycleHealthRisk(node, bestMaxHp) > minimumHealthRisk)
+                => (CycleHealthRisk(node, bestMaxHp) > minimumHealthRisk)
                     == investmentBand;
 
             Dictionary<CrossTurnProbeFamilyKey, int> inFlightIndexes = [];
