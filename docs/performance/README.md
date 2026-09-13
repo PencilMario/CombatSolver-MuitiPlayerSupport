@@ -6,11 +6,13 @@
 
 ## 当前工作重点
 
-`perf/surgical-fixes-20260912` 基于上游 `eff8cf4`；旧 `perf/simulation-profile-20260910` 已暂停开发。只接入独立小修复，不继续 Compact／战斗执行流程移植。
+PR #89 已合入上游0.37.0；当前 `perf/hotspot-exploration-20260913` 基于 `bcc15da`，重新采样并验证独立性能改动。旧分支记录保留为历史证据，不继续 Compact／战斗执行流程移植。
 
 - [精简移植、验证与性能研究](surgical-fixes-20260912.md)。
 
 ## 专题
+
+- [合并后的性能探索](hotspot-exploration-20260913.md)：新上游CPU采样、六个候选的成本取舍、空容器优化与固定工作量及VeryHigh验证。
 
 - [最终代码的 VeryHigh 极高负载测试](veryhigh-final-20260913.md)：正常生产构建、四个独立进程，完整保留超时、内存压力与预测结果边界。
 

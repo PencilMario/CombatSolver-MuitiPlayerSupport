@@ -1,5 +1,23 @@
 # CombatSolver 测试清单
 
+## 合并后性能分支的最小合同
+
+`HP-MODIFIER-COLLECTIONS` / `2e0e2b78e1594761a73e12ef6d8260f5` Passed：192组decimal/阶段/过滤器/Buffer/Intangible对照，168空/24非空，重复成员只通知一次，退役实例不消费重获Power；完整状态/RNG、父分支/live不变。蜥蜴尾巴未用/已消耗预测与源状态不变通过。实际构建基于上游`bcc15da`及本轮候选；[计数、对照与压力证据](performance/hotspot-exploration-20260913.md)。
+
+固定10,000节点/原VeryHigh其余维度的ABBA四次Passed，累计各60,000节点/893,527转移，84个非时序字段、48步完整动作及其余结果文本相同。平均分配−0.573%，耗时−0.546%低于漂移，GC均值更高；最终Release 0警告/错误，两端结构门禁89个Search文件通过。
+
+最终正常生产构建的完整VeryHigh（100000节点/300000ms、无FixedBudget）四项：死灵药水`781e12d50c544c229440a9cefed58d4c` Passed，77.198秒/93.423GB分配，预测T12胜利/战损2/两药；灵魂枢纽`b0609ac8477e467bab60d41f902c7c47` Passed，17.808秒/18.227GB，预测T9/战损6/零药。极端2305张牌堆`0571cf2d6fbd44dc8c67ed2a5e8ef4e5`和女王`b22552db2fb14ee3a893acf884e7df0b`均120秒启动器超时，没有完整结果；保留失败证据，不计全部通过。
+
+两端原生入口使用同一fixture（隔离headless实例与构建路径按本机参数指定）：
+
+```bash
+./tools/run-unattended-test.sh --scenario-id HP-MODIFIER-COLLECTIONS --character-id IRONCLAD --encounter-id FUZZY_WURM_CRAWLER_WEAK --enemy-current-hp 999 --initial-player-hp 80 --initial-player-max-hp 80 --relics-json '[{"relicId":"LIZARD_TAIL"}]' --stop-after-combat-root-snapshot-assertion --timeout-seconds 120
+```
+
+```powershell
+pwsh -NoProfile -File tools/run-unattended-test.ps1 -ScenarioId HP-MODIFIER-COLLECTIONS -CharacterId IRONCLAD -EncounterId FUZZY_WURM_CRAWLER_WEAK -EnemyCurrentHp 999 -InitialPlayerHp 80 -InitialPlayerMaxHp 80 -RelicsJson '[{"relicId":"LIZARD_TAIL"}]' -StopAfterCombatRootSnapshotAssertion -TimeoutSeconds 120
+```
+
 ## 0.37.0：性能更新与 PR #89 合并验证
 
 - 定版范围：PR #89 的已合并行为及已审核更新日志；版本与发布元数据变更复用以下验证，本次不重跑游戏场景，不作完整可见性能验收结论。

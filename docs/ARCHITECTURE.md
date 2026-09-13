@@ -131,6 +131,8 @@ PR #43 集成修正：Mod 使用独立文件复制，游戏程序继续使用硬
 
 `BuildAcceptedEndTurnNodes` 是回合层/软时间预算收尾及普通串行回合尾的共同入口，复用 raw EndTurn 批次生成、跨回合剪枝与循环出口准入。全部直接选择分支在转置准入前结算临时观测；批次持有未转交快照，迭代器提前结束或生成失败时统一释放。
 
+`StateEvaluation.BuildProjectedDeathPrevention` 每次按分支遗物原序读取蜥蜴尾巴的使用状态，只替换查询的临时迭代器，不缓存跨快照的可变结果。Engine 的 `HookMirrors.ModifyHpLost` 返回只读修正者集合，空结果共享空数组，非空 List 独占；后续通知先取得原监听表，空集合只跳过通知遍历。回调顺序、成员身份与重复成员只调用一次的规则保持。
+
 ### 3.1 请求级编排
 
 - `SearchPolicySnapshot.cs`：主线程捕获的不可变搜索设置、逐槽药水策略，以及第一/二幕与最终 Boss 各自的血量取舍；后台不读取 UI 或玩家设置。
