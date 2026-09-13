@@ -2546,7 +2546,7 @@ internal sealed partial class CombatBeamSolver
         ISet<uint> processedEnemyDeaths)
     {
         SimPlayerCombatState playerState = simulator.State.GetPlayerCombatState(_player);
-        simulatedCombat.BeginSideTurn(_player.Creature);
+        // The setup root is already inside this turn. Preserve events that occurred before energy reset.
         if (PersistentRelicSupport.ShouldPlayerResetEnergy(simulatedCombat, _player))
             playerState.LoseEnergy(playerState.Energy);
         playerState.GainEnergy(PersistentPowerSupport.GetModifiedMaxEnergy(simulatedCombat, _player));

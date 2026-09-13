@@ -39,6 +39,11 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "SETUP-CAPTURED-HISTORY")
+            {
+                await runner.AssertSetupHistoryAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "EMOTION-CHIP-PREVENTED-DAMAGE")
             {
                 await runner.AssertEmotionChipPreventedDamageAsync(combatState, player);
