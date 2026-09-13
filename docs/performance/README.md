@@ -12,6 +12,10 @@ PR #89 已合入上游0.37.0；当前 `perf/hotspot-exploration-20260913` 基于
 
 ## 专题
 
+- [PR #90全部性能尝试与效果总账](pr90-attempts-20260913.md)：采用、撤回、仅调查、失败/超时及不可相加的收益范围。
+- [女王回合前缀与10秒目标](queen-round-prefix-20260913.md)。
+- [女王CPU与回放归因](queen-cpu-20260913.md)。
+
 - [女王大预算搜索的NoGC回退恢复](queen-gc-recovery-20260913.md)：有界重启、真实CLR生命周期、固定工作量GC收益及峰值/最大暂停代价。
 
 - [女王原包恢复与性能优化](queen-replay-optimization-20260913.md)：跨平台MVID修复、负向状态校验、实际原包采样、撤回原型与整PR对照。
