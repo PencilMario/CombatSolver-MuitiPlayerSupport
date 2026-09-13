@@ -4,6 +4,8 @@
 
 - `RELIC-DAMAGE-WAKE`：熟睡甲虫失败基线 `3ccdcacbe9aa473e8a777b34ea99391e`，招架盾原生伤害后 SLUMBER_POWER 为2、预测为3。修复后 `252a8f9dc76e4610ac455f05388eebcf` Passed（23.11秒），拉加武林母体 `1012870880214ac79bbc646c5e5d46a2` Passed（9.06秒）；均比较完整一步状态与 RNG。命令使用 `-ScenarioId RELIC-DAMAGE-WAKE -EncounterId SLUMBERING_BEETLE_NORMAL` 或 `LAGAVULIN_MATRIARCH_BOSS -EnemyCurrentHp 100`，无增量搜索。Release零警告/错误；CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过。原包完整部署、可见测试未运行。
 
+- `AUTO-DEPLOYMENT-REQUEST-OWNERSHIP`：有效失败基线 `7378bb2aa3af43219daa7dd48f4a2712` 在部署进行中检测额外搜索。修复后 `8870e33fd0b344b6ae9c2393b59e902e` Passed（23.81秒），原生两张攻击完成击杀；`Instant / 0秒`。早期两次夹具误在战斗清理后比较账本，已修正断言时点，不作为失败基线。嵌套 PowerShell 重定向导致启动器 stdout 句柄未关闭，已结束本任务等待进程并保存游戏完整结果，后续在单层 PowerShell 运行。相邻 `AUTO-TURN-REQUEST-OWNERSHIP` 的 `da5ef97e68e341748a6e4b31f9025fc7` Passed（22.93秒），显式手动重算可用。Release与Windows结构门禁通过。
+
 ## 0.37.0：性能更新与 PR #89 合并验证
 
 - 定版范围：PR #89 的已合并行为及已审核更新日志；版本与发布元数据变更复用以下验证，本次不重跑游戏场景，不作完整可见性能验收结论。

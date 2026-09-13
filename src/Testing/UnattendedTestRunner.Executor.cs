@@ -111,6 +111,11 @@ internal sealed partial class UnattendedTestRunner
                 await runner.AssertAutoTurnRequestOwnershipAsync(combatState, player);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "AUTO-DEPLOYMENT-REQUEST-OWNERSHIP")
+            {
+                await runner.AssertDeploymentTurnRequestOwnershipAsync(combatState, player);
+                return Observation(combatEnded: true);
+            }
             if (request.ScenarioId == "BRILLIANT-SCARF-COST")
             {
                 await runner.AssertBrilliantScarfAsync(combatState, player);
