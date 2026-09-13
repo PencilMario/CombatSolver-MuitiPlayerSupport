@@ -5478,10 +5478,10 @@
     "testId": "CRAB-RAGE-DEATH-TIMING"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.DampenPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterDeath(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Boolean,System.Single)": {
-    "status": "SolverCompensation",
-    "source": "src/Prediction/DeathPowerSupport.cs; src/Search/CombatBeamSolver.cs",
-    "notes": "该行为现由分支内状态完整结算，不再触发原生重扫；精确语义与跨回合一致性见关联测试证据。",
-    "testId": "NO-NATIVE-RESCAN-244"
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Death/AfterDeathMirrors.cs",
+    "notes": "Caster death restores card upgrades during AfterDeath, before the killing card continues its own growth effects.",
+    "testId": "DAMPEN-DEATH-GROWTH"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.DampenPower|MegaCrit.Sts2.Core.Models.PowerModel.AfterApplied(MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel)": {
     "status": "SolverCompensation",

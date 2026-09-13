@@ -51,8 +51,19 @@ internal static class AfterDeathMirrors
         registry.Register<Melancholy>(HandleMelancholy);
         registry.Register<StockPower>(HandleStock);
         registry.Register<CrabRagePower>(HandleCrabRage);
+        registry.Register<DampenPower>(HandleDampen);
 
         return registry;
+    }
+
+    private static void HandleDampen(DampenPower power, AfterDeathMirrorContext context)
+    {
+        if (!context.WasRemovalPrevented)
+        {
+            if (context.CombatState is not SimulatedCombatState combat)
+                throw new InvalidOperationException("Dampen death requires captured caster and card state.");
+            combat.RemoveDampenCaster(context.Creature);
+        }
     }
 
     private static void HandleCrabRage(CrabRagePower power, AfterDeathMirrorContext context)

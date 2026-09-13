@@ -45,12 +45,6 @@ internal static class DeathPowerSupport
                 continue;
             }
 
-            if (power is DampenPower)
-            {
-                combat.RemoveDampenCaster(dead);
-                continue;
-            }
-
             if (power is SurroundedPower
                 && dead.Side != power.Owner.Side
                 && power.Owner.Player is { } surroundedPlayer)
