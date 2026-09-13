@@ -178,6 +178,7 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 | `CombatBeamSolver.AdmittedExpansion.cs` | 已准入父节点的准备、动作探测、选择准备/回放/续接、药水/目标与回合尾部作业；有界派发、快照移交、取消/异常排空 |
 | `CombatBeamSolver.PrimaryChoiceReplay.cs` | 原预算保证必经的首层回放、唯一快照暂存与原序消费；动态预算和实例补充仍由一个续接作业独占 |
 | `CombatBeamSolver.EndTurnChoiceReplay.cs` | EndTurn初始回放与首层挂起选择准备；复用必经回放槽位，原序解析嵌套/实体补充，独占返回候选和待命基线 |
+| `CombatBeamSolver.RoundTransition.cs` | 玩家回合开始推进；抽牌完成且无待处理选择的同父EndTurn前缀，frontier独占、同父gate复制、生产者排空后释放；不缓存挂起事务或改变候选预算 |
 | `CombatBeamSolver.StandPatJobs.cs` | 对原保路规则必经的 EndTurn 探针批量求值，复用固定 lane、回传标量，缓存和选择仍由 coordinator 原序完成 |
 | `CombatBeamSolver.RetentionJobs.cs` | 剪枝只读索引作业；复用空闲固定 lane，按原索引收集输出，排空后统一记账并传播取消/错误 |
 | `ParallelExpansionWorkProfile.cs` | coordinator 所有的作业经过时间分布与 wave/等待/提交计时；不代表 CPU 时间 |

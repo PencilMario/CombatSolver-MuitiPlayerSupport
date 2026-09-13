@@ -111,6 +111,8 @@ internal static class SolverDiagnostics
             .Append(" sold_hp_branches_pruned=").Append(result.SoldHpBranchesPruned)
             .Append(" replays=").Append(result.ReplayCount)
             .Append(" forks=").Append(result.ForkCount)
+            .Append(" round_prefix_captures=").Append(result.RoundReplayPrefixCaptures)
+            .Append(" round_prefix_reuses=").Append(result.RoundReplayPrefixReuses)
             .Append(" transitions=").Append(result.TransitionCount)
             .Append(" total_transitions=").Append(result.TotalTransitionCount)
             .Append(" cache_hits=").Append(result.TransitionCacheHits)

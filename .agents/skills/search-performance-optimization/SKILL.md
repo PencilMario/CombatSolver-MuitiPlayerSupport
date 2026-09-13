@@ -164,3 +164,5 @@ description: 在战斗语义已证明正确后，审计或修改 CombatSolver �
 - NoGC 回退恢复只在 coordinator 已排空的提交边界执行 Runtime 探针。只可复用退出后检查点已确认完成、尚未用于失败预留的 Gen2 证据；否则等待新的已完成 Gen2。首次有完成证据可立即尝试，后续保留退避、实际物理余量和每 scope 三次上限，不能清零重试次数。保留恢复后的区域上限，不能立刻扩回原大预留。全堆 FragmentedBytes 不构成 NoGC SOH 必能复用的容量证明。探针不得强制收集或等待 deferred 链；退出请求、scope 代次、取消和 Dispose 必须阻止旧探针复活。用户关闭、平台/尺寸不支持及主动不可分割回退保持普通 GC。合同须穿过真实 CLR 的退出/恢复，而非只测试状态机。
 
 - 按消费者省略战略上下文字段时，核对外部登记器可读取的既有字段；登记表非空保留原上下文，不因第三方未声明新需求标志就返回0。原版与第三方字段消费者分别用最小合同覆盖。
+
+- `RoundTransition` 只在无计划选择的EndTurn初探中，于普通抽牌和历史补偿完成后保存无挂起选择的前缀；当前仅ToolsOfTheTradePower存在时预留。原Fork事务断言保持，复制前临时关闭空cursor并在finally恢复。前缀匹配父节点引用、EndTurn回合与PlayerTurnStart选择，Knowledge选择完整回放；不跨父/搜索共享。frontier拥有checkpoint，同父gate串行Fork，排空后释放。新增捕获计数包含额外物理Fork，DOP等价比较扣除该项后的转移Fork；完整状态/续用/历史与兄弟隔离须直接对账。

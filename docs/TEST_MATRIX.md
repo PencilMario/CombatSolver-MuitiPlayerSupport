@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 女王回合前缀（2026-09-13）
+
+- 正常Release零警告/错误，两端结构门禁通过；`STAND-PAT-MEMORY-BOUNDARY` / `e05a6b190efd4511ba2ff5b610dd3653` Passed。原包候选 `fca513d8d11a42e1a4dc6ac3406c0520` 120秒请求超时、无结果，未达10秒。
+
+- `END-TURN-CHOICE-REPLAY` / `b6e92887143440f893716e6aef406f4d` Passed，直接完整回放/后缀状态等价、历史/洗牌、兄弟隔离、DOP1/DOP2及取消/异常排空。
+- 20000节点单主搜索ABBA四次Passed，83字段/40完整动作一致，耗时−9.544%、分配−15.959%；原包完整10秒目标未达成。参见[报告](performance/queen-round-prefix-20260913.md)和[JSON](performance/queen-round-prefix-20260913.json)。
+
 ## 女王CPU与按需战略上下文（2026-09-13）
 
 - 固定单主搜索10000展开、DOP16、16GB NoGC，A-B-B-A四次Passed、GC均0；84个非时序/非调度字段、28步完整动作及其余结果文本相等，平均耗时−3.065%、分配−0.560%。先行20000展开A/B也有84字段/40动作相等，但候选耗时更长且GC暂停不同，不作为提速证据。全部runId和指标见[CPU报告](performance/queen-cpu-20260913.md)及[JSON](performance/queen-cpu-20260913.json)。

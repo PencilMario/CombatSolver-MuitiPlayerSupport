@@ -43,6 +43,8 @@ internal sealed partial class UnattendedTestRunner
                 SelectedTransitions = result.TransitionCount,
                 SelectedChoiceBranches = result.ChoiceBranchesEvaluated,
                 ChoiceReplayAttempts = result.ChoiceReplayAttempts,
+                RoundReplayPrefixCaptures = result.RoundReplayPrefixCaptures,
+                RoundReplayPrefixReuses = result.RoundReplayPrefixReuses,
                 ChoiceReplayBudgetExhaustions = result.ChoiceReplayBudgetExhaustions,
                 ChoiceBranchesDroppedByBudget = result.ChoiceBranchesDroppedByBudget,
                 CycleRegionsDetected = result.CycleRegionsDetected,

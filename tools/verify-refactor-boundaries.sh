@@ -494,6 +494,7 @@ expected_beam_files=(
     CombatBeamSolver.cs
     CombatBeamSolver.AdmittedExpansion.cs
     CombatBeamSolver.EndTurnChoiceReplay.cs
+    CombatBeamSolver.RoundTransition.cs
     CombatBeamSolver.BeamRetentionPolicy.cs
     CombatBeamSolver.CrossTurnPlanning.cs
     CombatBeamSolver.CyclePlanning.cs
@@ -559,6 +560,11 @@ CombatBeamSolver.AdmittedExpansion.cs	while (committed < parents.Length && paren
 CombatBeamSolver.AdmittedExpansion.cs	_completedActions != Actions!.Count
 CombatBeamSolver.AdmittedExpansion.cs	_completedPotions != Potions!.Count
 CombatBeamSolver.EndTurnChoiceReplay.cs	private PreparedEndTurnEvaluation EvaluatePreparedEndTurn(
+CombatBeamSolver.RoundTransition.cs	private SearchBoundaryReason CompleteRoundPlayerStart(
+CombatBeamSolver.RoundTransition.cs	private sealed class RoundReplayCheckpoint(
+CombatBeamSolver.RoundTransition.cs	combat.EndActionChoices();
+CombatBeamSolver.RoundTransition.cs	combat.BeginActionChoices(cursor);
+CombatBeamSolver.RoundTransition.cs	internal int VerifyRoundReplayCheckpointForTesting()
 CombatBeamSolver.AdmittedExpansion.cs	endTurn.TransferEndTurnTo(Aggregate!, candidate);
 CombatBeamSolver.AdmittedExpansion.cs	PublishCrossTurnStandPatBaselines(Node, _endTurnBaselines);
 CombatBeamSolver.AdmittedExpansion.cs	ready.TransferPotionTo(Aggregate!, candidate);

@@ -98,3 +98,5 @@ description: 重构 CombatSolver 的 Search、Runtime 会话、UI snapshot、无
 - `docs/TEST_MATRIX.md` 保存可重跑场景。
 
 普通架构重构直接提交，不自行提升版本、不计算文件哈希。版本和打包时机以 `AGENTS.md` 的活动发布批次和发布口令为准，再转 `release-gate`。
+
+- `RoundTransition` 只在无计划选择的EndTurn初探中，于普通抽牌和历史补偿完成后保存无挂起选择的前缀；当前仅ToolsOfTheTradePower存在时预留。原Fork事务断言保持，复制前临时关闭空cursor并在finally恢复。前缀匹配父节点引用、EndTurn回合与PlayerTurnStart选择，Knowledge选择完整回放；不跨父/搜索共享。frontier拥有checkpoint，同父gate串行Fork，排空后释放。新增捕获计数包含额外物理Fork，DOP等价比较扣除该项后的转移Fork；完整状态/续用/历史与兄弟隔离须直接对账。

@@ -6,6 +6,7 @@
 
 | 要查什么 | 入口 |
 |---|---|
+| 女王原配置10秒目标、回合前缀复用及未达标限制 | [回合前缀与10秒目标](performance/queen-round-prefix-20260913.md) |
 | 女王慢在哪些卡牌/CPU路径、按需估值收益 | [CPU与回放归因](performance/queen-cpu-20260913.md) |
 | NoGC退出后能否恢复、GC频率与峰值代价 | [回退恢复报告](performance/queen-gc-recovery-20260913.md) |
 | 女王原包为何恢复失败、为何频繁GC及本轮优化取舍 | [恢复与性能报告](performance/queen-replay-optimization-20260913.md) |

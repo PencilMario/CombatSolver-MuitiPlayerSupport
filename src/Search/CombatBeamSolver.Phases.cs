@@ -656,6 +656,8 @@ internal sealed partial class CombatBeamSolver
                 HpInvestmentBranchesProtected = _run.HpInvestmentBranchesProtected,
                 ReplayCount = _run.ReplayCount,
                 ForkCount = _run.ForkCount,
+                RoundReplayPrefixCaptures = _run.RoundReplayPrefixCaptures,
+                RoundReplayPrefixReuses = _run.RoundReplayPrefixReuses,
                 TransitionCount = _run.TransitionCount,
                 TotalTransitionCount = _run.TransitionCount,
                 ReusedNodeSnapshots = _run.ReusedNodeSnapshots,

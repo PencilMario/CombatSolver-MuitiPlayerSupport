@@ -125,6 +125,7 @@ internal sealed partial class CombatBeamSolver
 
         public void Dispose()
         {
+            EndTurn?.Checkpoint?.Dispose();
             for (int index = 0; index < _snapshots.Length; index++)
             {
                 _snapshots[index]?.ReleaseSimulator();
@@ -137,11 +138,13 @@ internal sealed partial class CombatBeamSolver
         SearchNode parent,
         PlanAction action,
         object forkGate,
-        bool pruneInvalidBranch = true)
+        bool pruneInvalidBranch = true,
+        RoundReplayCheckpoint? roundCheckpoint = null)
     {
         if (_parallelActionReplayForkGate != null)
             throw new InvalidOperationException("不能嵌套首层选择回放的 Fork 上下文。");
         _parallelActionReplayForkGate = forkGate;
+        _roundReplayCheckpoint = roundCheckpoint;
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -166,6 +169,7 @@ internal sealed partial class CombatBeamSolver
         finally
         {
             _parallelActionReplayForkGate = null;
+            _roundReplayCheckpoint = null;
         }
     }
 

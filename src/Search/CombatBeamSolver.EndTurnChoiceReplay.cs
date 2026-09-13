@@ -5,7 +5,8 @@ internal sealed partial class CombatBeamSolver
     private sealed record EndTurnChoiceLayer(
         PendingChoiceReplayLayer Layer,
         ChoiceSearchBudget Budget,
-        ChoiceOccurrenceCollector<DeferredOccurrenceChoiceBranch> Occurrences);
+        ChoiceOccurrenceCollector<DeferredOccurrenceChoiceBranch> Occurrences,
+        RoundReplayCheckpoint? Checkpoint = null);
 
     private readonly record struct PreparedEndTurnEvaluation(
         ExpansionBatch? Batch,
@@ -19,6 +20,8 @@ internal sealed partial class CombatBeamSolver
             throw new InvalidOperationException("不能嵌套回合尾部作业的 Fork 上下文。");
         ExpansionBatch batch = RentExpansionBatch();
         bool completed = false;
+        RoundReplayCheckpoint? ownedCheckpoint = null;
+        _roundReplayCheckpoint = frontier?.EndTurn?.Checkpoint;
         _parallelActionReplayForkGate = forkGate;
         try
         {
@@ -36,8 +39,15 @@ internal sealed partial class CombatBeamSolver
             else
             {
                 PlanAction action = new(PlanActionKind.EndTurn, parent.Turn);
-                SimulationSnapshot snapshot = ReplayAction(parent, action);
+                using RoundReplayCheckpointCapture capture = new(parent);
+                SimulationSnapshot snapshot = ReplayAction(parent, action, roundCheckpointCapture: capture);
                 EndTurnChoiceLayer? layer = PrepareEndTurnChoiceLayer(parent, action, snapshot);
+                if (layer != null)
+                {
+                    ownedCheckpoint = capture.Take();
+                    layer = layer with { Checkpoint = ownedCheckpoint };
+                    _roundReplayCheckpoint = ownedCheckpoint;
+                }
                 if (layer == null)
                 {
                     branches = ResolveRoundChoiceBranches(parent, action, snapshot);
@@ -46,6 +56,7 @@ internal sealed partial class CombatBeamSolver
                     layer.Budget.ActiveFinalQuota, layer.Budget.ReplayAttemptQuota))
                 {
                     var prepared = new PrimaryChoiceReplayFrontier(layer);
+                    ownedCheckpoint = null;
                     batch.Dispose();
                     completed = true;
                     return new PreparedEndTurnEvaluation(null, null, prepared);
@@ -65,6 +76,8 @@ internal sealed partial class CombatBeamSolver
         finally
         {
             _parallelActionReplayForkGate = null;
+            _roundReplayCheckpoint = null;
+            ownedCheckpoint?.Dispose();
             if (!completed) batch.Dispose();
         }
     }

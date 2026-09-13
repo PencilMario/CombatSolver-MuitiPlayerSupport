@@ -26,6 +26,9 @@ internal sealed partial class UnattendedTestRunner
         SolverDisplayNames names = SolverDisplayNames.Capture(combat);
         BattleDamageSnapshot damage = BattleDamageTracker.Observe(combat);
         SolverSearchProfile profile = capturedPolicy.Profile with { BeamWidth = 24, MaxExpandedNodes = 200 };
+        await Task.Run(() => new CombatBeamSolver(root, names, damage, capturedPolicy,
+            CancellationToken.None, searchProfile: profile,
+            potionPolicyOverride: SolverPotionPolicy.Disabled).VerifyRoundReplayCheckpointForTesting());
         SolverResult? parallelResult = null;
         foreach (int mode in new[] { 1, 2, 0 })
         {
@@ -90,6 +93,8 @@ internal sealed partial class UnattendedTestRunner
             capturedPolicy with { MaxDegreeOfParallelism = 1 }, CancellationToken.None,
             searchProfile: profile, potionPolicyOverride: SolverPotionPolicy.Disabled).Solve());
         AssertEquivalentSearchResults(serial, parallelResult!, "EndTurn choice replay DOP1/DOP2");
+        if (parallelResult!.RoundReplayPrefixCaptures <= 0 || parallelResult.RoundReplayPrefixReuses <= 0)
+            throw new InvalidOperationException("EndTurn choice fixture did not exercise round prefix reuse.");
         if (ContinuationStamp.CaptureLive(combat).StateText != liveBefore)
             throw new InvalidOperationException("EndTurn选择回放合同改变了live战斗。");
     }
