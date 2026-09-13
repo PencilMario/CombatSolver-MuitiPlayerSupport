@@ -511,9 +511,9 @@
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.PhantomBladesPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterCardEnteredCombat(MegaCrit.Sts2.Core.Models.CardModel)": {
     "status": "SolverCompensation",
-    "source": "src/Search/SimulatedCombatState.cs",
-    "notes": "Applies Retain to every newly generated Shiv in simulated combat.",
-    "testId": "MONSTER-MOVES-BATCH-034"
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Card/PhantomBladesPowerMirrors.cs; src/Search/SimulatedCombatState.CardEventHistory.cs",
+    "notes": "Grants Retain at the exact card-entry callback, including clones; later normalization preserves native keyword changes.",
+    "testId": "PHANTOM-RETAIN-LIFECYCLE"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.PhantomBladesPower|MegaCrit.Sts2.Core.Models.AbstractModel.ModifyDamageAdditive(MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Decimal,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
     "status": "SolverCompensation",
@@ -523,9 +523,9 @@
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.PhantomBladesPower|MegaCrit.Sts2.Core.Models.PowerModel.AfterApplied(MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel)": {
     "status": "SolverCompensation",
-    "source": "src/Search/SimulatedCombatState.cs",
-    "notes": "Normalizes all existing Shiv cards to Retain when the simulated power is active.",
-    "testId": "MONSTER-MOVES-BATCH-034"
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Card/PhantomBladesPowerMirrors.cs; src/Search/SimulatedCombatState.cs",
+    "notes": "Grants existing Shivs Retain on a new application. Stacking and repeated normalization do not rerun AfterApplied.",
+    "testId": "PHANTOM-RETAIN-LIFECYCLE"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.SoarPower|MegaCrit.Sts2.Core.Models.AbstractModel.ModifyDamageMultiplicative(MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Decimal,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
     "status": "EngineInferred",

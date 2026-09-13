@@ -1,4 +1,12 @@
 {
+  "PHANTOM-RETAIN-LIFECYCLE": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativePowerAndCardLifecycleDifferential",
+    "procedure": "幻影之刃作用于升级小刀，再抑制降级、叠加能力、克隆入场及移除后重新施加，比较完整状态/RNG。",
+    "expected": "保留只在首次施加和入场时赋予，降级的关键词重置保持原版结果。",
+    "observed": "失败91737ac0e4bf4c1a81284168d0d44be7；153756412f0640438927d4cf37b70fb5 Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.PhantomRetain.cs; docs/TEST_MATRIX.md; 2026-09-13"
+  },
   "ATTACK-START-HISTORY": {
     "status": "Passed",
     "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",

@@ -656,6 +656,9 @@ internal sealed partial class SimulatedCombatState
             ((StringVar)knockdown.DynamicVars["Applier"]).StringValue = _playerNames[applyingPlayer];
         }
         afterAmountChanged?.Invoke(amount, simulated);
+        if (previousAmount == 0 && simulated._amount != 0 && simulated is PhantomBladesPower phantom)
+            PhantomBladesPowerMirrors.AfterApplied(phantom, _predictionState
+                ?? throw new InvalidOperationException("Phantom blades requires attached branch card state."));
         return applied;
     }
 
@@ -1462,24 +1465,6 @@ internal sealed partial class SimulatedCombatState
             }
         }
         NormalizePowerCardState(simulator);
-        ApplyPhantomBladesRetain(simulator);
-    }
-
-    private void ApplyPhantomBladesRetain(CombatPredictionSimulator simulator)
-    {
-        foreach (Player player in Players)
-        {
-            if (GetAmount<PhantomBladesPower>(player.Creature) <= 0)
-                continue;
-            foreach (PredictedCard card in simulator.State.GetPlayerCombatState(player).AllCards)
-            {
-                if (card.Preview.Tags.Contains(CardTag.Shiv)
-                    && !card.Preview.Keywords.Contains(CardKeyword.Retain))
-                {
-                    card.MutablePreview.AddKeyword(CardKeyword.Retain);
-                }
-            }
-        }
     }
 
     public void RemoveHexPower(CombatPredictionSimulator simulator, Creature owner)

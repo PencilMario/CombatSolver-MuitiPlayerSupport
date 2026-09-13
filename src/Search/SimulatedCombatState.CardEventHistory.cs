@@ -138,6 +138,8 @@ internal sealed partial class SimulatedCombatState
     public void AfterCardEnteredCombat(CombatPredictionSimulator simulator, PredictedCard card)
     {
         RegisterGeneratedCombatCard(card);
+        foreach (PhantomBladesPower power in EffectivePowers().OfType<PhantomBladesPower>())
+            CombatSolver.Engine.InCombat.Mirrors.Hooks.Card.PhantomBladesPowerMirrors.AfterCardEnteredCombat(power, card);
         CardModel preview = card.MutablePreview;
         if (preview.IsClone)
             return;
