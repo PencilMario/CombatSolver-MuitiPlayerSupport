@@ -417,6 +417,10 @@ while IFS= read -r -d '' api_file; do
 done < <(find "$repository_root/src/Api" -type f -name '*.cs' -print0 | sort -z)
 
 search_gc_policy_path="$repository_root/src/Runtime/SearchGcPolicy.cs"
+forbid_fixed "$repository_root/src/Runtime/SearchGcPolicy.Recovery.cs" \
+    'GC.Collect(' 'NoGC recovery must not induce a collection:'
+forbid_fixed "$repository_root/src/Runtime/SearchGcPolicy.Recovery.cs" \
+    'CollectGeneration2' 'NoGC recovery must not enter the reclaim chain:'
 for gc_chain_rule in \
     'return WaitForReclaimChainAsync(_reclaimTask)' \
     'CollectGeneration2ForAutomaticReclaimAsync(inSearchCheckpoint: true)' \

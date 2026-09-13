@@ -1128,6 +1128,7 @@ internal sealed partial class CombatBeamSolver
             if (policy.VerifyIncrementalSearch)
                 return true;
 
+            signal.TryRecoverNoGc(reservedBytes, cancellationToken);
             bool reclaimAttempted = false;
             if (signal.HasUnexpectedNoGcLoss())
             {
@@ -1137,6 +1138,7 @@ internal sealed partial class CombatBeamSolver
                     frontierNodes,
                     endedNodes);
                 reclaimAttempted = true;
+                signal.TryRecoverNoGc(reservedBytes, cancellationToken);
             }
 
             MemoryCommitPreparation preparation = ResolveMemoryCommitPreparation(

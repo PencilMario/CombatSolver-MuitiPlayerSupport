@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 namespace CombatSolver;
 
 // Owns process-wide GC mode and combat-end reclamation; it is not part of the search algorithm.
-internal static class SearchGcPolicy
+internal static partial class SearchGcPolicy
 {
     private const long BackgroundReclaimThresholdBytes = 256L * 1024 * 1024;
     private const int ReclaimReferenceReleaseDelayMilliseconds = 250;
@@ -451,6 +451,8 @@ internal static class SearchGcPolicy
                                             _configuredNoGcRegionLohBudgetBytes);
                                         _lastEstablishedNoGcRegionBudgetBytesForTesting =
                                             _noGcRegionBudgetBytes;
+                                        InstallNoGcRecoveryProbe(memoryPressureSignal,
+                                            noGcRegionBudgetBytes, noGcRegionLohBudgetBytes);
                                         _activeSearches++;
                                         Entry.Logger.Info(
                                             "[CombatSolver/Test] GC_LATENCY policy=combat_scoped_no_gc_region_reuse");
@@ -541,8 +543,11 @@ internal static class SearchGcPolicy
                             else
                             {
                                 memoryPressureSignal.UseDefaultGcFallback(
-                                    IsSystemHeadroomOutcome(startOutcome));
+                                    IsSystemHeadroomOutcome(startOutcome),
+                                    allowNoGcRecovery: IsRecoverableNoGcOutcome(startOutcome));
                             }
+                            InstallNoGcRecoveryProbe(memoryPressureSignal,
+                                noGcRegionBudgetBytes, noGcRegionLohBudgetBytes);
                             _activeSearches++;
                             return new ExclusiveGcSearchScope(
                                 allocatedBytesAtEntry, memoryPressureSignal, lifecycleAtEntry);
@@ -646,6 +651,9 @@ internal static class SearchGcPolicy
     {
         lock (Gate)
         {
+            // A pending recovery must not restart a region after a request to leave NoGC,
+            // including when the current search has already fallen back to ordinary GC.
+            _noGcRecoveryGeneration++;
             if (!_regionExitOnlyTask.IsCompleted)
                 return _regionExitOnlyTask;
             if (!_noGcRegionActive && !_latencyModeOwned)
@@ -1773,6 +1781,8 @@ internal static class SearchGcPolicy
             if (scope.IsLifecycleCompleted)
                 return;
             memoryPressureSignal.Disable();
+            _noGcRecoveryGeneration++;
+            _searchRecoveryBudgetCapBytes = 0;
             // A loss discovered on exit belongs to this admitted search. Freeze immediately
             // afterward, before releasing admission or starting any deferred collector task.
             if (_noGcRegionActive && GCSettings.LatencyMode != GCLatencyMode.NoGCRegion)
@@ -2057,9 +2067,14 @@ internal static class SearchGcPolicy
                 {
                     _previousMode = GCSettings.LatencyMode;
                     _latencyModeOwned = true;
+                    // Keep the recovered reservation ceiling for this scope. Immediately
+                    // growing back to the original request recreates the pressure episode.
                     EffectiveNoGcRegionBudget effectiveBudget = ResolveEffectiveNoGcRegionBudget(
-                        configuredRegionBudgetBytes,
+                        _searchRecoveryBudgetCapBytes > 0
+                            ? Math.Min(configuredRegionBudgetBytes, _searchRecoveryBudgetCapBytes)
+                            : configuredRegionBudgetBytes,
                         configuredLohBudgetBytes);
+                    bool restartAttempted = endNoGcRegion && effectiveBudget.CanStart;
                     if (endNoGcRegion)
                     {
                         restartOutcome = effectiveBudget.CanStart
@@ -2077,10 +2092,11 @@ internal static class SearchGcPolicy
                         _noGcRegionBudgetBytes = 0;
                         _noGcRegionLohBudgetBytes = 0;
                         RestoreLatencyModeLocked();
-                        // The runtime may terminate a region for memory pressure or an external
-                        // collection. Retrying the same reservation during this search recreates the
-                        // failure loop, so fall back once and let the CLR collect normally.
-                        signal.UseDefaultGcFallback(IsSystemHeadroomOutcome(restartOutcome));
+                        // Let ordinary GC make progress first. A bounded recovery probe can
+                        // retry at a later drained boundary after a new Gen2 and healthy headroom.
+                        signal.UseDefaultGcFallback(IsSystemHeadroomOutcome(restartOutcome),
+                            allowNoGcRecovery: IsRecoverableNoGcOutcome(restartOutcome),
+                            completedRecoveryGen2Index: restartAttempted ? 0 : completedCollection.Index);
                     }
                     else
                     {

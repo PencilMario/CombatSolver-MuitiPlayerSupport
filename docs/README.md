@@ -6,6 +6,7 @@
 
 | 要查什么 | 入口 |
 |---|---|
+| NoGC退出后能否恢复、GC频率与峰值代价 | [回退恢复报告](performance/queen-gc-recovery-20260913.md) |
 | 女王原包为何恢复失败、为何频繁GC及本轮优化取舍 | [恢复与性能报告](performance/queen-replay-optimization-20260913.md) |
 | 未变状态共享、标签/大牌堆容器优化与女王GC问题 | [调查与实测](performance/state-sharing-20260913.md) |
 | 内存主要花在哪里，什么条件才能缩至十分之一 | [分配与峰值研究](performance/memory-tenfold-20260913.md) |

@@ -303,6 +303,12 @@ foreach ($check in $forkBoundaryChecks) {
 }
 
 $searchGcPolicyPath = Join-Path $repositoryRoot "src\Runtime\SearchGcPolicy.cs"
+$searchGcRecoveryPath = Join-Path $repositoryRoot "src\Runtime\SearchGcPolicy.Recovery.cs"
+foreach ($forbiddenRecoveryCall in @("GC.Collect(", "CollectGeneration2")) {
+    if (Select-String -LiteralPath $searchGcRecoveryPath -SimpleMatch $forbiddenRecoveryCall -Quiet) {
+        $violations.Add("${searchGcRecoveryPath}: NoGC recovery must not induce a collection or enter the reclaim chain '$forbiddenRecoveryCall'")
+    }
+}
 foreach ($gcChainRule in @(
     "return WaitForReclaimChainAsync(_reclaimTask)",
     "CollectGeneration2ForAutomaticReclaimAsync(inSearchCheckpoint: true)",

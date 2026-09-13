@@ -1,5 +1,14 @@
 # CombatSolver 测试清单
 
+## NoGC回退恢复（2026-09-13）
+
+- 当前最终候选的固定女王单主搜索A-D-D-A：84个非时序/非调度字段、40步完整动作及其余结果文本一致，耗时−8.853%、Gen0计数−91.840%、总GC暂停−50.468%；峰值RSS+15.083%，最大暂停未改善。基线搜索已完成，但搜索后NoGC保持断言Failed；候选Passed。所有十个先行/最终样本及失败记录见[报告](performance/queen-gc-recovery-20260913.md)和配套JSON。
+- 原Smart策略、固定每层20000节点、16GB NoGC的完整三层前后哨兵均Passed，实际60000展开/1162247转移/717525选择，84字段和40动作相等。没有触发恢复，不作该机制的提速证据。
+- `STAND-PAT-MEMORY-BOUNDARY` / `fee97c057e1744dea055fe53ad7da20a` Passed：DOP1/DOP2完整结果与动作一致，取消/异常注入后的worker排空及根复用通过，小区域剪枝内存边界与串行相等。用现有Bowlbugs早期native包、RestoreOnly、该ScenarioId、120秒运行；不加组合VerifySearchPolicySnapshot。
+- 组合VerifySearchPolicySnapshot在女王基线/候选均exit139，Bowlbugs加同开关也exit139；没有结果文件，根因未定位，不计通过。聚焦合同未包含这套额外测试。
+- 独立GC工具基础20项、scope8项、检查点1项、恢复状态机6项、真实CLR恢复2项通过；恢复自身一次预留、零强制收集，包含取消/退出/Dispose拒绝复活。命令见[工具README](../tools/CombatSolver.GcPolicyChecks/README.md)。Bash/PowerShell结构门禁通过，89个Search文件；最终正常Release0警告/错误。
+- 全部新数据限Linux headless；未部署Windows、未启动可见Steam，未宣称原100000节点完整请求或最坏暂停改善。
+
 ## 女王原包恢复与性能（2026-09-13）
 
 - 修复前MVID拒绝复用上一轮3750da4d990f4bf59374d5ccb96f8558证据；修复后原包latest RestoreOnly / c739d8b31f4c4479af58fb526ad00478 Passed，restored_continuation。两侧MVID不等仍实际重建并比较全部已记录ContinuationStamp；模型编号表不同且原包缺映射，原生二进制未验证。仅把本地副本配对metadata/replay-state预期HP改为84的cb3cc9d0ed354ee2ba4fd0b1ed89123b按预期Failed，首差异HP84/85。
