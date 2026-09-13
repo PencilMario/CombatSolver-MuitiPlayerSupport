@@ -11643,7 +11643,7 @@
       "hook": "AfterDeath(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Boolean,System.Single)",
       "phase": "FutureLifecycle",
       "effectiveStatus": "Exact",
-      "capability": "SolverCompensation",
+      "capability": "EngineMirror",
       "requiresRuntimeEvidence": true,
       "runtimeVerified": true,
       "writes": [
@@ -12590,7 +12590,7 @@
       "hook": "ModifyDamageMultiplicative(MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Decimal,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)",
       "phase": "FutureLifecycle",
       "effectiveStatus": "Exact",
-      "capability": "SolverCompensation",
+      "capability": "EngineMirror",
       "requiresRuntimeEvidence": true,
       "runtimeVerified": true,
       "writes": [
@@ -14451,7 +14451,7 @@
       "hook": "ModifyBlockMultiplicative(MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Decimal,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Models.CardModel,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)",
       "phase": "FutureLifecycle",
       "effectiveStatus": "Exact",
-      "capability": "SolverCompensation",
+      "capability": "EngineMirror",
       "requiresRuntimeEvidence": true,
       "runtimeVerified": true,
       "writes": [

@@ -2,6 +2,8 @@
 
 ## 下一版本（开发中）：计划外重算修复
 
+- 批次收尾：16类可复现机制及2张牌估值已分别取得行为证据；严格合并同根后未达到20–30类高频目标。最终Windows结构门禁 `REFACTOR_BOUNDARIES_OK search_files=89`，CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过（3035项、0未分类/缺关联通过证据；22项处于回放视野外，属于目录边界）。正式版本仍0.37.0；完整频率、范围和未解决项见[批次结果](issues/report-replans-20260913.md)。本轮没有运行Linux游戏、可见Steam或发布流程。
+
 - `RELIC-DAMAGE-WAKE`：熟睡甲虫失败基线 `3ccdcacbe9aa473e8a777b34ea99391e`，招架盾原生伤害后 SLUMBER_POWER 为2、预测为3。修复后 `252a8f9dc76e4610ac455f05388eebcf` Passed（23.11秒），乐加维林族母 `1012870880214ac79bbc646c5e5d46a2` Passed（9.06秒）；均比较完整一步状态与 RNG。命令使用 `-ScenarioId RELIC-DAMAGE-WAKE -EncounterId SLUMBERING_BEETLE_NORMAL` 或 `LAGAVULIN_MATRIARCH_BOSS -EnemyCurrentHp 100`，无增量搜索。Release零警告/错误；CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过。原包完整部署、可见测试未运行。
 
 - `AUTO-DEPLOYMENT-REQUEST-OWNERSHIP`：有效失败基线 `7378bb2aa3af43219daa7dd48f4a2712` 在部署进行中检测额外搜索。修复后 `8870e33fd0b344b6ae9c2393b59e902e` Passed（23.81秒），原生两张攻击完成击杀；`Instant / 0秒`。早期两次夹具误在战斗清理后比较账本，已修正断言时点，不作为失败基线。嵌套 PowerShell 重定向导致启动器 stdout 句柄未关闭，已结束本任务等待进程并保存游戏完整结果，后续在单层 PowerShell 运行。相邻 `AUTO-TURN-REQUEST-OWNERSHIP` 的 `da5ef97e68e341748a6e4b31f9025fc7` Passed（22.93秒），显式手动重算可用。Release与Windows结构门禁通过。
@@ -12,13 +14,13 @@
 
 - `CRAB-RAGE-DEATH-TIMING`：`KAISER_CRAB_BOSS`，一只1HP、另一只100HP，前者先死亡，再对后者造成20点伤害。失败 `94557ad1b38945b297365a0228455829`，修复 `cccecc62cf9d4c15891f02a218d59573` Passed；严格状态/RNG差分，清扫后继续检查。Release通过。覆盖目录将 CrabRage 与前项 Asleep/Slumber 的权威来源更新为精确镜像并关联本轮证据。
 
-- `NIGHTMARE-SELECTION-SNAPSHOT`：静默猎手，手牌梦魇/精准，先注入2层无限刀刃，完整两回合原版差分。失败 `e3e990169f6a48dc8ec78d26df15d45a`，通过 `fba8186242f44a93835b9f01955d8003`；检查所选牌快照与生成顺序。`NIGHTMARE-CAPTURED-ROOT` 的 `3649d93b13254fe88f34d0f3c5b842b4` Passed，覆盖活动梦魇根捕获、原版副本、Fork与live隔离、fingerprint及ContinuationStamp；根捕获初始失败记录位于本地 nightmare-root-baseline.txt。Release零警告/错误。未运行原包整场部署。
+- `NIGHTMARE-SELECTION-SNAPSHOT`：静默猎手，手牌夜魇/精密瞄准，先注入2层无限刀刃，完整两回合原版差分。失败 `e3e990169f6a48dc8ec78d26df15d45a`，通过 `fba8186242f44a93835b9f01955d8003`；检查所选牌快照与生成顺序。`NIGHTMARE-CAPTURED-ROOT` 的 `3649d93b13254fe88f34d0f3c5b842b4` Passed，覆盖活动夜魇根捕获、原版副本、Fork与live隔离、fingerprint及ContinuationStamp；根捕获初始失败记录位于本地 nightmare-root-baseline.txt。Release零警告/错误。未运行原包整场部署。
 
 - `SIGNED-GOLD-LOSS`：失败 `0dd6c25a8f1c4f98ae7e96d8c7180481` 复现137/142金币差异；通过 `7877327a996f475db12dede147ffad5d`，依次扣减-5、0、3、200、-5，比较完整状态和RNG。Release通过，未声称修改遗物Mod的整场兼容验证。
 
 - `EMOTION-CHIP-PREVENTED-DAMAGE`：无格挡、缓冲1，受到10点伤害后进入下一回合，等离子球与情感芯片结算。失败 `b865f0b9a3c64989a3050622c32dea55` 为3/4能量；通过 `66c62e28bf1f4833bf15d2fce60681d5`，完整状态/RNG一致。Release通过。
 
-- `SETUP-CAPTURED-HISTORY`：摄政王在准备根捕获前获得星能，通过实际 `ReplayTurnSetup` 入口继续准备并打出 Radiate。失败 `8b05f81f0b9648d5b35ba8d476f0cc04`，敌人HP57/39；通过 `7c729478f0d14270a5cf8ff4e0d000db`，完整状态/RNG一致。使用固定动作回放，无正式搜索扩展；Release通过。
+- `SETUP-CAPTURED-HISTORY`：储君在准备根捕获前获得星能，通过实际 `ReplayTurnSetup` 入口继续准备并打出 Radiate。失败 `8b05f81f0b9648d5b35ba8d476f0cc04`，敌人HP57/39；通过 `7c729478f0d14270a5cf8ff4e0d000db`，完整状态/RNG一致。使用固定动作回放，无正式搜索扩展；Release通过。
 
 - `BLOCK-EVENT-HISTORY`：失败 `cb0e848069e04c8283eabcbf29d2e4c7`，残影触发后防御少5格挡。扩展后的 `0f404dbcbe3b4e568e6c89579158774b` Passed：非卡牌格挡、同一次出牌连续两次格挡、下一次出牌，均比较完整状态/RNG。首次扩展构建缺少夹具 ResourceInfo 必填值，补齐后Release通过。该验证覆盖计数机制；原报告额外格挡来源仍待定位。
 

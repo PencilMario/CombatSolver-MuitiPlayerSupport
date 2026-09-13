@@ -498,10 +498,10 @@
     "testId": "MONSTER-MOVES-BATCH-034"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.LethalityPower|MegaCrit.Sts2.Core.Models.AbstractModel.ModifyDamageMultiplicative(MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Decimal,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
-    "status": "SolverCompensation",
-    "source": "RandomForeseer 0.13.7 damage fallback + src/Search/SimulatedCombatState.cs",
-    "notes": "Applies the percentage bonus only to the owner's first predicted Attack each turn; the solver replaces live CombatManager history with a fingerprinted predicted counter.",
-    "testId": "MONSTER-MOVES-BATCH-034"
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Damage/ModifyDamageMirrors.cs; src/Search/SimulatedCombatState.CardLifecycle.cs",
+    "notes": "Uses branch attack-start history, the queried source card's play pile, and its replay index; off-card damage queries observe the already-started attack.",
+    "testId": "ATTACK-START-HISTORY"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.OneForAllPower|MegaCrit.Sts2.Core.Models.AbstractModel.ModifyDamageAdditive(MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Decimal,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
     "status": "EngineInferred",
@@ -540,10 +540,10 @@
     "testId": "MONSTER-MOVES-BATCH-034"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.UnmovablePower|MegaCrit.Sts2.Core.Models.AbstractModel.ModifyBlockMultiplicative(MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Decimal,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Models.CardModel,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
-    "status": "SolverCompensation",
-    "source": "RandomForeseer 0.13.7 block fallback + src/Search/SimulatedCombatState.cs",
-    "notes": "Doubles the first N predicted card or monster-move block gains each turn using a fingerprinted counter instead of live CombatManager history.",
-    "testId": "MONSTER-MOVES-BATCH-034"
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Block/ModifyBlockMultiplicativeMirrors.cs; src/Search/SimulatedCombatState.CardPowerHistory.cs",
+    "notes": "Counts positive powered card-block events and excludes the current CardPlay's own events, matching native history eligibility.",
+    "testId": "BLOCK-EVENT-HISTORY"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.CoveredPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterDeath(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Boolean,System.Single)": {
     "status": "NotCombatRelevant",
@@ -5762,8 +5762,8 @@
   "Power|MegaCrit.Sts2.Core.Models.Powers.OrbitPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterEnergySpent(MegaCrit.Sts2.Core.Models.CardModel,System.Int32)": {
     "status": "SolverCompensation",
     "source": "src/Prediction/PowerLifecycleSupport.cs + src/Search/SimulatedCombatState.PowerLifecycle.cs",
-    "notes": "Tracks each instanced Orbit remainder and grants its Amount energy for every four energy spent; the remainder is included in the state fingerprint.",
-    "testId": "POWER-LIFECYCLE-BATCH-051"
+    "notes": "Captures each native Orbit remainder at root creation, initializes new instances to zero, isolates forks, and compares remainder in fingerprint and continuation.",
+    "testId": "ORBIT-CAPTURED-ROOT"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.PaleBlueDotPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterCardPlayed(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
     "status": "SolverCompensation",
