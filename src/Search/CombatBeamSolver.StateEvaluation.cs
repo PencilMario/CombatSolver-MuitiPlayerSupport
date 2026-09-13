@@ -249,6 +249,9 @@ internal sealed partial class CombatBeamSolver
         bool needsExhaustDrawTiming = false;
         bool skillsExhaust = false;
         bool hasPagestorm = false;
+        // Only Lethality consumes this native field. Registered evaluators may read any
+        // existing context field, so preserve the complete context when that table is used.
+        bool needsFirstAttackDamage = !StrategicEffectMirrors.IsEmpty;
         int danseMacabreEnergyThreshold = 0;
         int demesneAmount = 0;
         for (int powerIndex = 0; powerIndex < effectivePowers.Count; powerIndex++)
@@ -257,6 +260,7 @@ internal sealed partial class CombatBeamSolver
             contributes[powerIndex] = StrategicEffectMirrors.Contributes(power, _player.Creature);
             if (!contributes[powerIndex])
                 continue;
+            needsFirstAttackDamage |= power is LethalityPower;
             strategicRequirements |= StrategicEffectModel.Requirements(
                 power,
                 policy.Act3BossStrategy);
@@ -289,7 +293,7 @@ internal sealed partial class CombatBeamSolver
                     liveCards, enemyHp, focus.TotalThreat, focus.IncomingHitCount, strategicRequirements, skillsExhaust) with
                 {
                     Act3BossInteractions = policy.Act3BossStrategy,
-                    FirstAttackDamage = policy.Act3BossStrategy
+                    FirstAttackDamage = policy.Act3BossStrategy && needsFirstAttackDamage
                         ? CaptureFirstAttackDamage(simulator, combat, playerState, liveCards) : 0,
                 };
                 if (policy.Act3BossStrategy

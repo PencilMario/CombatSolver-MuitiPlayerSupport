@@ -1,5 +1,13 @@
 # CombatSolver 测试清单
 
+## 女王CPU与按需战略上下文（2026-09-13）
+
+- 固定单主搜索10000展开、DOP16、16GB NoGC，A-B-B-A四次Passed、GC均0；84个非时序/非调度字段、28步完整动作及其余结果文本相等，平均耗时−3.065%、分配−0.560%。先行20000展开A/B也有84字段/40动作相等，但候选耗时更长且GC暂停不同，不作为提速证据。全部runId和指标见[CPU报告](performance/queen-cpu-20260913.md)及[JSON](performance/queen-cpu-20260913.json)。
+- `STRATEGIC-CONTEXT-DEMAND` / `59a763860109428888c6a6eeb3acd1f6` Passed：原版致命无攻击/根除、普通政策、第三方None需求仍读取FirstAttackDamage。两端现有无人入口使用该ScenarioId、IRONCLAD / FUZZY_WURM_CRAWLER_WEAK、玩家80HP、敌999HP、空遗物、120秒；不要加StopAfterCombatRootSnapshotAssertion（会跳过Executor）或增量验证。该登记合同使用独占可丢弃进程。
+- 初始广首领联动fixture `ae4e8e08ee4f40458fb458ab8051bd48` Failed于DanseMacabre不可支付攻击断言，未到达本次字段；未修改旧断言，未宣称全套首领联动通过。最终Release0警告/错误，Bash/PowerShell结构门禁通过；性能口径仅Linux headless。
+
+- 聚焦 `STAND-PAT-MEMORY-BOUNDARY` / `d95c36f1f2e04e1faaf9e41ce1378b09` Passed，包含DOP1/DOP2完整结果与动作、取消/异常排空、根复用及小区域内存边界。使用已有Bowlbugs早期native包、RestoreOnly和120秒请求，不加组合策略或增量开关。
+
 ## NoGC回退恢复（2026-09-13）
 
 - 当前最终候选的固定女王单主搜索A-D-D-A：84个非时序/非调度字段、40步完整动作及其余结果文本一致，耗时−8.853%、Gen0计数−91.840%、总GC暂停−50.468%；峰值RSS+15.083%，最大暂停未改善。基线搜索已完成，但搜索后NoGC保持断言Failed；候选Passed。所有十个先行/最终样本及失败记录见[报告](performance/queen-gc-recovery-20260913.md)和配套JSON。

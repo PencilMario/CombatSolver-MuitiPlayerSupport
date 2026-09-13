@@ -128,6 +128,8 @@ StrategicEffectMirrors.Register<TYourPower>(requirements, evaluate, host);
 只有当你的 Power **收益取决于它和别的动作的先后关系**时才需要。详见
 [第三方 Power 的战略估值登记](third-party-strategic-effects.md)。
 
+外部战略登记表非空时，搜索仍按旧规则填充首领特化的 `FirstAttackDamage`，即使登记声明 `StrategicEffectRequirements.None`。仅原版且没有致命消费者时省略扫描；不要求已有外部登记新增需求标志，普通政策字段仍为0。
+
 `StrategicEffectRequirements.AttackHits` 可请求可达攻击命中数；`StrategicEffectContext.AttackHits` 在请求后提供估值，未请求时为 null。它包括已审查的原版多段与小刀生成，第三方攻击使用普通单次命中估计，不能当作真实攻击结算。`ExhaustDrawPlays` 是黑暗之拥在禁抽、虚无顺序下的抽牌机会估值；这些字段只服务保路，不改变 Hook 镜像语义。
 
 三层指定首领的内置联动估值额外填充 `Act3BossInteractions`、`ReachableCards` 及虚无抽牌、高费出牌、未来能量/抽牌的估计值。专用计数只在对应原版 Power 实际参与该分支时计算，第三方登记不能把默认 0 当作完整可达性分析；登记表仍优先于内置 Power 分支。见下方封闭入口清单。

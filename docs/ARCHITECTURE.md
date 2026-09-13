@@ -47,7 +47,7 @@ Entry / turn hooks
 
 搜索 worker 接收 `CombatRootSnapshot`、`SearchPolicySnapshot`、诊断 sink、帧压力信号和取消令牌。它不读取全局设置、控制器、UI 或无人测试状态。
 
-成长策略由 `GrowthBudgets` 随请求冻结，每次实际收益按对应来源取得 HP 额度，中间保路和终局排序沿用同一份额度；成长侧栏只编辑原有额度和忽略收益开关。`CardMechanismFacts` 提供小刀数量、攻击命中与消耗抽牌的纯值估计，`StrategicEffectModel` 消费分支状态；当前没有奖励／商店评分模块。
+成长策略由 `GrowthBudgets` 随请求冻结，每次实际收益按对应来源取得 HP 额度，中间保路和终局排序沿用同一份额度；成长侧栏只编辑原有额度和忽略收益开关。`CardMechanismFacts` 提供小刀数量、攻击命中与消耗抽牌的纯值估计，`StrategicEffectModel` 消费分支状态；StateEvaluation 的首攻击估值只在原版致命消费者存在或外部战略登记表非空时构建，外部既有字段上下文保持；当前没有奖励／商店评分模块。
 
 普通搜索在 Runtime 同时等待根回收屏障、原生动作队列及当前动作完成后捕获根；队列因等待玩家选择暂时无可执行动作时，当前动作的完成任务仍约束捕获。任何异步等待恢复后都重新进入请求校验，沿用请求身份和战斗生命周期取消；专用回合准备选牌入口先行处理。
 
