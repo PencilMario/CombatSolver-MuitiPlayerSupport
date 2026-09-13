@@ -48,6 +48,8 @@ internal sealed partial class SimulatedCombatState
         power._applier = applier;
         power._target = owner;
         power._amount = amount;
+        if (power is OrbitPower orbit)
+            InitializeOrbit(orbit, 0);
         (_addedPowerInstances ??= []).Add(power);
         UpdatePowerListenerOrder(power, 0, amount);
         InvalidateHookListeners();

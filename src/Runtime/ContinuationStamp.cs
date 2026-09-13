@@ -437,6 +437,9 @@ internal sealed record ContinuationStamp(string StateText)
                 text.Append("Selected=");
                 AppendCard(text, selected, discoverUnregisteredBaseLibModifiers: simulator == null);
             }
+            if (power is OrbitPower orbit)
+                text.Append("EnergyRemainder=").Append(simulator == null ? (4 - orbit.DisplayAmount) % 4
+                    : ((SimulatedCombatState)simulator.State.CombatState).GetOrbitEnergyRemainder(orbit)).Append(',');
             text.Append("],");
         }
     }

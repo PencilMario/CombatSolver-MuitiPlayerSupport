@@ -910,7 +910,7 @@ internal sealed partial class SimulatedCombatState
     public void ResetTenderCardsPlayed(Creature owner)
         => (_tenderCardsPlayed ??= [])[owner] = 0;
 
-    private static T CreatePowerForApplication<T>(Creature owner, Creature? target, Creature? applier)
+    private T CreatePowerForApplication<T>(Creature owner, Creature? target, Creature? applier)
         where T : PowerModel
     {
         T incoming = PredictionUtils.CloneModelForSimulation(CanonicalModels.Power<T>());
@@ -918,6 +918,8 @@ internal sealed partial class SimulatedCombatState
         incoming._applier = applier;
         incoming._target = target;
         incoming._amount = 0;
+        if (incoming is OrbitPower orbit)
+            InitializeOrbit(orbit, 0);
         return incoming;
     }
 
@@ -1983,6 +1985,8 @@ internal sealed partial class SimulatedCombatState
             PowerPredictionStateSupport.CaptureRootState(simulator, mutable, power);
             if (power is NightmarePower nightmare)
                 CaptureNightmareRootState((NightmarePower)mutable, nightmare);
+            if (power is OrbitPower orbit)
+                InitializeOrbit((OrbitPower)mutable, (4 - orbit.DisplayAmount) % 4);
             if (power is PaleBlueDotPower paleBlueDot)
                 CapturePaleBlueDotRootState((PaleBlueDotPower)mutable, paleBlueDot);
             if (power is DampenPower dampen)
