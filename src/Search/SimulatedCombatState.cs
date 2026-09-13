@@ -612,9 +612,20 @@ internal sealed partial class SimulatedCombatState
         {
             return 0;
         }
-        if (GetAmount<T>(target) == 0)
+        bool instanced = incoming.InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced;
+        if (instanced || GetAmount<T>(target) == 0)
             beforeApplied?.Invoke(amount);
-        PowerModel simulated = GetOrCreatePower(target, incoming, applier);
+        PowerModel simulated;
+        if (instanced)
+        {
+            simulated = incoming;
+            (_addedPowerInstances ??= []).Add(simulated);
+            InvalidateHookListeners();
+        }
+        else
+        {
+            simulated = GetOrCreatePower(target, incoming, applier);
+        }
         int previousAmount = simulated._amount;
         simulated._amount = Math.Clamp(simulated._amount + amount, -999_999_999, 999_999_999);
         // A newly applied player duration skips its first tick; stacking never renews it.
@@ -701,6 +712,8 @@ internal sealed partial class SimulatedCombatState
 
     public int GetAmount<T>(Creature target) where T : PowerModel
     {
+        if (CanonicalModels.Power<T>().InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced)
+            return GetPower<T>(target)?.Amount ?? 0;
         if (_powers != null && _powers.TryGetValue((target, typeof(T)), out PowerModel? power))
             return power.Amount;
         if (_rootCreatures.Contains(target))
@@ -710,6 +723,8 @@ internal sealed partial class SimulatedCombatState
 
     public T? GetPower<T>(Creature target) where T : PowerModel
     {
+        if (CanonicalModels.Power<T>().InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced)
+            return EffectivePowers().OfType<T>().FirstOrDefault(power => ReferenceEquals(power.Owner, target));
         if (_powers != null && _powers.TryGetValue((target, typeof(T)), out PowerModel? power))
             return (T)power;
         if (_rootCreatures.Contains(target))
@@ -753,7 +768,10 @@ internal sealed partial class SimulatedCombatState
         if (current == amount)
             return;
         T canonical = CanonicalModels.Power<T>();
-        PowerModel simulated = GetOrCreatePower(target, canonical, null);
+        PowerModel simulated = canonical.InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced
+            && GetPower<T>(target) is { } instance
+                ? GetMutablePowerInstance(instance)
+                : GetOrCreatePower(target, canonical, null);
         int previousAmount = simulated._amount;
         simulated._amount = Math.Clamp(amount, -999_999_999, 999_999_999);
         UpdatePowerListenerOrder(simulated, previousAmount, simulated._amount);
@@ -828,7 +846,17 @@ internal sealed partial class SimulatedCombatState
         {
             return;
         }
-        PowerModel simulated = GetOrCreatePower(owner, incoming, applier);
+        PowerModel simulated;
+        if (incoming.InstanceType == MegaCrit.Sts2.Core.Entities.Powers.PowerInstanceType.Instanced)
+        {
+            simulated = incoming;
+            (_addedPowerInstances ??= []).Add(simulated);
+            InvalidateHookListeners();
+        }
+        else
+        {
+            simulated = GetOrCreatePower(owner, incoming, applier);
+        }
         int previousAmount = simulated._amount;
         simulated._target = target;
         simulated._amount = Math.Clamp(simulated._amount + amount, -999_999_999, 999_999_999);
@@ -846,10 +874,7 @@ internal sealed partial class SimulatedCombatState
         if (stolen <= 0)
             return;
         RecordStolenGold(simulator, stolen);
-        ThieveryPower simulated = (ThieveryPower)GetOrCreatePower(
-            owner,
-            CanonicalModels.Power<ThieveryPower>(),
-            source.Applier);
+        ThieveryPower simulated = (ThieveryPower)GetMutablePowerInstance(source);
         simulated._target = source.Target;
         simulated.DynamicVars.Gold.BaseValue += stolen;
         LosePlayerGold(target, stolen);

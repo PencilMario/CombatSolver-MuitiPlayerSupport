@@ -2,11 +2,13 @@
 
 ## 下一版本（开发中）：计划外重算修复
 
-- `RELIC-DAMAGE-WAKE`：熟睡甲虫失败基线 `3ccdcacbe9aa473e8a777b34ea99391e`，招架盾原生伤害后 SLUMBER_POWER 为2、预测为3。修复后 `252a8f9dc76e4610ac455f05388eebcf` Passed（23.11秒），拉加武林母体 `1012870880214ac79bbc646c5e5d46a2` Passed（9.06秒）；均比较完整一步状态与 RNG。命令使用 `-ScenarioId RELIC-DAMAGE-WAKE -EncounterId SLUMBERING_BEETLE_NORMAL` 或 `LAGAVULIN_MATRIARCH_BOSS -EnemyCurrentHp 100`，无增量搜索。Release零警告/错误；CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过。原包完整部署、可见测试未运行。
+- `RELIC-DAMAGE-WAKE`：熟睡甲虫失败基线 `3ccdcacbe9aa473e8a777b34ea99391e`，招架盾原生伤害后 SLUMBER_POWER 为2、预测为3。修复后 `252a8f9dc76e4610ac455f05388eebcf` Passed（23.11秒），乐加维林族母 `1012870880214ac79bbc646c5e5d46a2` Passed（9.06秒）；均比较完整一步状态与 RNG。命令使用 `-ScenarioId RELIC-DAMAGE-WAKE -EncounterId SLUMBERING_BEETLE_NORMAL` 或 `LAGAVULIN_MATRIARCH_BOSS -EnemyCurrentHp 100`，无增量搜索。Release零警告/错误；CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过。原包完整部署、可见测试未运行。
 
 - `AUTO-DEPLOYMENT-REQUEST-OWNERSHIP`：有效失败基线 `7378bb2aa3af43219daa7dd48f4a2712` 在部署进行中检测额外搜索。修复后 `8870e33fd0b344b6ae9c2393b59e902e` Passed（23.81秒），原生两张攻击完成击杀；`Instant / 0秒`。早期两次夹具误在战斗清理后比较账本，已修正断言时点，不作为失败基线。嵌套 PowerShell 重定向导致启动器 stdout 句柄未关闭，已结束本任务等待进程并保存游戏完整结果，后续在单层 PowerShell 运行。相邻 `AUTO-TURN-REQUEST-OWNERSHIP` 的 `da5ef97e68e341748a6e4b31f9025fc7` Passed（22.93秒），显式手动重算可用。Release与Windows结构门禁通过。
 
 - `SPAWN-POWER-ORDER`：`FABRICATOR_NORMAL`，`FABRICATOR/FABRICATE_MOVE`，清空遗物后注入 `PHILOSOPHERS_STONE`；使用既有 MonsterMoveChecks 协议。失败 `7196457aa1a640b1840bafaf116764f5` 与修复通过 `8ee41d141e1c40caa71d1adaf4f4d0f8`，核对完整有序能力、阵容、状态与RNG。Release通过，无原包整场/可见验收。
+
+- `INSTANCED-POWER-AUTOMATION`：有效失败 `55983c477ab849169dd1c0c36aca5152`，预测单实例3、原生两个实例1/2；初版 MoveStateSnapshot 的内部状态字典不接受同名实例，改用严格 ContinuationStamp（`95c4ce554d5a44cca5cb9369cb5bdfb0` 是夹具限制）。扩展生命周期后 `3502fcbd0a1a45ce8714bac2bb87a4a0` Passed，`INSTANCED-POWER-BOULDER` 的 `4ca7a4ee808244f6896c0b921952505b` Passed，覆盖Fork、重新捕获、追加、移除。`INSTANCED-POWER-TARGETED` 的 `bb2ac2b460e44c1b867361e5a033cd15` Passed，定向实例/首次查询/逐实例Gold写入合同；该Gold写入断言不是完整原生偷窃回合验收。Release通过。
 
 ## 0.37.0：性能更新与 PR #89 合并验证
 

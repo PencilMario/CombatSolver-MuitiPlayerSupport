@@ -36,6 +36,8 @@ Power 来源也是语义的一部分：精确镜像可通过 `ICombatPredictionE
 
 受伤唤醒在 `AfterDamageReceivedMirrors` 中立即结算：内置 AsleepPower 和 SlumberPower 对卡牌、遗物及回合效果共享同一 Hook。第三方伤害入口应调用模拟器 Damage，使受伤监听器随该次伤害执行；外层历史扫描不再承担这两个 Power 的唤醒。
 
+原版 `PowerInstanceType.Instanced` 的通用/定向施加每次产生独立分支实例；`GetPower<T>` 与原版一致返回当前第一个实例，逐实例数量更新保持原引用。该行为不替代第三方 BeforeApplied/AfterApplied、内部状态及 Hook 的登记；InstancedPerApplier 的跨来源语义不在本项扩展内。
+
 ### 1.1 门禁：先让 Mod 进得来
 
 求解器扫描所有 ModHelper 战斗 hook 订阅者。放行有三条路：
