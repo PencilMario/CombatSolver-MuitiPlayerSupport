@@ -12,6 +12,8 @@ PR #89 已合入上游0.37.0；当前 `perf/hotspot-exploration-20260913` 基于
 
 ## 专题
 
+- [内存缩至十分之一的条件](memory-tenfold-20260913.md)：当前分配栈、具体对象与算法放大器，以及1GB No-GC区域的峰值实验。
+
 - [合并后的性能探索](hotspot-exploration-20260913.md)：新上游CPU采样、六个候选的成本取舍、空容器优化与固定工作量及VeryHigh验证。
 
 - [最终代码的 VeryHigh 极高负载测试](veryhigh-final-20260913.md)：正常生产构建、四个独立进程，完整保留超时、内存压力与预测结果边界。

@@ -1,5 +1,12 @@
 # CombatSolver 测试清单
 
+## 内存十倍目标调研（2026-09-13，无生产改动）
+
+- 基于`465a8cd`正常生产产物新增两项Linux headless诊断。Custom由VeryHigh派生，Beam135、每Solve10000节点、分支72/42/54、FixedBudget、DOP16，保持正常coordinator的药水审计/窄Beam恢复；单请求120秒。
+- AllocationTick采样`9dd48d084bf04394bf059735b1934588` Passed：60000展开、893527转移、560708选牌分支、48.400GB搜索分配。收集器exit0；464375个分配事件全部有栈，解析EventsLost=0；454945个搜索相关栈的加权分配48.927GB仅用于归因估计，不当作精确计数或正式测速。
+- 1GB No-GC单样本`04991da3f8314bfd9d2db860be7e4c6d` Passed：相同33项非时序工作/质量指标，50.357秒、48.513GB累计分配、3.566GB采样峰值RSS；与此前16GB普通候选样本的19.791–21.972GB并列，但不是新ABBA或完整动作等价测试。可用日志含85条去重完整回收记录，不声明日志覆盖所有回收。
+- 本轮验证限请求预测/配置与采样解析；未改生产代码或默认设置，未重跑完整VeryHigh四例、native全战部署、Windows/可见Steam或生产构建。文档路径/JSON与空白检查通过。见[研究报告与结构化指标](performance/memory-tenfold-20260913.md)。
+
 ## 合并后性能分支的最小合同
 
 `HP-MODIFIER-COLLECTIONS` / `2e0e2b78e1594761a73e12ef6d8260f5` Passed：192组decimal/阶段/过滤器/Buffer/Intangible对照，168空/24非空，重复成员只通知一次，退役实例不消费重获Power；完整状态/RNG、父分支/live不变。蜥蜴尾巴未用/已消耗预测与源状态不变通过。实际构建基于上游`bcc15da`及本轮候选；[计数、对照与压力证据](performance/hotspot-exploration-20260913.md)。
