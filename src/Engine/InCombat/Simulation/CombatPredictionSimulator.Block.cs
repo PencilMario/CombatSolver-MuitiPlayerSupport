@@ -53,7 +53,7 @@ internal sealed partial class CombatPredictionSimulator
         PredictedCard? cardSource,
         CardPlay? cardPlay)
     {
-        if (IsOverOrEnding || State.GetCreature(creature).IsDead || amount <= 0m)
+        if (IsOverOrEnding || State.GetCreature(creature).IsDead)
         {
             return 0m;
         }
@@ -68,24 +68,22 @@ internal sealed partial class CombatPredictionSimulator
             cardSource,
             cardPlay,
             out var modifiers);
+        modifiedBlock = Math.Max(modifiedBlock, 0m);
         HookMirrors.AfterModifyingBlockAmount(this, modifiedBlock, cardSource, cardPlay, modifiers);
 
-        if (modifiedBlock <= 0m)
+        if (modifiedBlock > 0m)
         {
-            return 0m;
+            if (cardPlay != null)
+            {
+                var previous = _blockGainedByCardPlay.GetValueOrDefault(cardPlay);
+                bool powered = props.IsCardOrMonsterMove();
+                _blockGainedByCardPlay[cardPlay] = (previous.Amount + modifiedBlock,
+                    previous.PoweredEvents + (powered ? 1 : 0));
+                if (powered && State.CombatState is ICombatPredictionCardEventSink sink)
+                    sink.RecordPoweredCardBlockGained(cardPlay.Player.Creature);
+            }
+            State.GetCreature(creature).GainBlock(modifiedBlock);
         }
-
-        if (cardPlay != null)
-        {
-            var previous = _blockGainedByCardPlay.GetValueOrDefault(cardPlay);
-            bool powered = props.IsCardOrMonsterMove();
-            _blockGainedByCardPlay[cardPlay] = (previous.Amount + modifiedBlock,
-                previous.PoweredEvents + (powered ? 1 : 0));
-            if (powered && State.CombatState is ICombatPredictionCardEventSink sink)
-                sink.RecordPoweredCardBlockGained(cardPlay.Player.Creature);
-        }
-
-        State.GetCreature(creature).GainBlock(modifiedBlock);
 
         // Vanilla records BlockGained history before AfterBlockGained. Preview does not mutate
         // run/combat history, but it still scans AfterBlockGained through HookMirrors below so
