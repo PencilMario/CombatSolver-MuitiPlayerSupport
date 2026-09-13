@@ -39,6 +39,11 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "CRAB-RAGE-DEATH-TIMING")
+            {
+                await runner.AssertCrabRageDeathTimingAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "INSTANCED-POWER-TARGETED")
             {
                 await runner.AssertTargetedPowerInstancesAsync(combatState, player);

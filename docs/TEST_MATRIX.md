@@ -10,6 +10,8 @@
 
 - `INSTANCED-POWER-AUTOMATION`：有效失败 `55983c477ab849169dd1c0c36aca5152`，预测单实例3、原生两个实例1/2；初版 MoveStateSnapshot 的内部状态字典不接受同名实例，改用严格 ContinuationStamp（`95c4ce554d5a44cca5cb9369cb5bdfb0` 是夹具限制）。扩展生命周期后 `3502fcbd0a1a45ce8714bac2bb87a4a0` Passed，`INSTANCED-POWER-BOULDER` 的 `4ca7a4ee808244f6896c0b921952505b` Passed，覆盖Fork、重新捕获、追加、移除。`INSTANCED-POWER-TARGETED` 的 `bb2ac2b460e44c1b867361e5a033cd15` Passed，定向实例/首次查询/逐实例Gold写入合同；该Gold写入断言不是完整原生偷窃回合验收。Release通过。
 
+- `CRAB-RAGE-DEATH-TIMING`：`KAISER_CRAB_BOSS`，一只1HP、另一只100HP，前者先死亡，再对后者造成20点伤害。失败 `94557ad1b38945b297365a0228455829`，修复 `cccecc62cf9d4c15891f02a218d59573` Passed；严格状态/RNG差分，清扫后继续检查。Release通过。覆盖目录将 CrabRage 与前项 Asleep/Slumber 的权威来源更新为精确镜像并关联本轮证据。
+
 ## 0.37.0：性能更新与 PR #89 合并验证
 
 - 定版范围：PR #89 的已合并行为及已审核更新日志；版本与发布元数据变更复用以下验证，本次不重跑游戏场景，不作完整可见性能验收结论。

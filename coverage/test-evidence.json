@@ -1,4 +1,20 @@
 {
+  "RELIC-DAMAGE-WAKE": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeDamageDifferential",
+    "procedure": "招架盾对熟睡甲虫或乐加维林族母造成伤害，比较完整单效果状态与RNG。",
+    "expected": "伤害发生时立即处理熟睡计数或睡眠唤醒。",
+    "observed": "失败3ccdcacbe9aa473e8a777b34ea99391e；通过252a8f9dc76e4610ac455f05388eebcf与1012870880214ac79bbc646c5e5d46a2。",
+    "evidence": "src/Testing/UnattendedTestRunner.WakeDamage.cs; docs/TEST_MATRIX.md; 2026-09-13"
+  },
+  "CRAB-RAGE-DEATH-TIMING": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeDeathAndNextHitDifferential",
+    "procedure": "蟹皇一只先死亡，再对存活个体施加下一次伤害；完成死亡清理后比较完整状态与RNG。",
+    "expected": "另一只的格挡在下一击前生效。",
+    "observed": "失败94557ad1b38945b297365a0228455829；通过cccecc62cf9d4c15891f02a218d59573。",
+    "evidence": "src/Testing/UnattendedTestRunner.DeathHookTiming.cs; docs/TEST_MATRIX.md; 2026-09-13"
+  },
   "TEST-SUBJECT-ORIGINAL-REPORT": {
     "status": "Passed",
     "level": "OriginalArchiveNativeActionAndTwoTurnDifferential",

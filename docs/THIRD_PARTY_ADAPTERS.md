@@ -38,6 +38,8 @@ Power 来源也是语义的一部分：精确镜像可通过 `ICombatPredictionE
 
 原版 `PowerInstanceType.Instanced` 的通用/定向施加每次产生独立分支实例；`GetPower<T>` 与原版一致返回当前第一个实例，逐实例数量更新保持原引用。该行为不替代第三方 BeforeApplied/AfterApplied、内部状态及 Hook 的登记；InstancedPerApplier 的跨来源语义不在本项扩展内。
 
+CrabRagePower 的同伴死亡结算由 `AfterDeathMirrors` 独占：力量、格挡与移除都发生在死亡 Hook 内，后续多段伤害立即消费新格挡。外层死亡清扫不重复该效果。
+
 ### 1.1 门禁：先让 Mod 进得来
 
 求解器扫描所有 ModHelper 战斗 hook 订阅者。放行有三条路：

@@ -5472,10 +5472,10 @@
     "testId": "NO-NATIVE-RESCAN-244"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.CrabRagePower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterDeath(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Boolean,System.Single)": {
-    "status": "SolverCompensation",
-    "source": "src/Prediction/DeathPowerSupport.cs",
-    "notes": "When another same-side creature dies, applies canonical Strength and Block to the owner and removes the exact Crab Rage instance.",
-    "testId": "POWER-DEATH-BATCH-050"
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Death/AfterDeathMirrors.cs",
+    "notes": "Companion death grants Strength and Block immediately before the next hit and removes the exact Crab Rage instance.",
+    "testId": "CRAB-RAGE-DEATH-TIMING"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.DampenPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterDeath(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,System.Boolean,System.Single)": {
     "status": "SolverCompensation",
@@ -5676,10 +5676,10 @@
     "testId": "NO-NATIVE-RESCAN-244"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.AsleepPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterDamageReceived(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Entities.Creatures.DamageResult,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel)": {
-    "status": "SolverCompensation",
-    "source": "src/Prediction/TriggeredPowerSupport.cs",
-    "notes": "该行为现由分支内状态完整结算，不再触发原生重扫；精确语义与跨回合一致性见关联测试证据。",
-    "testId": "NO-NATIVE-RESCAN-244"
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Damage/AfterDamageReceivedMirrors.cs",
+    "notes": "Wake effects execute in the receiving damage hook, including relic damage between card actions.",
+    "testId": "RELIC-DAMAGE-WAKE"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.AsleepPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterSideTurnEnd(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Combat.CombatSide,System.Collections.Generic.IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature>)": {
     "status": "SolverCompensation",
@@ -5790,10 +5790,10 @@
     "testId": "POWER-LIFECYCLE-BATCH-051"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.SlumberPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterDamageReceived(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Entities.Creatures.DamageResult,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel)": {
-    "status": "SolverCompensation",
-    "source": "src/Prediction/TriggeredPowerSupport.cs",
-    "notes": "该行为现由分支内状态完整结算，不再触发原生重扫；精确语义与跨回合一致性见关联测试证据。",
-    "testId": "NO-NATIVE-RESCAN-244"
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Damage/AfterDamageReceivedMirrors.cs",
+    "notes": "Wake effects execute in the receiving damage hook, including relic damage between card actions.",
+    "testId": "RELIC-DAMAGE-WAKE"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.SlumberPower|MegaCrit.Sts2.Core.Models.AbstractModel.AfterSideTurnEnd(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Combat.CombatSide,System.Collections.Generic.IEnumerable<MegaCrit.Sts2.Core.Entities.Creatures.Creature>)": {
     "status": "SolverCompensation",
