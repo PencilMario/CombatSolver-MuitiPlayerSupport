@@ -32,6 +32,8 @@ Power 的原版克隆会重置 `_internalData`。跨根保留的数据必须从�
 
 Power 来源也是语义的一部分：精确镜像可通过 `ICombatPredictionEffectSink.ApplyPowerFromSource` 显式提供 `CardModel? cardSource`，原版传 null 时必须保持 null，避免能力附带效果被误判成外层卡牌直接效果。普通 `ApplyPower` 仍沿用当前卡牌作用域；两者不能按调用栈有无卡牌随意替代。
 
+普通能力的 `Owner` 与可空 `Target` 不可混用：无显式目标的施加保持 Target=null，定向施加入口保留真实目标。临时力量族的回调使用经过修正的请求偏移，封顶后的净增量不能替代；其类型检查不扩大第三方能力支持面。内置 Weak/Vulnerable/Frail 的首 tick 标记进入精确状态比较，第三方持续能力仍须登记自己的状态与结算，不自动按这三个类型处理。
+
 ### 1.1 门禁：先让 Mod 进得来
 
 求解器扫描所有 ModHelper 战斗 hook 订阅者。放行有三条路：
@@ -524,6 +526,7 @@ CardRemovalValueMirrors.Register<YourDefend>(-10d);
 | `SearchPolicySnapshot.IsAct3BossEncounter` / `CombatBeamSolver.CaptureAct3BossInteractionPotential` | 首领范围只含第三幕实验体、永世沙漏、女王；联动上下文只适配原版 Pagestorm、DanseMacabre、Demesne；StrategicEffectModel 对 PrepTimePower 按未来攻击与回合视野估计重复精力收益。这些不是通用第三方触发次数分析。第三方 Power 仍使用 §2.2 登记 | 原版特化；第三方估值已有入口 |
 | `PredictionModHookSubscriberCapture.KnownPreRootSubscriberTypeNames` | 私有静态白名单，没有公开登记入口 | 待做 |
 | `PredictionModPatchAudit.ValidateLoadedMods` | 明确拒绝 `WheelchairSpire`，没有外部放行入口 | 项目不兼容策略 |
+| `NativeModelCloneConcurrency` | 预测克隆只放行已核对原版阶段、原版变量及 BaseLib/Ritsu 稀疏元数据复制补丁组合的普通原版卡牌；附魔/灾厄、第三方模型/变量和未知补丁保留原锁。Power 只放行已物化原版变量、继承默认克隆及 InitInternalData 的原版类型，同时核对基阶段与变量 getter 补丁；自定义初始化保持原锁。每个线程最外层模拟隔离域重新核对，不支持求解中安装补丁；原版 MutableClone 保护不变。没有新增外部注册入口 | 精确框架适配 |
 | `DynamicVarCloneMetadataPatches` | 模拟克隆只优化已核对为空默认值的 BaseLib 提示/升级字段与 Ritsu 提示工厂；非空值照常复制，live 调用保持原框架行为。其他附加字段继续原有克隆逻辑，不属于此优化入口 | 精确框架适配 |
 | `PlayerTurnEndLifecycle.RunPhaseTwo`、`CorePowerSupport.TriggerPlayerRegularSideTurnEndEffects`、`FlushPlayerHandAtTurnEnd`、`TurnStartPowerSupport.TriggerAfterPlayerTurnStart`、`SimulatedCombatState.TriggerRelicsAfterPlayerTurnStart` | 回合边界的效果没有注册表 | 待做 |
 | `SimulatedCombatState.TryPrepareExtraPlayerTurn` / `TryPrepareLiveExtraPlayerTurn` / `ConsumeExtraTurnSources` | 额外回合的来源硬编码，只认龙涎香和帕尔之眼 | 待做 |

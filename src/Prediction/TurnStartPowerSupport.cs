@@ -5,7 +5,6 @@ using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Extensions;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Cards;
-using MegaCrit.Sts2.Core.Models.CardPools;
 using MegaCrit.Sts2.Core.Models.Powers;
 using MegaCrit.Sts2.Core.ValueProps;
 using CombatSolver.Engine.Common;
@@ -158,6 +157,7 @@ internal static class TurnStartPowerSupport
             int count = power.Amount;
             bool ethereal = false;
             bool generateOneAtATime = false;
+            bool generateColorless = false;
             switch (power)
             {
                 case CallOfTheVoidPower:
@@ -180,20 +180,25 @@ internal static class TurnStartPowerSupport
                     count = power.AmountOnTurnStart;
                     break;
                 case SpectrumShiftPower:
-                    options = ModelDb.CardPool<ColorlessCardPool>()
-                        .GetUnlockedCards(player.UnlockState, combat.CardMultiplayerConstraint);
+                    generateColorless = true;
                     break;
             }
-            if (options == null || count <= 0)
+            if ((!generateColorless && options == null) || count <= 0)
                 continue;
 
             List<PredictedCard> generated;
-            if (generateOneAtATime)
+            if (generateColorless)
+            {
+                generated = simulator.GetDistinctUnlockedColorlessForCombat(
+                    player, count, simulator.Rng.CombatCardGeneration,
+                    combat.CardMultiplayerConstraint).ToList();
+            }
+            else if (generateOneAtATime)
             {
                 generated = [];
                 for (int index = 0; index < count; index++)
                 {
-                    PredictedCard? card = options
+                    PredictedCard? card = options!
                         .GetDistinctForCombat(
                             player,
                             1,
@@ -206,7 +211,7 @@ internal static class TurnStartPowerSupport
             }
             else
             {
-                generated = options
+                generated = options!
                     .GetDistinctForCombat(
                         player,
                         count,

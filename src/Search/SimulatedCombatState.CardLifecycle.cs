@@ -608,8 +608,8 @@ internal sealed partial class SimulatedCombatState
 
     private void ResetCardLifecycleTurn(Creature owner)
     {
-        (_cardsPlayedThisTurn ??= [])[owner] = 0;
-        (_manualCardsPlayedThisTurn ??= [])[owner] = 0;
+        ResetTurnCounter(ref _cardsPlayedThisTurn, owner);
+        ResetTurnCounter(ref _manualCardsPlayedThisTurn, owner);
         _fetchCardsPlayedThisTurn?.Clear();
         ResetPowerLifecycleTurn(owner);
     }
