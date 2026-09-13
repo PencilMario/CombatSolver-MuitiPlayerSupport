@@ -36,9 +36,8 @@ That code relationship remains in the current version, including foundations for
 
 Thank you to hotwords123 and Random Foreseer. Permission, attribution and third-party notices are included with the source and every binary distribution.
 
-[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3747531952]Random Foreseer on Steam Workshop[/url]
-[url=https://github.com/hotwords123/StS2.RandomForeseer]Random Foreseer source[/url]
-[url=https://github.com/Torch1230/CombatSolver]Combat Solver source[/url]
+Random Foreseer: search for Random Foreseer on Steam Workshop, or hotwords123/StS2.RandomForeseer on GitHub.
+Combat Solver source: search for Torch1230/CombatSolver on GitHub.
 
 [h2]Requirements and compatibility[/h2]
 
@@ -58,7 +57,7 @@ Search can use substantial CPU and memory. The default is the Medium preset with
 
 [b]QQ community: 1106541324[/b]
 
-Share builds, discuss runs and suggest improvements. For incorrect routes, unexpected recalculations, execution failures or game errors, use Upload report in the mod's Settings. Reports include automatic issue classification to help diagnosis. The reporting backend was developed with community support from [url=https://github.com/iRyougi]iRyougi[/url]. You can also use Export report to keep a local copy.
+Share builds, discuss runs and suggest improvements. For incorrect routes, unexpected recalculations, execution failures or game errors, use Upload report in the mod's Settings. Reports include automatic issue classification to help diagnosis. The reporting backend was developed with community support from iRyougi. You can also use Export report to keep a local copy.
 
 When following up, include the report ID and a description of what happened.
 

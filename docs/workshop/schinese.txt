@@ -36,9 +36,8 @@ Combat Solver 的内置战斗模拟核心使用并改造了 Random Foreseer 的�
 
 感谢 hotwords123 与 Random Foreseer 所做的工作。许可、署名和第三方来源说明会随源码及每个二进制发布包一同提供。
 
-[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3747531952]Random Foreseer 创意工坊页面[/url]
-[url=https://github.com/hotwords123/StS2.RandomForeseer]Random Foreseer GitHub 仓库[/url]
-[url=https://github.com/Torch1230/CombatSolver]Combat Solver GitHub 源码仓库[/url]
+Random Foreseer：可在 Steam 创意工坊搜索 Random Foreseer，或在 GitHub 搜索 hotwords123/StS2.RandomForeseer。
+Combat Solver 源码：在 GitHub 搜索 Torch1230/CombatSolver 即可找到。
 
 [h2]依赖与兼容性[/h2]
 
@@ -64,6 +63,6 @@ Combat Solver 的内置战斗模拟核心使用并改造了 Random Foreseer 的�
 
 [h2]问题反馈[/h2]
 
-如果遇到错误路线、意外重算、自动执行异常或游戏报错，请在模组设置中使用“上传问题包”。上传会附上本场自动分类，帮助开发者更快定位问题；服务器和后端由社区朋友 [url=https://github.com/iRyougi]iRyougi[/url] 提供支持。仍可使用“导出问题包”保留本地文件后手动提交。
+如果遇到错误路线、意外重算、自动执行异常或游戏报错，请在模组设置中使用“上传问题包”。上传会附上本场自动分类，帮助开发者更快定位问题；服务器和后端由社区朋友 iRyougi 提供支持。仍可使用“导出问题包”保留本地文件后手动提交。
 
 作者：Torch
