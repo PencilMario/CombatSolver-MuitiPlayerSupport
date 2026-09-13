@@ -14,6 +14,8 @@
 
 - `NIGHTMARE-SELECTION-SNAPSHOT`：静默猎手，手牌梦魇/精准，先注入2层无限刀刃，完整两回合原版差分。失败 `e3e990169f6a48dc8ec78d26df15d45a`，通过 `fba8186242f44a93835b9f01955d8003`；检查所选牌快照与生成顺序。`NIGHTMARE-CAPTURED-ROOT` 的 `3649d93b13254fe88f34d0f3c5b842b4` Passed，覆盖活动梦魇根捕获、原版副本、Fork与live隔离、fingerprint及ContinuationStamp；根捕获初始失败记录位于本地 nightmare-root-baseline.txt。Release零警告/错误。未运行原包整场部署。
 
+- `SIGNED-GOLD-LOSS`：失败 `0dd6c25a8f1c4f98ae7e96d8c7180481` 复现137/142金币差异；通过 `7877327a996f475db12dede147ffad5d`，依次扣减-5、0、3、200、-5，比较完整状态和RNG。Release通过，未声称修改遗物Mod的整场兼容验证。
+
 ## 0.37.0：性能更新与 PR #89 合并验证
 
 - 定版范围：PR #89 的已合并行为及已审核更新日志；版本与发布元数据变更复用以下验证，本次不重跑游戏场景，不作完整可见性能验收结论。
