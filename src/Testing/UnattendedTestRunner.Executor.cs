@@ -39,6 +39,11 @@ internal sealed partial class UnattendedTestRunner
             bool expectedCardPlayed = request.ExpectedPlayedCardId == null;
             bool expectedPotionUsed = request.ExpectedUsedPotionId == null;
             bool expectedPlayerPowerObserved = request.ExpectedObservedPlayerPowerId == null;
+            if (request.ScenarioId == "LAMP-INDIRECT-TEMPORARY-STRENGTH")
+            {
+                await runner.AssertLampIndirectPoisonAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "ZERO-BASE-BLOCK")
             {
                 await runner.AssertZeroBaseBlockAsync(combatState, player);

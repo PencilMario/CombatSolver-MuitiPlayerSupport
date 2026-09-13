@@ -684,7 +684,8 @@ internal sealed partial class SimulatedCombatState
         Type powerType,
         Creature target,
         int amount,
-        Creature? applier = null)
+        Creature? applier,
+        CardModel? cardSource)
     {
         if (!typeof(PowerModel).IsAssignableFrom(powerType))
             throw new ArgumentException($"{powerType.FullName} is not a PowerModel type.", nameof(powerType));
@@ -692,6 +693,8 @@ internal sealed partial class SimulatedCombatState
             powerType,
             static type => GenericTemporaryStrengthLossMethod.MakeGenericMethod(type)
                 .CreateDelegate<ApplyTemporaryStrengthLossDelegate>());
+        BeginCardPowerApplication(cardSource);
+        using var scope = new CardPowerApplicationScope(this, cardSource);
         apply(this, target, amount, applier);
     }
 
