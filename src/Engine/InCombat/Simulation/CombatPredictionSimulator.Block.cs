@@ -10,7 +10,11 @@ namespace CombatSolver.Engine.InCombat.Simulation;
 
 internal sealed partial class CombatPredictionSimulator
 {
-    private readonly Dictionary<CardPlay, decimal> _blockGainedByCardPlay = [];
+    // Execution-local: choices replay from a stable root; completed plays release their entries.
+    private readonly Dictionary<CardPlay, (decimal Amount, int PoweredEvents)> _blockGainedByCardPlay = [];
+
+    public int GetPoweredBlockEvents(CardPlay? cardPlay)
+        => cardPlay == null ? 0 : _blockGainedByCardPlay.GetValueOrDefault(cardPlay).PoweredEvents;
 
     /// <summary>
     /// Mirrors <see cref="CreatureCmd.GainBlock(Creature, BlockVar, CardPlay?, bool)"/>.
@@ -73,8 +77,12 @@ internal sealed partial class CombatPredictionSimulator
 
         if (cardPlay != null)
         {
-            _blockGainedByCardPlay[cardPlay] =
-                _blockGainedByCardPlay.GetValueOrDefault(cardPlay) + modifiedBlock;
+            var previous = _blockGainedByCardPlay.GetValueOrDefault(cardPlay);
+            bool powered = props.IsCardOrMonsterMove();
+            _blockGainedByCardPlay[cardPlay] = (previous.Amount + modifiedBlock,
+                previous.PoweredEvents + (powered ? 1 : 0));
+            if (powered && State.CombatState is ICombatPredictionCardEventSink sink)
+                sink.RecordPoweredCardBlockGained(cardPlay.Player.Creature);
         }
 
         State.GetCreature(creature).GainBlock(modifiedBlock);
@@ -86,10 +94,6 @@ internal sealed partial class CombatPredictionSimulator
         return modifiedBlock;
     }
 
-    private decimal TakeBlockGained(CardPlay cardPlay)
-    {
-        decimal amount = _blockGainedByCardPlay.GetValueOrDefault(cardPlay);
-        _blockGainedByCardPlay.Remove(cardPlay);
-        return amount;
-    }
+    private decimal GetBlockGained(CardPlay cardPlay)
+        => _blockGainedByCardPlay.GetValueOrDefault(cardPlay).Amount;
 }

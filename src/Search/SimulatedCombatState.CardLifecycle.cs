@@ -270,8 +270,7 @@ internal sealed partial class SimulatedCombatState
         PowerLifecycleSupport.ResolvePowerAmountChanges(simulator, this);
         if (HasPendingChoice)
             return;
-        int ownerBlockAfter = simulator.State.GetCreature(card.Preview.Owner.Creature).Block;
-        RecordCardPlayed(card, ownerBlockAfter > ownerBlockBefore);
+        RecordCardPlayed(card);
         RecordCardLifecycle(simulator, card);
     }
 
