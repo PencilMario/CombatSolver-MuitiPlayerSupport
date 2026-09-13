@@ -61,6 +61,18 @@ internal sealed partial class SimulatedCombatState
         (_nightmareSelections ??= [])[power] = snapshot;
     }
 
+    private void CaptureNightmareRootState(NightmarePower mutable, NightmarePower original)
+    {
+        CardModel selected = original.GetInternalData<NightmarePower.Data>().selectedCard
+            ?? throw new InvalidOperationException("Native Nightmare has no selected card at the stable root.");
+        (_nightmareSelections ??= [])[mutable] = PredictedCard.FromGenerated(
+            PredictionUtils.CloneCardStateForSimulation(selected));
+    }
+
+    internal PredictedCard GetNightmareSelection(NightmarePower power)
+        => _nightmareSelections?.GetValueOrDefault(power)
+            ?? throw new InvalidOperationException("Nightmare selected card was not captured in branch state.");
+
     public void SummonOsty(CombatPredictionSimulator simulator, Player player, int amount)
     {
         if (amount <= 0)
@@ -394,56 +406,6 @@ internal sealed partial class SimulatedCombatState
         if (PrepareRelicsBeforeHandDraw(simulator, player, choices))
             return true;
 
-        if (_nightmareSelections != null)
-        {
-            foreach ((NightmarePower power, PredictedCard selected) in _nightmareSelections.ToArray())
-            {
-                if (power.Amount <= 0 || !ReferenceEquals(power.Owner.Player, player))
-                    continue;
-                List<PredictedCard> copies = new(power.Amount);
-                for (int index = 0; index < power.Amount; index++)
-                {
-                    PredictedCard copy = selected.CreateClone();
-                    copy.ClearAffliction();
-                    copies.Add(copy);
-                }
-                simulator.AddGeneratedCardsToCombat(
-                    copies,
-                    PileType.Hand,
-                    player,
-                    CardPilePosition.Bottom,
-                    CardGenerationResultKind.Fixed);
-                if (HasPendingChoice)
-                    return true;
-                SetPowerAmount(power, 0);
-            }
-        }
-
-        foreach (PowerModel power in EffectivePowers().ToArray())
-        {
-            if (power.Amount <= 0 || !ReferenceEquals(power.Owner.Player, player))
-                continue;
-            CardModel? canonical = power switch
-            {
-                InfiniteBladesPower => CanonicalModels.Card<Shiv>(),
-                SentryModePower => CanonicalModels.Card<SweepingGaze>(),
-                _ => null,
-            };
-            if (canonical == null)
-                continue;
-            List<PredictedCard> generated = new(power.Amount);
-            for (int index = 0; index < power.Amount; index++)
-                generated.Add(PredictedCard.Create(canonical, player));
-            simulator.AddGeneratedCardsToCombat(
-                generated,
-                PileType.Hand,
-                player,
-                CardPilePosition.Bottom,
-                CardGenerationResultKind.Fixed);
-            if (HasPendingChoice)
-                return true;
-        }
-
         if (_returnToHandNextTurn != null)
         {
             foreach (PredictedCard card in returningCards)
@@ -468,6 +430,39 @@ internal sealed partial class SimulatedCombatState
 
     public bool PrepareBeforeHandDraw(CombatPredictionSimulator simulator, Player player)
         => PrepareBeforeHandDraw(simulator, player, new TurnStartChoiceCursor(null));
+
+    public bool GenerateTurnStartPowerCards(CombatPredictionSimulator simulator, Player player, PowerModel power)
+    {
+        List<PredictedCard> generated = new(power.Amount);
+        if (power is NightmarePower nightmare)
+        {
+            PredictedCard selected = GetNightmareSelection(nightmare);
+            for (int index = 0; index < power.Amount; index++)
+            {
+                PredictedCard copy = selected.CreateClone();
+                copy.ClearAffliction();
+                generated.Add(copy);
+            }
+        }
+        else
+        {
+            CardModel canonical = power switch
+            {
+                InfiniteBladesPower => CanonicalModels.Card<Shiv>(),
+                SentryModePower => CanonicalModels.Card<SweepingGaze>(),
+                _ => throw new InvalidOperationException($"Unknown fixed turn-start generator {power.Id.Entry}."),
+            };
+            for (int index = 0; index < power.Amount; index++)
+                generated.Add(PredictedCard.Create(canonical, player));
+        }
+        simulator.AddGeneratedCardsToCombat(generated, PileType.Hand, player,
+            CardPilePosition.Bottom, CardGenerationResultKind.Fixed);
+        if (HasPendingChoice)
+            return true;
+        if (power is NightmarePower)
+            SetPowerAmount(power, 0);
+        return false;
+    }
 
     public bool TriggerAutoPrePlayEarly(
         CombatPredictionSimulator simulator,
@@ -686,22 +681,16 @@ internal sealed partial class SimulatedCombatState
         count = 0;
         if (_nightmareSelections != null)
         {
-            foreach ((NightmarePower power, PredictedCard selected) in _nightmareSelections)
+            foreach (NightmarePower power in EffectivePowers().OfType<NightmarePower>())
             {
                 if (power.Amount <= 0)
                     continue;
-                CardModel card = selected.Preview;
+                PredictedCard selected = GetNightmareSelection(power);
                 StateFingerprintBuilder item = new();
+                item.Add(count);
                 item.Add(power.Owner.CombatId ?? uint.MaxValue);
                 item.Add(power.Amount);
-                item.Add(card.Id.Entry);
-                item.Add(card.CurrentUpgradeLevel);
-                item.Add(card.EnergyCost.GetWithModifiers(CostModifiers.Local));
-                item.Add(card.CurrentStarCost);
-                item.Add(card.BaseReplayCount);
-                EnchantmentStateSupport.Append(ref item, card.Enchantment);
-                item.Add(card.Affliction?.Id.Entry);
-                item.Add(card.Affliction?.Amount ?? 0);
+                item.Add(CardChoiceSupport.ChoiceCardKey(selected));
                 AddUnorderedItem(item.Finish(), ref first, ref second);
                 count++;
             }

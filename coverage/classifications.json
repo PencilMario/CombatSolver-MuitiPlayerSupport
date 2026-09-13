@@ -5336,8 +5336,8 @@
   "Power|MegaCrit.Sts2.Core.Models.Powers.NightmarePower|MegaCrit.Sts2.Core.Models.AbstractModel.BeforeHandDraw(MegaCrit.Sts2.Core.Entities.Players.Player,MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Combat.ICombatState)": {
     "status": "SolverCompensation",
     "source": "src/Search/SimulatedCombatState.CardLifecycle.cs",
-    "notes": "Adds the selected number of clean card copies to hand and removes the exact Nightmare instance before draw.",
-    "testId": "POWER-TURN-START-BATCH-049"
+    "notes": "Generates selected-card snapshots in native power acquisition order, removes the exact instance, and captures selected-card state across roots, forks, fingerprints and continuation comparisons.",
+    "testId": "NIGHTMARE-TURN-ORDER-AND-ROOT"
   },
   "Power|MegaCrit.Sts2.Core.Models.Powers.SentryModePower|MegaCrit.Sts2.Core.Models.AbstractModel.BeforeHandDraw(MegaCrit.Sts2.Core.Entities.Players.Player,MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Combat.ICombatState)": {
     "status": "SolverCompensation",

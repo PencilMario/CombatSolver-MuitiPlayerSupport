@@ -1978,6 +1978,8 @@ internal sealed partial class SimulatedCombatState
         {
             PowerModel mutable = GetMutablePowerInstance(power);
             PowerPredictionStateSupport.CaptureRootState(simulator, mutable, power);
+            if (power is NightmarePower nightmare)
+                CaptureNightmareRootState((NightmarePower)mutable, nightmare);
             if (power is PaleBlueDotPower paleBlueDot)
                 CapturePaleBlueDotRootState((PaleBlueDotPower)mutable, paleBlueDot);
             if (power is DampenPower dampen)

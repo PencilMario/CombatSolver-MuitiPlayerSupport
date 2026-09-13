@@ -1,4 +1,12 @@
 {
+  "NIGHTMARE-TURN-ORDER-AND-ROOT": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "无限刀刃先于梦魇，完整两回合比较生成顺序；活动梦魇重新捕获、Fork/live隔离、状态键及续用比较。",
+    "expected": "按能力取得顺序生成副本，所选牌完整状态由分支独占。",
+    "observed": "顺序失败e3e990169f6a48dc8ec78d26df15d45a；通过fba8186242f44a93835b9f01955d8003与3649d93b13254fe88f34d0f3c5b842b4。",
+    "evidence": "src/Testing/UnattendedTestRunner.NightmareSnapshot.cs; docs/TEST_MATRIX.md; 2026-09-13"
+  },
   "RELIC-DAMAGE-WAKE": {
     "status": "Passed",
     "level": "HeadlessStrictNativeDamageDifferential",

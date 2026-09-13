@@ -428,6 +428,15 @@ internal sealed record ContinuationStamp(string StateText)
             if (power is SurroundedPower surrounded)
                 text.Append("Facing=").Append(simulator == null ? surrounded.Facing
                     : PowerPredictionStateSupport.SurroundedFacing(simulator, surrounded)).Append(',');
+            if (power is NightmarePower nightmare)
+            {
+                CardModel selected = simulator == null
+                    ? nightmare.GetInternalData<NightmarePower.Data>().selectedCard
+                        ?? throw new InvalidOperationException("Native Nightmare has no selected card at continuation capture.")
+                    : ((SimulatedCombatState)simulator.State.CombatState).GetNightmareSelection(nightmare).Preview;
+                text.Append("Selected=");
+                AppendCard(text, selected, discoverUnregisteredBaseLibModifiers: simulator == null);
+            }
             text.Append("],");
         }
     }
