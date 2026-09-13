@@ -45,6 +45,11 @@ internal sealed partial class UnattendedTestRunner
                 await runner.ProbeRecurringEnergyQualityAsync(combatState, player);
                 return Observation(combatEnded: request.ScenarioId.EndsWith("-DEPLOY", StringComparison.Ordinal));
             }
+            if (request.ScenarioId == "IMPLICIT-HAND-CHOICE-ORDER")
+            {
+                await runner.AssertImplicitChoiceOrderAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "AUTOMATION-NATURAL-DRAWS")
             {
                 await runner.AssertAutomationNaturalDrawsAsync(combatState, player);

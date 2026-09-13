@@ -1,4 +1,12 @@
 {
+  "IMPLICIT-HAND-CHOICE-ORDER": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeCardChoiceDifferential",
+    "procedure": "隐秘匕首要求弃2张，剩余打击/防御恰好2张；使用正常候选生成器与自动策略，比较原版隐式全弃和生成牌后的完整状态/RNG。",
+    "expected": "省略选牌界面时保持原候选顺序。",
+    "observed": "失败a486b3292369471085a61799fcc30eeb，预测防御在先；修复809f6943021d4578b339b71e3bd53955 Passed，打击/防御与原版一致。",
+    "evidence": "src/Testing/UnattendedTestRunner.ImplicitChoiceOrder.cs; docs/TEST_MATRIX.md; 2026-09-13"
+  },
   "RECURRING-ENERGY-VALUATION": {
     "status": "Passed",
     "level": "HeadlessFixedBudgetQualityAndNativeDeployment",
