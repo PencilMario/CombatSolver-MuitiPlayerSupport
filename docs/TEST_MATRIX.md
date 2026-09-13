@@ -38,6 +38,8 @@
 
 - `DAMPEN-DEATH-CLAW`：爪击失败 `dbfd298906b4409a9f0b31c0aae60380`，最终伤害6/7、私有成长2/3；修复 `14ec10028e27418eb345a1d9a404e248` Passed。`DAMPEN-DEATH-SCYTHE` 的 `c5305c1973b94c14b75f960eed8faec3` Passed，恢复升级后按7成长。都用1HP魔法骑士与存活旁怪，完整单动作状态/RNG一致；并入已确认的死亡回调延迟根因。Release通过。
 
+- `GHOST-SEED-KEYWORD-LIFECYCLE`：失败 `d2b7fffc0c8641a9b13e36958e1302eb` 的虚无状态不同，但旧ContinuationStamp首差返回none；最终 `ac64922583814c0690378914b6630b4d` Passed，覆盖降级、新卡/克隆入场、次回合状态和RNG，以及只改变本地关键词时续用必须不同。新增`keywords=[...]`字段后，旧报告文本缺少关键词不当作新格式全量回放基线；Release通过。
+
 ## 0.37.0：性能更新与 PR #89 合并验证
 
 - 定版范围：PR #89 的已合并行为及已审核更新日志；版本与发布元数据变更复用以下验证，本次不重跑游戏场景，不作完整可见性能验收结论。

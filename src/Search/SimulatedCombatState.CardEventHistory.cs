@@ -140,6 +140,9 @@ internal sealed partial class SimulatedCombatState
         RegisterGeneratedCombatCard(card);
         foreach (PhantomBladesPower power in EffectivePowers().OfType<PhantomBladesPower>())
             CombatSolver.Engine.InCombat.Mirrors.Hooks.Card.PhantomBladesPowerMirrors.AfterCardEnteredCombat(power, card);
+        foreach (var relic in RelicsOf(card.Preview.Owner).OfType<MegaCrit.Sts2.Core.Models.Relics.GhostSeed>())
+            if (!relic.IsMelted)
+                CombatSolver.Engine.InCombat.Mirrors.Hooks.Card.GhostSeedMirrors.AfterCardEnteredCombat(relic, card);
         CardModel preview = card.MutablePreview;
         if (preview.IsClone)
             return;

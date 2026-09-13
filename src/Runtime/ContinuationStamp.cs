@@ -372,7 +372,9 @@ internal sealed record ContinuationStamp(string StateText)
                 text.Append('-');
                 break;
         }
-        text.Append("/baselib=");
+        text.Append("/keywords=[");
+        text.AppendJoin(',', card.GetKeywordsWithSources(KeywordSources.Local).Order());
+        text.Append("]/baselib=");
         if (!PredictionModModelSupport.AppendBaseLibCardModifierState(
                 text,
                 card,

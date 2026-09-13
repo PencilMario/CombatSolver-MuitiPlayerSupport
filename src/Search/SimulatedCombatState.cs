@@ -1439,7 +1439,6 @@ internal sealed partial class SimulatedCombatState
 
     public void NormalizeCardAfflictions(CombatPredictionSimulator simulator)
     {
-        NormalizeGhostSeedCards(simulator);
         foreach (Player player in Players)
         {
             int hex = GetAmount<HexPower>(player.Creature);

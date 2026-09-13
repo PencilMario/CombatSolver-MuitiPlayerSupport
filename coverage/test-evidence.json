@@ -1,4 +1,12 @@
 {
+  "GHOST-SEED-KEYWORD-LIFECYCLE": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnCardKeywordDifferential",
+    "procedure": "幽灵种子作用于升级防御，抑制降级后检查关键词；再生成普通卡和克隆，推进下一回合，比较完整状态/RNG及仅关键词变化的续用不等。",
+    "expected": "原有卡牌遵循降级重置，新进场卡牌正常获得虚无，本地关键词进入续用字段。",
+    "observed": "失败d2b7fffc0c8641a9b13e36958e1302eb中实际关键词不同但旧续用首差为none；ac64922583814c0690378914b6630b4d Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.GhostSeedKeywords.cs; docs/TEST_MATRIX.md; 2026-09-13"
+  },
   "DAMPEN-DEATH-GROWTH": {
     "status": "Passed",
     "level": "HeadlessStrictNativeDeathAndCardGrowthDifferential",

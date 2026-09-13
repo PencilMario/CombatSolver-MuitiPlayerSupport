@@ -45,6 +45,11 @@ internal sealed partial class UnattendedTestRunner
                 await runner.ProbeRecurringEnergyQualityAsync(combatState, player);
                 return Observation(combatEnded: request.ScenarioId.EndsWith("-DEPLOY", StringComparison.Ordinal));
             }
+            if (request.ScenarioId == "GHOST-SEED-KEYWORD-LIFECYCLE")
+            {
+                await runner.AssertGhostSeedKeywordLifecycleAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId is "DAMPEN-DEATH-CLAW" or "DAMPEN-DEATH-SCYTHE")
             {
                 await runner.AssertDampenDeathTimingAsync(combatState, player);

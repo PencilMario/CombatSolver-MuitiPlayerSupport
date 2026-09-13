@@ -6697,9 +6697,9 @@
   },
   "Relic|MegaCrit.Sts2.Core.Models.Relics.GhostSeed|MegaCrit.Sts2.Core.Models.AbstractModel.AfterCardEnteredCombat(MegaCrit.Sts2.Core.Models.CardModel)": {
     "status": "SolverCompensation",
-    "source": "src/Search/SimulatedCombatState.ReactiveRelics.cs; src/Search/SimulatedCombatState.cs",
-    "notes": "Normalizes every basic Strike- or Defend-tag card entering simulated combat to Ethereal, including generated or newly discovered cards.",
-    "testId": "RELIC-REACTIVE-BATCH-057"
+    "source": "src/Engine/InCombat/Mirrors/Hooks/Card/GhostSeedMirrors.cs; src/Search/SimulatedCombatState.CardEventHistory.cs",
+    "notes": "Root cards preserve captured native room-entry keywords; new and cloned basic Strike/Defend cards gain Ethereal only on entry. Later downgrade keyword changes remain authoritative.",
+    "testId": "GHOST-SEED-KEYWORD-LIFECYCLE"
   },
   "Relic|MegaCrit.Sts2.Core.Models.Relics.GoldPlatedCables|MegaCrit.Sts2.Core.Models.AbstractModel.AfterModifyingOrbPassiveTriggerCount(MegaCrit.Sts2.Core.Models.OrbModel)": {
     "status": "NotCombatRelevant",
