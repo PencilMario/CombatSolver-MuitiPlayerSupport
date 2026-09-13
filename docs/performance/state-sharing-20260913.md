@@ -84,3 +84,5 @@ Tags优化作为A，Tags+容量优化作为B，实际顺序B-A-A-B。每Solve100
 原包及完整日志、trace、脚本位于.local/issue-bundles/queen-bc494904与.local/state-sharing-20260913，不提交。结构化样本见[state-sharing-20260913.json](state-sharing-20260913.json)。
 
 最终正常Release构建9.98秒、0警告/错误；Bash与PowerShell结构门禁均通过（89个Search文件）。生产构建的监听合同946e991024e44247bab766d7fc8d7e13 Passed：55种回调、1670模型，覆盖顺序、重复项、外部接收者、Fork引用、失效、根间补丁刷新、共享布局、无锚点及有效前段复用。
+
+后续已修复游戏MVID提前拒绝：原包现可加载且已记录ContinuationStamp完整对账通过，旧编号映射缺失的原生二进制仍未验证；新的真实女王采样和整PR对照见[后续报告](queen-replay-optimization-20260913.md)。replay/checkpoint.json还提供了声明的solverInformationalVersion，身份补充同见后续报告。

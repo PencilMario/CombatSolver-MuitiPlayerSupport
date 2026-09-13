@@ -1,5 +1,15 @@
 # CombatSolver 测试清单
 
+## 女王原包恢复与性能（2026-09-13）
+
+- 修复前MVID拒绝复用上一轮3750da4d990f4bf59374d5ccb96f8558证据；修复后原包latest RestoreOnly / c739d8b31f4c4479af58fb526ad00478 Passed，restored_continuation。两侧MVID不等仍实际重建并比较全部已记录ContinuationStamp；模型编号表不同且原包缺映射，原生二进制未验证。仅把本地副本配对metadata/replay-state预期HP改为84的cb3cc9d0ed354ee2ba4fd0b1ed89123b按预期Failed，首差异HP84/85。
+- 原包AllocationTick / 248b58026f8c40e3b94fe5325f2355cd Passed，30000展开/578800转移/337802选牌、27.0985GB worker分配；采样252876搜索事件、加权27.4154GB、零缺栈/丢事件。采样不作测速。测试使用原Beam512/分支100、固定每Solve10000节点，未改生产默认设置。
+- POTION-GENERATION-CACHE / eb117f8356294d50abf2afe45a045099 Passed：无色药水和宇宙药剂各4个RNG起点、8组有序卡牌完整指纹、5字段RNG、升级/形态、可变实例独立及父/子/live不变，包含已有根池门禁合同。两端已有unattended入口以此ScenarioId、IRONCLAD/FUZZY_WURM_CRAWLER_WEAK、HP80、敌HP999、空遗物、StopAfterCombatRootSnapshotAssertion、120秒运行。
+- 已撤回空变量集合原型的MODEL-CLONE-CONCURRENCY / b0c51f73d66a4967af8df592108d0eab Passed，仅作该原型的语义证据。组合ABBA分配−1.774%、时间+3.415%，84字段/28动作相同；单药水优化探针f01002e0c45c4c79aa4b39029a00c081为26.8022GB，原型仅额外省约0.16GB，撤回原型实现及其专用合同改动，保留全部实验数据。
+- 最终保留代码相对上游bcc15da（双方同加恢复修复）四次ABBA：84字段/28步完整动作/其余结果文本一致，累计分配27.8830→26.8024GB（−3.8756%），耗时30.7162→31.0747秒（+1.167%），两对耗时方向不同。不能外推整场质量、Windows可见卡顿或使用其他场景的收益比例。
+- 最终正常构建原包原始profile（Beam512/100000节点/300000ms、无FixedBudget）2fd12be960ad45afbd6b74dedfe7f422在120秒请求上限超时，启动器已停止游戏；进程峰值RSS22.06464GB、无完整搜索指标，不能宣称大预算慢搜已解决。
+- 正常Release0警告/错误；Bash/PowerShell结构门禁89个Search文件通过。完整原包、派生负向包、日志和trace未提交。见[报告与结构化样本](performance/queen-replay-optimization-20260913.md)。
+
 ## 状态共享与临时分配（2026-09-13）
 
 - 真实空标签合同RITSU-TAGS-FAST-PATH / b7a5a74bf1514ebdb5bfae888731c69b Passed：48组比较、惰性引用/延迟异常、原生Tags、非空贡献者顺序、null/empty、移除重获/原地变化、晚注册默认来源与live完整状态不变。10000次Host空查询1040160→0B。夹具未注册能力持久化，第一次651c155edd844f60932b8aa93ae613ad失败，改用现有合同式附着注入后通过；不作公开持久化API覆盖声明。

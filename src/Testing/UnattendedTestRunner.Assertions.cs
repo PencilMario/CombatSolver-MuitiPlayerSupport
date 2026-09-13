@@ -18,6 +18,12 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "POTION-GENERATION-CACHE")
+            {
+                runner.SetStage("potion_generation_cache");
+                runner._completedChecks.Add(AssertPotionGenerationCacheContract(
+                    scenario.CombatState, scenario.Player));
+            }
             if (request.ScenarioId == "RITSU-TAGS-FAST-PATH")
             {
                 runner.SetStage("ritsu_tags_fast_path");

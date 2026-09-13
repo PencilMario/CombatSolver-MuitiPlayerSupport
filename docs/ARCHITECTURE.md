@@ -423,3 +423,8 @@ NativeReplayDriver 保存开战/结束观察器抛出的原始异常，由 Advan
 ### 回合末卡牌 Hook 的接收者身份
 
 `HookMirrors.BeforeSideTurnEnd` 的常规阶段先通过 `CardHookReceiver` 固定监听成员与对应分支 `PredictedCard`，再按原序读取当前 Preview。前一监听者触发 COW 时，不把已脱离牌堆的旧预览传给后一卡牌 Hook；不重新枚举成员，不保留跨阶段或跨分支接收者。
+
+`UnattendedTestRunner.PrepareCheckpointRequest` 负责材料和政策导入；游戏MVID比较仅写入 `gameModuleComparison`，不作为恢复兼容性门禁。NativeReplay仍实际重建原生跑局并核对完整已记录ContinuationStamp与可比较的native-state；编号映射缺失继续限定为continuation验证，不伪造原生验证成功。
+
+
+`CardGenerationPotionMirrors.Generate` 的可选simulator将无色药水和CosmicConcoction的战斗生成接入既有根候选池；无simulator的预览保持原筛选。复用仅含原序候选模型，生成卡、升级、选择和RNG仍由当前分支拥有；两种AddsToHand形态不变。
