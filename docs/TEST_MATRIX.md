@@ -1,5 +1,70 @@
 # CombatSolver 测试清单
 
+## 下一版本（开发中）：PR #89 合并验证
+
+- 2026-09-13：合入当前 main，保留双方开发与测试记录；合并结果通过 Windows Release 构建（0 警告、0 错误）及结构门禁（89 个 Search 文件）。首次构建的辅助程序引用程序集解析失败，单独构建辅助程序后整体构建通过。此次仅核对合并衔接，以下游戏行为与性能结果沿用贡献者记录，本轮未重跑。
+
+五候选最终证据：实际StateStore源码新旧35,896项溢出/分叉/工厂重入检查通过；`8a251861ee034346b8f37788b7ba3aee`压力/取消/异常复用合同Passed。两组各四个新进程（3万/1万节点）分别85字段、22步路线一致；1万节点四次零GC。生成合同`a25ce6aae00e4e729d1adada8edb11f3`的16组完整状态/RNG比较Passed，独立计量`85f3392ba82d4a998c1c0225550a975b`Passed。原型的失败等价、未触发deferred请求、丢失的首版日志计量和被撤回方案均在[五候选报告](performance/five-candidates-20260913.md)单列。最终Release零警告/错误，两端结构门禁通过；Windows先行部署415da12，不代表本轮新改动已部署。
+
+派发空结果缓存：诊断逐次验证0陈旧结果，可省92.45%内部槽读取；最终选择回放/内存压力合同、Release及两端结构门禁通过。平均22.7681→24.0462秒（耗时变化+5.613%），累计worker分配23.1379→23.1200GB（变化-0.077%）。 85字段及22步路线一致；两对B更慢，撤回生产缓存并保留实验补丁。六方向全部结束，第3、6项撤回、其余保留。[完整记录](performance/six-directions-20260913.md#6-派发缓存父节点的空选择扫描)。
+
+本轮快照覆盖汇总：`f43fa39f50794e9899ca61ca7c068151`的194次完整列表/顺序、补偿标记、空历史/null trace及父子追加对照Passed，live不变；首版隔离作用域建局失败单列。压力合同`9c5c8b0aa26c4fe7b3619b2aee92daef`Passed；1GB/4万节点ABBA均Passed，85字段和22步路线相同、仍71次回收。分配−0.294%，未宣称0.93%为稳定提速；[数据与限制](performance/six-directions-20260913.md#5-快照内部覆盖风险结果延后物化)。
+
+本轮转置存储：512,005项冻结旧算法对照与单标签分配检查通过；`c37135f70b104acd95d31c47ae52c9ee`压力/取消/错误复用Passed。1GB/4万节点ABBA四次Passed、85字段与22步路线一致，均71次回收且无NoGC丢失；不能把5.226%均值耗时改善写成GC暂停或回收次数改善。生产Release与两端结构门禁通过；[全部样本与存活图限制](performance/six-directions-20260913.md#4-小区域存活对象单标签转置前沿内联)。
+
+本轮父状态缩锁：两次资格/原型诊断及四次ABBA均Passed；四次3万节点的85项质量/总工作字段和22步路线一致。候选仅放行3.70%且两对耗时均回退，已撤回；未把原生搜索结果当作第三方/取消缩锁合同。生产无此行为改动，未重复生产构建与已通过门禁。见[实验补丁、runId与GC限制](performance/six-directions-20260913.md#3-父状态封存与fork锁原型撤回)。
+
+单个EndTurn内部选择回放：只并发原预算保证必经的首层，嵌套预算/实体补充和待命基线仍原序消费。真实BaseLib/DOP16固定3万节点A-B-B-A平均24.1112→22.5695秒（少6.394%），分配增加0.211%；GC暂停44.161–4274.088ms，未建立稳定提速。85项质量/总工作字段与22步路线一致；同父双lane重叠、取消/错误排空、同根复用及104MiB压力合同通过，Release与两端结构门禁通过。见[完整样本与失败建局](performance/six-directions-20260913.md#2-单个endturn内的首层选择回放)。
+
+选牌组合与评分复用：预计算同层重复位置，直接按张数追加独占组合，评分仅在本次构造中惰性复用。两轮真实BaseLib/DOP16固定3万节点A-B-B-A分别少0.229%/0.223%累计分配；耗时分别+0.386%/−2.267%，两轮配对均不一致，后一轮GC显著波动，未建立稳定提速。1200输入原生完整选牌对照及DOP1/DOP2、104MiB压力/取消/错误复用通过；其余方向见持续追加的报告。见[逐轮数据](performance/six-directions-20260913.md)。
+
+回合尾部提前计算：初始动作/药水全部派发后即可独占计算EndTurn，全部兄弟工作结束后才按原序转交快照并发布待命基线。真实BaseLib/DOP16固定3万节点A-B-B-A平均24.0974→23.7545秒（少1.42%），两对同方向；85项质量/总工作字段与22步路线一致。并发/取消/错误/同根复用、104 MiB压力、9项批次与36项准入合同通过，生产Release和两端结构门禁通过。单场景小样本，不与Power收益相加；见[尾部并行报告](performance/early-tail-parallelism-20260913.md)。
+
+普通原版Power克隆并行：沿用精确元数据保护，仅放行继承默认克隆/内部初始化、变量已物化的原版Power，其他路径保留原锁。真实BaseLib/DOP16固定3万节点A-B-B-A平均24.2247→23.7295秒（少2.04%），两对同方向，85项质量/总工作字段与22步路线一致；分配略增。持锁并行及DOP1/DOP2压力/取消/错误合同通过，Release与两端结构门禁通过。理论模型未当作实测收益；见[估算与落地验证](performance/power-clone-parallelism-20260913.md)。
+
+克隆后的并行定位：两次不同插桩的真实BaseLib/DOP16诊断均Passed，85项质量/总工作字段及22步完整路线一致。505万Power克隆占预测模型克隆88.11%，优先核对普通原版Power免锁；回合尾部占展开作业累计时间44.39%，窗口平均11.42个作业中lane（含锁等待）。线程时间有重叠和插桩扰动，不是提速结论；未改生产行为。见[瓶颈与后续顺序](performance/parallel-bottlenecks-20260913.md)。
+
+16并行速度对照：真实BaseLib下，优化前后各两个新进程，A-B-B-A固定3万节点全部Passed；平均24.0270→23.8943秒（少0.55%），配对方向不一致且GC波动，未建立明确提速。85项质量/总工作字段及22步完整路线一致，11项调度字段单列。见[16并行数据](performance/native-clone-parallelism-20260913.md#用户指定16并行速度对照)。
+
+本轮原版克隆并行：真实 BaseLib 3.4.7 / Ritsu 0.5.20 下，`MODEL-CLONE-CONCURRENCY`（`c05503851b6942d2a262334c026fa4ba`）及 `STAND-PAT-MEMORY-BOUNDARY`（`df6f42ada6d14b4da39346df0f534c94`）Passed。覆盖持锁双线程64次克隆、变量独占、第三方变量回退、跨域克隆/变量补丁刷新、live不变、DOP1/DOP2及104MiB人工压力等价和取消/错误排空复用。Release零警告零错误，Bash与PowerShell门禁均通过（Linux）。不作整场提速或可见性能结论；[详情与失败记录](performance/native-clone-parallelism-20260913.md)。
+
+本轮父节点预约优化：最终3万节点A-B-B-A八次Passed，89项质量/总工作字段和完整动作一致；并行专属调度计数单列。盛碗虫群/亡灵104 MiB压力、DOP1/DOP2、取消/错误排空与同根复用均通过，纯算术突增/溢出及Linux构建/结构门禁通过。详见[最终样本与失败后备反例](performance/bowlbugs-wave-admission-20260912.md)。
+
+本轮盛碗虫群剪枝边界：最终16GB区域A-B-B-A四次Passed、3万节点完整路线及108字段相等；1GB区域4万节点候选Passed，基线完成同量工作后因NoGC退出而失败，102项非时序字段及完整动作相等。中间5万节点测试失败并以TimeLimit结束，未伪装成通过。小区域有总耗时/最大暂停回退，宽裕区域平均耗时少2.24%、分配少7.44%；全部仅Linux无头诊断首个主搜索。详见[分配、GC和限制](performance/bowlbugs-slow-search-20260912.md#元数据边界后续与深度反例)与[机器可读指标](performance/bowlbugs-prune-20260912.json)。
+
+`STAND-PAT-MEMORY-BOUNDARY`最终盛碗虫群`160b0892d7024f27817bd1660a3e1581`（28.845秒）与独立亡灵`94bdb13661cb4d3ba403bada61e6858a`（8.277秒）均Passed：双lane取消/错误排空、原根复用、DOP1/DOP2及104MiB人工压力完整搜索等价、无色生成顺序/RNG/实例和计数Fork隔离。原224MiB人工压力因未穿过剪枝内边界而失败，未删覆盖断言；广域SearchPolicy历史SIGSEGV未解决，不能称完整门禁通过。生产Release构建0警告/0错误，Linux结构门禁通过（87个Search文件）。
+
+本轮盛碗虫群：原生cursor0诊断恢复的完整ContinuationStamp匹配，native编码不可比较。药水谱系合同及A-B-B-A四次固定短搜Passed，57项非时序结果字段和22/19/18动作的三条完整路线一致。长线用药哨兵 `POTION-LINEAGE-NECRO-SENTINEL` / `f63cf487061448c6ae1289b11f0a6d67` Passed：战损4、药水2、第12回合获胜，展开53,236／转移589,526；只作质量哨兵。Release构建零警告零错误、Linux结构门禁通过。可比新进程样本分配少0.50–0.56%，未建立提速或可见性能收益；B2为热进程，不能混算平均提速。见[恢复限制与结果](performance/bowlbugs-slow-search-20260912.md#后续恢复与药水历史物化优化)。
+
+本轮选牌迁移：1,024组完整令牌合同、15,003次历史查询身份比较，以及赌博筹码/能力药水/发现三条原生严格差分均Passed；五个runId与覆盖见[报告](performance/choice-migration-20260912.md)。A-B-B-A八个正式无头请求Passed、93项工作字段与54/136行完整路线一致，3项调度字段单列。机甲3.4294→3.5134秒（慢2.45%），瀑布9.3512→9.3059秒；累计分配分别少1.128%/0.645%。Release和Linux结构门禁通过；无可见性能、完整自动部署或Windows新构建验收。
+
+本轮只读来源扫描：`tools/ChoiceSourceAudit` 读取1,284模型/5,955方法，202匹配调用点、0读取失败；85个显式选择调用点与原目录完全一致。能力授予关系补充后213模型逐项静态评估。该证据不等于模型行为或性能验收；见[来源清单](performance/choice-source-inventory-20260912.md)。
+
+本轮印牌历史查询：`GENERATION-HISTORY-CONTRACT`（`2a1fc39e85884552a90683036f4b3bc2`）通过，覆盖13,328次逐实例查询比较、129个保留历史分支及父子独立追加。瀑布巨兽／机甲A-B-B-A共8个正式无头请求Passed，93项搜索字段与136／54行完整路线一致；3项内存自适应并行批次数单列，不称96项全一致。累计分配下降0.79%／0.30%，稳定提速和峰值内存收益未建立。原包恢复为`restored_continuation`，native-state不可比较；诊断构建MVID绕行未进入生产。Release与结构门禁通过；无完整部署或可见验收。见[报告与数据](performance/generation-history-20260912.md)。
+
+## 下一版本（开发中）：精简 fork
+
+快照按需读取：`tools/StrategicKeywordChecks/run.py` 134,930组完整策略上下文比较通过，覆盖全部65,536种需求组合、第三方类型和跨Build修改；还原的基线与原源码一致。原生无头A-B-B-A的8个正式结果全部Passed，每场96项非时序字段及完整路线相等；机甲平均快2.86%、亡灵快2.43%，未建立明显内存收益。`STRATEGIC-KEYWORD-INCREMENTAL` / `f868cb327b9c47d29647446880813f60`（力量1、打击/防御/小刀）最小增量回放通过；Release构建及Linux结构门禁通过，无可见测试。详见[范围与数据](performance/snapshot-reuse-20260912.md)。
+
+热点消除后续：重新采集 `8faa771` 两场CPU栈；快照释放集合候选完成A-B-B-A共8个正式结果，96项非时序字段及完整54／113行路线一致。`tools/SnapshotReleaseChecks/run.py` 864组释放调用序列合同、Release编译和Linux结构门禁通过；`SNAPSHOT-RELEASE-INCREMENTAL` / `d4eeec6d4b7142f59e9f7154ffbd6f4f` 最小DOP1增量回放通过。机甲平均快8.16%，亡灵平均慢1.43%且配对方向不一致，不宣称普遍提速；可见测试未启动，详见[数据与限制](performance/hotspot-cuts-20260912.md)。
+
+精简开发后续：空状态 guard、排名预计算分别完成四次交错无头正式样本，每场 96 项非时序字段及完整路线一致。排序合同 720 组/167,280 条目通过；`CARD-PLAY-CLEANUP-CONTRACT`（`6a59494233984b7582ba6213c528a724`）与小型 DOP1 增量搜索（`4685d92766c04f99ace8f6e3e70da3c3`）通过。大范围 Fork 合同在 `AssertEndTurnPowerChoiceSuspends` 失败，未修改基线也复现，未声称完整门禁通过。可见测试按指令停止，未取得可见性能结果。详见[结果与复跑](performance/surgical-development-20260912.md)。
+
+后续研究：`dotnet run --project tools/SurgicalResearchChecks -c Release` 通过。直接链接生产 StateStore，以最小模型替身测得空枚举 96→0 B、缺失 int 状态 Peek 24→0 B、8 类辅助表容量构造 992→440 B；每项三块分配读数一致。仅为独立分配机制探针，不覆盖真实模型、Fork 或游戏搜索；未改生产代码、未重跑下列历史场景。见[研究报告](performance/surgical-research-20260912.md)。
+
+基于 `eff8cf4`。本轮独立原生对照全部通过（列表候选撤回前执行；最终分支恢复上游列表，两个列表版本的独立合同和正式搜索等价对照均通过）：
+
+- `DEFERRED-BLOCK-RETURN-NATIVE` / `ed52bbacc1384e8ba3ae4a78048743fe`：Passed；DeferredBlockReturn:Native3Roots:CapAndFraction:Stacking:Zero:AllSnapshotFields:PowerMetadata:ForkIsolation:AfterBlockCleared。
+- `PLAYER-DEATH-POWERS-NATIVE` / `040ee891c3ca4129b34db3578e895bc3`：Passed；PlayerDeathPowers:BurnNativeDeath:ThreePowersRemoved:FullState:PendingLossThenDefeat:BothDamageOverloads:LiveAliveShadowDeadAndInverse:RootAndSiblingAfterNativeDeath。
+- `POWER-DURATION-APPLICATION-NATIVE` / `1192427d2745489289805f814e231d6d`：Passed；PowerDurationApplication:ThreeEntrances:Native16Steps:NewStackExpireReacquire:ArtifactBlockedNoSkip:EquivalentKeys:FullStateAndLifetimeFields:ReplayAfterNative。
+- `POWER-DURATION-KEYS-NATIVE` / `d0eb6de7069e40c9822fa2f144bc787c`：Passed；PowerDurationKeys:WeakVulnerableFrail:DistinctKeyContinuationAndFuture:PoisonNeutral:NativeSideEndTick:FullStateAndPowerFields:FrozenAfterNative:RootUnchanged。
+- `TEMPORARY-STRENGTH-CAP-NATIVE` / `468cc40fb6be4f3b9233d8f6679bea3f`：Passed；TemporaryStrength:NativeStackAndInitialCounterCap:RequestedOffset:BeforeAppliedAndAmountChanged:AfterSideTurnEnd:FullState:ForkIsolation。
+- `TEMPORARY-STRENGTH-ORDER-NATIVE` / `54fe00b2f914450b9921bf89dab9865f`：Passed；TemporaryStrength:NativeLossAndGain:FirstApplicationOrder:StackingAndNegativeOffsets:Artifact:StrengthRetirementReacquisition:AfterSideTurnEnd:FullState:ForkIsolation。
+
+上游基线中，格挡返回、Power Target、临时力量封顶、持续时间键／施加合同重现失败；玩家死亡合同在上游已通过，不重复移植生产修复。初次格挡请求只因外部独占锁排队失败，释放获授权停止的旧实例后才取得真正失败基线。
+
+列表原版／候选均通过全部操作、10,000 次随机分支与 8 个独占 worker 合同；B-C-C-B 正式对照中每场 96 项非时序字段与完整路线一致。候选整体分配收益不足 0.01%，已撤回。最终 Release 构建、Linux 结构门禁及 CoverageCatalog `--verify-state-fields --verify-state-writes` 通过（在隔离输出目录执行，未改写上游覆盖目录）；未运行 PowerShell 或可见 Steam。详见 [选择、数据和限制](performance/surgical-fixes-20260912.md)。
+
 ## 0.36.5：三层首领策略
 
 - 发布范围：已提交 de685ec 行为及文档合入 main；未验收神化工作区实验已撤回，仅私有补丁留档。复用以下既有测试证据，本次不新增整场质量或可见性能结论。

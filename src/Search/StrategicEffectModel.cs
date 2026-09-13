@@ -275,7 +275,11 @@ internal readonly record struct StrategicEffectContext(
                         statusCount++;
                     break;
             }
-            bool exhaustsOnPlay = card.Keywords.Contains(CardKeyword.Exhaust)
+            // Keywords can consult the card's pile. Read Exhaust only for a requested
+            // metric, and reuse it only within this read-only card evaluation.
+            bool? hasExhaustKeyword = needsExhaustCount
+                ? card.Keywords.Contains(CardKeyword.Exhaust) : null;
+            bool exhaustsOnPlay = hasExhaustKeyword == true
                 || skillsExhaust && cardType == CardType.Skill;
             if (needsExhaustCount && exhaustsOnPlay)
                 exhaustCount++;
@@ -284,7 +288,8 @@ internal readonly record struct StrategicEffectContext(
                 if (card.Tags.Contains(CardTag.Shiv))
                 {
                     shivCount++;
-                    if (!card.Keywords.Contains(CardKeyword.Exhaust)) reusableShivCount++;
+                    hasExhaustKeyword ??= card.Keywords.Contains(CardKeyword.Exhaust);
+                    if (!hasExhaustKeyword.Value) reusableShivCount++;
                 }
                 if (card.GetType().Assembly == typeof(CardModel).Assembly)
                 {
@@ -293,7 +298,9 @@ internal readonly record struct StrategicEffectContext(
                         card.DynamicVars.TryGetValue("Shivs", out var shivsVar) ? shivsVar.IntValue : 0);
                     generatedShivCount += generated;
                     if (generated > 0) shivGeneratorCount++;
-                    if (generated > 0 && (cardType == CardType.Power || exhaustsOnPlay))
+                    if (generated > 0 && (cardType == CardType.Power
+                        || skillsExhaust && cardType == CardType.Skill
+                        || (hasExhaustKeyword ??= card.Keywords.Contains(CardKeyword.Exhaust)) == true))
                     {
                         singleUseGeneratedShivs += generated;
                         singleUseShivGenerators++;
