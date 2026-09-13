@@ -1,5 +1,15 @@
 # CombatSolver 测试清单
 
+## 状态共享与临时分配（2026-09-13）
+
+- 真实空标签合同RITSU-TAGS-FAST-PATH / b7a5a74bf1514ebdb5bfae888731c69b Passed：48组比较、惰性引用/延迟异常、原生Tags、非空贡献者顺序、null/empty、移除重获/原地变化、晚注册默认来源与live完整状态不变。10000次Host空查询1040160→0B。夹具未注册能力持久化，第一次651c155edd844f60932b8aa93ae613ad失败，改用现有合同式附着注入后通过；不作公开持久化API覆盖声明。
+- 生产构建MIRRORED-HOOK-FILTER / 946e991024e44247bab766d7fc8d7e13 Passed：55种回调/1670模型，顺序/重复项/外部接收者、Fork、失效、共享布局、根间补丁刷新、分段无锚点及有效前段复用。两端已有入口使用IRONCLAD/FUZZY_WURM_CRAWLER_WEAK、HP80、敌HP999、空遗物、stop-after-combat-root-snapshot-assertion、120秒；标签合同换ScenarioId即可。
+- Tags四次ABBA，10000节点/Beam135/FixedBudget/DOP16/NoGC16GB（正常coordinator共60000节点、893527转移）：84字段/48动作/其余结果文本相同，分配−11.132%，时间−0.262%低于漂移。容量优化四次BAAB，以Tags构建为A，2305卡100节点、794转移：84字段/7动作相同，分配−26.814%，时间−3.390%，四次GC暂停0。不能将这些短搜对照当native部署或完整VeryHigh。
+- 容量脚本第一轮基线标签误指候选，已完成样本按真实B记录，余下显式A-A-B；导出对零GC百分比除零修为null；保留失败，未改原样本。探针32节点不合法的初始化失败也与实际100节点结果分开记录。候选失败构建与修正见报告。
+- 女王包bc494904718141aab26bf81fa1ab1a25 Preflight材料通过；RestoreOnly / 3750da4d990f4bf59374d5ccb96f8558 Failed：environment_mismatch:gameModuleId。尚未进入状态对账，原包搜索/收益/部署均未验证；原Windows日志中7次回收及NoGC退出只作故障定位证据。
+- 最终生产VeryHigh（无FixedBudget，Beam135/100000节点/300000ms）四个独立进程：药水组合e80f424d20c94016ae93fc4c978de68b Passed，75.260秒/86.024GB，预测T12/战损2/两药；灵魂枢纽2b89ba7a002b46b2b5d8d2a6732e582a Passed，16.615秒/18.232GB，预测T9/战损6/零药。2305卡c2cb7c967ea74f67b3c8f86c88d8fe76、合成女王45eb05e954e44c4d928fe15c75d579bf均120秒启动器超时并停止游戏，无完整搜索指标；进程峰值RSS13.699/18.147GB。
+- 最终正常Release 0警告/错误，Bash/PowerShell结构门禁通过（89个Search文件）。全部新测试为Linux headless，未启动可见Steam或部署Windows。[报告与结构化样本](performance/state-sharing-20260913.md)。
+
 ## 内存十倍目标调研（2026-09-13，无生产改动）
 
 - 基于`465a8cd`正常生产产物新增两项Linux headless诊断。Custom由VeryHigh派生，Beam135、每Solve10000节点、分支72/42/54、FixedBudget、DOP16，保持正常coordinator的药水审计/窄Beam恢复；单请求120秒。

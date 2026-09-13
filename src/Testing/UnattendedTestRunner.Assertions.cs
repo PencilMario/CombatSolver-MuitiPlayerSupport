@@ -18,6 +18,14 @@ internal sealed partial class UnattendedTestRunner
         public async Task RunBeforeExecutionAsync(ScenarioContext scenario)
         {
             UnattendedTestRequest request = runner._request;
+            if (request.ScenarioId == "RITSU-TAGS-FAST-PATH")
+            {
+                runner.SetStage("ritsu_tags_fast_path");
+                string before = ContinuationStamp.CaptureLive(scenario.CombatState).StateText;
+                runner._completedChecks.Add(AssertRitsuTagFastPath(scenario.Player));
+                if (ContinuationStamp.CaptureLive(scenario.CombatState).StateText != before)
+                    throw new InvalidOperationException("Tag contract changed live combat.");
+            }
             if (request.ScenarioId == "HP-MODIFIER-COLLECTIONS")
             {
                 runner.SetStage("hp_modifier_collections");
