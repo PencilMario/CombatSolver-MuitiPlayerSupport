@@ -1,6 +1,6 @@
 {
   "schemaVersion": 3,
-  "combatSolverVersion": "0.34.9",
+  "combatSolverVersion": "0.37.0",
   "gameVersion": "0.111.0",
   "simulationEngine": "embedded",
   "entries": [
@@ -38468,7 +38468,7 @@
       "hookOwner": "MegaCrit.Sts2.Core.Models.AbstractModel",
       "hook": "AfterDamageReceived(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Entities.Creatures.DamageResult,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel)",
       "scopeGuess": "Combat",
-      "engineRegistration": "Ignored",
+      "engineRegistration": "Registered",
       "engineDispatch": "Exact",
       "status": "SolverCompensation",
       "source": "src/Prediction/TriggeredPowerSupport.cs",
@@ -46030,7 +46030,7 @@
       "hookOwner": "MegaCrit.Sts2.Core.Models.AbstractModel",
       "hook": "AfterDamageReceived(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Entities.Creatures.DamageResult,MegaCrit.Sts2.Core.ValueProps.ValueProp,MegaCrit.Sts2.Core.Entities.Creatures.Creature,MegaCrit.Sts2.Core.Models.CardModel)",
       "scopeGuess": "Combat",
-      "engineRegistration": "Ignored",
+      "engineRegistration": "Registered",
       "engineDispatch": "Exact",
       "status": "SolverCompensation",
       "source": "src/Prediction/TriggeredPowerSupport.cs",

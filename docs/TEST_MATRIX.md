@@ -1,5 +1,9 @@
 # CombatSolver 测试清单
 
+## 下一版本（开发中）：计划外重算修复
+
+- `RELIC-DAMAGE-WAKE`：熟睡甲虫失败基线 `3ccdcacbe9aa473e8a777b34ea99391e`，招架盾原生伤害后 SLUMBER_POWER 为2、预测为3。修复后 `252a8f9dc76e4610ac455f05388eebcf` Passed（23.11秒），拉加武林母体 `1012870880214ac79bbc646c5e5d46a2` Passed（9.06秒）；均比较完整一步状态与 RNG。命令使用 `-ScenarioId RELIC-DAMAGE-WAKE -EncounterId SLUMBERING_BEETLE_NORMAL` 或 `LAGAVULIN_MATRIARCH_BOSS -EnemyCurrentHp 100`，无增量搜索。Release零警告/错误；CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过。原包完整部署、可见测试未运行。
+
 ## 0.37.0：性能更新与 PR #89 合并验证
 
 - 定版范围：PR #89 的已合并行为及已审核更新日志；版本与发布元数据变更复用以下验证，本次不重跑游戏场景，不作完整可见性能验收结论。

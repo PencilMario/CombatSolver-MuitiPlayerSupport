@@ -34,6 +34,8 @@ Power 来源也是语义的一部分：精确镜像可通过 `ICombatPredictionE
 
 普通能力的 `Owner` 与可空 `Target` 不可混用：无显式目标的施加保持 Target=null，定向施加入口保留真实目标。临时力量族的回调使用经过修正的请求偏移，封顶后的净增量不能替代；其类型检查不扩大第三方能力支持面。内置 Weak/Vulnerable/Frail 的首 tick 标记进入精确状态比较，第三方持续能力仍须登记自己的状态与结算，不自动按这三个类型处理。
 
+受伤唤醒在 `AfterDamageReceivedMirrors` 中立即结算：内置 AsleepPower 和 SlumberPower 对卡牌、遗物及回合效果共享同一 Hook。第三方伤害入口应调用模拟器 Damage，使受伤监听器随该次伤害执行；外层历史扫描不再承担这两个 Power 的唤醒。
+
 ### 1.1 门禁：先让 Mod 进得来
 
 求解器扫描所有 ModHelper 战斗 hook 订阅者。放行有三条路：
