@@ -6,6 +6,8 @@
 
 - `AUTO-DEPLOYMENT-REQUEST-OWNERSHIP`：有效失败基线 `7378bb2aa3af43219daa7dd48f4a2712` 在部署进行中检测额外搜索。修复后 `8870e33fd0b344b6ae9c2393b59e902e` Passed（23.81秒），原生两张攻击完成击杀；`Instant / 0秒`。早期两次夹具误在战斗清理后比较账本，已修正断言时点，不作为失败基线。嵌套 PowerShell 重定向导致启动器 stdout 句柄未关闭，已结束本任务等待进程并保存游戏完整结果，后续在单层 PowerShell 运行。相邻 `AUTO-TURN-REQUEST-OWNERSHIP` 的 `da5ef97e68e341748a6e4b31f9025fc7` Passed（22.93秒），显式手动重算可用。Release与Windows结构门禁通过。
 
+- `SPAWN-POWER-ORDER`：`FABRICATOR_NORMAL`，`FABRICATOR/FABRICATE_MOVE`，清空遗物后注入 `PHILOSOPHERS_STONE`；使用既有 MonsterMoveChecks 协议。失败 `7196457aa1a640b1840bafaf116764f5` 与修复通过 `8ee41d141e1c40caa71d1adaf4f4d0f8`，核对完整有序能力、阵容、状态与RNG。Release通过，无原包整场/可见验收。
+
 ## 0.37.0：性能更新与 PR #89 合并验证
 
 - 定版范围：PR #89 的已合并行为及已审核更新日志；版本与发布元数据变更复用以下验证，本次不重跑游戏场景，不作完整可见性能验收结论。
