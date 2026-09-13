@@ -200,6 +200,8 @@ internal sealed partial class SimulatedCombatState
     {
         Creature owner = card.Preview.Owner.Creature;
         (_cardPlayStartsThisTurn ??= [])[owner] = GetCardPlayStartsThisTurn(owner) + 1;
+        if (card.Preview.Type == CardType.Attack)
+            (_attackPlayStartsThisTurn ??= [])[owner] = GetAttackPlayStartsThisTurn(owner) + 1;
         if (card.Preview.Type is CardType.Attack or CardType.Skill)
             (_attackSkillStartsThisTurn ??= [])[owner] = GetAttackSkillStartsThisTurn(owner) + 1;
         if (card.Preview.Type == CardType.Attack && cardPlay.Resources.EnergyValue == 0)
@@ -226,6 +228,18 @@ internal sealed partial class SimulatedCombatState
             && entry.CardPlay.Card.Type == CardType.Attack
             && entry.CardPlay.Resources.EnergyValue == 0);
         (_zeroCostAttackStartsThisTurn ??= [])[owner] = value;
+        return value;
+    }
+
+    public int GetAttackPlayStartsThisTurn(Creature owner)
+    {
+        if (_attackPlayStartsThisTurn?.TryGetValue(owner, out int value) == true)
+            return value;
+        value = _rootHistory.CardPlaysStarted.Count(entry =>
+            entry.HappenedThisTurn(this)
+            && entry.CardPlay.Player.Creature == owner
+            && entry.CardPlay.Card.Type == CardType.Attack);
+        (_attackPlayStartsThisTurn ??= [])[owner] = value;
         return value;
     }
 

@@ -1,4 +1,12 @@
 {
+  "ATTACK-START-HISTORY": {
+    "status": "Passed",
+    "level": "HeadlessStrictNativeTwoTurnAndForkDifferential",
+    "procedure": "致死性75下痛殴先攻击再吸收打击，复用痛殴再次攻击并进入下一回合，比较完整状态/RNG及根捕获、Fork隔离。",
+    "expected": "另一张手牌的伤害查询消耗已经发生的首攻窗口，下一回合重新开始计数。",
+    "observed": "失败a9b2864bbb3b46febb3332ccbd38f1b8为痛殴14.50/10；8d36d575f6854aaf815a240d28186263 Passed。",
+    "evidence": "src/Testing/UnattendedTestRunner.AttackStartHistory.cs; docs/TEST_MATRIX.md; 2026-09-13"
+  },
   "IMPLICIT-HAND-CHOICE-ORDER": {
     "status": "Passed",
     "level": "HeadlessStrictNativeCardChoiceDifferential",

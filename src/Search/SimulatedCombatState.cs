@@ -220,6 +220,7 @@ internal sealed partial class SimulatedCombatState
     private ForkableDictionary<Player, int>? _statusCardsDrawnThisTurn;
     private ForkableDictionary<Creature, int>? _cardPlaySeriesStartedThisTurn;
     private ForkableDictionary<Creature, int>? _zeroCostAttackStartsThisTurn;
+    private ForkableDictionary<Creature, int>? _attackPlayStartsThisTurn;
     private ForkableDictionary<Creature, int>? _cardPlayStartsThisTurn;
     private ForkableDictionary<Creature, int>? _attackSkillStartsThisTurn;
     private ForkableSet<Creature>? _enemiesIntendingAttack;
@@ -1191,6 +1192,7 @@ internal sealed partial class SimulatedCombatState
         ResetTurnCounter(ref _creatureAttacksThisTurn, owner);
         ResetTurnCounter(ref _cardPlaySeriesStartedThisTurn, owner);
         ResetTurnCounter(ref _zeroCostAttackStartsThisTurn, owner);
+        ResetTurnCounter(ref _attackPlayStartsThisTurn, owner);
         ResetTurnCounter(ref _cardPlayStartsThisTurn, owner);
         ResetTurnCounter(ref _attackSkillStartsThisTurn, owner);
         if (owner.Player is { } ownerPlayer)
@@ -2041,6 +2043,7 @@ internal sealed partial class SimulatedCombatState
             _ = GetCardsPlayedThisTurn(creature);
             _ = GetCardPlaySeriesStartedThisTurn(creature);
             _ = GetZeroCostAttackStartsThisTurn(creature);
+            _ = GetAttackPlayStartsThisTurn(creature);
             _ = GetCardPlayStartsThisTurn(creature);
             _ = GetAttackSkillStartsThisTurn(creature);
             _ = GetAttacksPlayedThisTurn(creature);
@@ -2213,6 +2216,7 @@ internal sealed partial class SimulatedCombatState
         AddPlayerIntMap(ref fingerprint, 's', _statusCardsDrawnThisTurn);
         AddCreatureIntMap(ref fingerprint, 'Q', _cardPlaySeriesStartedThisTurn);
         AddCreatureIntMap(ref fingerprint, 'q', _zeroCostAttackStartsThisTurn);
+        AddCreatureIntMap(ref fingerprint, 'a', _attackPlayStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'J', _cardPlayStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'N', _attackSkillStartsThisTurn);
         AddCreatureIntMap(ref fingerprint, 'k', _knowledgeDemonCurseCounters);
