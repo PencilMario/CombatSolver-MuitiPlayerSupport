@@ -47,7 +47,7 @@ Entry / turn hooks
 
 搜索 worker 接收 `CombatRootSnapshot`、`SearchPolicySnapshot`、诊断 sink、帧压力信号和取消令牌。它不读取全局设置、控制器、UI 或无人测试状态。
 
-成长策略由 `GrowthBudgets` 随请求冻结，每次实际收益按对应来源取得 HP 额度，中间保路和终局排序沿用同一份额度；成长侧栏只编辑原有额度和忽略收益开关。`CardMechanismFacts` 提供小刀数量、攻击命中与消耗抽牌的纯值估计，`StrategicEffectModel` 消费分支状态；当前没有奖励／商店评分模块。
+成长策略由 `GrowthBudgets` 随请求冻结，每次实际收益按对应来源取得 HP 额度，中间保路和终局排序沿用同一份额度；成长侧栏只编辑原有额度和忽略收益开关。`CardMechanismFacts` 提供小刀数量、攻击命中与消耗抽牌的纯值估计，`StrategicEffectModel` 消费分支状态；StateEvaluation 的首攻击估值只在原版致命消费者存在或外部战略登记表非空时构建，外部既有字段上下文保持；当前没有奖励／商店评分模块。
 
 普通搜索在 Runtime 同时等待根回收屏障、原生动作队列及当前动作完成后捕获根；队列因等待玩家选择暂时无可执行动作时，当前动作的完成任务仍约束捕获。任何异步等待恢复后都重新进入请求校验，沿用请求身份和战斗生命周期取消；专用回合准备选牌入口先行处理。
 
@@ -74,10 +74,11 @@ Entry / turn hooks
 | `src/Runtime/PowerDynamicVarMaterializationGuardPatch.cs` | 搜索模拟惰性创建 Power 显示变量时立即报告根捕获缺失 | Power 语义、显示内容与搜索阶段串行化 |
 | `src/Runtime/PowerAmountComparisonPatch.cs` | 将原生 `GetTypeForAmount` 中两处精确匹配的同枚举装箱比较改为整数比较；保留虚 getter、decimal 分支和调用顺序，未知 IL 原样保留 | Power 状态缓存、跳过类型 getter 或改变显示类型规则 |
 | `src/Runtime/SearchGcPolicy.cs` | 管理玩家显式开关的进程级 GC 模式：开启时按原样预算建立战斗级 NoGC、执行搜索内安全检查点与引用释放后的压力回收；稳定关闭时使用 CLR 常规分代 GC 且不新增自动补账压力，从开启切换时仍结清此前义务；模式切换和手动释放与活动搜索计数共用安全边界 | Beam 剪枝、候选评分、模拟语义与同步阻塞 UI |
+| `src/Runtime/SearchGcPolicy.Recovery.cs` | 在已排空的提交边界评估可恢复 NoGC 回退；拥有完成 Gen2/冷却/次数上限、物理余量、scope 代次与恢复后区域上限 | 强制回收、等待搜索退出、搜索预算或候选策略 |
 | `src/Runtime/SearchGcLifecycleMetrics.cs` | 记录显式回收与 NoGC 启停/丢失；在 Runtime 准入 Gate 内冻结 scope 起止，区分独占搜索与共享进程窗口；暂停最大值仅为观测值 | 线程级 CLR 事件归因与 trace 最大值 |
 | `src/Runtime/ProcessWorkingSetTrimmer.cs` | Windows 手动释放在托管堆压缩后修剪当前游戏进程工作集 | GC 生命周期、搜索调度与自动触发 |
 | `src/Runtime/SystemMemoryReleaseService.cs` | 等待当前进程回收完成，再通过 UAC 启动短命辅助程序清空系统工作集与待机列表 | 自动触发、修改页列表清理与搜索策略 |
-| `src/Runtime/SearchMemoryPressureSignal.cs` | 将 Runtime 的进程分配边界、回收入口和低系统余量下的保守并行标记注入搜索；不让 Search 直接操作 GC 模式 | 设置读取与搜索评分 |
+| `src/Runtime/SearchMemoryPressureSignal.cs` | 将 Runtime 的进程分配边界、回收入口、已排空边界的恢复探针和低系统余量下的保守并行标记注入搜索；不让 Search 直接操作 GC 模式 | 设置读取与搜索评分 |
 | `src/Runtime/SolverControllerSessions.cs` | 除会话状态外，向 UI 提供当前进程占用与活动搜索分配检查点的只读快照 | UI 样式与搜索内存政策 |
 | `src/Runtime/SolverSettings.cs` | 持久化性能、执行、搜索并行度、NoGC 开关与独立预算、逐槽药水策略和搜索结束通知设置，并在主线程捕获不可变搜索 snapshot | 搜索期读取全局设置 |
 | `src/Runtime/PlayerTurnSetupPatches.cs` | 准备阶段稳定根搜索与既有选择重放；原生会话独占生命周期，每次搜索独立取消并排空，页面等待后原子确定唯一 worker 所有者；结果发布结束接管标志，手动提交淘汰旧根；后续回合无既有选择时捕获准备根；进入 Play 后交给 continuation 核对 | 普通 Play 阶段搜索与动作部署 |
@@ -96,6 +97,8 @@ Entry / turn hooks
 搜索内检查点在 Gate 外直接等待非压缩后台 Gen2 primitive，不加入上述 deferred 链。primitive 先观察最新已完成 Gen2 的 index 与新 LOH 弱哨兵，仅在上一轮已完成却未覆盖哨兵时再次请求；不按定时器盲重发。全部异步等待不捕获调用方上下文。已发出的回收不能随搜索取消而放弃：确认完成后取消才落到默认 GC，超时或确认异常先显式阻塞排空，不能提前重建 NoGC。回收开始前的手动 GC 有独立完成信号，回收确认成功但搜索取消/超时不使它误报失败；开始后的手动请求与新的引用释放义务继续等待后续安全回收。日志分开记录请求模式、实际完成类型/index、CLR Concurrent 标志及阻塞超时兜底，不承诺每次都采用并发 GC 或没有暂停。
 ### 2.1 战前预测 API 隔离边界
 
+NoGC 因内存不足或意外收集退出后，`Recovery` 仅在 coordinator 的 `EnsureMemoryForNextCommit` 已排空边界尝试恢复。退出后的检查点若已确认完成 Gen2、且尚未在该堆上尝试失败的预留，可直接复用这份完成证据；已经失败的预留或首次准入失败则等待新的已完成 Gen2，观察间隔至少两秒。每 scope 最多三次预留尝试，后续尝试保持退避，不因另一轮退出而清零。当前物理余量的一半作为恢复预留上限，且已知下一次不可分割工作必须能放入。恢复上限延续到本 scope 的后续区域重建，配置值仍为原始上限。恢复不主动收集、不加入 deferred 链；新 scope、退出 NoGC 和 Dispose 使旧探针代次失效。显式关闭、不支持的平台/区域尺寸、不可分割提交主动回退、取消和收集确认超时不自动恢复。Search 仍只消费信号，原并行增减策略、接纳顺序和工作预算不变。
+
 PR #43 集成修正：Mod 使用独立文件复制，游戏程序继续使用硬链接；运行目录按主进程 PID 隔离。普通退出会移除大型游戏与 Mod 副本，保留会话诊断材料。启动快照缺失时 API 显式失败。当前账号目录由游戏路径 API 解析，并映射到禁用 Steam 的 worker 账号目录。求解设置按值冻结、进入状态令牌与 worker 签名，配置改变时重建 worker 并写入捕获值；整体期限从排队前开始，显式 Stop 会取消活动请求。
 
 `src/Api` 是供伴生 Mod 使用的公开战前边界。API v6 只暴露不可变请求选项、目标坐标、已确定的非战斗路径步骤、假设样本选项、规划快照入口、枚举、结果，以及 worker 状态和生命周期入口，不暴露 `SolverController`、live `CombatState` 或搜索内部类型。
@@ -112,6 +115,8 @@ PR #43 集成修正：Mod 使用独立文件复制，游戏程序继续使用硬
 - 子进程由 `ScenarioBuilder` 直接恢复完整跑局，加载资源和地图后再次规范化序列化并核对精确哈希；只有通过后才按顺序补记已确定的中间非战斗地图历史，应用可选入战 HP，并用目标坐标、房间和节点类型进入遭遇。确定预测由此保持目标 `TotalFloor`、地图坐标、怪物局部种子、正常开战 Hook、首回合初始化和搜索流程一致。假设样本则在哈希核对之后、怪物生成之前注入独立样本 RNG。中间房间的购买、奖励、锻造和其他玩家状态变化不会被擅自执行，必须由调用方标为条件场景。
 
 `src/Api` 禁止直接调用 `SolverController.RequestSearch`、`CombatManager.SetUpCombat` 或 `RunManager.EnterRoomDebug`。这些静态边界由 Windows/Linux 两份 `verify-refactor-boundaries` 脚本共同检查。隔离 worker 内通过 `COMBATSOLVER_PRECOMBAT_WORKER=1` 关闭 API，避免加载伴生 Mod 后递归创建 worker。
+
+`RitsuEmptyCapabilityFastPathPatches` 的标签入口只在模拟隔离域且已证明 capability 集为空时返回原 `IEnumerable<CardTag>`，不枚举、不复制、不缓存标签值；已有空集合和精确类型默认来源代次沿用公共判定。非空贡献者、晚注册默认来源及 live 调用仍执行框架管线。
 
 `RitsuBaseLibTargetTypeLookupPatch` 属于 Runtime 的第三方适配：只在模拟隔离域缓存目标桥的精确类型查询，以 Assembly 弱键持有准确 Type/缺失；具体回调由当前桥中唯一的 Assembly→Type 签名定位，适配不匹配显式失败。`RitsuBaseLibTargetTypeResolutionPatches` 还记录原版全程序集查询正常返回 null 时的缺失证据。`AssemblyTypeAbsenceCache` 用 AssemblyLoad 代次判定静态程序集集合是否变化，并在每次复用前重新查询弱引用中的动态程序集；加载新程序集、动态晚创建目标类型、原查询失败或找到类型时均不能复用旧缺失结论。live 调用仍走原桥。它们不缓存框架是否安装、注册表或目标谓词，不持有分支模型，也不参与搜索策略。 `TARGET_TYPE_ABSENCE_CACHE scope=process_cumulative` 记录命中、原查询和旁路；对单次请求取首尾差值，不能直接累加日志。
 
@@ -130,6 +135,8 @@ PR #43 集成修正：Mod 使用独立文件复制，游戏程序继续使用硬
 根创建时，`PredictionModPatchAudit` 在 Prediction 层检查已有卡牌 OnPlay 的第三方 Harmony 补丁；每根按类型去重并读取当前补丁表。它只负责未支持行为的准入边界，不执行补丁或提供第三方镜像注册，后续生成卡牌和其他方法不在此入口覆盖范围。
 
 `BuildAcceptedEndTurnNodes` 是回合层/软时间预算收尾及普通串行回合尾的共同入口，复用 raw EndTurn 批次生成、跨回合剪枝与循环出口准入。全部直接选择分支在转置准入前结算临时观测；批次持有未转交快照，迭代器提前结束或生成失败时统一释放。
+
+`StateEvaluation.BuildProjectedDeathPrevention` 每次按分支遗物原序读取蜥蜴尾巴的使用状态，只替换查询的临时迭代器，不缓存跨快照的可变结果。Engine 的 `HookMirrors.ModifyHpLost` 返回只读修正者集合，空结果共享空数组，非空 List 独占；后续通知先取得原监听表，空集合只跳过通知遍历。回调顺序、成员身份与重复成员只调用一次的规则保持。
 
 ### 3.1 请求级编排
 
@@ -171,6 +178,7 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 | `CombatBeamSolver.AdmittedExpansion.cs` | 已准入父节点的准备、动作探测、选择准备/回放/续接、药水/目标与回合尾部作业；有界派发、快照移交、取消/异常排空 |
 | `CombatBeamSolver.PrimaryChoiceReplay.cs` | 原预算保证必经的首层回放、唯一快照暂存与原序消费；动态预算和实例补充仍由一个续接作业独占 |
 | `CombatBeamSolver.EndTurnChoiceReplay.cs` | EndTurn初始回放与首层挂起选择准备；复用必经回放槽位，原序解析嵌套/实体补充，独占返回候选和待命基线 |
+| `CombatBeamSolver.RoundTransition.cs` | 玩家回合开始推进；抽牌完成且无待处理选择的同父EndTurn前缀，frontier独占、同父gate复制、生产者排空后释放；不缓存挂起事务或改变候选预算 |
 | `CombatBeamSolver.StandPatJobs.cs` | 对原保路规则必经的 EndTurn 探针批量求值，复用固定 lane、回传标量，缓存和选择仍由 coordinator 原序完成 |
 | `CombatBeamSolver.RetentionJobs.cs` | 剪枝只读索引作业；复用空闲固定 lane，按原索引收集输出，排空后统一记账并传播取消/错误 |
 | `ParallelExpansionWorkProfile.cs` | coordinator 所有的作业经过时间分布与 wave/等待/提交计时；不代表 CPU 时间 |
@@ -258,6 +266,8 @@ Smart 层间使用 `SmartLayerMemoryForecast` 的同窗分配和转移高水位�
 `src/Engine/Common/` 提供 `PredictedCard`、`PredictionForkContext`、`PredictionStateStore` 和通用模型克隆。StateStore 直接持有可 Fork 的 state，空字典按需创建；类型计数独占一个按需创建的三槽对象，第四类回退字典，Fork 仅复制非零计数；主状态字典、别名和 state 的复制顺序不变，字典 ref 只用于不调用外部工厂的计数递增。仍在同一 context 中按原跨类型顺序 eager Fork，不能对调用者已借出的可变引用使用通用延迟 COW。一次 Fork 内的所有结构必须共享同一个 context；分支可变对象必须显式重映射。`BaseLibCloneConcurrency` 是原版与预测克隆共用的外部扩展并发边界，只包围模型深克隆阶段。预测普通原版卡牌与默认内部初始化 Power 的有限并行入口由 `NativeModelCloneConcurrency` 核对，原版 `MutableClone` 保护不变。
 
 `CombatCardGenerationExtensions` 中的根缓存仅复用已冻结的无色候选及原生角色攻击候选；`BundleOfJoyOnPlay` 与 `InfernalBladeOnPlay` 使用对应的 distinct 入口。它们保留 `TakeRandom` 的洗牌/抽取顺序与 RNG 消耗，不调用有放回的 `NextItem` 代替；来源模型只读，`PredictedCard.Create` 仍逐分支创建独占卡牌。带额外谓词、其他角色/类别的生成池未据此获得缓存资格，现有根身份/约束/自定义池回退门禁保持。
+
+`SimulatedCombatState.GetBaseHookListeners` 对可分段且注册卡牌数至少256的分支，先计数当前分支球、未移除卡牌及其附魔/灾厄，按确切容量分配后段列表，避免大附魔牌堆立即扩容。计数不运行Hook/追加器，不新增共享状态、缓存或失效规则；小牌堆及不透明附着监听根沿用单遍路径。
 
 `MirroredHookListenerFilter` 为 `HookMirrors` 和原生关键字空操作判定提供静态回调位图；原生/领域监听序列完整保留。只有确认没有 `TryModifyKeywordsInCombat` 参与者时，关键字查询才直接读取本地集合。根捕获重新检查相关 AbstractModel 基方法及原生 `Hook.ModifyKeywordsInCombat` 的 Harmony 补丁，有补丁时旁路；第三方/动态类型全部保留，BaseLib 不透明 CardModifier 根也旁路。`SimulatedCombatState` 的分支监听视图沿既有失效边界清空。不可变布局只含 Type/位图：优先复用分支旧布局，失配后查询同根有界共享表，哈希只选槽，完整类型顺序相同才复用；碰撞、并发覆盖和超长列表都不能误认序列。共享表不持有任何 Model，原接收者仍来自当前分支快照；它随根回收，不进入状态键或 ContinuationStamp。`HOOK_LAYOUT_CACHE scope=root_cumulative` 记录共享查询命中、未命中、碰撞和旁路，主搜/恢复日志不能相加。合同覆盖类型顺序、重复项、跨分支接收者、哈希碰撞、并发读取、关键字原生对照及根间补丁刷新。
 
@@ -417,3 +427,8 @@ NativeReplayDriver 保存开战/结束观察器抛出的原始异常，由 Advan
 ### 回合末卡牌 Hook 的接收者身份
 
 `HookMirrors.BeforeSideTurnEnd` 的常规阶段先通过 `CardHookReceiver` 固定监听成员与对应分支 `PredictedCard`，再按原序读取当前 Preview。前一监听者触发 COW 时，不把已脱离牌堆的旧预览传给后一卡牌 Hook；不重新枚举成员，不保留跨阶段或跨分支接收者。
+
+`UnattendedTestRunner.PrepareCheckpointRequest` 负责材料和政策导入；游戏MVID比较仅写入 `gameModuleComparison`，不作为恢复兼容性门禁。NativeReplay仍实际重建原生跑局并核对完整已记录ContinuationStamp与可比较的native-state；编号映射缺失继续限定为continuation验证，不伪造原生验证成功。
+
+
+`CardGenerationPotionMirrors.Generate` 的可选simulator将无色药水和CosmicConcoction的战斗生成接入既有根候选池；无simulator的预览保持原筛选。复用仅含原序候选模型，生成卡、升级、选择和RNG仍由当前分支拥有；两种AddsToHand形态不变。

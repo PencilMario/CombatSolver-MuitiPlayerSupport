@@ -222,6 +222,11 @@ internal sealed partial class UnattendedTestRunner
                 await runner.AssertRelicPriorityMeatAsync(combatState, player);
                 return Observation(combatEnded: false);
             }
+            if (request.ScenarioId == "STRATEGIC-CONTEXT-DEMAND")
+            {
+                await runner.AssertStrategicContextDemandAsync(combatState, player);
+                return Observation(combatEnded: false);
+            }
             if (request.ScenarioId == "ACT3-BOSS-STRATEGY")
             {
                 await runner.AssertAct3BossStrategyAsync(combatState, player);

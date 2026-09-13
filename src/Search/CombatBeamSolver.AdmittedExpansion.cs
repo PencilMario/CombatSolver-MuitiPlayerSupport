@@ -640,7 +640,8 @@ internal sealed partial class CombatBeamSolver
                             for (int offset = 0; offset < ReplayCount; offset++)
                                 outcome.ReplaySnapshots[offset] = worker.ReplayPrimaryChoice(
                                     Parent.Node, Frontier!.Actions[ReplayIndex + offset], Parent.ForkGate,
-                                    Frontier.EndTurn?.Layer.Branches[ReplayIndex + offset].PruneInvalidBranch ?? true);
+                                    Frontier.EndTurn?.Layer.Branches[ReplayIndex + offset].PruneInvalidBranch ?? true,
+                                    Frontier.EndTurn?.Checkpoint);
                             break;
                         case ParallelExpansionWorkProfile.Kind.Potion:
                             PreparedChoiceEvaluation potion = worker.EvaluatePreparedPotionAction(

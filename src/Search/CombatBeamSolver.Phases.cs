@@ -656,6 +656,8 @@ internal sealed partial class CombatBeamSolver
                 HpInvestmentBranchesProtected = _run.HpInvestmentBranchesProtected,
                 ReplayCount = _run.ReplayCount,
                 ForkCount = _run.ForkCount,
+                RoundReplayPrefixCaptures = _run.RoundReplayPrefixCaptures,
+                RoundReplayPrefixReuses = _run.RoundReplayPrefixReuses,
                 TransitionCount = _run.TransitionCount,
                 TotalTransitionCount = _run.TransitionCount,
                 ReusedNodeSnapshots = _run.ReusedNodeSnapshots,
@@ -1128,6 +1130,7 @@ internal sealed partial class CombatBeamSolver
             if (policy.VerifyIncrementalSearch)
                 return true;
 
+            signal.TryRecoverNoGc(reservedBytes, cancellationToken);
             bool reclaimAttempted = false;
             if (signal.HasUnexpectedNoGcLoss())
             {
@@ -1137,6 +1140,7 @@ internal sealed partial class CombatBeamSolver
                     frontierNodes,
                     endedNodes);
                 reclaimAttempted = true;
+                signal.TryRecoverNoGc(reservedBytes, cancellationToken);
             }
 
             MemoryCommitPreparation preparation = ResolveMemoryCommitPreparation(

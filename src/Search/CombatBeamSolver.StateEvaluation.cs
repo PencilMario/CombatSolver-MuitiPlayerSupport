@@ -249,6 +249,9 @@ internal sealed partial class CombatBeamSolver
         bool needsExhaustDrawTiming = false;
         bool skillsExhaust = false;
         bool hasPagestorm = false;
+        // Only Lethality consumes this native field. Registered evaluators may read any
+        // existing context field, so preserve the complete context when that table is used.
+        bool needsFirstAttackDamage = !StrategicEffectMirrors.IsEmpty;
         bool hasRecurringEnergy = false;
         int danseMacabreEnergyThreshold = 0;
         int demesneAmount = 0;
@@ -258,6 +261,7 @@ internal sealed partial class CombatBeamSolver
             contributes[powerIndex] = StrategicEffectMirrors.Contributes(power, _player.Creature);
             if (!contributes[powerIndex])
                 continue;
+            needsFirstAttackDamage |= power is LethalityPower;
             strategicRequirements |= StrategicEffectModel.Requirements(
                 power,
                 policy.Act3BossStrategy);
@@ -292,7 +296,7 @@ internal sealed partial class CombatBeamSolver
                     liveCards, enemyHp, focus.TotalThreat, focus.IncomingHitCount, strategicRequirements, skillsExhaust) with
                 {
                     Act3BossInteractions = policy.Act3BossStrategy,
-                    FirstAttackDamage = policy.Act3BossStrategy
+                    FirstAttackDamage = policy.Act3BossStrategy && needsFirstAttackDamage
                         ? CaptureFirstAttackDamage(simulator, combat, playerState, liveCards) : 0,
                 };
                 if (hasRecurringEnergy)
@@ -1450,9 +1454,17 @@ internal sealed partial class CombatBeamSolver
                 fairyCount++;
         }
 
-        LizardTail? lizardTail = combat.RelicsOf(_player)
-            .OfType<LizardTail>()
-            .FirstOrDefault(relic => !LizardTailMirrors.WasUsed(relic, simulator));
+        LizardTail? lizardTail = null;
+        IReadOnlyList<RelicModel> relics = combat.RelicsOf(_player);
+        for (int index = 0; index < relics.Count; index++)
+        {
+            if (relics[index] is LizardTail candidate
+                && !LizardTailMirrors.WasUsed(candidate, simulator))
+            {
+                lizardTail = candidate;
+                break;
+            }
+        }
         return new ProjectedDeathPrevention(
             fairyCount,
             (int)FairyInABottleMirrors.HealAmount(playerMaxHp),

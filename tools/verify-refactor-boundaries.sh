@@ -417,6 +417,10 @@ while IFS= read -r -d '' api_file; do
 done < <(find "$repository_root/src/Api" -type f -name '*.cs' -print0 | sort -z)
 
 search_gc_policy_path="$repository_root/src/Runtime/SearchGcPolicy.cs"
+forbid_fixed "$repository_root/src/Runtime/SearchGcPolicy.Recovery.cs" \
+    'GC.Collect(' 'NoGC recovery must not induce a collection:'
+forbid_fixed "$repository_root/src/Runtime/SearchGcPolicy.Recovery.cs" \
+    'CollectGeneration2' 'NoGC recovery must not enter the reclaim chain:'
 for gc_chain_rule in \
     'return WaitForReclaimChainAsync(_reclaimTask)' \
     'CollectGeneration2ForAutomaticReclaimAsync(inSearchCheckpoint: true)' \
@@ -490,6 +494,7 @@ expected_beam_files=(
     CombatBeamSolver.cs
     CombatBeamSolver.AdmittedExpansion.cs
     CombatBeamSolver.EndTurnChoiceReplay.cs
+    CombatBeamSolver.RoundTransition.cs
     CombatBeamSolver.BeamRetentionPolicy.cs
     CombatBeamSolver.CrossTurnPlanning.cs
     CombatBeamSolver.CyclePlanning.cs
@@ -555,6 +560,11 @@ CombatBeamSolver.AdmittedExpansion.cs	while (committed < parents.Length && paren
 CombatBeamSolver.AdmittedExpansion.cs	_completedActions != Actions!.Count
 CombatBeamSolver.AdmittedExpansion.cs	_completedPotions != Potions!.Count
 CombatBeamSolver.EndTurnChoiceReplay.cs	private PreparedEndTurnEvaluation EvaluatePreparedEndTurn(
+CombatBeamSolver.RoundTransition.cs	private SearchBoundaryReason CompleteRoundPlayerStart(
+CombatBeamSolver.RoundTransition.cs	private sealed class RoundReplayCheckpoint(
+CombatBeamSolver.RoundTransition.cs	combat.EndActionChoices();
+CombatBeamSolver.RoundTransition.cs	combat.BeginActionChoices(cursor);
+CombatBeamSolver.RoundTransition.cs	internal int VerifyRoundReplayCheckpointForTesting()
 CombatBeamSolver.AdmittedExpansion.cs	endTurn.TransferEndTurnTo(Aggregate!, candidate);
 CombatBeamSolver.AdmittedExpansion.cs	PublishCrossTurnStandPatBaselines(Node, _endTurnBaselines);
 CombatBeamSolver.AdmittedExpansion.cs	ready.TransferPotionTo(Aggregate!, candidate);

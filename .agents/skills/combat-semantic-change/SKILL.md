@@ -124,3 +124,5 @@ writeLive 和 writePredicted，复用 store 的 Fork context。状态描述按�
 
 - `PredictionStateStore` 的三槽计数表只保存 Type/条目数，不保存模型或 state；空 store 不创建计数对象，溢出仍使用独占字典，Fork 丢弃零计数。工厂可以重入并扩容，禁止跨工厂调用持有主字典 ref；计数更新的 ref 必须立即消费。验证覆盖溢出、清空后 Fork、父子隔离与工厂重入，不能只测常见一类状态。
 - 额外生成入口复用现有根无色/原生角色攻击池时，保持全部身份与约束门禁；不把 `GetForCombat` 的有放回 `NextItem` 和 `GetDistinctForCombat` 的 `TakeRandom` 混用，即使只取一张。候选模型只读共享，随机数与生成卡牌始终由当前分支独占；带额外过滤的调用方不能直接迁移。
+
+- `RoundTransition` 只在无计划选择的EndTurn初探中，于普通抽牌和历史补偿完成后保存无挂起选择的前缀；当前仅ToolsOfTheTradePower存在时预留。原Fork事务断言保持，复制前临时关闭空cursor并在finally恢复。前缀匹配父节点引用、EndTurn回合与PlayerTurnStart选择，Knowledge选择完整回放；不跨父/搜索共享。frontier拥有checkpoint，同父gate串行Fork，排空后释放。新增捕获计数包含额外物理Fork，DOP等价比较扣除该项后的转移Fork；完整状态/续用/历史与兄弟隔离须直接对账。

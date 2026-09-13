@@ -499,6 +499,54 @@ internal sealed partial class UnattendedTestRunner
         _completedChecks.Add("Act3Strategy:Scope:ExhaustKeepsDrawEngine:NoDrawLethal:UpgradedStrikeKill:EssentialDefend:IncrementalReplay:BossInteractions");
     }
 
+    private async Task AssertStrategicContextDemandAsync(CombatState combat, Player player)
+    {
+        SearchPolicySnapshot policy = SolverController.CaptureSearchPolicy(
+            SolverSettings.Capture(), combat, false, null);
+        async Task<StrategicEffectVector> Capture(bool specialized)
+        {
+            var snapshot = CombatRootSnapshot.Capture(combat);
+            var displayNames = SolverDisplayNames.Capture(combat);
+            var battleDamage = BattleDamageTracker.Observe(combat);
+            return await Task.Run(() => new CombatBeamSolver(snapshot, displayNames, battleDamage,
+                policy with { Act3BossStrategy = specialized }, searchProfile: policy.Profile)
+                .CaptureStrategicEffectsForTesting());
+        }
+        foreach (var power in player.Creature.Powers.ToArray())
+            await PowerCmd.Remove(power);
+        await ClearPlayerPilesAsync(player);
+        SetEnergy(player, 3);
+        await InjectPowerAsync(combat, player, new UnattendedPowerInjection
+            { PowerId = "LETHALITY_POWER", Target = "Player", Amount = 75 });
+        if ((await Capture(true)).DamagePotential != 0)
+            throw new InvalidOperationException("Lethality requires an attack to realize its multiplier.");
+        await InjectCardAsync(combat, player, new UnattendedCardInjection
+            { CardId = "ERADICATE", Pile = "Draw", Count = 1 });
+        if ((await Capture(true)).DamagePotential <= (await Capture(false)).DamagePotential)
+            throw new InvalidOperationException("Native first-attack evaluation lost payable Eradicate hits.");
+        foreach (var power in player.Creature.Powers.ToArray())
+            await PowerCmd.Remove(power);
+        await InjectPowerAsync(combat, player, new UnattendedPowerInjection
+            { PowerId = "PLATING_POWER", Target = "Player", Amount = 1 });
+        // Registration lasts for this disposable unattended process. An external evaluator
+        // may consume an existing context field without a new requirement flag.
+        StrategicEffectMirrors.Register<MegaCrit.Sts2.Core.Models.Powers.PlatingPower>(
+            StrategicEffectRequirements.None,
+            (_, context) => new StrategicEffectVector(context.FirstAttackDamage, 0, 0, 0, 0));
+        CombatRootSnapshot root = CombatRootSnapshot.Capture(combat);
+        SolverDisplayNames names = SolverDisplayNames.Capture(combat);
+        BattleDamageSnapshot damage = BattleDamageTracker.Observe(combat);
+        foreach (bool specialized in new[] { false, true })
+        {
+            StrategicEffectVector value = await Task.Run(() => new CombatBeamSolver(
+                root, names, damage, policy with { Act3BossStrategy = specialized },
+                searchProfile: policy.Profile).CaptureStrategicEffectsForTesting());
+            if (specialized ? value.DamagePotential <= 0 : value.DamagePotential != 0)
+                throw new InvalidOperationException("Registered evaluation lost the original first-attack context.");
+        }
+        _completedChecks.Add("StrategicContextDemand:NativeLethality:Eradicate:OrdinaryPolicy:RegisteredField");
+    }
+
     private async Task AssertAct3BossInteractionsAsync(CombatState combat, Player player, SearchPolicySnapshot policy)
     {
         async Task<StrategicEffectVector> Capture(bool specialized)

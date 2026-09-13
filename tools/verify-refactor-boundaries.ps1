@@ -303,6 +303,12 @@ foreach ($check in $forkBoundaryChecks) {
 }
 
 $searchGcPolicyPath = Join-Path $repositoryRoot "src\Runtime\SearchGcPolicy.cs"
+$searchGcRecoveryPath = Join-Path $repositoryRoot "src\Runtime\SearchGcPolicy.Recovery.cs"
+foreach ($forbiddenRecoveryCall in @("GC.Collect(", "CollectGeneration2")) {
+    if (Select-String -LiteralPath $searchGcRecoveryPath -SimpleMatch $forbiddenRecoveryCall -Quiet) {
+        $violations.Add("${searchGcRecoveryPath}: NoGC recovery must not induce a collection or enter the reclaim chain '$forbiddenRecoveryCall'")
+    }
+}
 foreach ($gcChainRule in @(
     "return WaitForReclaimChainAsync(_reclaimTask)",
     "CollectGeneration2ForAutomaticReclaimAsync(inSearchCheckpoint: true)",
@@ -467,6 +473,7 @@ $expectedBeamFiles = @(
     "CombatBeamSolver.cs",
     "CombatBeamSolver.AdmittedExpansion.cs",
     "CombatBeamSolver.EndTurnChoiceReplay.cs",
+    "CombatBeamSolver.RoundTransition.cs",
     "CombatBeamSolver.BeamRetentionPolicy.cs",
     "CombatBeamSolver.CrossTurnPlanning.cs",
     "CombatBeamSolver.CyclePlanning.cs",
@@ -571,6 +578,11 @@ $beamStructureChecks = @(
     @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "_completedActions != Actions!.Count" },
     @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "_completedPotions != Potions!.Count" },
     @{ File = "CombatBeamSolver.EndTurnChoiceReplay.cs"; Text = "private PreparedEndTurnEvaluation EvaluatePreparedEndTurn(" },
+    @{ File = "CombatBeamSolver.RoundTransition.cs"; Text = "private SearchBoundaryReason CompleteRoundPlayerStart(" },
+    @{ File = "CombatBeamSolver.RoundTransition.cs"; Text = "private sealed class RoundReplayCheckpoint(" },
+    @{ File = "CombatBeamSolver.RoundTransition.cs"; Text = "combat.EndActionChoices();" },
+    @{ File = "CombatBeamSolver.RoundTransition.cs"; Text = "combat.BeginActionChoices(cursor);" },
+    @{ File = "CombatBeamSolver.RoundTransition.cs"; Text = "internal int VerifyRoundReplayCheckpointForTesting()" },
     @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "endTurn.TransferEndTurnTo(Aggregate!, candidate);" },
     @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "PublishCrossTurnStandPatBaselines(Node, _endTurnBaselines);" },
     @{ File = "CombatBeamSolver.AdmittedExpansion.cs"; Text = "ready.TransferPotionTo(Aggregate!, candidate);" },

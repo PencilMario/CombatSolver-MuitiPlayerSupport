@@ -2102,7 +2102,11 @@ internal sealed partial class UnattendedTestRunner
             expected.HpInvestmentBranchesProtected,
             actual.HpInvestmentBranchesProtected);
         AddMismatch(mismatches, "replays", expected.ReplayCount, actual.ReplayCount);
-        AddMismatch(mismatches, "forks", expected.ForkCount, actual.ForkCount);
+        // Parallel EndTurn may reserve an extra prefix copy; physical copies remain counted.
+        // Compare the original transition Fork work after removing only those explicit captures.
+        AddMismatch(mismatches, "transition_forks",
+            expected.ForkCount - expected.RoundReplayPrefixCaptures,
+            actual.ForkCount - actual.RoundReplayPrefixCaptures);
         AddMismatch(mismatches, "reused", expected.ReusedNodeSnapshots, actual.ReusedNodeSnapshots);
         AddMismatch(mismatches, "tt_pruned", expected.TranspositionBranchesPruned, actual.TranspositionBranchesPruned);
         AddMismatch(mismatches, "repeatable", expected.RepeatableNoProgressBranchesPruned, actual.RepeatableNoProgressBranchesPruned);
