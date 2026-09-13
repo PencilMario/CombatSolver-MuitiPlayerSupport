@@ -1,4 +1,12 @@
 {
+  "REPORT-CARDS-ORBIT-ENERGY-GATE": {
+    "status": "Passed",
+    "level": "HeadlessNativeDifferentialAndForkContract",
+    "procedure": "环绕轨道消费 GainEnergy 修正；禁止返能、移除限制、独立实例继续触发",
+    "expected": "被禁止的返能仍消耗本次四费触发，解除后两个实例正常返能；完整状态与RNG一致",
+    "observed": "baseline=1e0277417f9d457d8aea1d4205a5869c Failed energy 1/0; passed=2bec4ffb9a164481b5ace1a668f78906, eight native card plays, suppression removed after fourth play, two Orbit instances 1/2, 26.44 seconds",
+    "evidence": "src/Testing/UnattendedTestRunner.ReportCardSequence.cs; docs/issues/report-replans-20260913.md"
+  },
   "REPORT-CARDS-RESOURCE-DRAW-ORDER": {
     "status": "Passed",
     "level": "HeadlessNativeDifferentialAndForkContract",

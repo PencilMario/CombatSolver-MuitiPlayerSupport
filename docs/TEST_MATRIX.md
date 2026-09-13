@@ -2,6 +2,8 @@
 
 ## 下一版本（开发中）：计划外重算修复
 
+- `REPORT-CARDS-ORBIT-ENERGY-GATE`：旧入口失败 `1e0277417f9d457d8aea1d4205a5869c`，4初始能量、4张防御、1层环绕轨道和禁止返能，第四张后预测1/原版0能量。最终扩展为8能量、8张防御、两个独立轨道实例1/2，第四张后移除禁止返能，`2bec4ffb9a164481b5ace1a668f78906` Passed（26.44秒）。每张卡和移除时点比较完整状态/RNG，每步检查Fork；验证禁止返能期间仍消耗触发、解除后继续正常返能。Release零警告/错误，Windows结构门禁通过；前一顺序修复的CoverageCatalog门禁通过，目录仍有22项回放视野外状态写入，不作全量语义正确声明。
+
 - 第二批顺序修复：`REPORT-CARDS-SPOILS-ORDER` 失败 `7f9020a9cdc4412da48e30607c9335c0` → 通过 `1be7ac540f9a4ebcab455c7b77e48457`；满手 `REPORT-CARDS-SPOILS-FULL-HAND` 通过 `edee5895c8cc4ea195cc16d651926827`，只打第一张战利品，核对剑占最后手牌位、两张抽牌仍在抽牌堆。`REPORT-CARDS-ADRENALINE-VOID` 失败 `7c55fe83182f4596b29ccbf357c0883d` → 通过 `8bf7b3754ad74e24af9e47ccf43afbd0`；`REPORT-CARDS-OFFERING-VOID` 失败 `b501384837294a6abbfdb8aed873dfa4` → 通过 `2f6ed6da25e646d3aa584a47982842ef`；`REPORT-CARDS-NEUROSURGE-VOID` 失败 `7e01d53cce3a49f6ba193558402ba0ea` → 通过 `0ae3660ccf914e7f9d55c6fc0dfa738b`。均为一步原生动作完整状态/RNG及分支Fork比较，最长24.62秒；没有运行搜索或整场部署。复跑输入见[第二批记录](issues/report-replans-20260913.md#第二批继续修复)。首次误填 `AXEBOT` 导致建局失败，不计行为基线。
 
 - 批次收尾：16类可复现机制及2张牌估值已分别取得行为证据；严格合并同根后未达到20–30类高频目标。最终Windows结构门禁 `REFACTOR_BOUNDARIES_OK search_files=89`，CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过（3035项、0未分类/缺关联通过证据；22项处于回放视野外，属于目录边界）。正式版本仍0.37.0；完整频率、范围和未解决项见[批次结果](issues/report-replans-20260913.md)。本轮没有运行Linux游戏、可见Steam或发布流程。
