@@ -1,4 +1,28 @@
 {
+  "Card|MegaCrit.Sts2.Core.Models.Cards.Adrenaline|MegaCrit.Sts2.Core.Models.CardModel.OnPlay(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Cards/OnPlay/CardDrawCardMirrors.cs",
+    "notes": "Native command ordering with draw-triggered resource changes and ordered pile verification.",
+    "testId": "REPORT-CARDS-RESOURCE-DRAW-ORDER"
+  },
+  "Card|MegaCrit.Sts2.Core.Models.Cards.Offering|MegaCrit.Sts2.Core.Models.CardModel.OnPlay(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Cards/OnPlay/CardDrawCardMirrors.cs",
+    "notes": "Native command ordering with draw-triggered resource changes and ordered pile verification.",
+    "testId": "REPORT-CARDS-RESOURCE-DRAW-ORDER"
+  },
+  "Card|MegaCrit.Sts2.Core.Models.Cards.Neurosurge|MegaCrit.Sts2.Core.Models.CardModel.OnPlay(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Cards/OnPlay/CardDrawCardMirrors.cs",
+    "notes": "Native command ordering with draw-triggered resource changes and ordered pile verification.",
+    "testId": "REPORT-CARDS-RESOURCE-DRAW-ORDER"
+  },
+  "Card|MegaCrit.Sts2.Core.Models.Cards.SpoilsOfBattle|MegaCrit.Sts2.Core.Models.CardModel.OnPlay(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
+    "status": "EngineExact",
+    "source": "src/Engine/InCombat/Mirrors/Cards/OnPlay/CardDrawCardMirrors.cs",
+    "notes": "Native command ordering with draw-triggered resource changes and ordered pile verification.",
+    "testId": "REPORT-CARDS-RESOURCE-DRAW-ORDER"
+  },
   "Card|MegaCrit.Sts2.Core.Models.Cards.HeavenlyDrill|MegaCrit.Sts2.Core.Models.CardModel.OnPlay(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)": {
     "status": "EngineExact",
     "source": "src/Engine/InCombat/Mirrors/Cards/OnPlay/BespokeCardMirrors.cs",

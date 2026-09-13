@@ -2,6 +2,8 @@
 
 ## 下一版本（开发中）：计划外重算修复
 
+- 第二批顺序修复：`REPORT-CARDS-SPOILS-ORDER` 失败 `7f9020a9cdc4412da48e30607c9335c0` → 通过 `1be7ac540f9a4ebcab455c7b77e48457`；满手 `REPORT-CARDS-SPOILS-FULL-HAND` 通过 `edee5895c8cc4ea195cc16d651926827`，只打第一张战利品，核对剑占最后手牌位、两张抽牌仍在抽牌堆。`REPORT-CARDS-ADRENALINE-VOID` 失败 `7c55fe83182f4596b29ccbf357c0883d` → 通过 `8bf7b3754ad74e24af9e47ccf43afbd0`；`REPORT-CARDS-OFFERING-VOID` 失败 `b501384837294a6abbfdb8aed873dfa4` → 通过 `2f6ed6da25e646d3aa584a47982842ef`；`REPORT-CARDS-NEUROSURGE-VOID` 失败 `7e01d53cce3a49f6ba193558402ba0ea` → 通过 `0ae3660ccf914e7f9d55c6fc0dfa738b`。均为一步原生动作完整状态/RNG及分支Fork比较，最长24.62秒；没有运行搜索或整场部署。复跑输入见[第二批记录](issues/report-replans-20260913.md#第二批继续修复)。首次误填 `AXEBOT` 导致建局失败，不计行为基线。
+
 - 批次收尾：16类可复现机制及2张牌估值已分别取得行为证据；严格合并同根后未达到20–30类高频目标。最终Windows结构门禁 `REFACTOR_BOUNDARIES_OK search_files=89`，CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过（3035项、0未分类/缺关联通过证据；22项处于回放视野外，属于目录边界）。正式版本仍0.37.0；完整频率、范围和未解决项见[批次结果](issues/report-replans-20260913.md)。本轮没有运行Linux游戏、可见Steam或发布流程。
 
 - `RELIC-DAMAGE-WAKE`：熟睡甲虫失败基线 `3ccdcacbe9aa473e8a777b34ea99391e`，招架盾原生伤害后 SLUMBER_POWER 为2、预测为3。修复后 `252a8f9dc76e4610ac455f05388eebcf` Passed（23.11秒），乐加维林族母 `1012870880214ac79bbc646c5e5d46a2` Passed（9.06秒）；均比较完整一步状态与 RNG。命令使用 `-ScenarioId RELIC-DAMAGE-WAKE -EncounterId SLUMBERING_BEETLE_NORMAL` 或 `LAGAVULIN_MATRIARCH_BOSS -EnemyCurrentHp 100`，无增量搜索。Release零警告/错误；CoverageCatalog `--verify-effective --verify-runtime-evidence` 通过。原包完整部署、可见测试未运行。

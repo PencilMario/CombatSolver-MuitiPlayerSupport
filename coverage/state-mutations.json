@@ -124,7 +124,7 @@
       "hook": "OnPlay(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)",
       "phase": "FutureLifecycle",
       "effectiveStatus": "Exact",
-      "capability": "SolverCompensation",
+      "capability": "EngineMirror",
       "requiresRuntimeEvidence": true,
       "runtimeVerified": true,
       "writes": [
@@ -4707,7 +4707,7 @@
       "hook": "OnPlay(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)",
       "phase": "FutureLifecycle",
       "effectiveStatus": "Exact",
-      "capability": "SolverCompensation",
+      "capability": "EngineMirror",
       "requiresRuntimeEvidence": true,
       "runtimeVerified": true,
       "writes": [
@@ -4886,7 +4886,7 @@
       "hook": "OnPlay(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)",
       "phase": "FutureLifecycle",
       "effectiveStatus": "Exact",
-      "capability": "SolverCompensation",
+      "capability": "EngineMirror",
       "requiresRuntimeEvidence": true,
       "runtimeVerified": true,
       "writes": [
@@ -6696,7 +6696,7 @@
       "hook": "OnPlay(MegaCrit.Sts2.Core.GameActions.Multiplayer.PlayerChoiceContext,MegaCrit.Sts2.Core.Entities.Cards.CardPlay)",
       "phase": "FutureLifecycle",
       "effectiveStatus": "Exact",
-      "capability": "SolverCompensation",
+      "capability": "EngineMirror",
       "requiresRuntimeEvidence": true,
       "runtimeVerified": true,
       "writes": [

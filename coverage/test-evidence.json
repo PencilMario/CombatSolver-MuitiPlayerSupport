@@ -1,4 +1,12 @@
 {
+  "REPORT-CARDS-RESOURCE-DRAW-ORDER": {
+    "status": "Passed",
+    "level": "HeadlessNativeDifferentialAndForkContract",
+    "procedure": "战利品铸造与抽牌顺序；Adrenaline/Offering/Neurosurge 返能先于虚空抽牌",
+    "expected": "有序牌堆、能量、HP、能力、卡牌状态与RNG匹配原版；满手时剑先占位",
+    "observed": "Spoils 7f9020a9cdc4412da48e30607c9335c0 Failed -> 1be7ac540f9a4ebcab455c7b77e48457 Passed; full-hand edee5895c8cc4ea195cc16d651926827; Adrenaline 7c55fe83182f4596b29ccbf357c0883d -> 8bf7b3754ad74e24af9e47ccf43afbd0; Offering b501384837294a6abbfdb8aed873dfa4 -> 2f6ed6da25e646d3aa584a47982842ef; Neurosurge 7e01d53cce3a49f6ba193558402ba0ea -> 0ae3660ccf914e7f9d55c6fc0dfa738b",
+    "evidence": "src/Testing/UnattendedTestRunner.ReportCardSequence.cs; docs/issues/report-replans-20260913.md"
+  },
   "AUTO-DEPLOYMENT-REQUEST-OWNERSHIP": {
     "status": "Passed",
     "level": "HeadlessNativeDeploymentContract",

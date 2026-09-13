@@ -1,5 +1,25 @@
 # 计划外重算修复批次（2026-09-13，未发布）
 
+## 第二批继续修复
+
+用户要求继续后沿用同一固定样本与不发版约束。新增的顺序根因按一类计数：战利品先铸造再抽牌，肾上腺素、OFFERING、NEUROSURGE 先返能再抽牌，全部迁入精确 OnPlay 镜像，删除同义后置补偿。BigBang 原版本来先抽牌，保留其原有抽牌顺序。
+
+战利品候选17份、16场独立战斗，版本0.34.4–0.36.4；筛选要求首个手牌差异为预测其他牌/实际君王之剑、手牌数量一致，且之前部署过战利品。完整ID、session、版本、首差和日志位置保存在本地 `batch2-spoils-candidates.json`，筛选脚本 `batch2-scan.py`。代表 `c36effe0c1f0428fa659ab2d3326e620`、`a55b1e4ded1a4df984b3ccc45ab9f464`、`ebdcac1f27cc4ccc81ca11354b6a7907` 的实际部署均为先入剑、后入抽牌；最小失败复现相同顺序。其他候选未逐包完整回放，不能把17份全部标作已验证修复。三种虚空交互为沿调用链补充的最小原生失败证据，尚未另行确认线上频率。
+
+测试复用既有 `REPORT-CARDS-*` 场景：`AXEBOTS_NORMAL`、敌人200HP、`ClearPlayerPiles`、`ClearAllPowers`、120秒上限，以下卡牌按顺序注入。普通场景只在手牌放待测一张牌；满手场景只执行第一张。
+
+| 场景后缀 | 角色 / 初始能量 | 手牌 / 抽牌堆 | 失败 → 通过 runId |
+|---|---|---|---|
+| SPOILS-ORDER | REGENT / 3 | SPOILS_OF_BATTLE / STRIKE_REGENT, DEFEND_REGENT | `7f9020a9cdc4412da48e30607c9335c0` → `1be7ac540f9a4ebcab455c7b77e48457` |
+| SPOILS-FULL-HAND | REGENT / 3 | SPOILS_OF_BATTLE, 9×DEFEND_REGENT / 2×STRIKE_REGENT | 相邻边界通过 `edee5895c8cc4ea195cc16d651926827` |
+| ADRENALINE-VOID | SILENT / 0 | ADRENALINE / VOID, DEFEND_SILENT | `7c55fe83182f4596b29ccbf357c0883d` → `8bf7b3754ad74e24af9e47ccf43afbd0` |
+| OFFERING-VOID | IRONCLAD / 0 | OFFERING / VOID, 2×DEFEND_IRONCLAD | `b501384837294a6abbfdb8aed873dfa4` → `2f6ed6da25e646d3aa584a47982842ef` |
+| NEUROSURGE-VOID | NECROBINDER / 0 | NEUROSURGE / VOID, DEFEND_NECROBINDER | `7e01d53cce3a49f6ba193558402ba0ea` → `0ae3660ccf914e7f9d55c6fc0dfa738b` |
+
+三种虚空基线的能量依次为预测/实际1/0、2/1、3/2；修复后严格完整状态和RNG相等，Fork状态也一致。满手战利品生成剑后手牌达到10张，因此后续抽牌留在抽牌堆。验证止于单动作，不声明原报告整场零重算。下面保留第一批结论与原始未解决候选记录。
+
+## 第一批结论
+
 本轮从日志站固定943份未归档报告，按战斗session去重为869场，逐项复现并修复16类代码机制，另完成用户补充的环绕轨道/自动化估值。没有确认到20–30类不同的高频根因：距20类下限差4类，距25类目标差9类；部分已修机制只有单场关联证据，不能都称为高频。第10类虽然代码缺陷已严格复现，原包额外格挡来源仍未闭环。
 
 死亡钩子的蟹皇/抑制、独立能力的自动化/滚石、关键词时机的幻影之刃/幽灵种子分别合并计数。新增状态捕获、Fork或比较字段是各机制的配套，不另算根因。未升级版本、打包、打标签、上传、推送或修改线上报告状态。

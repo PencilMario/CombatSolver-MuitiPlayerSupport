@@ -9,6 +9,8 @@
 
 HeavenlyDrill 的 OnPlay 使用精确镜像，先解析分支 X 值及修正，再按卡牌 Energy 阈值决定攻击次数翻倍。修改该卡的阈值或攻击流程需提供对应语义登记，通用“X次攻击”推断不足以表达条件翻倍。EndOfDays 的领域补偿在每次施加灾厄后结算能力数量变化监听器和死亡，再判断处决；登记类似监听器时应保留原版 await 时点。
 
+战利品、Adrenaline、Offering、Neurosurge 的完整 OnPlay 由 `CardDrawCardMirrors` 在共享注册表登记，按原版命令顺序处理铸造、扣血、返能、抽牌与能力施加。适配其效果时保留抽牌前后的边界：抽牌可以触发虚空失能量、自动出牌及满手限制。对应的 `CardEffectSpecRegistry` 后置补偿已经移除，第三方应在同一权威镜像内描述有序结算。
+
 ## 0. 先判断你要不要读下去
 
 内置遗物目标新增 MeatOnTheBone 半血目标与 1～3 优先级，仍属于 RelicCounterCatalog 的封闭表。CardEnchantmentId 是路线显示元数据，当前额外展示原版 Inky；不代表未知附魔已获得战斗模拟支持。

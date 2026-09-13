@@ -22,6 +22,8 @@ internal sealed partial class UnattendedTestRunner
             }
         }
         var cards = player.PlayerCombatState!.Hand.Cards.ToArray();
+        if (_request.ScenarioId == "REPORT-CARDS-SPOILS-FULL-HAND")
+            cards = cards.Take(1).ToArray();
         var simulator = CombatRootSnapshot.Capture(combat).ForkSimulator();
         var shadow = (SimulatedCombatState)simulator.State.CombatState;
         foreach (var card in cards)
