@@ -4,10 +4,9 @@
 
 按版本倒序列出已有玩家更新日志，包括历史草案。是否正式发布以对应 Git 标签和发布记录为准；未发布改动见 [开发笔记](../DEVELOPMENT_NOTES.md)。发布 ZIP 存放在仓库根目录的 `releases/`，此处只保存文档。
 
-待审核：[下一版本：性能更新（中英草案）](NEXT-RELEASE_NOTES.md)。
-
 | 版本系列 | 更新日志 |
 |---|---|
+| 0.37 | [0.37.0](0.37.0-RELEASE_NOTES.md) |
 | 0.36 | [0.36.5](0.36.5-RELEASE_NOTES.md) · [0.36.4](0.36.4-RELEASE_NOTES.md) · [0.36.3](0.36.3-RELEASE_NOTES.md) · [0.36.2](0.36.2-RELEASE_NOTES.md) · [0.36.1](0.36.1-RELEASE_NOTES.md) · [0.36.0](0.36.0-RELEASE_NOTES.md) |
 | 0.35 | [0.35.5](0.35.5-RELEASE_NOTES.md) · [0.35.4](0.35.4-RELEASE_NOTES.md) · [0.35.3](0.35.3-RELEASE_NOTES.md) · [0.35.2](0.35.2-RELEASE_NOTES.md) · [0.35.1](0.35.1-RELEASE_NOTES.md) · [0.35.0](0.35.0-RELEASE_NOTES.md) |
 | 0.34 | [0.34.10](0.34.10-RELEASE_NOTES.md) · [0.34.9](0.34.9-RELEASE_NOTES.md) · [0.34.8](0.34.8-RELEASE_NOTES.md) · [0.34.7](0.34.7.md) · [0.34.6](0.34.6-RELEASE_NOTES.md) · [0.34.5](0.34.5-RELEASE_NOTES.md) · [0.34.4](0.34.4-RELEASE_NOTES.md) · [0.34.3](0.34.3-RELEASE_NOTES.md) · [0.34.2](0.34.2-RELEASE_NOTES.md) · [0.34.1](0.34.1-RELEASE_NOTES.md) · [0.34.0](0.34.0-RELEASE_NOTES.md) |
